@@ -3,23 +3,23 @@
 // =====================================================================
 
 const RESPONSAVEIS = [
-      { id: 'R001', nome: 'Marie Dupont', tipo: 'RESPONSAVEL', turma: null, foto_url: null, telefone: '+33 6 12 34 56 78' },
-      { id: 'R002', nome: 'Jean-Pierre Martin', tipo: 'RESPONSAVEL', turma: null, foto_url: null, telefone: '+33 6 98 76 54 32' },
-      { id: 'R003', nome: 'Sophie Bernard', tipo: 'RESPONSAVEL', turma: null, foto_url: null, telefone: '+33 6 55 44 33 22' },
-      { id: 'R004', nome: 'Claude Moreau', tipo: 'RESPONSAVEL', turma: null, foto_url: null, telefone: '+33 6 11 22 33 44' },
-      { id: 'R005', nome: 'Isabelle Leroy', tipo: 'RESPONSAVEL', turma: null, foto_url: null, telefone: '+33 6 77 88 99 00' },
+      { id: 'R001', nome: 'Marie Dupont', tipo: 'RESPONSAVEL', turma: null, foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=M&backgroundColor=8B5CF6', telefone: '+33 6 12 34 56 78', parentesco: 'Mãe' },
+      { id: 'R002', nome: 'Jean-Pierre Martin', tipo: 'RESPONSAVEL', turma: null, foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=J&backgroundColor=3B82F6', telefone: '+33 6 98 76 54 32', parentesco: 'Pai' },
+      { id: 'R003', nome: 'Sophie Bernard', tipo: 'RESPONSAVEL', turma: null, foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=S&backgroundColor=EC4899', telefone: '+33 6 55 44 33 22', parentesco: 'Mãe' },
+      { id: 'R004', nome: 'Claude Moreau', tipo: 'RESPONSAVEL', turma: null, foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=C&backgroundColor=10B981', telefone: '+33 6 11 22 33 44', parentesco: 'Pai' },
+      { id: 'R005', nome: 'Isabelle Leroy', tipo: 'RESPONSAVEL', turma: null, foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=I&backgroundColor=F59E0B', telefone: '+33 6 77 88 99 00', parentesco: 'Mãe' },
 ];
 
 const USERS = [
       // Alunos
-      { id: 'A001', nome: 'Lucas Dupont', tipo: 'ALUNO', turma: '6ème A', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=LD&backgroundColor=3B82F6', responsavel_id: 'R001' },
-      { id: 'A002', nome: 'Emma Martin', tipo: 'ALUNO', turma: '6ème B', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=EM&backgroundColor=8B5CF6', responsavel_id: 'R002' },
-      { id: 'A003', nome: 'Hugo Bernard', tipo: 'ALUNO', turma: '5ème A', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=HB&backgroundColor=EC4899', responsavel_id: 'R003' },
-      { id: 'A004', nome: 'Léa Moreau', tipo: 'ALUNO', turma: '5ème B', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=LM&backgroundColor=10B981', responsavel_id: 'R004' },
-      { id: 'A005', nome: 'Nathan Leroy', tipo: 'ALUNO', turma: '4ème A', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=NL&backgroundColor=F59E0B', responsavel_id: 'R005' },
-      { id: 'A006', nome: 'Chloé Petit', tipo: 'ALUNO', turma: '4ème B', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=CP&backgroundColor=EF4444', responsavel_id: 'R001' },
-      { id: 'A007', nome: 'Gabriel Roux', tipo: 'ALUNO', turma: '3ème A', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=GR&backgroundColor=6366F1', responsavel_id: 'R002' },
-      { id: 'A008', nome: 'Manon Fournier', tipo: 'ALUNO', turma: '3ème B', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=MF&backgroundColor=14B8A6', responsavel_id: 'R003' },
+      { id: 'A001', nome: 'Lucas Dupont', tipo: 'ALUNO', turma: '6ème A', turno: 'Manhã', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=LD&backgroundColor=3B82F6', responsavel_id: 'R001' },
+      { id: 'A002', nome: 'Emma Martin', tipo: 'ALUNO', turma: '6ème B', turno: 'Tarde', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=EM&backgroundColor=8B5CF6', responsavel_id: 'R002' },
+      { id: 'A003', nome: 'Hugo Bernard', tipo: 'ALUNO', turma: '5ème A', turno: 'Manhã', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=HB&backgroundColor=EC4899', responsavel_id: 'R003' },
+      { id: 'A004', nome: 'Léa Moreau', tipo: 'ALUNO', turma: '5ème B', turno: 'Tarde', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=LM&backgroundColor=10B981', responsavel_id: 'R004' },
+      { id: 'A005', nome: 'Nathan Leroy', tipo: 'ALUNO', turma: '4ème A', turno: 'Manhã', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=NL&backgroundColor=F59E0B', responsavel_id: 'R005' },
+      { id: 'A006', nome: 'Chloé Petit', tipo: 'ALUNO', turma: '4ème B', turno: 'Tarde', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=CP&backgroundColor=EF4444', responsavel_id: 'R001' },
+      { id: 'A007', nome: 'Gabriel Roux', tipo: 'ALUNO', turma: '3ème A', turno: 'Integral', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=GR&backgroundColor=6366F1', responsavel_id: 'R002' },
+      { id: 'A008', nome: 'Manon Fournier', tipo: 'ALUNO', turma: '3ème B', turno: 'Integral', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=MF&backgroundColor=14B8A6', responsavel_id: 'R003' },
       // Professores
       { id: 'P001', nome: 'Prof. Catherine Blanc', tipo: 'PROFESSOR', turma: 'Mathématiques', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=CB&backgroundColor=0C1B3A' },
       { id: 'P002', nome: 'Prof. Michel Duval', tipo: 'PROFESSOR', turma: 'Histoire-Géo', foto_url: 'https://api.dicebear.com/7.x/initials/svg?seed=MD&backgroundColor=0C1B3A' },

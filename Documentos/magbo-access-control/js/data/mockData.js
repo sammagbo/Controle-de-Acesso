@@ -33,9 +33,9 @@ const USERS = [
 ];
 
 const ACCESS_POINTS = [
-      { id: 'PORT1', nome: 'Portaria 1', icon: 'door-open', description: 'Entrada Principal', category: 'portaria' },
-      { id: 'PORT2', nome: 'Portaria 2', icon: 'door-closed', description: 'Entrada Lateral Norte', category: 'portaria' },
-      { id: 'PORT3', nome: 'Portaria 3', icon: 'door-closed', description: 'Entrada Lateral Sul', category: 'portaria' },
+      { id: 'PORT1', nome: 'Portail Principal', icon: 'door-open', description: 'Entrada Principal', category: 'portaria' },
+      { id: 'PORT2', nome: 'Portail Terrain', icon: 'door-closed', description: 'Entrada Lateral Norte', category: 'portaria' },
+      { id: 'PORT3', nome: 'Garage', icon: 'door-closed', description: 'Entrada Lateral Sul', category: 'portaria' },
       { id: 'BIBLIO', nome: 'Biblioteca', icon: 'book-open', description: 'Centre de Documentation', category: 'especial' },
       { id: 'ENFERM', nome: 'Enfermaria', icon: 'heart-pulse', description: 'Infirmerie', category: 'especial' },
       { id: 'REFEI1', nome: 'Refeitório 1', icon: 'utensils', description: 'Cantine Principale', category: 'refeitorio' },

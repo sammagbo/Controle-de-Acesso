@@ -8,6 +8,13 @@ function App() {
       const [activeTimers, setActiveTimers] = React.useState([]);
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
+      const [showSettings, setShowSettings] = React.useState(false);
+
+      React.useEffect(() => {
+            const handleOpenSettings = () => setShowSettings(true);
+            window.addEventListener('open-settings', handleOpenSettings);
+            return () => window.removeEventListener('open-settings', handleOpenSettings);
+      }, []);
 
       // ─────────────────────────────────────────────────────────────
       // processAccess — Core business logic
@@ -121,6 +128,13 @@ function App() {
                               user={accessModal.user}
                               bannerProps={accessModal.bannerProps}
                               onClose={() => setAccessModal(null)}
+                        />
+                  )}
+
+                  {showSettings && (
+                        <AppSettingsModal
+                              onClose={() => setShowSettings(false)}
+                              onShowToast={setToast}
                         />
                   )}
 

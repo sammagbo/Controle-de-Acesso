@@ -57,9 +57,9 @@ function App() {
             setAccessLogs(prev => [...prev, newLog]);
 
             // ── Trigger Access Modals ──
-            if (isPortaria(pointId) && user.tipo === 'ALUNO') {
-                  const responsavel = user.responsavel_id ? USERS.find(u => u.id === user.responsavel_id) : null;
-                  setAccessModal({ type: 'portaria', user, responsavel, logId: newLog.id });
+            if (isPortaria(pointId) && user.tipo === 'RESPONSAVEL') {
+                  const alunos = USERS.filter(u => u.tipo === 'ALUNO' && u.responsavel_id === user.id);
+                  setAccessModal({ type: 'portaria', responsavel: user, alunos, logId: newLog.id });
             } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
                   let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
 
@@ -70,7 +70,7 @@ function App() {
                   }
 
                   setAccessModal({ type: 'sector', user, bannerProps });
-            } else if (isPortaria(pointId) && user.tipo !== 'ALUNO') {
+            } else if (isPortaria(pointId) && user.tipo !== 'RESPONSAVEL') {
                   setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
             }
       }, [accessLogs]);
@@ -106,8 +106,8 @@ function App() {
 
                   {accessModal && accessModal.type === 'portaria' && (
                         <PortariaModal
-                              user={accessModal.user}
                               responsavel={accessModal.responsavel}
+                              alunos={accessModal.alunos}
                               onConfirm={() => setAccessModal(null)}
                               onCancel={() => {
                                     setAccessLogs(prev => prev.filter(l => l.id !== accessModal.logId));

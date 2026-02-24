@@ -36,10 +36,10 @@ const ACCESS_POINTS = [
       { id: 'PORT1', nome: 'Portail Principal', icon: 'door-open', description: 'Entrada Principal', category: 'portaria' },
       { id: 'PORT2', nome: 'Portail Terrain', icon: 'door-closed', description: 'Entrada Lateral Norte', category: 'portaria' },
       { id: 'PORT3', nome: 'Garage', icon: 'door-closed', description: 'Entrada Lateral Sul', category: 'portaria' },
-      { id: 'BIBLIO', nome: 'Biblioteca', icon: 'book-open', description: 'Centre de Documentation', category: 'especial' },
-      { id: 'ENFERM', nome: 'Enfermaria', icon: 'heart-pulse', description: 'Infirmerie', category: 'especial' },
-      { id: 'REFEI1', nome: 'Refeitório 1', icon: 'utensils', description: 'Cantine Principale', category: 'refeitorio' },
-      { id: 'REFEI2', nome: 'Refeitório 2', icon: 'utensils-crossed', description: 'Cantine Secondaire', category: 'refeitorio' },
+      { id: 'BIBLIO', nome: 'CDI - Biblioteca', icon: 'book-open', description: 'Centre de Documentation', category: 'especial' },
+      { id: 'ENFERM', nome: 'Infirmerie', icon: 'heart-pulse', description: 'Enfermaria', category: 'especial' },
+      { id: 'REFEI1', nome: 'Cantine Principale', icon: 'utensils', description: 'Refeitório 1', category: 'refeitorio' },
+      { id: 'REFEI2', nome: 'Cantine Secondaire', icon: 'utensils-crossed', description: 'Refeitório 2', category: 'refeitorio' },
 ];
 
 const TIPO_LABELS = {

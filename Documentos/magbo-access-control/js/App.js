@@ -7,6 +7,7 @@ function App() {
       const [accessLogs, setAccessLogs] = React.useState([]);
       const [activeTimers, setActiveTimers] = React.useState([]);
       const [toast, setToast] = React.useState(null);
+      const [accessModal, setAccessModal] = React.useState(null);
 
       // ─────────────────────────────────────────────────────────────
       // processAccess — Core business logic
@@ -22,6 +23,12 @@ function App() {
 
             const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
             const now = Date.now();
+
+            let isRefeicaoDuplicada = false;
+            if (pointId.startsWith('REFEI') && status === 'ENTRADA') {
+                  const hasEatenToday = accessLogs.some(l => l.userId === userId && l.pointId.startsWith('REFEI') && l.status === 'ENTRADA' && now - l.timestamp < 24 * 60 * 60 * 1000);
+                  if (hasEatenToday) isRefeicaoDuplicada = true;
+            }
 
             const newLog = {
                   id: `LOG-${now}-${Math.random().toString(36).substr(2, 5)}`,
@@ -47,16 +54,25 @@ function App() {
                   }
             }
 
-            // ── Special: Aluno at Portaria → show Responsável ──
-            if (user.tipo === 'ALUNO' && isPortaria(pointId) && user.responsavel_id) {
-                  setToast({
-                        responsavelId: user.responsavel_id,
-                        alunoNome: user.nome,
-                        timestamp: now,
-                  });
-            }
-
             setAccessLogs(prev => [...prev, newLog]);
+
+            // ── Trigger Access Modals ──
+            if (isPortaria(pointId) && user.tipo === 'ALUNO') {
+                  const responsavel = user.responsavel_id ? USERS.find(u => u.id === user.responsavel_id) : null;
+                  setAccessModal({ type: 'portaria', user, responsavel, logId: newLog.id });
+            } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
+                  let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
+
+                  if (isRefeicaoDuplicada) {
+                        bannerProps = { text: 'AVISO: REFEIÇÃO DUPLICADA', subtext: 'Refeição já registrada hoje', type: 'alert' };
+                  } else if (isEspecial(pointId) && status === 'ENTRADA') {
+                        bannerProps = { text: 'TEMPO DE PERMANÊNCIA RESTANTE 00:10', subtext: 'Timer iniciado', type: 'alert' };
+                  }
+
+                  setAccessModal({ type: 'sector', user, bannerProps });
+            } else if (isPortaria(pointId) && user.tipo !== 'ALUNO') {
+                  setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+            }
       }, [accessLogs]);
 
       // ── Biblioteca → Full CDI experience ──
@@ -87,6 +103,26 @@ function App() {
                   )}
 
                   <Toast toast={toast} onDismiss={() => setToast(null)} />
+
+                  {accessModal && accessModal.type === 'portaria' && (
+                        <PortariaModal
+                              user={accessModal.user}
+                              responsavel={accessModal.responsavel}
+                              onConfirm={() => setAccessModal(null)}
+                              onCancel={() => {
+                                    setAccessLogs(prev => prev.filter(l => l.id !== accessModal.logId));
+                                    setAccessModal(null);
+                              }}
+                        />
+                  )}
+
+                  {accessModal && accessModal.type === 'sector' && (
+                        <PermanenciaModal
+                              user={accessModal.user}
+                              bannerProps={accessModal.bannerProps}
+                              onClose={() => setAccessModal(null)}
+                        />
+                  )}
 
                   {/* Footer */}
                   <footer className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur border-t border-soft-200 z-40">

@@ -3,6 +3,7 @@ package com.magbo.access.controllers;
 import com.magbo.access.dto.AccessRequest;
 import com.magbo.access.models.AccessLog;
 import com.magbo.access.repositories.AccessLogRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,7 @@ public class AccessController {
     private final AccessLogRepository accessLogRepository;
 
     @PostMapping
-    public ResponseEntity<AccessLog> registerAccess(@RequestBody AccessRequest request) {
+    public ResponseEntity<AccessLog> registerAccess(@Valid @RequestBody AccessRequest request) {
         AccessLog log = AccessLog.builder()
                 .userId(request.getUserId())
                 .pointId(request.getPointId())

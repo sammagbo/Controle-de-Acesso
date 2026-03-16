@@ -4,14 +4,18 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "users")
-@Data
+@Table(name = "app_users")
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class User {
 
     @Id
+    @EqualsAndHashCode.Include
     private String id;
 
     @Column(nullable = false)
@@ -23,11 +27,13 @@ public class User {
 
     private String turma;
 
+    @Column(name = "foto_url")
     private String fotoUrl;
 
+    @Column(name = "responsavel_id")
     private String responsavelId;
 
-    @Column(nullable = false)
+    @Column(name = "meal_count", nullable = false)
     @Builder.Default
     private Integer mealCount = 0;
 }

@@ -5,13 +5,17 @@ import lombok.*;
 
 @Entity
 @Table(name = "responsaveis")
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Responsavel {
 
     @Id
+    @EqualsAndHashCode.Include
     private String id;
 
     @Column(nullable = false)
@@ -21,5 +25,6 @@ public class Responsavel {
 
     private String telefone;
 
+    @Column(name = "foto_url")
     private String fotoUrl;
 }

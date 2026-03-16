@@ -1,0 +1,12 @@
+target/
+apache-maven-*
+*.jar
+*.war
+*.zip
+*.log
+.mvn/
+mvnw
+mvnw.cmd
+.idea/
+*.iml
+.vscode/

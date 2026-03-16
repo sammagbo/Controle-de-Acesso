@@ -64,9 +64,18 @@ function App() {
             setAccessLogs(prev => [...prev, newLog]);
 
             // ── Trigger Access Modals ──
-            if (isPortaria(pointId) && user.tipo === 'RESPONSAVEL') {
-                  const alunos = USERS.filter(u => u.tipo === 'ALUNO' && u.responsavel_id === user.id);
-                  setAccessModal({ type: 'portaria', responsavel: user, alunos, logId: newLog.id });
+            if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
+                  let responsavel = user;
+                  if (user.tipo === 'ALUNO' && user.responsavel_id) {
+                        responsavel = USERS.find(u => u.id === user.responsavel_id) || user;
+                  }
+
+                  if (responsavel.tipo === 'RESPONSAVEL') {
+                        const alunos = USERS.filter(u => u.tipo === 'ALUNO' && u.responsavel_id === responsavel.id);
+                        setAccessModal({ type: 'portaria', responsavel, alunos, logId: newLog.id });
+                  } else {
+                        setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+                  }
             } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
                   let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
 
@@ -77,7 +86,7 @@ function App() {
                   }
 
                   setAccessModal({ type: 'sector', user, bannerProps });
-            } else if (isPortaria(pointId) && user.tipo !== 'RESPONSAVEL') {
+            } else if (isPortaria(pointId)) {
                   setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
             }
       }, [accessLogs]);

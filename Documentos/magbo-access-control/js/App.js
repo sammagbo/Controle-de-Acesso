@@ -9,12 +9,16 @@ function App() {
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
       const [showSettings, setShowSettings] = React.useState(false);
+<<<<<<< HEAD
       const [adminView, setAdminView] = React.useState(false);
 
       const handleAdminToggle = React.useCallback((enabled) => {
             setAdminView(enabled);
             if (enabled) setCurrentPoint(null); // clear sector when entering admin
       }, []);
+=======
+      const [apiError, setApiError] = React.useState(false);
+>>>>>>> 0da2550 (integração)
 
       React.useEffect(() => {
             const handleOpenSettings = () => setShowSettings(true);
@@ -22,6 +26,7 @@ function App() {
             return () => window.removeEventListener('open-settings', handleOpenSettings);
       }, []);
 
+<<<<<<< HEAD
       // Reconstruir logs globais e timers dinamicamente ao abrir um Setor (F5 / Reload proof)
       React.useEffect(() => {
             if (!currentPoint) return;
@@ -31,11 +36,46 @@ function App() {
                         
                         // Guard: ensure logs is always an array
                         if (!Array.isArray(logs)) { setAccessLogs([]); return; }
+=======
+      // ─────────────────────────────────────────────────────────────
+      // Load historical logs when selecting a point
+      // ─────────────────────────────────────────────────────────────
+      React.useEffect(() => {
+            if (!currentPoint) return;
+
+            let cancelled = false;
+            (async () => {
+                  try {
+                        const remoteLogs = await fetchLogs(currentPoint.id);
+                        if (!cancelled) {
+                              setAccessLogs(prev => {
+                                    // Merge: keep logs for other points + replace with server data for this point
+                                    const otherLogs = prev.filter(l => l.pointId !== currentPoint.id);
+                                    return [...otherLogs, ...remoteLogs];
+                              });
+                              setApiError(false);
+                        }
+                  } catch (err) {
+                        if (!cancelled) setApiError(true);
+                  }
+            })();
+
+            return () => { cancelled = true; };
+      }, [currentPoint]);
+
+      // ─────────────────────────────────────────────────────────────
+      // processAccess — Core business logic (now async + API)
+      // ─────────────────────────────────────────────────────────────
+      const processAccess = React.useCallback(async (userId, pointId) => {
+            const user = USERS.find(u => u.id === userId);
+            if (!user) return;
+>>>>>>> 0da2550 (integração)
 
                         // Normaliza logs recebidos do backend
                         const normalizedLogs = logs.map(l => ({ ...l, status: l.action || l.status }));
                         setAccessLogs(normalizedLogs);
 
+<<<<<<< HEAD
                         if (isEspecial(currentPoint.id) || currentPoint.id.startsWith('REFEI')) {
                               const latestByUser = {};
                               normalizedLogs.forEach(l => {
@@ -56,6 +96,50 @@ function App() {
                                                 startTime: safeDateParse(log.timestamp) 
                                           });
                                     }
+=======
+            const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
+            const now = Date.now();
+
+            let isRefeicaoDuplicada = false;
+            if (pointId.startsWith('REFEI') && status === 'ENTRADA') {
+                  const hasEatenToday = accessLogs.some(l => l.userId === userId && l.pointId.startsWith('REFEI') && l.status === 'ENTRADA' && now - l.timestamp < 24 * 60 * 60 * 1000);
+                  if (hasEatenToday) isRefeicaoDuplicada = true;
+            }
+
+            // ── Call the API to persist ──
+            let savedLog;
+            try {
+                  savedLog = await registerAccess({
+                        userId,
+                        pointId,
+                        action: status,          // "ENTRADA" or "SAIDA"
+                  });
+                  setApiError(false);
+            } catch (err) {
+                  setApiError(true);
+                  return;                          // Don't update UI if server is offline
+            }
+
+            if (!savedLog) {
+                  setApiError(true);
+                  return;
+            }
+
+            const newLog = {
+                  ...savedLog,
+                  duration: null,
+            };
+
+            // ── Special: Biblioteca / Enfermaria timer ──
+            if (isEspecial(pointId)) {
+                  if (status === 'ENTRADA') {
+                        setActiveTimers(prev => [...prev, { userId, pointId, startTime: now }]);
+                  } else {
+                        setActiveTimers(prev => {
+                              const timer = prev.find(t => t.userId === userId && t.pointId === pointId);
+                              if (timer) {
+                                    newLog.duration = now - timer.startTime;
+>>>>>>> 0da2550 (integração)
                               }
                               setActiveTimers(newTimers);
                         }
@@ -223,6 +307,22 @@ function App() {
             )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />
 
+                  {/* ── API Error Toast ── */}
+                  {apiError && (
+                        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] animate-toast">
+                              <div className="flex items-center gap-3 bg-danger-500 text-white px-5 py-3 rounded-xl shadow-2xl">
+                                    <LucideIcon name="wifi-off" size={20} className="text-white" />
+                                    <div>
+                                          <p className="text-sm font-bold">Servidor Offline</p>
+                                          <p className="text-xs text-white/80">Não foi possível comunicar com o backend</p>
+                                    </div>
+                                    <button onClick={() => setApiError(false)} className="ml-3 p-1 rounded-lg hover:bg-white/20 transition-colors">
+                                          <LucideIcon name="x" size={16} className="text-white" />
+                                    </button>
+                              </div>
+                        </div>
+                  )}
+
                   {accessModal && accessModal.type === 'portaria' && (
                         <PortariaModal
                               responsavel={accessModal.responsavel}
@@ -257,8 +357,10 @@ function App() {
                                     MAGBO Access Control v1.0 · Lycée Molière · 2026
                               </p>
                               <div className="flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse" />
-                                    <span className="text-[11px] text-slate-400 font-medium">Sistema Operacional</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${apiError ? 'bg-danger-500' : 'bg-success-500'} animate-pulse`} />
+                                    <span className="text-[11px] text-slate-400 font-medium">
+                                          {apiError ? 'Servidor Offline' : 'Sistema Operacional'}
+                                    </span>
                               </div>
                         </div>
                   </footer>

@@ -4,6 +4,8 @@
 
 function SectorView({ point, accessLogs, onProcess, activeTimers }) {
       const [searchQuery, setSearchQuery] = React.useState('');
+      const [searchResults, setSearchResults] = React.useState([]);
+      const [isSearching, setIsSearching] = React.useState(false);
       const searchRef = React.useRef(null);
       const logListRef = React.useRef(null);
 
@@ -15,7 +17,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
             if (logListRef.current) logListRef.current.scrollTop = 0;
       }, [accessLogs]);
 
-      const searchResults = React.useMemo(() => {
+      // ── Local filtering (name / turma) as user types ──
+      const localResults = React.useMemo(() => {
             if (!searchQuery.trim()) return [];
             const q = searchQuery.toLowerCase().trim();
             return USERS.filter(u =>
@@ -24,6 +27,33 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                   (u.turma && u.turma.toLowerCase().includes(q))
             ).slice(0, 8);
       }, [searchQuery]);
+
+      // Show local results while typing; API results override when a badge search completes
+      const displayResults = searchResults.length > 0 ? searchResults : localResults;
+
+      // ── Badge search via API on Enter ──
+      const handleKeyDown = async (e) => {
+            if (e.key !== 'Enter') return;
+            const q = searchQuery.trim();
+            if (!q) return;
+
+            setIsSearching(true);
+            setSearchResults([]);
+            try {
+                  const data = await fetchUser(q);
+                  if (data && data.user) {
+                        setSearchResults([data.user]);
+                  } else {
+                        // No API result — fall back to local filtering (already shown)
+                        setSearchResults([]);
+                  }
+            } catch (err) {
+                  // Network error — keep local results visible
+                  setSearchResults([]);
+            } finally {
+                  setIsSearching(false);
+            }
+      };
 
       const pointLogs = React.useMemo(() => {
             return accessLogs
@@ -34,6 +64,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
       const handleSelectUser = (user) => {
             onProcess(user.id, point.id);
             setSearchQuery('');
+            setSearchResults([]);
             if (searchRef.current) searchRef.current.focus();
       };
 
@@ -69,13 +100,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                       ref={searchRef}
                                                       type="text"
                                                       value={searchQuery}
-                                                      onChange={(e) => setSearchQuery(e.target.value)}
-                                                      placeholder="Ler Cartão ou buscar nome..."
+                                                      onChange={(e) => { setSearchQuery(e.target.value); setSearchResults([]); }}
+                                                      onKeyDown={handleKeyDown}
+                                                      placeholder="Ler Cartão ou buscar nome... (Enter para buscar)"
                                                       className="w-full pl-12 pr-4 py-3.5 bg-white rounded-xl text-sm font-medium text-navy-500 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg animate-pulse-glow"
                                                 />
                                                 {searchQuery && (
                                                       <button
-                                                            onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+                                                            onClick={() => { setSearchQuery(''); setSearchResults([]); searchRef.current?.focus(); }}
                                                             className="absolute inset-y-0 right-0 pr-4 flex items-center"
                                                       >
                                                             <LucideIcon name="x-circle" size={18} className="text-slate-400 hover:text-slate-600" />
@@ -86,14 +118,26 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
 
                                     {/* Search Results */}
                                     <div className="max-h-[calc(100vh-380px)] overflow-y-auto">
-                                          {searchQuery.trim() && searchResults.length === 0 && (
+                                          {/* Loading spinner */}
+                                          {isSearching && (
+                                                <div className="p-6 text-center">
+                                                      <div className="w-6 h-6 border-2 border-accent-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                                                      <p className="text-xs text-slate-400">Buscando na base de dados...</p>
+                                                </div>
+                                          )}
+                                          {!isSearching && searchQuery.trim() && displayResults.length === 0 && (
                                                 <div className="p-8 text-center">
                                                       <LucideIcon name="search-x" size={40} className="text-slate-300 mx-auto mb-3" />
                                                       <p className="text-sm text-slate-400">Nenhum resultado para "{searchQuery}"</p>
                                                 </div>
                                           )}
+<<<<<<< HEAD
                                           {searchResults.map((user, idx) => {
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
+=======
+                                          {!isSearching && displayResults.map((user, idx) => {
+                                                const tipoInfo = TIPO_LABELS[user.tipo];
+>>>>>>> 0da2550 (integração)
                                                 return (
                                                       <button
                                                             key={user.id}

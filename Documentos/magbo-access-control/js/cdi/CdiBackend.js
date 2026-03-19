@@ -9,91 +9,97 @@ const CdiBackend = {
 
       // Students
       getStudents: async () => {
-            return CdiBackend._get(CDI_STORAGE.students);
-      },
+            const globalUsers = window.USERS || [];
+            
+            let activeLogMap = {};
+            try {
+                // Sincroniza presenças em tempo real com o backend Java!
+                if (window.api && window.api.fetchLogs) {
+                    const logs = await window.api.fetchLogs('BIBLIO');
+                    const latest = {};
+                    logs.forEach(l => {
+                        const lTime = new Date(l.timestamp).getTime();
+                        if (!latest[l.userId] || lTime > latest[l.userId].time) {
+                            latest[l.userId] = { action: l.action || l.status, time: lTime };
+                        }
+                    });
+                    
+                    for (const uId in latest) {
+                        if (latest[uId].action === 'ENTRADA') {
+                            activeLogMap[uId] = latest[uId].time;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to fetch logs for Biblioteca presence", e);
+            }
 
-      addStudent: async (student) => {
-            const students = CdiBackend._get(CDI_STORAGE.students);
-            if (students.some(s => s.id === student.id)) throw new Error('ID existe déjà');
-            const newStudent = { ...student, present: false, lastEntry: null };
-            students.push(newStudent);
-            CdiBackend._set(CDI_STORAGE.students, students);
-            return newStudent;
-      },
-
-      updateStudent: async (id, updates) => {
-            const students = CdiBackend._get(CDI_STORAGE.students);
-            const index = students.findIndex(s => s.id === id);
-            if (index === -1) throw new Error('Étudiant introuvable');
-            const updated = { ...students[index], ...updates };
-            students[index] = updated;
-            CdiBackend._set(CDI_STORAGE.students, students);
-            return updated;
-      },
-
-      deleteStudent: async (id) => {
-            const students = CdiBackend._get(CDI_STORAGE.students);
-            const filtered = students.filter(s => s.id !== id);
-            if (filtered.length === students.length) throw new Error('Étudiant introuvable');
-            CdiBackend._set(CDI_STORAGE.students, filtered);
-            // Remove from logs and present list too? Ideally yes, but keeping it simple for now
-            return true;
-      },
-
-      // Scanning & Presence
-      scanStudent: async (id) => {
-            const students = CdiBackend._get(CDI_STORAGE.students);
-            const index = students.findIndex(s => s.id === id);
-            if (index === -1) throw { status: 404, message: 'Carte inconnue' };
-
-            const student = students[index];
-            const isEntering = !student.present;
-            const now = Date.now();
-
-            // Toggle presence
-            student.present = isEntering;
-            if (isEntering) student.lastEntry = now;
-
-            // Update Student
-            students[index] = student;
-            CdiBackend._set(CDI_STORAGE.students, students);
-
-            // Create Log
-            const logs = CdiBackend._get(CDI_STORAGE.logs);
-            logs.push({
-                  studentId: id,
-                  action: isEntering ? 'IN' : 'OUT',
-                  timestamp: now
+            return globalUsers.map(u => {
+                const parts = u.nome.split(' ');
+                const isPresent = !!activeLogMap[u.id];
+                return {
+                    id: u.id,
+                    firstName: parts[0] || u.nome,
+                    lastName: parts.slice(1).join(' ') || '',
+                    studentClass: u.turma || u.horario_saida || (u.tipo === 'RESPONSAVEL' ? 'Responsável' : u.tipo),
+                    present: isPresent,
+                    lastEntry: isPresent ? activeLogMap[u.id] : null
+                };
             });
-            CdiBackend._set(CDI_STORAGE.logs, logs);
+      },
 
-            return student;
+      addStudent: async (student) => { throw new Error('Utilize o painel principal de configurações do App para cadastrar usuários.'); },
+      updateStudent: async (id, updates) => { throw new Error('Somente leitura no CDI.'); },
+      deleteStudent: async (id) => { throw new Error('Não suportado.'); },
+
+      // Scanning & Presence connect to Java API
+      scanStudent: async (id) => {
+            const user = window.USERS?.find(u => u.id === id);
+            if (!user) throw { status: 404, message: 'Carte inconnue' };
+
+            const students = await CdiBackend.getStudents();
+            const studentState = students.find(s => s.id === id) || { id, firstName: user.nome.split(' ')[0], present: false };
+            
+            const isEntering = !studentState.present;
+            const action = isEntering ? 'ENTRADA' : 'SAIDA';
+            
+            try {
+                if (window.api && window.api.registerAccess) {
+                    await window.api.registerAccess(id, 'BIBLIO', action);
+                }
+            } catch(e) {
+                console.error(e);
+                throw { status: 500, message: 'Erro na API' };
+            }
+
+            studentState.present = isEntering;
+            studentState.lastEntry = isEntering ? Date.now() : null;
+            
+            return studentState;
       },
 
       // Logs
+      // Logs mapped from Java API
       getLogs: async () => {
-            return CdiBackend._get(CDI_STORAGE.logs);
+            try {
+                if (window.api && window.api.fetchLogs) {
+                    const logs = await window.api.fetchLogs('BIBLIO');
+                    return logs.map(l => ({
+                        studentId: l.userId, 
+                        action: (l.action || l.status) === 'ENTRADA' ? 'IN' : 'OUT', 
+                        timestamp: new Date(l.timestamp).getTime()
+                    }));
+                }
+            } catch (e) { console.error(e); }
+            return [];
       },
 
-      clearLogs: async () => {
-            CdiBackend._set(CDI_STORAGE.logs, []);
-            // Also reset presence?
-            const students = CdiBackend._get(CDI_STORAGE.students);
-            const resetStudents = students.map(s => ({ ...s, present: false }));
-            CdiBackend._set(CDI_STORAGE.students, resetStudents);
-            return true;
-      },
+      clearLogs: async () => { throw new Error('Não suportado. Backups são lidos do servidor Java Central.'); },
 
       // Bulk Import
+      // Bulk Import (Disabled natively, handled by Master App)
       importStudents: async (newStudents) => {
-            const current = CdiBackend._get(CDI_STORAGE.students);
-            const existingIds = new Set(current.map(s => s.id));
-            const toAdd = newStudents.filter(s => !existingIds.has(s.id)).map(s => ({
-                  ...s, present: false, lastEntry: null
-            }));
-            const final = [...current, ...toAdd];
-            CdiBackend._set(CDI_STORAGE.students, final);
-            return { added: toAdd.length, total: final.length };
+            return { added: 0, total: window.USERS ? window.USERS.length : 0 };
       },
 
       // Full Restore (Backup)

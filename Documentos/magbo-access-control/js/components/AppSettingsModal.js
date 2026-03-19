@@ -10,7 +10,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
         nome: '',
         tipo: 'ALUNO',
         turma: '',
-        turno: '',
+        horario_saida: '',
         parentesco: '',
         telefone: '',
         responsavel_id: ''
@@ -60,7 +60,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             nome: row.Nome,
                             tipo: row.Tipo || 'ALUNO',
                             turma: row.Turma || '',
-                            turno: row.Turno || '',
+                            horario_saida: row.HorarioSaida || '',
                             foto_url: row.Foto || `https://api.dicebear.com/7.x/initials/svg?seed=${row.Nome.replace(' ', '')}&backgroundColor=3B82F6`
                         };
 
@@ -90,7 +90,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
                 <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Cadastro via Excel</h3>
                 <p className="text-sm text-slate-500 mb-6">
-                    Envie uma planilha com as colunas: <strong>ID, Nome, Tipo, Turma, Turno, Telefone, Parentesco</strong>.
+                    Envie uma planilha com as colunas: <strong>ID, Nome, Tipo, Turma, HorarioSaida, Telefone, Parentesco</strong>.
                 </p>
 
                 <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
@@ -119,7 +119,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
             nome: manualForm.nome,
             tipo: manualForm.tipo,
             turma: manualForm.turma,
-            turno: manualForm.turno,
+            horario_saida: manualForm.horario_saida,
             foto_url: `https://api.dicebear.com/7.x/initials/svg?seed=${manualForm.nome.replace(' ', '')}&backgroundColor=10B981`
         };
 
@@ -137,7 +137,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
         // Reset form
         setManualForm({
-            nome: '', tipo: 'ALUNO', turma: '', turno: '', parentesco: '', telefone: '', responsavel_id: ''
+            nome: '', tipo: 'ALUNO', turma: '', horario_saida: '', parentesco: '', telefone: '', responsavel_id: ''
         });
     };
 
@@ -182,17 +182,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Turno</label>
-                                <select
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Horário de Saída (Turma)</label>
+                                <input
+                                    type="time"
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
-                                    value={manualForm.turno}
-                                    onChange={e => setManualForm({ ...manualForm, turno: e.target.value })}
-                                >
-                                    <option value="">Selecione</option>
-                                    <option value="Manhã">Manhã</option>
-                                    <option value="Tarde">Tarde</option>
-                                    <option value="Integral">Integral</option>
-                                </select>
+                                    value={manualForm.horario_saida}
+                                    onChange={e => setManualForm({ ...manualForm, horario_saida: e.target.value })}
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">ID do Responsável</label>

@@ -13,7 +13,7 @@ function createWindow() {
             title: "MAGBO Access Control"
       });
 
-      win.loadFile(path.join(__dirname, 'Documentos', 'magbo-access-control', 'index.html'));
+      win.loadFile(path.join(__dirname, 'index.html'));
 }
 
 app.whenReady().then(createWindow);

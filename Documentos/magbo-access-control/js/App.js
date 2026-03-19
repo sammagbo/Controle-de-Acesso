@@ -16,80 +16,146 @@ function App() {
             return () => window.removeEventListener('open-settings', handleOpenSettings);
       }, []);
 
-      // ─────────────────────────────────────────────────────────────
-      // processAccess — Core business logic
-      // ─────────────────────────────────────────────────────────────
-      const processAccess = React.useCallback((userId, pointId) => {
-            const user = USERS.find(u => u.id === userId);
-            if (!user) return;
+      // Reconstruir logs globais e timers dinamicamente ao abrir um Setor (F5 / Reload proof)
+      React.useEffect(() => {
+            if (!currentPoint) return;
+            const loadPointData = async () => {
+                  try {
+                        const logs = await window.api.fetchLogs(currentPoint.id);
+                        
+                        // Normaliza logs recebidos do backend
+                        const normalizedLogs = logs.map(l => ({ ...l, status: l.action }));
+                        setAccessLogs(normalizedLogs);
 
-            // Determine status: toggle based on last log at this point
-            const lastLog = [...accessLogs]
-                  .filter(l => l.userId === userId && l.pointId === pointId)
-                  .sort((a, b) => b.timestamp - a.timestamp)[0];
-
-            const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
-            const now = Date.now();
-
-            let isRefeicaoDuplicada = false;
-            if (pointId.startsWith('REFEI') && status === 'ENTRADA') {
-                  const hasEatenToday = accessLogs.some(l => l.userId === userId && l.pointId.startsWith('REFEI') && l.status === 'ENTRADA' && now - l.timestamp < 24 * 60 * 60 * 1000);
-                  if (hasEatenToday) isRefeicaoDuplicada = true;
-            }
-
-            const newLog = {
-                  id: `LOG-${now}-${Math.random().toString(36).substr(2, 5)}`,
-                  userId,
-                  pointId,
-                  status,
-                  timestamp: now,
-                  duration: null,
-            };
-
-            // ── Special: Biblioteca / Enfermaria timer ──
-            if (isEspecial(pointId)) {
-                  if (status === 'ENTRADA') {
-                        setActiveTimers(prev => [...prev, { userId, pointId, startTime: now }]);
-                  } else {
-                        setActiveTimers(prev => {
-                              const timer = prev.find(t => t.userId === userId && t.pointId === pointId);
-                              if (timer) {
-                                    newLog.duration = now - timer.startTime;
+                        if (isEspecial(currentPoint.id) || currentPoint.id.startsWith('REFEI')) {
+                              const latestByUser = {};
+                              normalizedLogs.forEach(l => {
+                                    if (!latestByUser[l.userId] || new Date(l.timestamp).getTime() > new Date(latestByUser[l.userId].timestamp).getTime()) {
+                                          latestByUser[l.userId] = l;
+                                    }
+                              });
+                              
+                              const newTimers = [];
+                              for (const uId in latestByUser) {
+                                    const log = latestByUser[uId];
+                                    if (log.status === 'ENTRADA') {
+                                          newTimers.push({ 
+                                                userId: uId, 
+                                                pointId: currentPoint.id, 
+                                                startTime: new Date(log.timestamp).getTime() 
+                                          });
+                                    }
                               }
-                              return prev.filter(t => !(t.userId === userId && t.pointId === pointId));
-                        });
+                              setActiveTimers(newTimers);
+                        }
+                  } catch (e) {
+                        setToast({ title: 'Erro de Comunicação com o Servidor', message: e.message, type: 'error' });
                   }
-            }
+            };
+            loadPointData();
+      }, [currentPoint]);
 
-            setAccessLogs(prev => [...prev, newLog]);
+      // ─────────────────────────────────────────────────────────────
+      // processAccess — Lógica de Negócio Assíncrona Integrada (API)
+      // ─────────────────────────────────────────────────────────────
+      const processAccess = React.useCallback(async (userId, pointId) => {
+            try {
+                  // 1. Busca Segura do Usuário com Tratamento Contínuo 
+                  const data = await window.api.fetchUser(userId);
+                  const user = data.user;
+                  const responsavel = data.responsavel || user;
 
-            // ── Trigger Access Modals ──
-            if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
-                  let responsavel = user;
-                  if (user.tipo === 'ALUNO' && user.responsavel_id) {
-                        responsavel = USERS.find(u => u.id === user.responsavel_id) || user;
+                  const lastLog = [...accessLogs]
+                        .filter(l => l.userId === userId && l.pointId === pointId)
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+                  const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
+                  const now = Date.now();
+
+                  // Regra de Negócio: Bloqueio de Saída Precoce na Cantina (10 minutos) APENAS PARA ALUNOS
+                  let errorTempoMinimo = false;
+                  if (pointId.startsWith('REFEI') && status === 'SAIDA' && user.tipo === 'ALUNO') {
+                        const timer = activeTimers.find(t => t.userId === userId && t.pointId === pointId);
+                        if (timer && (now - timer.startTime < 10 * 60 * 1000)) { // 10 minutes
+                              errorTempoMinimo = true;
+                        }
                   }
 
-                  if (responsavel.tipo === 'RESPONSAVEL') {
-                        const alunos = USERS.filter(u => u.tipo === 'ALUNO' && u.responsavel_id === responsavel.id);
-                        setAccessModal({ type: 'portaria', responsavel, alunos, logId: newLog.id });
+                  // 2. Registro no Backend com análise de Duplicidade (Constraint: Refeitório)
+                  let isRefeicaoDuplicada = false;
+                  let newLog;
+                  
+                  if (errorTempoMinimo) {
+                        // Não bate na API. Simula evento local para acionar o Modal Vermelho.
+                        newLog = { id: `block-${now}`, userId, pointId, status: 'ENTRADA', timestamp: new Date().toISOString() };
                   } else {
+                        try {
+                              newLog = await window.api.registerAccess(userId, pointId, status);
+                              newLog.status = newLog.action || status;
+                              if (!newLog.timestamp) newLog.timestamp = new Date().toISOString();
+                        } catch (error) {
+                              if (error.message === 'DUPLICATE_MEAL' || error.message.includes('Duplicidade')) {
+                                    isRefeicaoDuplicada = true;
+                                    newLog = { id: `dup-${now}`, userId, pointId, status: 'ENTRADA', timestamp: new Date().toISOString() };
+                              } else {
+                                    throw error; // Propaga erro crítico (500/404)
+                              }
+                        }
+                  }
+
+                  // 3. Regra Especial Biblioteca & Refeitório: Atualiza Timers p/ Relógio e Bloqueio
+                  if ((isEspecial(pointId) || pointId.startsWith('REFEI')) && !isRefeicaoDuplicada && !errorTempoMinimo) {
+                        if (status === 'ENTRADA') {
+                              setActiveTimers(prev => [...prev, { userId, pointId, startTime: now }]);
+                        } else {
+                              setActiveTimers(prev => prev.filter(t => !(t.userId === userId && t.pointId === pointId)));
+                        }
+                  }
+
+                  if (!isRefeicaoDuplicada && !errorTempoMinimo) {
+                        setAccessLogs(prev => [...prev, newLog]);
+                  }
+
+                  // 4. Acionamento Robusto de Modais 
+                  if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
+                        // Modal Duplo Exclusivo para Portarias
+                        if (responsavel && responsavel.tipo === 'RESPONSAVEL') {
+                              setAccessModal({ type: 'portaria', responsavel, alunos: [user], logId: newLog.id });
+                        } else {
+                              setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+                        }
+                  } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
+                        let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
+
+                        if (errorTempoMinimo) {
+                              bannerProps = { text: 'ACESSO BLOQUEADO', subtext: 'Tempo mínimo (10 min) não atingido. Retorne à cantina.', type: 'alert' };
+                        } else if (isRefeicaoDuplicada) {
+                              // Constraint 3 (Refeitório): Banner Vemelho Central Absoluto!
+                              bannerProps = { text: 'AVISO REFEIÇÃO DUPLICADA', subtext: 'Refeição já registrada hoje no Servidor', type: 'alert' };
+
+                        } else if (isEspecial(pointId)) {
+                              if (status === 'ENTRADA') {
+                                    bannerProps = { text: 'TEMPO DE PERMANÊNCIA MAX 02:00', subtext: 'Timer iniciado', type: 'success' };
+                              } else {
+                                    // SAIDA
+                                    const timer = activeTimers.find(t => t.userId === userId && t.pointId === pointId);
+                                    if (timer && (now - timer.startTime > 7200 * 1000)) {
+                                          bannerProps = { text: 'TEMPO MÁXIMO EXCEDIDO', subtext: 'Permaneceu mais de 2h (7200s)', type: 'alert' };
+                                    } else {
+                                          bannerProps = { text: 'SAÍDA LIBERADA', subtext: 'Dentro do tempo', type: 'success' };
+                                    }
+                              }
+                        }
+                        setAccessModal({ type: 'sector', user, bannerProps });
+                  } else {
+                        // Portaria Normal (Funcionário/Prof) e afins..
                         setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
                   }
-            } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
-                  let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
-
-                  if (isRefeicaoDuplicada) {
-                        bannerProps = { text: 'AVISO: REFEIÇÃO DUPLICADA', subtext: 'Refeição já registrada hoje', type: 'alert' };
-                  } else if (isEspecial(pointId) && status === 'ENTRADA') {
-                        bannerProps = { text: 'TEMPO DE PERMANÊNCIA RESTANTE 00:10', subtext: 'Timer iniciado', type: 'alert' };
-                  }
-
-                  setAccessModal({ type: 'sector', user, bannerProps });
-            } else if (isPortaria(pointId)) {
-                  setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+            } catch (error) {
+                  // Constraint 4: Try/Catch super resiliente contra quedas de Backend
+                  setToast({ title: 'Erro de Comunicação com o Servidor', message: error.message || 'Desconhecido', type: 'error' });
             }
-      }, [accessLogs]);
+      }, [accessLogs, activeTimers, currentPoint]);
 
       // ── Biblioteca → Full CDI experience ──
       if (currentPoint && currentPoint.id === 'BIBLIO') {

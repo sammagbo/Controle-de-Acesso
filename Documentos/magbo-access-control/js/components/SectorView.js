@@ -19,8 +19,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
             if (!searchQuery.trim()) return [];
             const q = searchQuery.toLowerCase().trim();
             return USERS.filter(u =>
-                  u.nome.toLowerCase().includes(q) ||
-                  u.id.toLowerCase().includes(q) ||
+                  (u.nome || '').toLowerCase().includes(q) ||
+                  (u.id || '').toLowerCase().includes(q) ||
                   (u.turma && u.turma.toLowerCase().includes(q))
             ).slice(0, 8);
       }, [searchQuery]);
@@ -28,7 +28,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
       const pointLogs = React.useMemo(() => {
             return accessLogs
                   .filter(log => log.pointId === point.id)
-                  .sort((a, b) => b.timestamp - a.timestamp);
+                  .sort((a, b) => safeDateParse(b.timestamp) - safeDateParse(a.timestamp));
       }, [accessLogs, point.id]);
 
       const handleSelectUser = (user) => {
@@ -93,7 +93,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                 </div>
                                           )}
                                           {searchResults.map((user, idx) => {
-                                                const tipoInfo = TIPO_LABELS[user.tipo];
+                                                const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 return (
                                                       <button
                                                             key={user.id}
@@ -101,7 +101,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                             className="w-full flex items-center gap-4 p-4 hover:bg-soft-50 border-b border-soft-100 transition-colors text-left group animate-fade-in"
                                                             style={{ animationDelay: `${idx * 0.05}s` }}
                                                       >
-                                                            <img src={user.foto_url} alt="" className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0" />
+                                                            <img src={user.foto_url || DEFAULT_AVATAR} alt="" className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0" onError={handleImgError} />
                                                             <div className="flex-1 min-w-0">
                                                                   <p className="text-sm font-bold text-navy-500 truncate">{user.nome}</p>
                                                                   <div className="flex items-center gap-2 mt-1">
@@ -158,9 +158,9 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                           {pointLogs.map((log, idx) => {
                                                 const user = USERS.find(u => u.id === log.userId);
                                                 if (!user) return null;
-                                                const tipoInfo = TIPO_LABELS[user.tipo];
+                                                const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 const isEntrada = log.status === 'ENTRADA';
-                                                const time = new Date(log.timestamp);
+                                                const time = new Date(safeDateParse(log.timestamp));
                                                 return (
                                                       <div
                                                             key={log.id}
@@ -168,7 +168,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                             style={{ animationDelay: `${idx * 0.03}s` }}
                                                       >
                                                             <div className="relative flex-shrink-0">
-                                                                  <img src={user.foto_url} alt="" className="w-11 h-11 rounded-xl shadow-sm" />
+                                                                  <img src={user.foto_url || DEFAULT_AVATAR} alt="" className="w-11 h-11 rounded-xl shadow-sm" onError={handleImgError} />
                                                                   <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${isEntrada ? 'bg-success-500' : 'bg-danger-500'}`}>
                                                                         <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={10} className="text-white" />
                                                                   </span>

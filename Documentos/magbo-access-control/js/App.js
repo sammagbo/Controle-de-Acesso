@@ -9,6 +9,12 @@ function App() {
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
       const [showSettings, setShowSettings] = React.useState(false);
+      const [adminView, setAdminView] = React.useState(false);
+
+      const handleAdminToggle = React.useCallback((enabled) => {
+            setAdminView(enabled);
+            if (enabled) setCurrentPoint(null); // clear sector when entering admin
+      }, []);
 
       React.useEffect(() => {
             const handleOpenSettings = () => setShowSettings(true);
@@ -23,14 +29,19 @@ function App() {
                   try {
                         const logs = await window.api.fetchLogs(currentPoint.id);
                         
+                        // Guard: ensure logs is always an array
+                        if (!Array.isArray(logs)) { setAccessLogs([]); return; }
+
                         // Normaliza logs recebidos do backend
-                        const normalizedLogs = logs.map(l => ({ ...l, status: l.action }));
+                        const normalizedLogs = logs.map(l => ({ ...l, status: l.action || l.status }));
                         setAccessLogs(normalizedLogs);
 
                         if (isEspecial(currentPoint.id) || currentPoint.id.startsWith('REFEI')) {
                               const latestByUser = {};
                               normalizedLogs.forEach(l => {
-                                    if (!latestByUser[l.userId] || new Date(l.timestamp).getTime() > new Date(latestByUser[l.userId].timestamp).getTime()) {
+                                    const lTime = safeDateParse(l.timestamp);
+                                    const existingTime = latestByUser[l.userId] ? safeDateParse(latestByUser[l.userId].timestamp) : 0;
+                                    if (!latestByUser[l.userId] || lTime > existingTime) {
                                           latestByUser[l.userId] = l;
                                     }
                               });
@@ -42,7 +53,7 @@ function App() {
                                           newTimers.push({ 
                                                 userId: uId, 
                                                 pointId: currentPoint.id, 
-                                                startTime: new Date(log.timestamp).getTime() 
+                                                startTime: safeDateParse(log.timestamp) 
                                           });
                                     }
                               }
@@ -62,12 +73,19 @@ function App() {
             try {
                   // 1. Busca Segura do Usuário com Tratamento Contínuo 
                   const data = await window.api.fetchUser(userId);
+                  
+                  // Guard: API returned incomplete payload
+                  if (!data || !data.user) {
+                        setToast({ title: 'Erro de Dados', message: 'Usuário não encontrado ou dados incompletos.', type: 'error' });
+                        return;
+                  }
+                  
                   const user = data.user;
-                  const responsavel = data.responsavel || user;
+                  const responsavel = data.responsavel || null;
 
                   const lastLog = [...accessLogs]
                         .filter(l => l.userId === userId && l.pointId === pointId)
-                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                        .sort((a, b) => safeDateParse(b.timestamp) - safeDateParse(a.timestamp))[0];
 
                   const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
                   const now = Date.now();
@@ -94,7 +112,7 @@ function App() {
                               newLog.status = newLog.action || status;
                               if (!newLog.timestamp) newLog.timestamp = new Date().toISOString();
                         } catch (error) {
-                              if (error.message === 'DUPLICATE_MEAL' || error.message.includes('Duplicidade')) {
+                              if ((error.message || '').includes('DUPLICATE_MEAL') || (error.message || '').includes('Duplicidade')) {
                                     isRefeicaoDuplicada = true;
                                     newLog = { id: `dup-${now}`, userId, pointId, status: 'ENTRADA', timestamp: new Date().toISOString() };
                               } else {
@@ -118,11 +136,20 @@ function App() {
 
                   // 4. Acionamento Robusto de Modais 
                   if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
-                        // Modal Duplo Exclusivo para Portarias
+                        // Modal Duplo Exclusivo para Portarias — only if a REAL responsável exists
                         if (responsavel && responsavel.tipo === 'RESPONSAVEL') {
                               setAccessModal({ type: 'portaria', responsavel, alunos: [user], logId: newLog.id });
                         } else {
-                              setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+                              // Aluno sem responsável cadastrado → show simple sector modal with warning
+                              setAccessModal({ 
+                                    type: 'sector', 
+                                    user, 
+                                    bannerProps: { 
+                                          text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', 
+                                          subtext: 'Sem responsável cadastrado', 
+                                          type: 'success' 
+                                    } 
+                              });
                         }
                   } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
                         let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
@@ -168,22 +195,32 @@ function App() {
 
       return (
             <div className="min-h-screen bg-soft-100 pb-12">
-                  <Header currentPoint={currentPoint} onBack={() => setCurrentPoint(null)} />
+                  <Header
+                  currentPoint={currentPoint}
+                  onBack={() => { setCurrentPoint(null); setAdminView(false); }}
+                  adminView={adminView}
+                  onAdminToggle={handleAdminToggle}
+            />
 
-                  {!currentPoint ? (
+            {adminView ? (
+                  <AdminDashboard
+                        onBack={() => setAdminView(false)}
+                        onShowToast={setToast}
+                        activeTimers={activeTimers}
+                  />
+            ) : !currentPoint ? (
                         <Dashboard
                               onSelectPoint={setCurrentPoint}
                               accessLogs={accessLogs}
                         />
                   ) : (
-                        <SectorView
-                              point={currentPoint}
-                              accessLogs={accessLogs}
-                              onProcess={processAccess}
-                              activeTimers={activeTimers}
-                        />
-                  )}
-
+                  <SectorView
+                        point={currentPoint}
+                        accessLogs={accessLogs}
+                        onProcess={processAccess}
+                        activeTimers={activeTimers}
+                  />
+            )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />
 
                   {accessModal && accessModal.type === 'portaria' && (

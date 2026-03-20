@@ -14,7 +14,7 @@ const api = {
             let errorMsg = 'Erro de Comunicação com o Servidor';
             try {
                 const data = await response.json();
-                if (data.message) errorMsg = data.message;
+                if (data && data.message) errorMsg = data.message;
             } catch (e) {
                 // Ignore json parsing error if response is not JSON
                 if (response.status === 404) errorMsg = 'Usuário ou Recurso Não Encontrado';
@@ -23,7 +23,12 @@ const api = {
             }
             throw new Error(errorMsg);
         }
-        return response.json();
+        // Guard: handle empty response bodies gracefully
+        try {
+            return await response.json();
+        } catch (e) {
+            return {};
+        }
     },
 
     /**
@@ -66,15 +71,69 @@ const api = {
     },
 
     /**
-     * Busca os logs de um setor específico
+     * Busca os logs de um setor específico.
+     * ALWAYS returns an array — guards against non-array API responses.
      */
     async fetchLogs(pointId) {
         try {
             const res = await fetch(`${API_BASE_URL}/access/logs/${pointId}`);
-            return await this.handleResponse(res);
+            const data = await this.handleResponse(res);
+            return Array.isArray(data) ? data : [];
         } catch (err) {
             if (err.name === 'TypeError') {
                 throw new Error('Servidor indisponível ao buscar logs. Verifique a conexão.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Busca os últimos 50 logs globais (todos os setores).
+     * ALWAYS returns an array.
+     */
+    async fetchAllLogs() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/access/logs/all?limit=50`);
+            const data = await this.handleResponse(res);
+            return Array.isArray(data) ? data : [];
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao buscar relatórios.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Busca estatísticas globais para o painel admin.
+     * @returns { totalToday, activeUsers, totalUsers }
+     */
+    async fetchGlobalStats() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/stats/global`);
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao buscar estatísticas.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Força sincronização manual com o Pronote.
+     * @returns { success, message }
+     */
+    async forcePronoteSync() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/pronote/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível. Sincronização Pronote falhou.');
             }
             throw err;
         }

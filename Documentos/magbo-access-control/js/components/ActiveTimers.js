@@ -27,10 +27,10 @@ function ActiveTimers({ activeTimers, pointId }) {
                   <div className="space-y-2">
                         {timersForPoint.map(timer => {
                               const user = USERS.find(u => u.id === timer.userId);
-                              const elapsed = Date.now() - timer.startTime;
+                              const elapsed = (typeof timer.startTime === 'number' && !isNaN(timer.startTime)) ? Date.now() - timer.startTime : 0;
                               return (
                                     <div key={timer.userId} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
-                                          <img src={user?.foto_url} alt="" className="w-8 h-8 rounded-lg" />
+                                          <img src={user?.foto_url || DEFAULT_AVATAR} alt="" className="w-8 h-8 rounded-lg" onError={handleImgError} />
                                           <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-semibold text-navy-500 truncate">{user?.nome}</p>
                                                 <p className="text-xs text-slate-400">{user?.turma}</p>

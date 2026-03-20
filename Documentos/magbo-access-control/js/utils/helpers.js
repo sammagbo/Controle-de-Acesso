@@ -44,17 +44,41 @@ function toPascalCase(str) {
 // UTILITY FUNCTIONS
 // =====================================================================
 
+/**
+ * Null-safe date parser. Returns a valid timestamp (ms) or Date.now() as fallback.
+ * Prevents NaN from propagating through timer/log math.
+ */
+function safeDateParse(val) {
+      if (!val) return Date.now();
+      const ms = new Date(val).getTime();
+      return isNaN(ms) ? Date.now() : ms;
+}
+
 function formatTime(date) {
+      if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '--:--:--';
       return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 function formatDuration(ms) {
+      if (ms == null || isNaN(ms) || ms < 0) return '00m 00s';
       const totalSeconds = Math.floor(ms / 1000);
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
       if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
       return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+/** Default fallback for missing TIPO_LABELS entries */
+const TIPO_LABEL_FALLBACK = { label: 'Desconhecido', color: 'bg-slate-400', textColor: 'text-white' };
+
+/** Default avatar URL for broken/missing images */
+const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/initials/svg?seed=?&backgroundColor=94a3b8';
+
+/** onError handler for <img> tags — swaps to default avatar */
+function handleImgError(e) {
+      e.target.onerror = null; // prevent infinite loop
+      e.target.src = DEFAULT_AVATAR;
 }
 
 function isPortaria(pointId) {

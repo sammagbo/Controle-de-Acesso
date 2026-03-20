@@ -2,7 +2,7 @@
 // HEADER COMPONENT
 // =====================================================================
 
-function Header({ currentPoint, onBack }) {
+function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
       const [clock, setClock] = React.useState(new Date());
 
       React.useEffect(() => {
@@ -29,15 +29,25 @@ function Header({ currentPoint, onBack }) {
                               <nav className="hidden sm:flex items-center gap-2 text-sm">
                                     <button
                                           onClick={onBack}
-                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${currentPoint
-                                                ? 'text-white/60 hover:text-white hover:bg-white/10 cursor-pointer'
-                                                : 'text-white font-semibold bg-white/10'
-                                                }`}
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                                                currentPoint || adminView
+                                                      ? 'text-white/60 hover:text-white hover:bg-white/10 cursor-pointer'
+                                                      : 'text-white font-semibold bg-white/10'
+                                          }`}
                                     >
                                           <LucideIcon name="layout-grid" size={14} />
                                           <span>Dashboard</span>
                                     </button>
-                                    {currentPoint && (
+                                    {adminView && (
+                                          <>
+                                                <LucideIcon name="chevron-right" size={14} className="text-white/30" />
+                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white">
+                                                      <LucideIcon name="shield" size={14} />
+                                                      Painel Administrativo
+                                                </span>
+                                          </>
+                                    )}
+                                    {!adminView && currentPoint && (
                                           <>
                                                 <LucideIcon name="chevron-right" size={14} className="text-white/30" />
                                                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white">
@@ -59,12 +69,35 @@ function Header({ currentPoint, onBack }) {
                                     <div className="flex items-center gap-3 border-l border-white/10 pl-4">
                                           <div className="w-2.5 h-2.5 rounded-full bg-success-500 animate-pulse" title="Sistema Online" />
                                           <button
-                                                onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
-                                                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
-                                                title="Configurações e Cadastros"
-                                          >
-                                                <LucideIcon name="cog" size={16} />
-                                          </button>
+                                          onClick={() => {
+                                                if (adminView) {
+                                                      onAdminToggle(false);
+                                                } else {
+                                                      const pin = window.prompt('🔒 PIN Administrativo:');
+                                                      if (pin === '1234') {
+                                                            onAdminToggle(true);
+                                                      } else if (pin !== null) {
+                                                            // User typed something wrong (not cancelled)
+                                                            alert('PIN incorreto.');
+                                                      }
+                                                }
+                                          }}
+                                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                adminView
+                                                      ? 'bg-accent-500/20 text-accent-400 hover:bg-accent-500/30'
+                                                      : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white'
+                                          }`}
+                                          title="Painel Administrativo"
+                                    >
+                                          <LucideIcon name={adminView ? 'lock-open' : 'lock'} size={16} />
+                                    </button>
+                                    <button
+                                          onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+                                          className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
+                                          title="Configurações e Cadastros"
+                                    >
+                                          <LucideIcon name="cog" size={16} />
+                                    </button>
                                     </div>
                               </div>
                         </div>

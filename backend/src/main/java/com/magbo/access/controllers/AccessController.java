@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +37,16 @@ public class AccessController {
     @GetMapping("/logs/{pointId}")
     public ResponseEntity<List<AccessLog>> getLogsByPoint(@PathVariable String pointId) {
         List<AccessLog> logs = accessLogRepository.findByPointIdOrderByTimestampDesc(pointId);
+        return ResponseEntity.ok(logs);
+    }
+
+    @GetMapping("/logs/all")
+    public ResponseEntity<List<AccessLog>> getAllRecentLogs(
+            @RequestParam(defaultValue = "50") Integer limit) {
+        // Validação: limit deve estar entre 1 e 500
+        int safeLimit = Math.max(1, Math.min(limit, 500));
+        Pageable pageable = PageRequest.of(0, safeLimit);
+        List<AccessLog> logs = accessLogRepository.findAllByOrderByTimestampDesc(pageable);
         return ResponseEntity.ok(logs);
     }
 }

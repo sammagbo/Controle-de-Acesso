@@ -4,7 +4,7 @@
 
 **Système de contrôle d'accès multi-secteur pour le Lycée Molière**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](./LICENSE)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](#prérequis)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green.svg)](#stack-technique)
@@ -30,6 +30,7 @@
 - [Installation et démarrage](#-installation-et-démarrage)
 - [Règles métier](#-règles-métier)
 - [Endpoints API](#-endpoints-api)
+- [Synchronisation Pronote](#-synchronisation-pronote)
 - [Document de planification](#-document-de-planification)
 - [Statut de développement](#-statut-de-développement)
 - [Crédits](#-crédits)
@@ -65,13 +66,14 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 - Compteurs de temps actifs pour la bibliothèque et l'infirmerie
 
 ### Côté administration
-- Tableau de bord avec KPI (entrées du jour, présents, etc.)
+- Tableau de bord avec **KPIs en temps réel** (entrées du jour, utilisateurs actifs, total enregistrés)
 - Tableau global des derniers logs avec filtres
 - Export CSV pour reporting
-- Bouton de synchronisation manuelle avec **Pronote** (à compléter)
+- Bouton de **synchronisation Pronote** avec rapport détaillé (créés / mis à jour / désactivés / erreurs)
 
 ### Robustesse
 - Profil de développement avec base **H2 en mémoire** + jeu de données seed (`data.sql`)
+- **Soft delete** des utilisateurs : champ `ativo` (boolean) au lieu de suppression physique — préserve l'historique des logs
 - CORS configuré pour permettre la communication Electron ↔ Spring Boot
 - Gestion des dates « safe parse » côté frontend pour éviter les crashs
 - Toast d'alerte « Serveur Hors Ligne » en cas de coupure du backend
@@ -88,7 +90,7 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 | **Base de données** | PostgreSQL (production) / H2 in-memory (développement) |
 | **Build backend** | Maven 3.6+ |
 | **Intégration matérielle prévue** | Lecteurs de reconnaissance faciale Hikvision via le protocole ISAPI |
-| **Intégration logicielle prévue** | Pronote (synchronisation des élèves et enseignants) |
+| **Intégration logicielle** | Pronote (synchronisation des élèves, enseignants et personnel via CSV) |
 
 > ⚠️ **Note technique** — En l'état actuel, les balises `<script src="...">` chargent React, Babel et Tailwind via CDN. Pour un déploiement de production, ces ressources devront être pré-compilées localement.
 
@@ -100,15 +102,16 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 magbo-access-control/
 ├── backend/                        # API Java / Spring Boot
 │   ├── pom.xml
+│   ├── ftp_drop/                   # Dossier de drop des CSV Pronote
 │   └── src/main/
 │       ├── java/com/magbo/access/
 │       │   ├── MagboAccessApplication.java
 │       │   ├── config/             # CORS, etc.
-│       │   ├── controllers/        # REST endpoints
-│       │   ├── dto/                # Data transfer objects
-│       │   ├── models/             # User, Responsavel, AccessLog
+│       │   ├── controllers/        # REST endpoints (Access, User, Stats, Pronote, Health)
+│       │   ├── dto/                # GlobalStats, SyncReport, AccessRequest
+│       │   ├── models/             # User (avec champ ativo), Responsavel, AccessLog
 │       │   ├── repositories/       # Spring Data JPA
-│       │   └── services/           # PronoteSyncService (cron)
+│       │   └── services/           # PronoteSyncService (cron + trigger manuel)
 │       └── resources/
 │           ├── application.properties        # Profil par défaut (PostgreSQL)
 │           ├── application-dev.properties    # Profil développement (H2)
@@ -213,6 +216,12 @@ La fenêtre **MAGBO Access Control — Lycée Molière** s'ouvre alors (1200×80
 - **Tentative de double repas le même jour** : bandeau rouge « AVIS REPAS DUPLIQUÉ »
 - **Temps minimum (10 min)** : si l'élève tente de sortir avant 10 min, l'accès est bloqué et un message le redirige vers la cantine
 
+### Cycle de vie d'un utilisateur (soft delete)
+- Le champ `ativo` (boolean) sur chaque utilisateur indique s'il est actuellement membre de l'établissement
+- Lorsqu'un élève / enseignant / personnel disparaît du CSV Pronote lors d'une synchronisation, son enregistrement n'est **pas supprimé physiquement** : il passe à `ativo=false`
+- Cela préserve l'intégralité de l'historique de ses logs d'accès et permet une réactivation si la personne réapparaît dans un CSV ultérieur
+- L'historique d'audit est ainsi protégé même après le départ de la personne
+
 ---
 
 ## 🔌 Endpoints API
@@ -225,9 +234,9 @@ La fenêtre **MAGBO Access Control — Lycée Molière** s'ouvre alors (1200×80
 | `GET` | `/users/{id}` | Récupère un utilisateur **et** son responsable | ✅ Implémenté |
 | `POST` | `/access` | Enregistre une entrée ou sortie | ✅ Implémenté |
 | `GET` | `/access/logs/{pointId}` | Logs d'un point d'accès donné | ✅ Implémenté |
-| `GET` | `/access/logs/all?limit=50` | Tous les logs récents (pour Admin) | 🔜 À implémenter |
-| `GET` | `/stats/global` | KPI globaux (Admin Dashboard) | 🔜 À implémenter |
-| `POST` | `/pronote/sync` | Force la synchronisation Pronote | 🔜 À implémenter |
+| `GET` | `/access/logs/all?limit=50` | Tous les logs récents (pour Admin) | ✅ Implémenté |
+| `GET` | `/stats/global` | KPIs globaux (Admin Dashboard) | ✅ Implémenté |
+| `POST` | `/pronote/sync` | Force la synchronisation Pronote | ✅ Implémenté |
 | `POST` | `/hikvision/event` | Webhook ISAPI Hikvision | 🔜 Phase 7 |
 
 ### Exemple : récupérer un utilisateur
@@ -245,7 +254,8 @@ Réponse :
     "tipo": "ALUNO",
     "turma": "6ème A",
     "responsavelId": "R001",
-    "fotoUrl": "https://api.dicebear.com/7.x/initials/svg?seed=LD"
+    "fotoUrl": "https://api.dicebear.com/7.x/initials/svg?seed=LD",
+    "ativo": true
   },
   "responsavel": {
     "id": "R001",
@@ -255,6 +265,113 @@ Réponse :
   }
 }
 ```
+
+### Exemple : KPIs globaux
+
+```bash
+curl http://localhost:8080/api/stats/global
+```
+
+Réponse :
+```json
+{
+  "totalToday": 42,
+  "activeUsers": 7,
+  "totalUsers": 11
+}
+```
+
+| Champ | Signification |
+|---|---|
+| `totalToday` | Nombre total d'événements (entrées + sorties) depuis 00h00 |
+| `activeUsers` | Nombre de personnes actuellement « à l'intérieur » d'un secteur (ENTRÉE sans SORTIE postérieure) |
+| `totalUsers` | Nombre total d'utilisateurs enregistrés en base |
+
+---
+
+## 🔄 Synchronisation Pronote
+
+Cette fonctionnalité importe la liste des élèves, enseignants et personnel depuis un export CSV de **Pronote** vers la base de données du système.
+
+### Modes de déclenchement
+
+| Mode | Quand | Comment |
+|---|---|---|
+| **Automatique** | Tous les jours à 03h00 | Cron interne (Spring `@Scheduled`) |
+| **Manuel** | À la demande | Bouton « Synchroniser Maintenant » dans le Tableau de Bord Admin, ou `POST /api/pronote/sync` |
+
+### Format du fichier CSV
+
+Chemin attendu : `backend/ftp_drop/export_pronote.csv` (configurable via la propriété `pronote.sync.filepath`)
+
+Encodage : **UTF-8**, séparateur : **point-virgule** (`;`)
+
+Colonnes (8, dans cet ordre) :
+```
+userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+```
+
+| Colonne | Obligatoire | Notes |
+|---|---|---|
+| `userId` | Oui | Identifiant unique (clé primaire en base) |
+| `nome` | Oui | Nom complet |
+| `tipo` | Oui | `ALUNO`, `PROFESSOR` ou `FUNCIONARIO` |
+| `turma` | Pour les élèves | Classe de l'élève (vide pour enseignant/personnel) |
+| `responsavelId` | Pour les élèves | Identifiant du responsable légal |
+| `responsavelNome` | Pour les élèves | Nom du responsable |
+| `responsavelParentesco` | Pour les élèves | Lien (Mère, Père, Tuteur…) |
+| `responsavelTelefone` | Pour les élèves | Téléphone du responsable |
+
+### Exemple complet de CSV
+
+```csv
+userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+A001;Lucas Dupont;ALUNO;6ème A;R001;Marie Dupont;Mère;+33 6 12 34 56 78
+A099;Aluno Novo Teste;ALUNO;6ème C;R099;Pai Novo;Père;+33 6 99 99 99 99
+P001;Prof. Catherine Blanc;PROFESSOR;Mathématiques;;;;
+```
+
+### Comportement de la synchronisation
+
+Pour chaque ligne du CSV :
+- Si `userId` **existe déjà** → mise à jour (et `ativo` repassé à `true` s'il avait été désactivé)
+- Si `userId` **n'existe pas** → création
+- Pour les utilisateurs **présents en base mais absents du CSV** → soft delete (`ativo=false`)
+- Le responsable lié à un élève est créé/mis à jour de la même manière
+
+### Idempotence
+
+Après une synchronisation **sans erreur**, le fichier CSV est renommé en `export_pronote_AAAAMMJJ.csv.processed`. Un second appel à `/sync` ne reprocessera **pas** les mêmes données.
+
+### Format de la réponse
+
+```bash
+curl -X POST http://localhost:8080/api/pronote/sync
+```
+
+```json
+{
+  "created": 1,
+  "updated": 2,
+  "deactivated": 9,
+  "errors": 0,
+  "errorMessages": [],
+  "syncedAt": "2026-04-30T15:09:19.861664692",
+  "filePath": "./ftp_drop/export_pronote.csv"
+}
+```
+
+| Champ | Signification |
+|---|---|
+| `created` | Nouveaux utilisateurs insérés |
+| `updated` | Utilisateurs existants mis à jour |
+| `deactivated` | Utilisateurs absents du CSV → `ativo=false` |
+| `errors` | Lignes du CSV ayant échoué |
+| `errorMessages` | Détails des erreurs (jusqu'à 10 messages) |
+| `syncedAt` | Horodatage de la fin de synchronisation |
+| `filePath` | Chemin du fichier traité |
+
+> 💡 **Évolution prévue** — Lorsque l'API REST de Pronote sera disponible, la couche `PronoteSyncService` sera adaptée pour consommer cette API au lieu du CSV. Le contrat HTTP du système (endpoint `/api/pronote/sync`) restera identique.
 
 ---
 
@@ -280,7 +397,7 @@ Il sert de **référence vivante** lorsque le code évolue et permet à un nouve
 | **Phase 3** | Backend Java / Spring Boot + PostgreSQL | ✅ Terminée |
 | **Phase 4** | Intégration Frontend ↔ Backend (API réelle) | ✅ Terminée |
 | **Phase 4.1 / 4.2** | Audit + stabilisation (null safety, parsing dates) | ✅ Terminée |
-| **Phase 6** | Tableau de bord administratif | ⚠️ Partiellement (3 endpoints à implémenter) |
+| **Phase 6** | Tableau de bord administratif + synchronisation Pronote | ✅ Terminée |
 | **Phase 7** | Intégration Hikvision (webhook ISAPI) | 🔜 À démarrer |
 
 ---
@@ -346,7 +463,7 @@ A interface é entregue como aplicativo **desktop Electron**, o backend em **Jav
 | **Backend** | Java 17+, Spring Boot 3.2, Spring Data JPA, Lombok |
 | **Banco** | PostgreSQL (produção) / H2 in-memory (desenvolvimento) |
 | **Hardware** | Leitores faciais Hikvision via ISAPI (Fase 7) |
-| **Integração** | Pronote (sistema escolar francês) |
+| **Integração** | Pronote (sincronização de alunos, professores e funcionários via CSV) |
 
 ## 🚀 Como rodar localmente
 
@@ -375,11 +492,92 @@ Abre a janela do Electron 1200×800.
 - **Portarias** — saída de aluno só com responsável identificado e confirmado na tela
 - **Biblioteca / Enfermaria** — cronômetro inicia na entrada, alerta se exceder o limite (2h / 30min)
 - **Refeitórios** — bloqueia segundo registro de refeição no mesmo dia + tempo mínimo de 10min antes da saída
+- **Soft delete** — usuários removidos do Pronote ficam com `ativo=false`, preservando o histórico de logs
+
+## 🔄 Sincronização Pronote
+
+Importa a lista de alunos, professores e funcionários a partir de um CSV exportado do **Pronote**.
+
+### Quando roda
+- **Automaticamente:** todo dia às 03h00 (cron `@Scheduled` do Spring)
+- **Manualmente:** botão "Sincronizar Agora" no Painel Admin, ou `POST /api/pronote/sync`
+
+### Formato do CSV
+
+Caminho esperado: `backend/ftp_drop/export_pronote.csv` (configurável via `pronote.sync.filepath`)
+
+Encoding **UTF-8**, separador **ponto-e-vírgula** (`;`), 8 colunas:
+
+```
+userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+```
+
+| Coluna | Obrigatória | Notas |
+|---|---|---|
+| `userId` | Sim | Identificador único (chave primária no banco) |
+| `nome` | Sim | Nome completo |
+| `tipo` | Sim | `ALUNO`, `PROFESSOR` ou `FUNCIONARIO` |
+| `turma` | Para alunos | Classe (vazio para professor/funcionário) |
+| `responsavelId` | Para alunos | Identificador do responsável legal |
+| `responsavelNome` | Para alunos | Nome do responsável |
+| `responsavelParentesco` | Para alunos | Vínculo (Mãe, Pai, Tutor…) |
+| `responsavelTelefone` | Para alunos | Telefone do responsável |
+
+### Exemplo completo de CSV
+
+```csv
+userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+A001;Lucas Dupont;ALUNO;6ème A;R001;Marie Dupont;Mãe;+33 6 12 34 56 78
+A099;Aluno Novo Teste;ALUNO;6ème C;R099;Pai Novo;Pai;+33 6 99 99 99 99
+P001;Prof. Catherine Blanc;PROFESSOR;Mathématiques;;;;
+```
+
+### Comportamento
+
+Para cada linha do CSV:
+- Se `userId` **já existe** → atualização (e `ativo` volta a `true` se tinha sido desativado)
+- Se `userId` **não existe** → criação
+- Usuários **no banco mas ausentes do CSV** → soft delete (`ativo=false`)
+- O responsável vinculado a um aluno é criado/atualizado da mesma forma
+
+### Idempotência
+
+Após sincronização **sem erros**, o arquivo CSV é renomeado para `export_pronote_AAAAMMDD.csv.processed`. Uma segunda chamada a `/sync` **não** reprocessa os mesmos dados.
+
+### Formato da resposta
+
+```bash
+curl -X POST http://localhost:8080/api/pronote/sync
+```
+
+```json
+{
+  "created": 1,
+  "updated": 2,
+  "deactivated": 9,
+  "errors": 0,
+  "errorMessages": [],
+  "syncedAt": "2026-04-30T15:09:19.861664692",
+  "filePath": "./ftp_drop/export_pronote.csv"
+}
+```
+
+| Campo | Significado |
+|---|---|
+| `created` | Novos usuários inseridos |
+| `updated` | Usuários existentes atualizados |
+| `deactivated` | Usuários ausentes do CSV → `ativo=false` |
+| `errors` | Linhas que falharam |
+| `errorMessages` | Detalhes dos erros (até 10 mensagens) |
+| `syncedAt` | Timestamp da sincronização |
+| `filePath` | Caminho do arquivo processado |
+
+> 💡 **Evolução prevista** — Quando a API REST do Pronote estiver disponível, a camada `PronoteSyncService` será adaptada para consumir essa API ao invés do CSV. O contrato HTTP do sistema (endpoint `/api/pronote/sync`) permanecerá idêntico.
 
 ## 📊 Status atual
 
 - ✅ Fases 1 a 4 concluídas (frontend, backend, integração, estabilização)
-- ⚠️ Fase 6 parcial — 3 endpoints do AdminDashboard a implementar
+- ✅ Fase 6 concluída (Painel Admin + 3 endpoints + sincronização Pronote com soft delete)
 - 🔜 Fase 7 — integração com leitores Hikvision
 
 ## 👥 Créditos
@@ -399,7 +597,7 @@ Ver [`LICENSE`](./LICENSE) para o texto integral.
 
 <div align="center">
 
-*MAGBO Access Control v1.0 · Lycée Molière · 2026*
+*MAGBO Access Control v1.1 · Lycée Molière · 2026*
 
 [🌐 www.sammagbo.com](https://www.sammagbo.com)
 

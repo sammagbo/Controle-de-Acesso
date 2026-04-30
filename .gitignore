@@ -1,0 +1,10 @@
+node_modules/
+backend/target/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

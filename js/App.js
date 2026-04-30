@@ -9,16 +9,12 @@ function App() {
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
       const [showSettings, setShowSettings] = React.useState(false);
-<<<<<<< HEAD
       const [adminView, setAdminView] = React.useState(false);
 
       const handleAdminToggle = React.useCallback((enabled) => {
             setAdminView(enabled);
             if (enabled) setCurrentPoint(null); // clear sector when entering admin
       }, []);
-=======
-      const [apiError, setApiError] = React.useState(false);
->>>>>>> 0da2550 (integração)
 
       React.useEffect(() => {
             const handleOpenSettings = () => setShowSettings(true);
@@ -26,59 +22,20 @@ function App() {
             return () => window.removeEventListener('open-settings', handleOpenSettings);
       }, []);
 
-<<<<<<< HEAD
       // Reconstruir logs globais e timers dinamicamente ao abrir um Setor (F5 / Reload proof)
       React.useEffect(() => {
             if (!currentPoint) return;
             const loadPointData = async () => {
                   try {
-                        const logs = await window.api.fetchLogs(currentPoint.id);
+                        const logs = await fetchLogs(currentPoint.id);
                         
-                        // Guard: ensure logs is always an array
+                        // Guard: ensure logs is always an array (fetchLogs already normalises)
                         if (!Array.isArray(logs)) { setAccessLogs([]); return; }
-=======
-      // ─────────────────────────────────────────────────────────────
-      // Load historical logs when selecting a point
-      // ─────────────────────────────────────────────────────────────
-      React.useEffect(() => {
-            if (!currentPoint) return;
+                        setAccessLogs(logs);
 
-            let cancelled = false;
-            (async () => {
-                  try {
-                        const remoteLogs = await fetchLogs(currentPoint.id);
-                        if (!cancelled) {
-                              setAccessLogs(prev => {
-                                    // Merge: keep logs for other points + replace with server data for this point
-                                    const otherLogs = prev.filter(l => l.pointId !== currentPoint.id);
-                                    return [...otherLogs, ...remoteLogs];
-                              });
-                              setApiError(false);
-                        }
-                  } catch (err) {
-                        if (!cancelled) setApiError(true);
-                  }
-            })();
-
-            return () => { cancelled = true; };
-      }, [currentPoint]);
-
-      // ─────────────────────────────────────────────────────────────
-      // processAccess — Core business logic (now async + API)
-      // ─────────────────────────────────────────────────────────────
-      const processAccess = React.useCallback(async (userId, pointId) => {
-            const user = USERS.find(u => u.id === userId);
-            if (!user) return;
->>>>>>> 0da2550 (integração)
-
-                        // Normaliza logs recebidos do backend
-                        const normalizedLogs = logs.map(l => ({ ...l, status: l.action || l.status }));
-                        setAccessLogs(normalizedLogs);
-
-<<<<<<< HEAD
                         if (isEspecial(currentPoint.id) || currentPoint.id.startsWith('REFEI')) {
                               const latestByUser = {};
-                              normalizedLogs.forEach(l => {
+                              logs.forEach(l => {
                                     const lTime = safeDateParse(l.timestamp);
                                     const existingTime = latestByUser[l.userId] ? safeDateParse(latestByUser[l.userId].timestamp) : 0;
                                     if (!latestByUser[l.userId] || lTime > existingTime) {
@@ -96,50 +53,6 @@ function App() {
                                                 startTime: safeDateParse(log.timestamp) 
                                           });
                                     }
-=======
-            const status = (!lastLog || lastLog.status === 'SAIDA') ? 'ENTRADA' : 'SAIDA';
-            const now = Date.now();
-
-            let isRefeicaoDuplicada = false;
-            if (pointId.startsWith('REFEI') && status === 'ENTRADA') {
-                  const hasEatenToday = accessLogs.some(l => l.userId === userId && l.pointId.startsWith('REFEI') && l.status === 'ENTRADA' && now - l.timestamp < 24 * 60 * 60 * 1000);
-                  if (hasEatenToday) isRefeicaoDuplicada = true;
-            }
-
-            // ── Call the API to persist ──
-            let savedLog;
-            try {
-                  savedLog = await registerAccess({
-                        userId,
-                        pointId,
-                        action: status,          // "ENTRADA" or "SAIDA"
-                  });
-                  setApiError(false);
-            } catch (err) {
-                  setApiError(true);
-                  return;                          // Don't update UI if server is offline
-            }
-
-            if (!savedLog) {
-                  setApiError(true);
-                  return;
-            }
-
-            const newLog = {
-                  ...savedLog,
-                  duration: null,
-            };
-
-            // ── Special: Biblioteca / Enfermaria timer ──
-            if (isEspecial(pointId)) {
-                  if (status === 'ENTRADA') {
-                        setActiveTimers(prev => [...prev, { userId, pointId, startTime: now }]);
-                  } else {
-                        setActiveTimers(prev => {
-                              const timer = prev.find(t => t.userId === userId && t.pointId === pointId);
-                              if (timer) {
-                                    newLog.duration = now - timer.startTime;
->>>>>>> 0da2550 (integração)
                               }
                               setActiveTimers(newTimers);
                         }
@@ -156,7 +69,7 @@ function App() {
       const processAccess = React.useCallback(async (userId, pointId) => {
             try {
                   // 1. Busca Segura do Usuário com Tratamento Contínuo 
-                  const data = await window.api.fetchUser(userId);
+                  const data = await fetchUser(userId);
                   
                   // Guard: API returned incomplete payload
                   if (!data || !data.user) {
@@ -192,9 +105,9 @@ function App() {
                         newLog = { id: `block-${now}`, userId, pointId, status: 'ENTRADA', timestamp: new Date().toISOString() };
                   } else {
                         try {
-                              newLog = await window.api.registerAccess(userId, pointId, status);
-                              newLog.status = newLog.action || status;
-                              if (!newLog.timestamp) newLog.timestamp = new Date().toISOString();
+                              newLog = await registerAccess({ userId, pointId, action: status });
+                              // registerAccess (utils/api.js) already normalises: .status and .timestamp are set
+                              if (!newLog) throw new Error('Falha ao registrar acesso');
                         } catch (error) {
                               if ((error.message || '').includes('DUPLICATE_MEAL') || (error.message || '').includes('Duplicidade')) {
                                     isRefeicaoDuplicada = true;
@@ -221,7 +134,7 @@ function App() {
                   // 4. Acionamento Robusto de Modais 
                   if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
                         // Modal Duplo Exclusivo para Portarias — only if a REAL responsável exists
-                        if (responsavel && responsavel.tipo === 'RESPONSAVEL') {
+                        if (responsavel && responsavel.id) {
                               setAccessModal({ type: 'portaria', responsavel, alunos: [user], logId: newLog.id });
                         } else {
                               // Aluno sem responsável cadastrado → show simple sector modal with warning
@@ -307,22 +220,6 @@ function App() {
             )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />
 
-                  {/* ── API Error Toast ── */}
-                  {apiError && (
-                        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] animate-toast">
-                              <div className="flex items-center gap-3 bg-danger-500 text-white px-5 py-3 rounded-xl shadow-2xl">
-                                    <LucideIcon name="wifi-off" size={20} className="text-white" />
-                                    <div>
-                                          <p className="text-sm font-bold">Servidor Offline</p>
-                                          <p className="text-xs text-white/80">Não foi possível comunicar com o backend</p>
-                                    </div>
-                                    <button onClick={() => setApiError(false)} className="ml-3 p-1 rounded-lg hover:bg-white/20 transition-colors">
-                                          <LucideIcon name="x" size={16} className="text-white" />
-                                    </button>
-                              </div>
-                        </div>
-                  )}
-
                   {accessModal && accessModal.type === 'portaria' && (
                         <PortariaModal
                               responsavel={accessModal.responsavel}
@@ -357,9 +254,9 @@ function App() {
                                     MAGBO Access Control v1.0 · Lycée Molière · 2026
                               </p>
                               <div className="flex items-center gap-1.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${apiError ? 'bg-danger-500' : 'bg-success-500'} animate-pulse`} />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse" />
                                     <span className="text-[11px] text-slate-400 font-medium">
-                                          {apiError ? 'Servidor Offline' : 'Sistema Operacional'}
+                                          Sistema Operacional
                                     </span>
                               </div>
                         </div>

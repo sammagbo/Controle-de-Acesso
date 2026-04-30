@@ -19,14 +19,10 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Aluno(a)</p>
                                     <h2 className="text-xl font-black text-navy-500 truncate">{aluno.nome || 'Sem nome'}</h2>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turma</p>
                                         <p className="text-sm font-bold text-navy-500 truncate">{aluno.turma || '-'}</p>
-                                    </div>
-                                    <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turno</p>
-                                        <p className="text-sm font-bold text-navy-500 truncate">{aluno.turno || '-'}</p>
                                     </div>
                                     <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm flex flex-col justify-center">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
@@ -46,14 +42,10 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                                 <p className="text-[10px] font-bold text-accent-600 uppercase tracking-wider mb-1">Responsável pela Retirada</p>
                                 <h2 className="text-2xl font-black text-navy-500 truncate">{responsavel.nome || 'Sem responsável cadastrado'}</h2>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 gap-3">
                                 <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parentesco</p>
                                     <p className="text-sm font-bold text-navy-500 truncate">{responsavel.parentesco || 'Responsável'}</p>
-                                </div>
-                                <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm col-span-2">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contato</p>
-                                    <p className="text-sm font-bold text-navy-500 truncate">{responsavel.telefone || '-'}</p>
                                 </div>
                             </div>
                         </div>
@@ -127,14 +119,10 @@ function PermanenciaModal({ user, bannerProps, onClose }) {
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Aluno</p>
                             <h3 className="text-2xl font-black text-navy-500">{user.nome || 'Sem nome'}</h3>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turma</p>
                                 <p className="text-base font-bold text-navy-500">{user.turma || '-'}</p>
-                            </div>
-                            <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turno</p>
-                                <p className="text-base font-bold text-navy-500">{user.turno || '-'}</p>
                             </div>
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tipo</p>

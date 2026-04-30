@@ -131,13 +131,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                       <p className="text-sm text-slate-400">Nenhum resultado para "{searchQuery}"</p>
                                                 </div>
                                           )}
-<<<<<<< HEAD
-                                          {searchResults.map((user, idx) => {
-                                                const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
-=======
                                           {!isSearching && displayResults.map((user, idx) => {
-                                                const tipoInfo = TIPO_LABELS[user.tipo];
->>>>>>> 0da2550 (integração)
+                                                const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 return (
                                                       <button
                                                             key={user.id}

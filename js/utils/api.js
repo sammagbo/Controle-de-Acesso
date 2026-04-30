@@ -21,6 +21,22 @@ function normaliseUser(raw) {
 }
 
 /**
+ * Normalise a backend Responsavel object to the frontend format.
+ * Backend returns { id, nome, parentesco, telefone, fotoUrl }
+ */
+function normaliseResponsavel(raw) {
+      if (!raw) return null;
+      return {
+            id:         raw.id,
+            nome:       raw.nome,
+            parentesco: raw.parentesco || null,
+            telefone:   raw.telefone   || null,
+            foto_url:   raw.fotoUrl || raw.foto_url
+                        || 'https://api.dicebear.com/7.x/initials/svg?seed=' + (raw.nome || 'R'),
+      };
+}
+
+/**
  * Normalise a backend AccessLog object to the frontend format.
  * Backend returns { id (Long), userId, pointId, action ("ENTRADA"/"SAIDA"), timestamp (ISO string) }
  * Frontend expects { id, userId, pointId, status ("ENTRADA"/"SAIDA"), timestamp (epoch ms), duration }
@@ -48,7 +64,7 @@ async function fetchUser(id) {
             const data = await res.json();
             return {
                   user:        normaliseUser(data.user),
-                  responsavel: data.responsavel ? normaliseUser(data.responsavel) : null,
+                  responsavel: data.responsavel ? normaliseResponsavel(data.responsavel) : null,
             };
       } catch (err) {
             console.error('[API] fetchUser error:', err);

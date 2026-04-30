@@ -251,7 +251,8 @@ function App() {
                   <footer className="fixed bottom-0 inset-x-0 bg-white/80 backdrop-blur border-t border-soft-200 z-40">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between">
                               <p className="text-[11px] text-slate-400">
-                                    MAGBO Access Control v1.0 · Lycée Molière · 2026
+                                    MAGBO Access Control v1.0 · Lycée Molière · 2026 ·{' '}
+                                    <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="text-[#00234b] font-semibold hover:underline">MAGBO STUDIO</a>
                               </p>
                               <div className="flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse" />

@@ -1,5 +1,6 @@
 package com.magbo.access.services;
 
+import com.magbo.access.dto.SyncReport;
 import com.magbo.access.models.Responsavel;
 import com.magbo.access.models.User;
 import com.magbo.access.models.UserType;
@@ -17,8 +18,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -31,68 +35,105 @@ public class PronoteSyncService {
     @Value("${pronote.sync.filepath}")
     private String syncFilePath;
 
+    /**
+     * Job agendado pelo cron — descarta o relatório porque executa em background.
+     */
     @Scheduled(cron = "${pronote.sync.cron}")
     @Transactional
-    public void syncPronoteData() {
+    public void scheduledSync() {
+        SyncReport report = syncPronoteData();
+        log.info("Cron sync completed: created={}, updated={}, deactivated={}, errors={}",
+                report.getCreated(), report.getUpdated(),
+                report.getDeactivated(), report.getErrors());
+    }
+
+    /**
+     * Método principal de sincronização. Pode ser chamado pelo cron ou pela
+     * controller (trigger manual).
+     */
+    @Transactional
+    public SyncReport syncPronoteData() {
+        SyncReport report = SyncReport.builder()
+                .syncedAt(LocalDateTime.now())
+                .filePath(syncFilePath)
+                .build();
+
         Path path = Paths.get(syncFilePath);
 
         if (!Files.exists(path)) {
-            log.warn("Integração Pronote: Nenhum ficheiro para sincronizar hoje ({})", syncFilePath);
-            return;
+            String msg = "Nenhum ficheiro para sincronizar: " + syncFilePath;
+            log.warn(msg);
+            report.addError(msg);
+            return report;
         }
 
-        log.info("Iniciando sincronização com Pronote: lendo o ficheiro {}", syncFilePath);
+        log.info("Iniciando sincronização Pronote: {}", syncFilePath);
+
+        Set<String> idsVistosNoCsv = new HashSet<>();
 
         try {
             List<String> lines = Files.readAllLines(path);
-            
-            // Ignorar primeira linha (cabeçalho)
+
             boolean isFirstLine = true;
-            int successCount = 0;
-            int errorCount = 0;
+            int lineNumber = 0;
 
             for (String line : lines) {
-                if (isFirstLine) {
-                    isFirstLine = false;
-                    continue;
-                }
-                
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
+                lineNumber++;
+                if (isFirstLine) { isFirstLine = false; continue; }
+                if (line.trim().isEmpty()) continue;
 
                 try {
-                    processLine(line);
-                    successCount++;
+                    String userId = processLine(line, report);
+                    if (userId != null) idsVistosNoCsv.add(userId);
                 } catch (Exception e) {
-                    log.error("Falha ao processar linha do CSV [{}]: {}", line, e.getMessage());
-                    errorCount++;
+                    String msg = "Linha " + lineNumber + ": " + e.getMessage();
+                    log.error(msg);
+                    report.addError(msg);
                 }
             }
 
-            log.info("Sincronização Pronote concluída. Sucessos: {}, Erros: {}", successCount, errorCount);
+            // Soft delete: desativa usuários que estavam ATIVOS no banco
+            // mas não apareceram neste CSV
+            List<User> ativos = userRepository.findByAtivoTrue();
+            for (User user : ativos) {
+                if (!idsVistosNoCsv.contains(user.getId())) {
+                    user.setAtivo(false);
+                    userRepository.save(user);
+                    report.incrementDeactivated();
+                    log.info("Soft delete: usuário {} marcado como inativo", user.getId());
+                }
+            }
 
-            // Renomear ficheiro processado apenas se 100% lido com sucesso
-            if (errorCount == 0) {
+            log.info("Sincronização concluída: created={}, updated={}, deactivated={}, errors={}",
+                    report.getCreated(), report.getUpdated(),
+                    report.getDeactivated(), report.getErrors());
+
+            // Move o arquivo se 100% sucesso
+            if (report.getErrors() == 0) {
                 String dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 Path processedPath = Paths.get(syncFilePath.replace(".csv", "_" + dateSuffix + ".csv.processed"));
                 Files.move(path, processedPath);
-                log.info("Processamento 100% validado. Ficheiro movido para {}", processedPath);
-            } else {
-                log.warn("O ficheiro contém {} erros e não será renomeado. Corrija o CSV e deixe processar na próxima janela.", errorCount);
+                log.info("Ficheiro movido para: {}", processedPath);
             }
 
         } catch (IOException e) {
-            log.error("Erro crítico de IO ao ler ficheiro CSV do Pronote", e);
-            throw new RuntimeException("Falha na sincronização", e); // Dispara Rollback caso falhe a leitura no meio
+            log.error("Erro de IO lendo CSV", e);
+            report.addError("Erro de IO: " + e.getMessage());
+            throw new RuntimeException("Falha na sincronização", e);
         }
+
+        return report;
     }
 
-    private void processLine(String line) {
-        // userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+    /**
+     * Processa uma linha do CSV. Retorna o userId processado, ou null se nada
+     * foi feito. Lança exceção em caso de erro.
+     * Formato: userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+     */
+    private String processLine(String line, SyncReport report) {
         String[] data = line.split(";", -1);
         if (data.length < 8) {
-            throw new IllegalArgumentException("Colunas insuficientes na linha");
+            throw new IllegalArgumentException("Colunas insuficientes (esperadas 8, recebidas " + data.length + ")");
         }
 
         String userId = data[0].trim();
@@ -104,7 +145,11 @@ public class PronoteSyncService {
         String respParentesco = data[6].trim();
         String respTelefone = data[7].trim();
 
-        // 1. Processar Responsável (Upsert)
+        if (userId.isEmpty() || nome.isEmpty()) {
+            throw new IllegalArgumentException("ID ou nome vazios");
+        }
+
+        // 1. Upsert Responsável (sem soft delete — responsáveis não têm "ativo")
         if (!respId.isEmpty() && !respNome.isEmpty()) {
             Responsavel responsavel = responsavelRepository.findById(respId).orElse(new Responsavel());
             responsavel.setId(respId);
@@ -114,31 +159,33 @@ public class PronoteSyncService {
             responsavelRepository.save(responsavel);
         }
 
-        // 2. Processar User (Upsert)
-        if (!userId.isEmpty() && !nome.isEmpty()) {
-            User user = userRepository.findById(userId).orElse(new User());
-            user.setId(userId);
-            user.setNome(nome);
-            
-            try {
-                user.setTipo(UserType.valueOf(tipoStr.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                // Fallback de segurança se falhar casting
-                user.setTipo(UserType.ALUNO);
-            }
+        // 2. Upsert User (com tracking de created vs updated)
+        boolean isNew = !userRepository.existsById(userId);
 
-            if (!turma.isEmpty()) user.setTurma(turma);
-            
-            // Associação de Entidade (User -> ResponsavelId)
-            if (!respId.isEmpty() && "ALUNO".equalsIgnoreCase(tipoStr)) {
-                user.setResponsavelId(respId);
-            }
+        User user = userRepository.findById(userId).orElse(new User());
+        user.setId(userId);
+        user.setNome(nome);
+        user.setAtivo(true); // sempre reativa quem aparece no CSV
 
-            if (user.getMealCount() == null) user.setMealCount(0);
-            
-            userRepository.save(user);
-        } else {
-            throw new IllegalArgumentException("ID de Usuário ou Nome estão vazios.");
+        try {
+            user.setTipo(UserType.valueOf(tipoStr.toUpperCase()));
+        } catch (IllegalArgumentException e) {
+            user.setTipo(UserType.ALUNO);
         }
+
+        if (!turma.isEmpty()) user.setTurma(turma);
+
+        if (!respId.isEmpty() && "ALUNO".equalsIgnoreCase(tipoStr)) {
+            user.setResponsavelId(respId);
+        }
+
+        if (user.getMealCount() == null) user.setMealCount(0);
+
+        userRepository.save(user);
+
+        if (isNew) report.incrementCreated();
+        else report.incrementUpdated();
+
+        return userId;
     }
 }

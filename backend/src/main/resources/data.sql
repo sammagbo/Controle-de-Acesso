@@ -11,15 +11,15 @@ MERGE INTO responsaveis (id, nome, parentesco, telefone, foto_url) KEY (id) VALU
 ('R005', 'Isabelle Leroy', 'Mãe', '+33 6 77 88 99 00', 'https://api.dicebear.com/7.x/initials/svg?seed=I&backgroundColor=F59E0B');
 
 -- App Users (Alunos, Professores e Funcionários)
-MERGE INTO app_users (id, nome, tipo, turma, responsavel_id, foto_url, meal_count) KEY (id) VALUES
-('A001', 'Lucas Dupont', 'ALUNO', '6ème A', 'R001', 'https://api.dicebear.com/7.x/initials/svg?seed=LD&backgroundColor=3B82F6', 0),
-('A002', 'Emma Martin', 'ALUNO', '6ème B', 'R002', 'https://api.dicebear.com/7.x/initials/svg?seed=EM&backgroundColor=8B5CF6', 0),
-('A003', 'Hugo Bernard', 'ALUNO', '5ème A', 'R003', 'https://api.dicebear.com/7.x/initials/svg?seed=HB&backgroundColor=EC4899', 0),
-('A004', 'Léa Moreau', 'ALUNO', '5ème B', 'R004', 'https://api.dicebear.com/7.x/initials/svg?seed=LM&backgroundColor=10B981', 0),
-('A005', 'Nathan Leroy', 'ALUNO', '4ème A', 'R005', 'https://api.dicebear.com/7.x/initials/svg?seed=NL&backgroundColor=F59E0B', 0),
-('A006', 'Chloé Petit', 'ALUNO', '4ème B', 'R001', 'https://api.dicebear.com/7.x/initials/svg?seed=CP&backgroundColor=EF4444', 0),
-('A007', 'Gabriel Roux', 'ALUNO', '3ème A', 'R002', 'https://api.dicebear.com/7.x/initials/svg?seed=GR&backgroundColor=6366F1', 0),
-('A008', 'Manon Fournier', 'ALUNO', '3ème B', 'R003', 'https://api.dicebear.com/7.x/initials/svg?seed=MF&backgroundColor=14B8A6', 0),
-('P001', 'Prof. Catherine Blanc', 'PROFESSOR', 'Mathématiques', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=CB&backgroundColor=0C1B3A', 0),
-('P002', 'Prof. Michel Duval', 'PROFESSOR', 'Histoire-Géo', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=MD&backgroundColor=0C1B3A', 0),
-('F001', 'Pierre Lambert', 'FUNCIONARIO', 'Manutenção', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=PL&backgroundColor=64748B', 0);
+MERGE INTO app_users (id, nome, tipo, turma, responsavel_id, foto_url, meal_count, ativo) KEY (id) VALUES
+('A001', 'Lucas Dupont', 'ALUNO', '6ème A', 'R001', 'https://api.dicebear.com/7.x/initials/svg?seed=LD&backgroundColor=3B82F6', 0, true),
+('A002', 'Emma Martin', 'ALUNO', '6ème B', 'R002', 'https://api.dicebear.com/7.x/initials/svg?seed=EM&backgroundColor=8B5CF6', 0, true),
+('A003', 'Hugo Bernard', 'ALUNO', '5ème A', 'R003', 'https://api.dicebear.com/7.x/initials/svg?seed=HB&backgroundColor=EC4899', 0, true),
+('A004', 'Léa Moreau', 'ALUNO', '5ème B', 'R004', 'https://api.dicebear.com/7.x/initials/svg?seed=LM&backgroundColor=10B981', 0, true),
+('A005', 'Nathan Leroy', 'ALUNO', '4ème A', 'R005', 'https://api.dicebear.com/7.x/initials/svg?seed=NL&backgroundColor=F59E0B', 0, true),
+('A006', 'Chloé Petit', 'ALUNO', '4ème B', 'R001', 'https://api.dicebear.com/7.x/initials/svg?seed=CP&backgroundColor=EF4444', 0, true),
+('A007', 'Gabriel Roux', 'ALUNO', '3ème A', 'R002', 'https://api.dicebear.com/7.x/initials/svg?seed=GR&backgroundColor=6366F1', 0, true),
+('A008', 'Manon Fournier', 'ALUNO', '3ème B', 'R003', 'https://api.dicebear.com/7.x/initials/svg?seed=MF&backgroundColor=14B8A6', 0, true),
+('P001', 'Prof. Catherine Blanc', 'PROFESSOR', 'Mathématiques', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=CB&backgroundColor=0C1B3A', 0, true),
+('P002', 'Prof. Michel Duval', 'PROFESSOR', 'Histoire-Géo', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=MD&backgroundColor=0C1B3A', 0, true),
+('F001', 'Pierre Lambert', 'FUNCIONARIO', 'Manutenção', NULL, 'https://api.dicebear.com/7.x/initials/svg?seed=PL&backgroundColor=64748B', 0, true);

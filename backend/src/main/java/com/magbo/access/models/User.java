@@ -36,4 +36,8 @@ public class User {
     @Column(name = "meal_count", nullable = false)
     @Builder.Default
     private Integer mealCount = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean ativo = true;
 }

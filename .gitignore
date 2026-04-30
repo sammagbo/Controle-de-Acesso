@@ -8,3 +8,6 @@ backend/target/
 # OS
 .DS_Store
 Thumbs.db
+
+# Pronote sync drop directory (contains sensitive student data)
+backend/ftp_drop/

@@ -10,6 +10,7 @@ function App() {
       const [accessModal, setAccessModal] = React.useState(null);
       const [showSettings, setShowSettings] = React.useState(false);
       const [adminView, setAdminView] = React.useState(false);
+      const [showAdminPinModal, setShowAdminPinModal] = React.useState(false);
 
       const handleAdminToggle = React.useCallback((enabled) => {
             setAdminView(enabled);
@@ -20,6 +21,12 @@ function App() {
             const handleOpenSettings = () => setShowSettings(true);
             window.addEventListener('open-settings', handleOpenSettings);
             return () => window.removeEventListener('open-settings', handleOpenSettings);
+      }, []);
+
+      React.useEffect(() => {
+            const openHandler = () => setShowAdminPinModal(true);
+            window.addEventListener('open-admin-pin', openHandler);
+            return () => window.removeEventListener('open-admin-pin', openHandler);
       }, []);
 
       // Reconstruir logs globais e timers dinamicamente ao abrir um Setor (F5 / Reload proof)
@@ -219,6 +226,15 @@ function App() {
                   />
             )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />
+
+                  <AdminPinModal
+                        open={showAdminPinModal}
+                        onClose={() => setShowAdminPinModal(false)}
+                        onSuccess={() => {
+                              setShowAdminPinModal(false);
+                              handleAdminToggle(true);
+                        }}
+                  />
 
                   {accessModal && accessModal.type === 'portaria' && (
                         <PortariaModal

@@ -73,13 +73,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
                                                 if (adminView) {
                                                       onAdminToggle(false);
                                                 } else {
-                                                      const pin = window.prompt('🔒 PIN Administrativo:');
-                                                      if (pin === '1234') {
-                                                            onAdminToggle(true);
-                                                      } else if (pin !== null) {
-                                                            // User typed something wrong (not cancelled)
-                                                            alert('PIN incorreto.');
-                                                      }
+                                                      window.dispatchEvent(new CustomEvent('open-admin-pin'));
                                                 }
                                           }}
                                           className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${

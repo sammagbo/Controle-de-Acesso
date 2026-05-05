@@ -70,8 +70,10 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             window.RESPONSAVEIS.push(newUser);
                         }
 
-                        // Add everyone to USERS for unified search
-                        window.USERS.push(newUser);
+                        // Recarrega cache para refletir mudanças (substitui push direto em window.USERS)
+                        if (window.userCache && window.userCache.reload) {
+                              window.userCache.reload();
+                        }
                         addedCount++;
                     }
                 });
@@ -131,7 +133,9 @@ function AppSettingsModal({ onClose, onShowToast }) {
             newUser.responsavel_id = manualForm.responsavel_id;
         }
 
-        window.USERS.push(newUser);
+        if (window.userCache && window.userCache.reload) {
+              window.userCache.reload();
+        }
 
         onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
 

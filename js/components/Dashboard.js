@@ -42,7 +42,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               </div>
                               <div>
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Cadastrados</p>
-                                    <p className="text-2xl font-bold text-navy-500">{USERS.length}</p>
+                                    <p className="text-2xl font-bold text-navy-500">{(window.userCache?.all().length || 0)}</p>
                               </div>
                         </div>
                         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 shadow-sm border border-soft-200">

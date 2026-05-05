@@ -196,7 +196,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                 </div>
                                           )}
                                           {pointLogs.map((log, idx) => {
-                                                const user = USERS.find(u => u.id === log.userId);
+                                                const user = (window.userCache?.byId(log.userId)) || null;
                                                 if (!user) return null;
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 const isEntrada = log.status === 'ENTRADA';

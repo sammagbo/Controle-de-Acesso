@@ -21,7 +21,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     setStats({
                                           totalToday: s.totalToday || 0,
                                           activeUsers: s.activeUsers || 0,
-                                          totalUsers: s.totalUsers || USERS.length
+                                          totalUsers: s.totalUsers || (window.userCache?.all().length || 0)
                                     });
                               }
                         } catch (e) {
@@ -29,7 +29,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                               setStats({
                                     totalToday: 0,
                                     activeUsers: (activeTimers || []).length,
-                                    totalUsers: USERS.length
+                                    totalUsers: (window.userCache?.all().length || 0)
                               });
                         }
 
@@ -81,7 +81,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
             const rows = globalLogs.map(log => {
                   const time = new Date(safeDateParse(log.timestamp));
                   const formattedTime = formatTime(time);
-                  const user = USERS.find(u => u.id === log.userId);
+                  const user = (window.userCache?.byId(log.userId)) || null;
                   const userName = user ? (user.nome || 'Desconhecido') : (log.userId || 'Desconhecido');
                   const point = ACCESS_POINTS.find(p => p.id === log.pointId);
                   const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
@@ -109,7 +109,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
 
       // ── Resolve display helpers ──
       const resolveUserName = (log) => {
-            const user = USERS.find(u => u.id === log.userId);
+            const user = (window.userCache?.byId(log.userId)) || null;
             return user ? (user.nome || 'Sem nome') : (log.userId || '—');
       };
 

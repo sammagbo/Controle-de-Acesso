@@ -26,7 +26,7 @@ function ActiveTimers({ activeTimers, pointId }) {
                   </div>
                   <div className="space-y-2">
                         {timersForPoint.map(timer => {
-                              const user = USERS.find(u => u.id === timer.userId);
+                              const user = (window.userCache?.byId(timer.userId)) || null;
                               const elapsed = (typeof timer.startTime === 'number' && !isNaN(timer.startTime)) ? Date.now() - timer.startTime : 0;
                               return (
                                     <div key={timer.userId} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">

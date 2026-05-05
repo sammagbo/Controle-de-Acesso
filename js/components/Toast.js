@@ -10,7 +10,7 @@ function Toast({ toast, onDismiss }) {
             return () => clearTimeout(timer);
       }, [toast, onDismiss]);
 
-      const responsavel = USERS.find(u => u.id === toast.responsavelId);
+      const responsavel = (window.userCache?.byId(toast.responsavelId)) || null;
       if (!responsavel) return null;
 
       return (

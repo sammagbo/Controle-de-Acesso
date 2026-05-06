@@ -80,6 +80,7 @@ function App() {
                   
                   // Guard: API returned incomplete payload
                   if (!data || !data.user) {
+                        window.playErrorBeep?.();
                         setToast({ title: 'Erro de Dados', message: 'Usuário não encontrado ou dados incompletos.', type: 'error' });
                         return;
                   }
@@ -142,9 +143,11 @@ function App() {
                   if (isPortaria(pointId) && (user.tipo === 'RESPONSAVEL' || user.tipo === 'ALUNO')) {
                         // Modal Duplo Exclusivo para Portarias — only if a REAL responsável exists
                         if (responsavel && responsavel.id) {
+                              window.playSuccessBeep?.();
                               setAccessModal({ type: 'portaria', responsavel, alunos: [user], logId: newLog.id });
                         } else {
                               // Aluno sem responsável cadastrado → show simple sector modal with warning
+                              window.playSuccessBeep?.();
                               setAccessModal({ 
                                     type: 'sector', 
                                     user, 
@@ -157,12 +160,15 @@ function App() {
                         }
                   } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
                         let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
+                        let beepType = 'success';
 
                         if (errorTempoMinimo) {
                               bannerProps = { text: 'ACESSO BLOQUEADO', subtext: 'Tempo mínimo (10 min) não atingido. Retorne à cantina.', type: 'alert' };
+                              beepType = 'error';
                         } else if (isRefeicaoDuplicada) {
                               // Constraint 3 (Refeitório): Banner Vemelho Central Absoluto!
                               bannerProps = { text: 'AVISO REFEIÇÃO DUPLICADA', subtext: 'Refeição já registrada hoje no Servidor', type: 'alert' };
+                              beepType = 'error';
 
                         } else if (isEspecial(pointId)) {
                               if (status === 'ENTRADA') {
@@ -172,18 +178,25 @@ function App() {
                                     const timer = activeTimers.find(t => t.userId === userId && t.pointId === pointId);
                                     if (timer && (now - timer.startTime > 7200 * 1000)) {
                                           bannerProps = { text: 'TEMPO MÁXIMO EXCEDIDO', subtext: 'Permaneceu mais de 2h (7200s)', type: 'alert' };
+                                          beepType = 'error';
                                     } else {
                                           bannerProps = { text: 'SAÍDA LIBERADA', subtext: 'Dentro do tempo', type: 'success' };
                                     }
                               }
                         }
+
+                        if (beepType === 'error') window.playErrorBeep?.();
+                        else window.playSuccessBeep?.();
+
                         setAccessModal({ type: 'sector', user, bannerProps });
                   } else {
                         // Portaria Normal (Funcionário/Prof) e afins..
+                        window.playSuccessBeep?.();
                         setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
                   }
             } catch (error) {
                   // Constraint 4: Try/Catch super resiliente contra quedas de Backend
+                  window.playErrorBeep?.();
                   setToast({ title: 'Erro de Comunicação com o Servidor', message: error.message || 'Desconhecido', type: 'error' });
             }
       }, [accessLogs, activeTimers, currentPoint]);

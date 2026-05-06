@@ -16,6 +16,29 @@ function AppSettingsModal({ onClose, onShowToast }) {
         responsavel_id: ''
     });
 
+    const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
+
+    React.useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                onShowToast({ title: 'Erro', message: 'Não foi possível ativar a tela cheia.', type: 'error' });
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
     // --- Tab Content Renderers ---
 
     const renderGeneralSettings = () => (
@@ -30,8 +53,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <p className="font-bold text-navy-500">Modo Tela Cheia</p>
                             <p className="text-xs text-slate-400">Ativar exibição em tela cheia na portaria</p>
                         </div>
-                        <button className="w-12 h-6 bg-slate-200 rounded-full relative transition-colors cursor-not-allowed">
-                            <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform" />
+                        <button 
+                            onClick={toggleFullscreen}
+                            className={`w-12 h-6 rounded-full relative transition-colors ${isFullscreen ? 'bg-accent-500' : 'bg-slate-200'}`}
+                        >
+                            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isFullscreen ? 'left-7' : 'left-1'}`} />
                         </button>
                     </div>
                 </div>
@@ -112,37 +138,43 @@ function AppSettingsModal({ onClose, onShowToast }) {
         </div>
     );
 
-    const handleManualSubmit = (e) => {
+    const handleManualSubmit = async (e) => {
         e.preventDefault();
 
         const newId = `USR${Date.now()}`;
-        const newUser = {
+        const payload = {
             id: newId,
             nome: manualForm.nome,
             tipo: manualForm.tipo,
             turma: manualForm.turma,
-            horario_saida: manualForm.horario_saida,
-            foto_url: `https://api.dicebear.com/7.x/initials/svg?seed=${manualForm.nome.replace(' ', '')}&backgroundColor=10B981`
+            horarioSaida: manualForm.horario_saida,
+            fotoUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${manualForm.nome.replace(' ', '')}&backgroundColor=10B981`
         };
 
         if (manualForm.tipo === 'RESPONSAVEL') {
-            newUser.telefone = manualForm.telefone;
-            newUser.parentesco = manualForm.parentesco;
-            window.RESPONSAVEIS.push(newUser);
+            payload.telefone = manualForm.telefone;
+            payload.parentesco = manualForm.parentesco;
         } else if (manualForm.tipo === 'ALUNO') {
-            newUser.responsavel_id = manualForm.responsavel_id;
+            payload.responsavelId = manualForm.responsavel_id;
         }
 
-        if (window.userCache && window.userCache.reload) {
-              window.userCache.reload();
+        try {
+            await window.api.createUser(payload);
+            
+            if (window.userCache && window.userCache.reload) {
+                  window.userCache.reload();
+            }
+
+            onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
+
+            // Reset form
+            setManualForm({
+                nome: '', tipo: 'ALUNO', turma: '', horario_saida: '', parentesco: '', telefone: '', responsavel_id: ''
+            });
+        } catch (error) {
+            console.error(error);
+            onShowToast({ title: 'Erro', message: error.message || 'Falha ao cadastrar usuário', type: 'error' });
         }
-
-        onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
-
-        // Reset form
-        setManualForm({
-            nome: '', tipo: 'ALUNO', turma: '', horario_saida: '', parentesco: '', telefone: '', responsavel_id: ''
-        });
     };
 
     const renderManualRegistration = () => (

@@ -67,4 +67,47 @@ public class UserController {
                 .build()
         );
     }
+
+    @PostMapping
+    public ResponseEntity<Map<String, String>> createUser(@RequestBody com.magbo.access.dto.UserRegistrationDto dto) {
+        Map<String, String> response = new HashMap<>();
+        try {
+            if ("RESPONSAVEL".equalsIgnoreCase(dto.getTipo())) {
+                Responsavel responsavel = Responsavel.builder()
+                        .id(dto.getId() != null && !dto.getId().isEmpty() ? dto.getId() : "USR" + System.currentTimeMillis())
+                        .nome(dto.getNome())
+                        .parentesco(dto.getParentesco())
+                        .telefone(dto.getTelefone())
+                        .fotoUrl(dto.getFotoUrl())
+                        .build();
+                responsavelRepository.save(responsavel);
+            } else {
+                com.magbo.access.models.UserType type;
+                try {
+                    type = com.magbo.access.models.UserType.valueOf(dto.getTipo() != null ? dto.getTipo().toUpperCase() : "ALUNO");
+                } catch (Exception e) {
+                    type = com.magbo.access.models.UserType.ALUNO;
+                }
+                
+                User user = User.builder()
+                        .id(dto.getId() != null && !dto.getId().isEmpty() ? dto.getId() : "USR" + System.currentTimeMillis())
+                        .nome(dto.getNome())
+                        .tipo(type)
+                        .turma(dto.getTurma())
+                        .fotoUrl(dto.getFotoUrl())
+                        .responsavelId(dto.getResponsavelId())
+                        .ativo(true)
+                        .mealCount(0)
+                        .build();
+                userRepository.save(user);
+            }
+            response.put("status", "success");
+            response.put("message", "Usuário cadastrado com sucesso!");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Erro ao cadastrar usuário: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
 }

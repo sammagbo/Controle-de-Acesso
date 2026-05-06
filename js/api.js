@@ -137,6 +137,26 @@ const api = {
             }
             throw err;
         }
+    },
+
+    /**
+     * Cria um novo usuário ou responsável
+     * @param {Object} userData 
+     */
+    async createUser(userData) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao cadastrar usuário.');
+            }
+            throw err;
+        }
     }
 };
 

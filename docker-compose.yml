@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: magbo-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: magbo_access
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: magbo-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/magbo_access
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      SERVER_PORT: 8080
+      ADMIN_PIN: 1234
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    container_name: magbo-frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+volumes:
+  pgdata:

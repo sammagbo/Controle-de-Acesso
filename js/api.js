@@ -2,7 +2,10 @@
 // API INTEGRATION LAYER
 // =====================================================================
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// Determina dinamicamente a URL base (se for rodado em Electron usa localhost, se rodado no Nginx usa o IP)
+const API_BASE_URL = window.location.hostname === '' || window.location.protocol === 'file:' 
+    ? 'http://localhost:8080/api' 
+    : `http://${window.location.hostname}:8080/api`;
 
 const api = {
     /**

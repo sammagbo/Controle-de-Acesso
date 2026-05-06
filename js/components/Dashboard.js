@@ -3,6 +3,13 @@
 // =====================================================================
 
 function Dashboard({ onSelectPoint, accessLogs }) {
+      const [, setCacheTick] = React.useState(0);
+      React.useEffect(() => {
+            const handler = () => setCacheTick(t => t + 1);
+            window.addEventListener('user-cache-updated', handler);
+            return () => window.removeEventListener('user-cache-updated', handler);
+      }, []);
+
       const activeCounts = React.useMemo(() => {
             const counts = {};
             ACCESS_POINTS.forEach(ap => { counts[ap.id] = 0; });

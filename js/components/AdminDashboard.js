@@ -3,6 +3,13 @@
 // =====================================================================
 
 function AdminDashboard({ onBack, onShowToast, activeTimers }) {
+      const [, setCacheTick] = React.useState(0);
+      React.useEffect(() => {
+            const handler = () => setCacheTick(t => t + 1);
+            window.addEventListener('user-cache-updated', handler);
+            return () => window.removeEventListener('user-cache-updated', handler);
+      }, []);
+
       // ── State ──
       const [globalLogs, setGlobalLogs] = React.useState([]);
       const [stats, setStats] = React.useState({ totalToday: 0, activeUsers: 0, totalUsers: 0 });

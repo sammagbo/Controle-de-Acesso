@@ -1,21 +1,66 @@
 {
-  "name": "controle-de-acesso",
+  "name": "magbo-access-control",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sistema de Controle de Acesso Institucional — Lycée Molière",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "start:prod": "set NODE_ENV=production && electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "build": {
+    "appId": "com.magbo.access",
+    "productName": "MAGBO Access Control",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!backend/**",
+      "!deploy/**",
+      "!dist/**",
+      "!.git/**",
+      "!.vscode/**",
+      "!**/node_modules/electron/**",
+      "!*.md",
+      "!docker-compose.yml"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MAGBO Access Control",
+      "runAfterFinish": false
+    },
+    "portable": {
+      "artifactName": "MAGBO-Access-Control-Portable.exe"
+    }
+  },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sammagbo/Controle-de-Acesso.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "access-control",
+    "electron",
+    "lycee-moliere"
+  ],
+  "author": "Sammy K. Magbo",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/sammagbo/Controle-de-Acesso/issues"

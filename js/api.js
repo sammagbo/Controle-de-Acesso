@@ -2,10 +2,8 @@
 // API INTEGRATION LAYER
 // =====================================================================
 
-// Determina dinamicamente a URL base (se for rodado em Electron usa localhost, se rodado no Nginx usa o IP)
-const API_BASE_URL = window.location.hostname === '' || window.location.protocol === 'file:' 
-    ? 'http://localhost:8080/api' 
-    : `http://${window.location.hostname}:8080/api`;
+// API URL: reads from Electron preload config (production) or falls back to localhost (dev)
+const API_BASE_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
 const api = {
     /**
@@ -157,6 +155,27 @@ const api = {
         } catch (err) {
             if (err.name === 'TypeError') {
                 throw new Error('Servidor indisponível ao cadastrar usuário.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Importação em lote via Excel.
+     * @param {Array} usersArray - Array de UserRegistrationDto
+     * @returns { status, totalRecebido, sucesso, falhas, detalheErros }
+     */
+    async createUsersBulk(usersArray) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(usersArray)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao importar planilha.');
             }
             throw err;
         }

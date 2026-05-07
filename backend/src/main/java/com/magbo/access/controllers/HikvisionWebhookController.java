@@ -5,6 +5,7 @@ import com.magbo.access.models.AccessLog;
 import com.magbo.access.repositories.AccessLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +19,22 @@ public class HikvisionWebhookController {
 
     private final AccessLogRepository accessLogRepository;
 
+    @Value("${magbo.webhook.token:}")
+    private String webhookToken;
+
     @PostMapping("/webhook")
-    public ResponseEntity<String> receiveWebhook(@RequestBody HikvisionEventDto payload) {
+    public ResponseEntity<String> receiveWebhook(
+            @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
+            @RequestBody HikvisionEventDto payload) {
+
+        // ─── Token validation (if token is configured) ───
+        if (webhookToken != null && !webhookToken.isBlank()) {
+            if (incomingToken == null || !webhookToken.equals(incomingToken)) {
+                log.warn("Webhook rejected: invalid or missing X-MAGBO-WEBHOOK-TOKEN");
+                return ResponseEntity.status(401).body("Unauthorized");
+            }
+        }
+
         log.info("Received Hikvision Webhook: {}", payload);
 
         try {

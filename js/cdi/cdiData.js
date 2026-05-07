@@ -5,7 +5,7 @@
 const CDI_CAPACITY = 50;
 const CDI_STORAGE = { students: 'cdi_students', present: 'cdi_present', logs: 'cdi_logs', muted: 'cdi_muted', pin: 'cdi_pin' };
 const CDI_DEFAULT_PIN = '1234';
-const CDI_API_URL = "http://localhost:8081/api";
+const CDI_API_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
 // Audio
 const cdiAudioCtx = { ctx: null };

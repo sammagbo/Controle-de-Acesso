@@ -283,12 +283,7 @@ function App() {
                                     MAGBO Access Control v1.0 · Lycée Molière · 2026 ·{' '}
                                     <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="text-[#00234b] font-semibold hover:underline">MAGBO STUDIO</a>
                               </p>
-                              <div className="flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse" />
-                                    <span className="text-[11px] text-slate-400 font-medium">
-                                          Sistema Operacional
-                                    </span>
-                              </div>
+                              <ConnectionStatus />
                         </div>
                   </footer>
             </div>

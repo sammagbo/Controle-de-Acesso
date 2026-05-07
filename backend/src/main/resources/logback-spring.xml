@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ============================================================ -->
+    <!-- MAGBO Access Control — Logback Configuration                  -->
+    <!-- Profiles: dev (console only), prod (console + rolling file)   -->
+    <!-- ============================================================ -->
+
+    <!-- Shared pattern -->
+    <property name="LOG_PATTERN" value="%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n" />
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- Console Appender (always active)                        -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- Rolling File Appender (production only)                 -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <springProfile name="prod">
+        <property name="LOG_PATH" value="${LOG_PATH:-/var/log/magbo}" />
+
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/application.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/application-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>90</maxHistory>
+                <totalSizeCap>5GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>${LOG_PATTERN}</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+            <appender-ref ref="FILE" />
+        </root>
+
+        <!-- Quiet noisy frameworks in production -->
+        <logger name="org.hibernate" level="WARN" />
+        <logger name="org.springframework" level="WARN" />
+        <logger name="com.zaxxer.hikari" level="WARN" />
+
+        <!-- Application logs at INFO -->
+        <logger name="com.magbo" level="INFO" />
+    </springProfile>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <!-- Development — console only, verbose                     -->
+    <!-- ─────────────────────────────────────────────────────── -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+
+        <logger name="com.magbo" level="DEBUG" />
+        <logger name="org.hibernate.SQL" level="DEBUG" />
+    </springProfile>
+
+    <!-- Default (no profile) -->
+    <springProfile name="default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE" />
+        </root>
+    </springProfile>
+
+</configuration>

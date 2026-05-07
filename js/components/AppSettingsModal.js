@@ -65,49 +65,79 @@ function AppSettingsModal({ onClose, onShowToast }) {
         </div>
     );
 
-    const handleFileUpload = (e) => {
+    const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             try {
                 const data = evt.target.result;
                 const workbook = window.XLSX.read(data, { type: 'binary' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const json = window.XLSX.utils.sheet_to_json(worksheet);
 
-                let addedCount = 0;
-                json.forEach(row => {
-                    if (row.Nome) {
-                        const newUser = {
-                            id: row.ID || `USR${Date.now()}${Math.floor(Math.random() * 1000)}`,
-                            nome: row.Nome,
-                            tipo: row.Tipo || 'ALUNO',
-                            turma: row.Turma || '',
-                            horario_saida: row.HorarioSaida || '',
-                            foto_url: row.Foto || `https://api.dicebear.com/7.x/initials/svg?seed=${row.Nome.replace(' ', '')}&backgroundColor=3B82F6`
-                        };
+                // Procura aba "Cadastro" ou usa a primeira
+                const sheetName = workbook.SheetNames.includes('Cadastro')
+                    ? 'Cadastro'
+                    : workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = window.XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
-                        if (row.Tipo === 'RESPONSAVEL') {
-                            newUser.telefone = row.Telefone || '';
-                            newUser.parentesco = row.Parentesco || 'Responsável';
-                            window.RESPONSAVEIS.push(newUser);
-                        }
+                // Validação básica antes de enviar
+                const validRows = json.filter(row => row.Nome && String(row.Nome).trim() !== '');
+                if (validRows.length === 0) {
+                    onShowToast({ title: 'Planilha vazia', message: 'Nenhuma linha válida encontrada (verifique a coluna Nome).', type: 'error' });
+                    return;
+                }
 
-                        // Recarrega cache para refletir mudanças (substitui push direto em window.USERS)
-                        if (window.userCache && window.userCache.reload) {
-                              window.userCache.reload();
-                        }
-                        addedCount++;
-                    }
-                });
+                // Mapeia para o formato do backend (UserRegistrationDto)
+                const payload = validRows.map(row => ({
+                    id: row.ID ? String(row.ID).trim() : '',
+                    nome: String(row.Nome).trim(),
+                    tipo: row.Tipo ? String(row.Tipo).trim().toUpperCase() : 'ALUNO',
+                    turma: row.Turma ? String(row.Turma).trim() : '',
+                    responsavelId: row.ResponsavelId ? String(row.ResponsavelId).trim() : '',
+                    parentesco: row.Parentesco ? String(row.Parentesco).trim() : '',
+                    telefone: row.Telefone ? String(row.Telefone).trim() : '',
+                    fotoUrl: row.Foto ? String(row.Foto).trim() : ''
+                }));
 
-                onShowToast({ title: 'Sucesso', message: `${addedCount} usuários importados da planilha.`, type: 'success' });
+                onShowToast({ title: 'Importando...', message: `Enviando ${payload.length} registros ao servidor.`, type: 'info' });
+
+                const result = await window.api.createUsersBulk(payload);
+
+                // Recarrega cache para refletir no UI
+                if (window.userCache && window.userCache.reload) {
+                    await window.userCache.reload();
+                }
+
+                // Feedback detalhado
+                if (result.status === 'success') {
+                    onShowToast({
+                        title: 'Importação concluída',
+                        message: `${result.sucesso} usuários importados com sucesso.`,
+                        type: 'success'
+                    });
+                } else {
+                    const detalhes = (result.detalheErros || [])
+                        .slice(0, 5)
+                        .map(e => `Linha ${e.linha} (${e.nome}): ${e.erro}`)
+                        .join('\n');
+                    console.warn('Erros na importação:', result.detalheErros);
+                    onShowToast({
+                        title: `Importação parcial: ${result.sucesso}/${result.totalRecebido}`,
+                        message: `${result.falhas} falharam. Veja console (F12) para detalhes.`,
+                        type: 'warning'
+                    });
+                }
             } catch (err) {
-                console.error(err);
-                onShowToast({ title: 'Erro', message: 'Falha ao processar o arquivo Excel.', type: 'error' });
+                console.error('Erro na importação:', err);
+                onShowToast({
+                    title: 'Erro',
+                    message: err.message || 'Falha ao processar arquivo Excel.',
+                    type: 'error'
+                });
+            } finally {
+                e.target.value = ''; // Reseta o input para permitir selecionar o mesmo arquivo novamente
             }
         };
         reader.readAsBinaryString(file);
@@ -118,7 +148,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
                 <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Cadastro via Excel</h3>
                 <p className="text-sm text-slate-500 mb-6">
-                    Envie uma planilha com as colunas: <strong>ID, Nome, Tipo, Turma, HorarioSaida, Telefone, Parentesco</strong>.
+                    Envie planilha <strong>.xlsx</strong> com as colunas:
+                    <br/>
+                    <code className="text-xs bg-soft-100 px-2 py-1 rounded">ID, Nome, Tipo, Turma, ResponsavelId, Parentesco, Telefone, Foto</code>
+                    <br/>
+                    <span className="text-xs">Use o template oficial. Tipos aceitos: ALUNO, PROFESSOR, FUNCIONARIO, RESPONSAVEL (sempre maiúsculas).</span>
                 </p>
 
                 <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">

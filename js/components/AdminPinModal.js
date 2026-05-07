@@ -40,7 +40,7 @@ function AdminPinModal({ open, onSuccess, onClose }) {
             setLoading(true);
             setError('');
             try {
-                  const res = await fetch('http://localhost:8080/api/admin/verify', {
+                  const res = await fetch(`${API_BASE_URL}/admin/verify`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ pin })

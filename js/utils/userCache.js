@@ -5,7 +5,7 @@
 // específicos. Expõe funções globais usadas por componentes.
 
 (function() {
-      const API_BASE = 'http://localhost:8080/api';
+      const API_BASE = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
       let cache = [];
       let loadedAt = null;
 

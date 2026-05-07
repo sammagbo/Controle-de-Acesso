@@ -2,7 +2,7 @@
 // API SERVICE — Centralised HTTP calls to Spring Boot backend
 // =====================================================================
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
 /**
  * Normalise a backend User object (camelCase) to the frontend format (snake_case).

@@ -9,7 +9,7 @@ const CdiBackend = {
 
       // Students
       getStudents: async () => {
-            const globalUsers = window.USERS || [];
+            const globalUsers = (window.userCache?.all()) || [];
             
             let activeLogMap = {};
             try {
@@ -54,7 +54,7 @@ const CdiBackend = {
 
       // Scanning & Presence connect to Java API
       scanStudent: async (id) => {
-            const user = window.USERS?.find(u => u.id === id);
+            const user = (window.userCache?.byId(id)) || null;
             if (!user) throw { status: 404, message: 'Carte inconnue' };
 
             const students = await CdiBackend.getStudents();
@@ -99,7 +99,7 @@ const CdiBackend = {
       // Bulk Import
       // Bulk Import (Disabled natively, handled by Master App)
       importStudents: async (newStudents) => {
-            return { added: 0, total: window.USERS ? window.USERS.length : 0 };
+            return { added: 0, total: (window.userCache?.all().length || 0) };
       },
 
       // Full Restore (Backup)

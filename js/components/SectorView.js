@@ -17,19 +17,20 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
             if (logListRef.current) logListRef.current.scrollTop = 0;
       }, [accessLogs]);
 
-      // ── Local filtering (name / turma) as user types ──
-      const localResults = React.useMemo(() => {
-            if (!searchQuery.trim()) return [];
-            const q = searchQuery.toLowerCase().trim();
-            return USERS.filter(u =>
-                  (u.nome || '').toLowerCase().includes(q) ||
-                  (u.id || '').toLowerCase().includes(q) ||
-                  (u.turma && u.turma.toLowerCase().includes(q))
-            ).slice(0, 8);
+      // Busca remota (backend) com debounce de 250ms — substitui USERS.filter local
+      React.useEffect(() => {
+            const q = searchQuery.trim();
+            if (!q) { setSearchResults([]); return; }
+            const handle = setTimeout(async () => {
+                  if (window.userCache && window.userCache.search) {
+                        const results = await window.userCache.search(q, 20);
+                        setSearchResults(results);
+                  }
+            }, 250);
+            return () => clearTimeout(handle);
       }, [searchQuery]);
 
-      // Show local results while typing; API results override when a badge search completes
-      const displayResults = searchResults.length > 0 ? searchResults : localResults;
+      const displayResults = searchResults;
 
       // ── Badge search via API on Enter ──
       const handleKeyDown = async (e) => {
@@ -195,7 +196,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                 </div>
                                           )}
                                           {pointLogs.map((log, idx) => {
-                                                const user = USERS.find(u => u.id === log.userId);
+                                                const user = (window.userCache?.byId(log.userId)) || null;
                                                 if (!user) return null;
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 const isEntrada = log.status === 'ENTRADA';

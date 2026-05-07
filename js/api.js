@@ -2,7 +2,10 @@
 // API INTEGRATION LAYER
 // =====================================================================
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// Determina dinamicamente a URL base (se for rodado em Electron usa localhost, se rodado no Nginx usa o IP)
+const API_BASE_URL = window.location.hostname === '' || window.location.protocol === 'file:' 
+    ? 'http://localhost:8080/api' 
+    : `http://${window.location.hostname}:8080/api`;
 
 const api = {
     /**
@@ -134,6 +137,26 @@ const api = {
         } catch (err) {
             if (err.name === 'TypeError') {
                 throw new Error('Servidor indisponível. Sincronização Pronote falhou.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Cria um novo usuário ou responsável
+     * @param {Object} userData 
+     */
+    async createUser(userData) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao cadastrar usuário.');
             }
             throw err;
         }

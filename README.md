@@ -89,7 +89,8 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 | **Backend** | Java 17+, Spring Boot 3.2, Spring Data JPA, Lombok |
 | **Base de données** | PostgreSQL (production) / H2 in-memory (développement) |
 | **Build backend** | Maven 3.6+ |
-| **Intégration matérielle prévue** | Lecteurs de reconnaissance faciale Hikvision via le protocole ISAPI |
+| **Déploiement** | Docker & Docker Compose |
+| **Intégration matérielle** | Lecteurs de reconnaissance faciale Hikvision via le protocole ISAPI (Webhook) |
 | **Intégration logicielle** | Pronote (synchronisation des élèves, enseignants et personnel via CSV) |
 
 > ⚠️ **Note technique** — En l'état actuel, les balises `<script src="...">` chargent React, Babel et Tailwind via CDN. Pour un déploiement de production, ces ressources devront être pré-compilées localement.
@@ -100,7 +101,10 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 
 ```
 magbo-access-control/
+├── docker-compose.yml              # Orchestration Docker (Postgres, Backend, Nginx)
 ├── backend/                        # API Java / Spring Boot
+│   ├── Dockerfile                  # Image Docker multi-stage du Backend
+│   ├── .dockerignore               # Fichiers ignorés par Docker
 │   ├── pom.xml
 │   ├── ftp_drop/                   # Dossier de drop des CSV Pronote
 │   └── src/main/
@@ -159,7 +163,16 @@ git clone https://github.com/sammagbo/Controle-de-Acesso.git
 cd Controle-de-Acesso
 ```
 
-### 2. Lancer le backend (Spring Boot, profil `dev` — H2 en mémoire)
+### 2A. Déploiement via Docker Compose (Production / Homologation)
+
+La méthode la plus simple pour lancer l'infrastructure complète (PostgreSQL, Backend Spring Boot et Nginx pour le Frontend) est d'utiliser Docker :
+
+```bash
+docker-compose up -d --build
+```
+L'application web sera disponible sur `http://localhost/` et l'API sur `http://localhost:8080/api`.
+
+### 2B. Lancement local (Développement — H2 en mémoire)
 
 ```bash
 cd backend
@@ -232,12 +245,13 @@ La fenêtre **MAGBO Access Control — Lycée Molière** s'ouvre alors (1200×80
 |---|---|---|---|
 | `GET` | `/health` | Vérification de l'état du serveur | ✅ Implémenté |
 | `GET` | `/users/{id}` | Récupère un utilisateur **et** son responsable | ✅ Implémenté |
+| `POST` | `/api/users` | Enregistre manuellement un nouvel utilisateur / parent | ✅ Implémenté |
 | `POST` | `/access` | Enregistre une entrée ou sortie | ✅ Implémenté |
 | `GET` | `/access/logs/{pointId}` | Logs d'un point d'accès donné | ✅ Implémenté |
 | `GET` | `/access/logs/all?limit=50` | Tous les logs récents (pour Admin) | ✅ Implémenté |
 | `GET` | `/stats/global` | KPIs globaux (Admin Dashboard) | ✅ Implémenté |
 | `POST` | `/pronote/sync` | Force la synchronisation Pronote | ✅ Implémenté |
-| `POST` | `/hikvision/event` | Webhook ISAPI Hikvision | 🔜 Phase 7 |
+| `POST` | `/api/hikvision/webhook` | Webhook ISAPI Hikvision | ✅ Implémenté |
 
 ### Exemple : récupérer un utilisateur
 

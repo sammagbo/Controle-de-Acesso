@@ -3,6 +3,13 @@
 // =====================================================================
 
 function AdminDashboard({ onBack, onShowToast, activeTimers }) {
+      const [, setCacheTick] = React.useState(0);
+      React.useEffect(() => {
+            const handler = () => setCacheTick(t => t + 1);
+            window.addEventListener('user-cache-updated', handler);
+            return () => window.removeEventListener('user-cache-updated', handler);
+      }, []);
+
       // ── State ──
       const [globalLogs, setGlobalLogs] = React.useState([]);
       const [stats, setStats] = React.useState({ totalToday: 0, activeUsers: 0, totalUsers: 0 });
@@ -21,7 +28,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     setStats({
                                           totalToday: s.totalToday || 0,
                                           activeUsers: s.activeUsers || 0,
-                                          totalUsers: s.totalUsers || USERS.length
+                                          totalUsers: s.totalUsers || (window.userCache?.all().length || 0)
                                     });
                               }
                         } catch (e) {
@@ -29,7 +36,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                               setStats({
                                     totalToday: 0,
                                     activeUsers: (activeTimers || []).length,
-                                    totalUsers: USERS.length
+                                    totalUsers: (window.userCache?.all().length || 0)
                               });
                         }
 
@@ -81,7 +88,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
             const rows = globalLogs.map(log => {
                   const time = new Date(safeDateParse(log.timestamp));
                   const formattedTime = formatTime(time);
-                  const user = USERS.find(u => u.id === log.userId);
+                  const user = (window.userCache?.byId(log.userId)) || null;
                   const userName = user ? (user.nome || 'Desconhecido') : (log.userId || 'Desconhecido');
                   const point = ACCESS_POINTS.find(p => p.id === log.pointId);
                   const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
@@ -107,9 +114,69 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
             onShowToast({ title: 'Exportação CSV', message: `${globalLogs.length} registos exportados.`, type: 'success' });
       };
 
+      // ── PDF Export ──
+      const exportPDF = () => {
+            if (!globalLogs.length) {
+                  onShowToast({ title: 'Exportação', message: 'Nenhum registo para exportar.', type: 'error' });
+                  return;
+            }
+
+            try {
+                  const doc = new window.jspdf.jsPDF();
+                  
+                  // Header
+                  doc.setFontSize(18);
+                  doc.setTextColor(12, 27, 58); // navy-500
+                  doc.text("Lycée Molière", 14, 22);
+                  
+                  doc.setFontSize(11);
+                  doc.setTextColor(100);
+                  doc.text("Relatório de Acessos", 14, 30);
+                  
+                  const today = new Date().toLocaleDateString('pt-BR');
+                  doc.setFontSize(9);
+                  doc.text(`Gerado em: ${today}`, 14, 36);
+
+                  // Table Data
+                  const tableColumn = ["Hora", "Nome", "Setor", "Ação"];
+                  const tableRows = [];
+
+                  globalLogs.forEach(log => {
+                        const time = new Date(safeDateParse(log.timestamp));
+                        const formattedTime = formatTime(time);
+                        const user = (window.userCache?.byId(log.userId)) || null;
+                        const userName = user ? (user.nome || 'Desconhecido') : (log.userId || 'Desconhecido');
+                        const point = ACCESS_POINTS.find(p => p.id === log.pointId);
+                        const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
+                        const action = log.status || log.action || 'N/A';
+                        
+                        tableRows.push([formattedTime, userName, pointName, action]);
+                  });
+
+                  // Generate Table
+                  doc.autoTable({
+                        head: [tableColumn],
+                        body: tableRows,
+                        startY: 45,
+                        theme: 'striped',
+                        headStyles: { fillColor: [12, 27, 58] }, // navy-500
+                        styles: { fontSize: 9, cellPadding: 3 },
+                  });
+
+                  // Save
+                  const fileNameDate = new Date().toISOString().slice(0, 10);
+                  doc.save(`relatorio-acessos-${fileNameDate}.pdf`);
+                  
+                  onShowToast({ title: 'Exportação PDF', message: `${globalLogs.length} registos exportados.`, type: 'success' });
+            } catch (error) {
+                  console.error("PDF Export Error:", error);
+                  onShowToast({ title: 'Erro de Exportação', message: 'Falha ao gerar PDF. Verifique a conexão.', type: 'error' });
+            }
+      };
+
       // ── Resolve display helpers ──
       const resolveUserName = (log) => {
-            const user = USERS.find(u => u.id === log.userId);
+            const user = (window.userCache?.byId(log.userId)) || null;
             return user ? (user.nome || 'Sem nome') : (log.userId || '—');
       };
 
@@ -247,18 +314,32 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     <h3 className="text-base font-bold text-navy-500">Relatório de Acessos do Dia</h3>
                                     <p className="text-xs text-slate-400 mt-0.5">Últimos 50 registos globais</p>
                               </div>
-                              <button
-                                    onClick={exportCSV}
-                                    disabled={loadingLogs || !globalLogs.length}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                                          loadingLogs || !globalLogs.length
-                                                ? 'bg-soft-100 text-slate-300 cursor-not-allowed'
-                                                : 'bg-navy-500 text-white hover:bg-navy-600 hover:shadow-md active:scale-95'
-                                    }`}
-                              >
-                                    <LucideIcon name="download" size={15} />
-                                    Exportar CSV
-                              </button>
+                              <div className="flex items-center gap-3">
+                                    <button
+                                          onClick={exportPDF}
+                                          disabled={loadingLogs || !globalLogs.length}
+                                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                                loadingLogs || !globalLogs.length
+                                                      ? 'bg-soft-100 text-slate-300 cursor-not-allowed'
+                                                      : 'bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100 hover:shadow-sm active:scale-95'
+                                          }`}
+                                    >
+                                          <LucideIcon name="file-text" size={15} />
+                                          Exportar PDF
+                                    </button>
+                                    <button
+                                          onClick={exportCSV}
+                                          disabled={loadingLogs || !globalLogs.length}
+                                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                                loadingLogs || !globalLogs.length
+                                                      ? 'bg-soft-100 text-slate-300 cursor-not-allowed'
+                                                      : 'bg-navy-500 text-white hover:bg-navy-600 hover:shadow-md active:scale-95'
+                                          }`}
+                                    >
+                                          <LucideIcon name="download" size={15} />
+                                          Exportar CSV
+                                    </button>
+                              </div>
                         </div>
 
                         {/* Table Body */}

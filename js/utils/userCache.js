@@ -55,7 +55,7 @@
       function getCachedUserById(id) { return cache.find(u => u.id === id) || null; }
       function getCacheLoadedAt() { return loadedAt; }
 
-      // Exposição global (compatível com o restante do app que ainda usa window.USERS)
+      // Exposição global
       window.userCache = {
             reload: reloadUserCache,
             search: searchUsersRemote,
@@ -63,15 +63,6 @@
             byId: getCachedUserById,
             loadedAt: getCacheLoadedAt
       };
-
-      // Compatibilidade: define window.USERS como getter dinâmico baseado no cache.
-      // Componentes legados (ActiveTimers, Toast, AdminDashboard, etc) continuarão
-      // funcionando até serem migrados.
-      Object.defineProperty(window, 'USERS', {
-            configurable: true,
-            get() { return cache; },
-            set(v) { console.warn('window.USERS = ... ignorado, use userCache.reload()'); }
-      });
 
       // Carrega no startup. Evita race com o React: dispara o evento depois.
       reloadUserCache();

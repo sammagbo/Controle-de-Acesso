@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -70,6 +71,7 @@ public class UserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> createUser(@RequestBody com.magbo.access.dto.UserRegistrationDto dto) {
         Map<String, String> response = new HashMap<>();
         try {
@@ -119,6 +121,7 @@ public class UserController {
     // Returns detailed per-row error report.
     // ─────────────────────────────────────────────────────────────
     @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> createUsersBulk(
             @RequestBody List<com.magbo.access.dto.UserRegistrationDto> users) {
         Map<String, Object> response = new HashMap<>();

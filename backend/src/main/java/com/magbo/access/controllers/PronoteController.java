@@ -5,6 +5,7 @@ import com.magbo.access.services.PronoteSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,7 @@ public class PronoteController {
      * Chamado pelo botão "Sincronizar Agora" do AdminDashboard.
      */
     @PostMapping("/sync")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SyncReport> triggerSync() {
         log.info("Trigger manual de sincronização Pronote recebido");
         SyncReport report = pronoteSyncService.syncPronoteData();

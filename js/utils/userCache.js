@@ -24,8 +24,15 @@
       }
 
       async function reloadUserCache() {
+            if (!window.auth || !window.auth.isLoggedIn()) {
+                  console.log('userCache: skipping reload, no auth token yet');
+                  return;
+            }
             try {
-                  const res = await fetch(`${API_BASE}/users`);
+                  const token = window.auth && window.auth.getToken && window.auth.getToken();
+                  const res = await fetch(`${API_BASE}/users`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                  });
                   if (!res.ok) throw new Error('HTTP ' + res.status);
                   const data = await res.json();
                   cache = (data.users || []).map(normalise).filter(Boolean);
@@ -41,7 +48,10 @@
       async function searchUsersRemote(query, limit = 20) {
             try {
                   const q = encodeURIComponent(query || '');
-                  const res = await fetch(`${API_BASE}/users/search?q=${q}&limit=${limit}`);
+                  const token = window.auth && window.auth.getToken && window.auth.getToken();
+                  const res = await fetch(`${API_BASE}/users/search?q=${q}&limit=${limit}`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                  });
                   if (!res.ok) throw new Error('HTTP ' + res.status);
                   const data = await res.json();
                   return (data.users || []).map(normalise).filter(Boolean);

@@ -34,4 +34,7 @@ public class AccessLog {
     @Column(nullable = false)
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
+
+    @Column(name = "created_by_user", length = 50)
+    private String createdByUser;
 }

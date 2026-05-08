@@ -92,6 +92,23 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
                                     >
                                           <LucideIcon name="cog" size={16} />
                                     </button>
+                                    {window.auth && window.auth.isLoggedIn() && window.auth.getUser() && (
+                                          <div className="flex items-center gap-3 ml-2 pl-4 border-l border-white/10">
+                                                <div className="text-right hidden sm:block">
+                                                      <div className="text-[10px] uppercase font-bold tracking-wider text-white/50">{window.auth.getUser().role}</div>
+                                                      <div className="text-sm font-medium text-white truncate max-w-[150px]">
+                                                            {window.auth.getUser().nomeCompleto || window.auth.getUser().username}
+                                                      </div>
+                                                </div>
+                                                <button
+                                                      onClick={() => { window.auth.logout(); window.location.reload(); }}
+                                                      className="w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center transition-colors text-white/70 hover:text-red-400"
+                                                      title="Sair"
+                                                >
+                                                      <LucideIcon name="log-out" size={16} />
+                                                </button>
+                                          </div>
+                                    )}
                                     </div>
                               </div>
                         </div>

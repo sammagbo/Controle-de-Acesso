@@ -3,6 +3,19 @@
 // =====================================================================
 
 function App() {
+      const [currentUser, setCurrentUser] = React.useState(null);
+      const [authChecked, setAuthChecked] = React.useState(false);
+
+      React.useEffect(() => {
+            // Sincroniza com window.auth
+            if (window.auth) {
+                  setCurrentUser(window.auth.getUser());
+                  const unsubscribe = window.auth.onAuthChange(setCurrentUser);
+                  setAuthChecked(true);
+                  return unsubscribe;
+            }
+      }, []);
+
       const [currentPoint, setCurrentPoint] = React.useState(null);
       const [accessLogs, setAccessLogs] = React.useState([]);
       const [activeTimers, setActiveTimers] = React.useState([]);
@@ -200,6 +213,11 @@ function App() {
                   setToast({ title: 'Erro de Comunicação com o Servidor', message: error.message || 'Desconhecido', type: 'error' });
             }
       }, [accessLogs, activeTimers, currentPoint]);
+
+      // Se não logado → mostra LoginScreen
+      if (!currentUser) {
+            return <LoginScreen onLoginSuccess={(data) => setCurrentUser(window.auth.getUser())} />;
+      }
 
       // ── Biblioteca → Full CDI experience ──
       if (currentPoint && currentPoint.id === 'BIBLIO') {

@@ -5,12 +5,29 @@
 // API URL: reads from Electron preload config (production) or falls back to localhost (dev)
 const API_BASE_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
+function authHeaders(extra = {}) {
+  const token = window.auth?.getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...extra
+  };
+}
+// Expose for other files
+if (typeof window !== 'undefined') {
+  window.authHeaders = authHeaders;
+}
+
 const api = {
     /**
      * Helper para lidar com falhas de rede (ex: servidor offline)
      * e respostas HTTP de erro.
      */
     async handleResponse(response) {
+        if (response.status === 401 || response.status === 403) {
+            window.auth?.logout();
+            throw new Error('Sessão expirada. Faça login novamente.');
+        }
         if (!response.ok) {
             let errorMsg = 'Erro de Comunicação com o Servidor';
             try {
@@ -38,7 +55,7 @@ const api = {
      */
     async fetchUser(id) {
         try {
-            const res = await fetch(`${API_BASE_URL}/users/${id}`);
+            const res = await fetch(`${API_BASE_URL}/users/${id}`, { headers: authHeaders() });
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
@@ -55,7 +72,7 @@ const api = {
         try {
             const res = await fetch(`${API_BASE_URL}/access`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({ userId, pointId, action })
             });
             // Opcional: tratar status 409 Conflict se o backend retornar
@@ -77,7 +94,7 @@ const api = {
      */
     async fetchLogs(pointId) {
         try {
-            const res = await fetch(`${API_BASE_URL}/access/logs/${pointId}`);
+            const res = await fetch(`${API_BASE_URL}/access/logs/${pointId}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];
         } catch (err) {
@@ -94,7 +111,7 @@ const api = {
      */
     async fetchAllLogs() {
         try {
-            const res = await fetch(`${API_BASE_URL}/access/logs/all?limit=50`);
+            const res = await fetch(`${API_BASE_URL}/access/logs/all?limit=50`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];
         } catch (err) {
@@ -111,7 +128,7 @@ const api = {
      */
     async fetchGlobalStats() {
         try {
-            const res = await fetch(`${API_BASE_URL}/stats/global`);
+            const res = await fetch(`${API_BASE_URL}/stats/global`, { headers: authHeaders() });
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
@@ -129,7 +146,7 @@ const api = {
         try {
             const res = await fetch(`${API_BASE_URL}/pronote/sync`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: authHeaders()
             });
             return await this.handleResponse(res);
         } catch (err) {
@@ -148,7 +165,7 @@ const api = {
         try {
             const res = await fetch(`${API_BASE_URL}/users`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify(userData)
             });
             return await this.handleResponse(res);
@@ -169,7 +186,7 @@ const api = {
         try {
             const res = await fetch(`${API_BASE_URL}/users/bulk`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify(usersArray)
             });
             return await this.handleResponse(res);

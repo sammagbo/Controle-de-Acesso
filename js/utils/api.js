@@ -53,13 +53,23 @@ function normaliseLog(raw) {
       };
 }
 
+function checkAuthError(res) {
+      if (res.status === 401 || res.status === 403) {
+            window.auth?.logout();
+            throw new Error('Sessão expirada. Faça login novamente.');
+      }
+}
+
 // ─────────────────────────────────────────────────────────────
 // fetchUser(id) — GET /api/users/{id}
 // Returns { user, responsavel } or null on error
 // ─────────────────────────────────────────────────────────────
 async function fetchUser(id) {
       try {
-            const res = await fetch(`${API_BASE}/users/${encodeURIComponent(id)}`);
+            const res = await fetch(`${API_BASE}/users/${encodeURIComponent(id)}`, {
+                  headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            checkAuthError(res);
             if (!res.ok) return null;
             const data = await res.json();
             return {
@@ -81,9 +91,10 @@ async function registerAccess(payload) {
       try {
             const res = await fetch(`${API_BASE}/access`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload),
             });
+            checkAuthError(res);
             if (!res.ok) return null;
             const data = await res.json();
             return normaliseLog(data);
@@ -99,7 +110,10 @@ async function registerAccess(payload) {
 // ─────────────────────────────────────────────────────────────
 async function fetchLogs(pointId) {
       try {
-            const res = await fetch(`${API_BASE}/access/logs/${encodeURIComponent(pointId)}`);
+            const res = await fetch(`${API_BASE}/access/logs/${encodeURIComponent(pointId)}`, {
+                  headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            checkAuthError(res);
             if (!res.ok) return [];
             const data = await res.json();
             return (data || []).map(normaliseLog);

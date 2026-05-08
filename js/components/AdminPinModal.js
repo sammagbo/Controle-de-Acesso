@@ -42,7 +42,10 @@ function AdminPinModal({ open, onSuccess, onClose }) {
             try {
                   const res = await fetch(`${API_BASE_URL}/admin/verify`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                              'Content-Type': 'application/json',
+                              ...(window.auth && window.auth.getToken() ? { Authorization: `Bearer ${window.auth.getToken()}` } : {})
+                        },
                         body: JSON.stringify({ pin })
                   });
                   const data = await res.json();

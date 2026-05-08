@@ -16,6 +16,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
       const [loadingLogs, setLoadingLogs] = React.useState(true);
       const [loadingSync, setLoadingSync] = React.useState(false);
       const [lastSync, setLastSync] = React.useState('03:00');
+      const [showUserMgmt, setShowUserMgmt] = React.useState(false);
 
       // ── Fetch data on mount ──
       React.useEffect(() => {
@@ -411,6 +412,68 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                               </div>
                         )}
                   </div>
+
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {/* SECTION 4 — GESTÃO DE OPERADORES (admin only)            */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {window.auth && window.auth.isAdmin() && (
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm mt-8">
+                              <div className="flex items-center justify-between flex-wrap gap-4">
+                                    <div className="flex items-center gap-4">
+                                          <div className="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="shield-check" size={24} className="text-accent-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Gestão de Operadores</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Criar, editar e desativar operadores do sistema
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={() => setShowUserMgmt(true)}
+                                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="users" size={16} />
+                                          Abrir gestão de operadores
+                                    </button>
+                              </div>
+                        </div>
+                  )}
+
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {/* MODAL — User Management (fullscreen overlay)             */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {showUserMgmt && (
+                        <div className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                              <div className="bg-white rounded-[24px] w-full max-w-5xl shadow-2xl overflow-hidden animate-zoom-in max-h-[90vh] flex flex-col">
+
+                                    {/* Modal Header */}
+                                    <div className="bg-navy-500 p-6 flex items-center justify-between flex-shrink-0">
+                                          <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                                                      <LucideIcon name="shield-check" size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                      <h2 className="text-xl font-bold text-white">Gestão de Operadores</h2>
+                                                      <p className="text-xs text-white/50">Administrar contas de acesso ao sistema</p>
+                                                </div>
+                                          </div>
+                                          <button
+                                                onClick={() => setShowUserMgmt(false)}
+                                                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                                          >
+                                                <LucideIcon name="x" size={20} />
+                                          </button>
+                                    </div>
+
+                                    {/* Modal Body — scrollable */}
+                                    <div className="flex-1 overflow-y-auto p-6">
+                                          <UserManagement />
+                                    </div>
+                              </div>
+                        </div>
+                  )}
             </div>
       );
 }

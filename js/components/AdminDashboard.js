@@ -17,6 +17,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
       const [loadingSync, setLoadingSync] = React.useState(false);
       const [lastSync, setLastSync] = React.useState('03:00');
       const [showUserMgmt, setShowUserMgmt] = React.useState(false);
+      const [showUserList, setShowUserList] = React.useState(false);
 
       // ── Fetch data on mount ──
       React.useEffect(() => {
@@ -417,9 +418,10 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                   {/* SECTION 4 — GESTÃO DE OPERADORES (admin only)            */}
                   {/* ══════════════════════════════════════════════════════════ */}
                   {window.auth && window.auth.isAdmin() && (
-                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm mt-8">
-                              <div className="flex items-center justify-between flex-wrap gap-4">
-                                    <div className="flex items-center gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                              {/* Gestão de Operadores */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
                                           <div className="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
                                                 <LucideIcon name="shield-check" size={24} className="text-accent-600" />
                                           </div>
@@ -432,10 +434,32 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     </div>
                                     <button
                                           onClick={() => setShowUserMgmt(true)}
-                                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="users" size={16} />
                                           Abrir gestão de operadores
+                                    </button>
+                              </div>
+
+                              {/* Gestão de Usuários Gerais */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="users" size={24} className="text-indigo-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Gestão de Usuários</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Editar ou desativar alunos, professores, funcionários e responsáveis
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={() => setShowUserList(true)}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="edit" size={16} />
+                                          Abrir gestão de usuários
                                     </button>
                               </div>
                         </div>
@@ -470,6 +494,36 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     {/* Modal Body — scrollable */}
                                     <div className="flex-1 overflow-y-auto p-6">
                                           <UserManagement />
+                                    </div>
+                              </div>
+                        </div>
+                  )}
+
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {/* MODAL — User List (fullscreen overlay)                     */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {showUserList && (
+                        <div className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                              <div className="bg-white rounded-[24px] w-full max-w-5xl shadow-2xl overflow-hidden animate-zoom-in h-[90vh] flex flex-col">
+                                    <div className="bg-indigo-600 p-6 flex items-center justify-between flex-shrink-0">
+                                          <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                                                      <LucideIcon name="users" size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                      <h2 className="text-xl font-bold text-white">Gestão de Usuários</h2>
+                                                      <p className="text-xs text-indigo-100">Administrar cadastro de alunos e equipe</p>
+                                                </div>
+                                          </div>
+                                          <button
+                                                onClick={() => setShowUserList(false)}
+                                                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                                          >
+                                                <LucideIcon name="x" size={20} />
+                                          </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-6 min-h-0">
+                                          <UserListPanel onClose={() => setShowUserList(false)} onShowToast={onShowToast} />
                                     </div>
                               </div>
                         </div>

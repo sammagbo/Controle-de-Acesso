@@ -196,6 +196,46 @@ const api = {
             }
             throw err;
         }
+    },
+
+    /**
+     * Atualiza um usuário ou responsável existente
+     * @param {string} id 
+     * @param {Object} userData 
+     */
+    async updateUser(id, userData) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${id}`, {
+                method: 'PUT',
+                headers: authHeaders(),
+                body: JSON.stringify(userData)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao atualizar usuário.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * Desativa (soft-delete) um usuário
+     * @param {string} id 
+     */
+    async deleteUser(id) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${id}`, {
+                method: 'DELETE',
+                headers: authHeaders()
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao desativar usuário.');
+            }
+            throw err;
+        }
     }
 };
 

@@ -114,6 +114,46 @@ public class UserController {
         }
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody com.magbo.access.dto.UserRegistrationDto dto) {
+        if ("RESPONSAVEL".equalsIgnoreCase(dto.getTipo())) {
+            return responsavelRepository.findById(id).map(responsavel -> {
+                if (dto.getNome() != null) responsavel.setNome(dto.getNome());
+                if (dto.getParentesco() != null) responsavel.setParentesco(dto.getParentesco());
+                if (dto.getTelefone() != null) responsavel.setTelefone(dto.getTelefone());
+                if (dto.getFotoUrl() != null) responsavel.setFotoUrl(dto.getFotoUrl());
+                return ResponseEntity.ok((Object) responsavelRepository.save(responsavel));
+            }).orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Usuário não encontrado")));
+        } else {
+            return userRepository.findById(id).map(user -> {
+                if (dto.getNome() != null) user.setNome(dto.getNome());
+                if (dto.getTurma() != null) user.setTurma(dto.getTurma());
+                if (dto.getTipo() != null) {
+                    try {
+                        user.setTipo(com.magbo.access.models.UserType.valueOf(dto.getTipo().toUpperCase()));
+                    } catch (Exception ignored) {}
+                }
+                if (dto.getFotoUrl() != null) user.setFotoUrl(dto.getFotoUrl());
+                if (dto.getResponsavelId() != null) user.setResponsavelId(dto.getResponsavelId());
+                return ResponseEntity.ok((Object) userRepository.save(user));
+            }).orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Usuário não encontrado")));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteUser(@PathVariable String id) {
+        if (responsavelRepository.existsById(id)) {
+            return ResponseEntity.status(400).body(Map.of("error", "RESPONSAVEL não pode ser desativado (não tem campo ativo na entidade)"));
+        }
+        return userRepository.findById(id).map(user -> {
+            user.setAtivo(false);
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of("status", "deactivated"));
+        }).orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Usuário não encontrado")));
+    }
+
     // ─────────────────────────────────────────────────────────────
     // BULK IMPORT — POST /api/users/bulk
     // Receives an array of UserRegistrationDto from Excel import.

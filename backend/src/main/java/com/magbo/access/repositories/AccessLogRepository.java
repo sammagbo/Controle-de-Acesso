@@ -17,6 +17,22 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     List<AccessLog> findAllByOrderByTimestampDesc(Pageable pageable);
 
+    @Query("""
+        SELECT a FROM AccessLog a
+        WHERE (:#{#dateFrom == null} = true OR a.timestamp >= :dateFrom)
+          AND (:#{#dateTo == null} = true OR a.timestamp <= :dateTo)
+          AND (:#{#pointId == null} = true OR a.pointId = :pointId)
+          AND (:#{#action == null} = true OR a.action = :action)
+        ORDER BY a.timestamp DESC
+    """)
+    List<AccessLog> findFilteredLogs(
+        @Param("dateFrom") LocalDateTime dateFrom,
+        @Param("dateTo") LocalDateTime dateTo,
+        @Param("pointId") String pointId,
+        @Param("action") com.magbo.access.models.AccessAction action,
+        Pageable pageable
+    );
+
     // Conta TODOS os eventos de acesso a partir de um instante (use start = hoje 00:00)
     long countByTimestampGreaterThanEqual(LocalDateTime start);
 

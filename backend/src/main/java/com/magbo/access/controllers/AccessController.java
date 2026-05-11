@@ -63,11 +63,31 @@ public class AccessController {
 
     @GetMapping("/logs/all")
     public ResponseEntity<List<AccessLog>> getAllRecentLogs(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) String pointId,
+            @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "50") Integer limit) {
-        // Validação: limit deve estar entre 1 e 500
         int safeLimit = Math.max(1, Math.min(limit, 500));
         Pageable pageable = PageRequest.of(0, safeLimit);
-        List<AccessLog> logs = accessLogRepository.findAllByOrderByTimestampDesc(pageable);
+
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+        if (dateFrom != null && !dateFrom.isBlank()) {
+            start = java.time.LocalDate.parse(dateFrom).atStartOfDay();
+        }
+        if (dateTo != null && !dateTo.isBlank()) {
+            end = java.time.LocalDate.parse(dateTo).atTime(23, 59, 59);
+        }
+
+        com.magbo.access.models.AccessAction actionEnum = null;
+        if (action != null && !action.isBlank()) {
+            try {
+                actionEnum = com.magbo.access.models.AccessAction.valueOf(action.toUpperCase());
+            } catch (Exception ignored) {}
+        }
+
+        List<AccessLog> logs = accessLogRepository.findFilteredLogs(start, end, pointId, actionEnum, pageable);
         return ResponseEntity.ok(logs);
     }
 }

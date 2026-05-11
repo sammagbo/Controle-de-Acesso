@@ -70,6 +70,18 @@ public class UserController {
         );
     }
 
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserListResponse> listAllUsers() {
+        List<User> users = userRepository.findAll();
+        return ResponseEntity.ok(
+            UserListResponse.builder()
+                .users(users)
+                .total(users.size())
+                .build()
+        );
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> createUser(@RequestBody com.magbo.access.dto.UserRegistrationDto dto) {

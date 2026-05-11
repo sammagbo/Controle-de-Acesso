@@ -19,42 +19,61 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
       const [showUserMgmt, setShowUserMgmt] = React.useState(false);
       const [showUserList, setShowUserList] = React.useState(false);
 
+      const EMPTY_FILTERS = { pointId: '', action: '', dateFrom: '', dateTo: '' };
+      const [filters, setFilters] = React.useState(EMPTY_FILTERS);
+      const [appliedFilters, setAppliedFilters] = React.useState(EMPTY_FILTERS);
+      const isDirty = filters.pointId !== appliedFilters.pointId ||
+            filters.action !== appliedFilters.action ||
+            filters.dateFrom !== appliedFilters.dateFrom ||
+            filters.dateTo !== appliedFilters.dateTo;
+
+      const loadLogs = React.useCallback(async (f) => {
+            setLoadingLogs(true);
+            try {
+                  const logs = await window.api.fetchAllLogs(f);
+                  setGlobalLogs(Array.isArray(logs) ? logs : []);
+            } catch (e) {
+                  setGlobalLogs([]);
+            } finally {
+                  setLoadingLogs(false);
+            }
+      }, []);
+
+      const applyFilters = () => {
+            setAppliedFilters(filters);
+            loadLogs(filters);
+      };
+
+      const clearFilters = () => {
+            const empty = { pointId: '', action: '', dateFrom: '', dateTo: '' };
+            setFilters(empty);
+            setAppliedFilters(empty);
+            loadLogs(empty);
+      };
+
       // ── Fetch data on mount ──
       React.useEffect(() => {
             const loadData = async () => {
                   try {
-                        // Fetch global stats
-                        try {
-                              const s = await window.api.fetchGlobalStats();
-                              if (s && typeof s === 'object') {
-                                    setStats({
-                                          totalToday: s.totalToday || 0,
-                                          activeUsers: s.activeUsers || 0,
-                                          totalUsers: s.totalUsers || (window.userCache?.all().length || 0)
-                                    });
-                              }
-                        } catch (e) {
-                              // Fallback: compute locally
+                        const s = await window.api.fetchGlobalStats();
+                        if (s && typeof s === 'object') {
                               setStats({
-                                    totalToday: 0,
-                                    activeUsers: (activeTimers || []).length,
-                                    totalUsers: (window.userCache?.all().length || 0)
+                                    totalToday: s.totalToday || 0,
+                                    activeUsers: s.activeUsers || 0,
+                                    totalUsers: s.totalUsers || (window.userCache?.all().length || 0)
                               });
                         }
-
-                        // Fetch global logs
-                        try {
-                              const logs = await window.api.fetchAllLogs();
-                              setGlobalLogs(Array.isArray(logs) ? logs : []);
-                        } catch (e) {
-                              setGlobalLogs([]);
-                        }
-                  } finally {
-                        setLoadingLogs(false);
+                  } catch (e) {
+                        setStats({
+                              totalToday: 0,
+                              activeUsers: (activeTimers || []).length,
+                              totalUsers: (window.userCache?.all().length || 0)
+                        });
                   }
+                  loadLogs({});
             };
             loadData();
-      }, []);
+      }, [loadLogs]);
 
       // ── Pronote Sync ──
       const handlePronoteSync = async () => {
@@ -340,6 +359,71 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                                     >
                                           <LucideIcon name="download" size={15} />
                                           Exportar CSV
+                                    </button>
+                              </div>
+                        </div>
+
+                        {/* Filter Bar */}
+                        <div className="px-6 py-3 border-b border-soft-200 bg-soft-50 flex flex-wrap items-end gap-3">
+                              <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Setor</label>
+                                    <select
+                                          value={filters.pointId}
+                                          onChange={e => setFilters(f => ({ ...f, pointId: e.target.value }))}
+                                          className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    >
+                                          <option value="">Todos</option>
+                                          {ACCESS_POINTS.map(p => (
+                                                <option key={p.id} value={p.id}>{p.nome}</option>
+                                          ))}
+                                    </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ação</label>
+                                    <select
+                                          value={filters.action}
+                                          onChange={e => setFilters(f => ({ ...f, action: e.target.value }))}
+                                          className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    >
+                                          <option value="">Todas</option>
+                                          <option value="ENTRADA">ENTRADA</option>
+                                          <option value="SAIDA">SAIDA</option>
+                                    </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">De</label>
+                                    <input
+                                          type="date"
+                                          value={filters.dateFrom}
+                                          onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                                          className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Até</label>
+                                    <input
+                                          type="date"
+                                          value={filters.dateTo}
+                                          onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+                                          className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    />
+                              </div>
+                              <div className="flex items-end gap-2 ml-auto">
+                                    <button
+                                          onClick={clearFilters}
+                                          className="h-9 px-4 rounded-xl border border-soft-200 bg-white text-sm font-semibold text-slate-500 hover:bg-soft-100 transition-colors"
+                                    >
+                                          Limpar
+                                    </button>
+                                    <button
+                                          onClick={applyFilters}
+                                          className={`h-9 px-4 rounded-xl text-sm font-semibold transition-colors ${
+                                                isDirty
+                                                      ? 'bg-accent-500 text-white hover:bg-accent-600'
+                                                      : 'bg-navy-500 text-white hover:bg-navy-600'
+                                          }`}
+                                    >
+                                          {isDirty ? '• Aplicar filtros' : 'Aplicar filtros'}
                                     </button>
                               </div>
                         </div>

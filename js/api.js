@@ -107,11 +107,16 @@ const api = {
 
     /**
      * Busca os últimos 50 logs globais (todos os setores).
-     * ALWAYS returns an array.
+     * ALWAYS returns an array. Accepts optional filters object.
      */
-    async fetchAllLogs() {
+    async fetchAllLogs(filters = {}) {
         try {
-            const res = await fetch(`${API_BASE_URL}/access/logs/all?limit=50`, { headers: authHeaders() });
+            const params = new URLSearchParams({ limit: '50' });
+            if (filters.pointId)  params.set('pointId',  filters.pointId);
+            if (filters.action)   params.set('action',   filters.action);
+            if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+            if (filters.dateTo)   params.set('dateTo',   filters.dateTo);
+            const res = await fetch(`${API_BASE_URL}/access/logs/all?${params}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];
         } catch (err) {

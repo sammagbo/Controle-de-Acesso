@@ -17,3 +17,9 @@ backend/ftp_drop/
 dist/
 *.exe
 
+
+# Local artifacts
+.claude/
+backend-run.log
+build/icon-temp-*.png
+

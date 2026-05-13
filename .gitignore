@@ -12,3 +12,8 @@ Thumbs.db
 
 # Pronote sync drop directory (contains sensitive student data)
 backend/ftp_drop/
+
+# Build outputs
+dist/
+*.exe
+

@@ -24,13 +24,19 @@
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
             rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Caveat:wght@400;600&display=swap"
+            rel="stylesheet" />
 
       <!-- Tailwind Config -->
       <script>
             tailwind.config = {
                   theme: {
                         extend: {
-                              fontFamily: { sans: ['Inter', 'sans-serif'] },
+                              fontFamily: {
+                                    sans: ['Inter', 'sans-serif'],
+                                    serif: ['Playfair Display', 'Georgia', 'serif'],
+                                    script: ['Caveat', 'cursive'],
+                              },
                               colors: {
                                     navy: { 50: '#E8EBF0', 100: '#C5CAD6', 200: '#8E97AD', 300: '#576585', 400: '#2E3F66', 500: '#0C1B3A', 600: '#0A1730', 700: '#081226', 800: '#060D1C', 900: '#030812' },
                                     soft: { 50: '#F8FAFC', 100: '#F1F5F9', 200: '#E2E8F0', 300: '#CBD5E1' },
@@ -38,6 +44,7 @@
                                     success: { 50: '#ECFDF5', 100: '#D1FAE5', 500: '#10B981', 600: '#059669' },
                                     danger: { 50: '#FEF2F2', 100: '#FEE2E2', 500: '#EF4444', 600: '#DC2626' },
                                     warning: { 50: '#FFFBEB', 100: '#FEF3C7', 500: '#F59E0B', 600: '#D97706' },
+                                    lycee: { 400: '#6BD2DD', 500: '#48C3D2', 600: '#3AA3B0', 700: '#2E848F' },
                               }
                         }
                   }

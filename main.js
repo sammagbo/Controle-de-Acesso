@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 
 // =====================================================================
@@ -43,10 +43,21 @@ function createWindow() {
 
       mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-      // Prevent navigation to external URLs
+      // External links (window.open with target=_blank) open in default browser
+      mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                  shell.openExternal(url);
+            }
+            return { action: 'deny' };
+      });
+
+      // Prevent navigation to external URLs in the main window
       mainWindow.webContents.on('will-navigate', (event, url) => {
             if (!url.startsWith('file://')) {
                   event.preventDefault();
+                  if (url.startsWith('http://') || url.startsWith('https://')) {
+                        shell.openExternal(url);
+                  }
             }
       });
 

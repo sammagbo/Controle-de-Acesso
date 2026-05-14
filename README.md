@@ -4,7 +4,9 @@
 
 **Système de contrôle d'accès multi-secteur pour le Lycée Molière**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
+[![Build](https://img.shields.io/badge/build-passing-success.svg)](#-statut-de-développement)
+[![Auth](https://img.shields.io/badge/auth-JWT%20%2B%20RBAC-purple.svg)](#-authentification-et-sécurité)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](./LICENSE)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](#prérequis)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green.svg)](#stack-technique)
@@ -23,6 +25,7 @@
 ## 📋 Sommaire
 
 - [Présentation](#-présentation)
+- [Aperçu](#-aperçu)
 - [Fonctionnalités](#-fonctionnalités)
 - [Stack technique](#️-stack-technique)
 - [Architecture](#️-architecture)
@@ -55,6 +58,30 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 
 ---
 
+## 📸 Aperçu
+
+<div align="center">
+
+### Écran de connexion
+
+![Login institutionnel](docs/screenshots/login.png)
+
+### Tableau de bord — Sélection du point de travail
+
+![Dashboard avec points d'accès](docs/screenshots/dashboard.png)
+
+### Panneau administratif
+
+![Panneau administratif avec filtres et Pronote](docs/screenshots/admin-panel.png)
+
+### Gestion des opérateurs (administrateur)
+
+![Modal de gestion des opérateurs](docs/screenshots/operators.png)
+
+</div>
+
+---
+
 ## ✨ Fonctionnalités
 
 ### Côté agent à la portière (Vie Scolaire)
@@ -77,6 +104,26 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 - CORS configuré pour permettre la communication Electron ↔ Spring Boot
 - Gestion des dates « safe parse » côté frontend pour éviter les crashs
 - Toast d'alerte « Serveur Hors Ligne » en cas de coupure du backend
+
+### 🔐 Sécurité et authentification
+
+- **Authentification multi-utilisateur** via JWT (Spring Security 6, BCrypt)
+- **RBAC** : deux rôles distincts — `ADMIN` (gestion complète) et `OPERATOR` (opération sectorielle)
+- **Contrôle par secteur** : un opérateur ne peut enregistrer des accès que dans son/ses secteur(s) autorisé(s). Tentative hors secteur → HTTP 403
+- **Audit trail** : chaque enregistrement d'accès est tracé avec l'identifiant de l'opérateur (`created_by_user`)
+- **Soft delete** : utilisateurs et opérateurs désactivés (jamais supprimés) pour préserver l'historique
+
+### 📥 Importation en masse via Excel
+
+- Import bulk de utilisateurs (élèves, professeurs, fonctionnaires, responsables) via fichier `.xlsx`
+- Validation ligne par ligne avec rapport d'erreurs détaillé
+- Validé avec un fichier de **155 lignes** en environnement de test
+
+### 💾 Distribution Windows
+
+- **Installateur NSIS** (`.exe`, ~79 MB) généré via `electron-builder`
+- Installation per-machine avec raccourci menu Démarrer + bureau
+- Distribuable sans environnement de développement (Node.js / Maven non requis sur la machine cible)
 
 ---
 
@@ -406,13 +453,23 @@ Il sert de **référence vivante** lorsque le code évolue et permet à un nouve
 
 | Phase | Description | Statut |
 |---|---|---|
-| **Phase 1** | Fondation React + navigation multi-secteur | ✅ Terminée |
-| **Phase 2** | Règles métier + alertes (compteurs, doublons) | ✅ Terminée |
-| **Phase 3** | Backend Java / Spring Boot + PostgreSQL | ✅ Terminée |
-| **Phase 4** | Intégration Frontend ↔ Backend (API réelle) | ✅ Terminée |
-| **Phase 4.1 / 4.2** | Audit + stabilisation (null safety, parsing dates) | ✅ Terminée |
-| **Phase 6** | Tableau de bord administratif + synchronisation Pronote | ✅ Terminée |
-| **Phase 7** | Intégration Hikvision (webhook ISAPI) | 🔜 À démarrer |
+| 1 | Fondation React + navigation multi-secteur | ✅ Terminée |
+| 2 | Règles métier + alertes (compteurs, doublons) | ✅ Terminée |
+| 3 | Backend Java / Spring Boot + PostgreSQL | ✅ Terminée |
+| 4 | Intégration Frontend ↔ Backend (API réelle) | ✅ Terminée |
+| 4.1 / 4.2 | Audit + stabilisation (null safety, parsing dates) | ✅ Terminée |
+| 5A | Authentification JWT + Spring Security backend | ✅ Terminée |
+| 5B | Login frontend + gestion de token | ✅ Terminée |
+| 5C | RBAC + contrôle par secteur + audit trail | ✅ Terminée |
+| 5D | UI de gestion des opérateurs (admin) | ✅ Terminée |
+| 6 | Tableau de bord administratif + sync Pronote | ✅ Terminée |
+| 6.1 | Importation en masse via Excel | ✅ Terminée |
+| 6.2 | Filtres de logs (secteur, action, dates) | ✅ Terminée |
+| 6.3 | Refonte UI institutionnelle (Lycée Molière) | ✅ Terminée |
+| 6.4 | Installateur Windows (electron-builder) | ✅ Terminée |
+| 7 | Intégration Hikvision (webhook ISAPI matériel réel) | 🔒 En attente du SI |
+| 8 | Conformité RGPD + validation DPO | 🔒 En attente de la direction |
+| 9 | Démo vidéo + présentation institutionnelle | 🔜 À planifier |
 
 ---
 
@@ -611,7 +668,7 @@ Ver [`LICENSE`](./LICENSE) para o texto integral.
 
 <div align="center">
 
-*MAGBO Access Control v1.1 · Lycée Molière · 2026*
+*MAGBO Access Control v1.0 · Lycée Molière · 2026*
 
 [🌐 www.sammagbo.com](https://www.sammagbo.com)
 

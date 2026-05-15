@@ -7,6 +7,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
 [![Build](https://img.shields.io/badge/build-passing-success.svg)](#-statut-de-développement)
 [![Auth](https://img.shields.io/badge/auth-JWT%20%2B%20RBAC-purple.svg)](#-authentification-et-sécurité)
+[![Download](https://img.shields.io/badge/télécharger-v1.0.0%20Windows-blue.svg?style=flat&logo=windows)](https://github.com/sammagbo/Controle-de-Acesso/releases/latest)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](./LICENSE)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](#prérequis)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green.svg)](#stack-technique)
@@ -202,6 +203,20 @@ magbo-access-control/
 ---
 
 ## 🚀 Installation et démarrage
+
+### 💾 Téléchargement direct (Windows)
+
+Pour les utilisateurs Windows souhaitant uniquement **utiliser l'application** sans environnement de développement :
+
+👉 **[Télécharger MAGBO Access Control Setup 1.0.0 (~79 MB)](https://github.com/sammagbo/Controle-de-Acesso/releases/latest)**
+
+Lancez l'installateur et suivez l'assistant. Voir les [notes de release](https://github.com/sammagbo/Controle-de-Acesso/releases/latest) pour les détails et identifiants par défaut.
+
+> ⚠️ Le binaire n'est pas signé numériquement. Windows SmartScreen affichera un avertissement — cliquez **"Plus d'informations"** → **"Exécuter quand même"**.
+
+---
+
+### 🔧 Installation pour développement
 
 ### 1. Cloner le projet
 

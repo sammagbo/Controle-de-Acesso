@@ -1,0 +1,25 @@
+{
+  "name": "magbo-video",
+  "version": "1.0.0",
+  "description": "Vídeo institucional MAGBO Access Control - intro + outro Remotion",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio",
+    "render:intro": "remotion render Intro intro.mp4",
+    "render:demo1": "remotion render Demo1Login demo1.mp4",
+    "render:demo2": "remotion render Demo2Dashboard demo2.mp4",
+    "render:demo3": "remotion render Demo3Admin demo3.mp4",
+    "render:outro": "remotion render Outro outro.mp4",
+    "render:all": "npm run render:intro && npm run render:demo1 && npm run render:demo2 && npm run render:demo3 && npm run render:outro"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.330",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.330"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.5.4"
+  }
+}

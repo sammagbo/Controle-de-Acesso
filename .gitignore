@@ -29,3 +29,7 @@ video/node_modules/
 video/out/
 video/*.mp4
 video/assets/*.mp3
+
+# Production secrets
+deploy/.env
+deploy/*.sql

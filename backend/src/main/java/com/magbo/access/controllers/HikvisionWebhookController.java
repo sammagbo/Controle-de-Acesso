@@ -3,6 +3,7 @@ package com.magbo.access.controllers;
 import com.magbo.access.dto.hikvision.HikvisionEventDto;
 import com.magbo.access.models.AccessLog;
 import com.magbo.access.repositories.AccessLogRepository;
+import com.magbo.access.services.DoorMappingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 public class HikvisionWebhookController {
 
     private final AccessLogRepository accessLogRepository;
+    private final DoorMappingService doorMappingService;
 
     @Value("${magbo.webhook.token:}")
     private String webhookToken;
@@ -27,7 +29,6 @@ public class HikvisionWebhookController {
             @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
             @RequestBody HikvisionEventDto payload) {
 
-        // ─── Token validation (if token is configured) ───
         if (webhookToken != null && !webhookToken.isBlank()) {
             if (incomingToken == null || !webhookToken.equals(incomingToken)) {
                 log.warn("Webhook rejected: invalid or missing X-MAGBO-WEBHOOK-TOKEN");
@@ -39,47 +40,41 @@ public class HikvisionWebhookController {
 
         try {
             HikvisionEventDto.AccessControllerEvent event = null;
+            String terminalIp = null;
 
             if (payload.getAccessControllerEvent() != null) {
                 event = payload.getAccessControllerEvent();
             } else if (payload.getEventNotificationAlert() != null) {
                 event = payload.getEventNotificationAlert().getAccessControllerEvent();
+                terminalIp = payload.getEventNotificationAlert().getIpAddress();
             }
 
             if (event != null && event.getEmployeeNoString() != null && !event.getEmployeeNoString().isEmpty()) {
                 String userId = event.getEmployeeNoString();
-                
-                // Mapeamento simples: podemos inferir portaria pelo readerNo ou doorNo.
-                // Aqui assumiremos PORT1 caso doorNo/readerNo seja nulo.
-                String pointId = "PORT1";
-                if (event.getDoorNo() != null) {
-                    pointId = "PORT" + event.getDoorNo();
-                }
 
-                // Por padrão assumiremos ENTRADA a menos que consigamos identificar SAIDA
-                com.magbo.access.models.AccessAction action = com.magbo.access.models.AccessAction.ENTRADA;
-                // Exemplo: se readerNo for 2, é saída (configuração comum)
-                if (event.getReaderNo() != null && event.getReaderNo() == 2) {
-                    action = com.magbo.access.models.AccessAction.SAIDA;
-                }
+                DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(
+                        event.getDoorNo(),
+                        event.getReaderNo(),
+                        terminalIp
+                );
 
                 AccessLog accessLog = AccessLog.builder()
                         .userId(userId)
-                        .pointId(pointId)
-                        .action(action)
+                        .pointId(resolved.pointId())
+                        .action(resolved.action())
                         .timestamp(LocalDateTime.now())
                         .build();
 
                 accessLogRepository.save(accessLog);
-                log.info("Access Log registered from Hikvision Webhook for user: {}", userId);
+                log.info("Access Log registered: user={}, pointId={}, action={}, fallback={}",
+                        userId, resolved.pointId(), resolved.action(), resolved.isFallback());
             } else {
-                log.warn("Payload ignorado: Não contém employeeNoString ou evento válido.");
+                log.warn("Payload ignored: no employeeNoString or valid event");
             }
 
-            // O Hikvision exige resposta rápida com 200 OK
             return ResponseEntity.ok("Success");
         } catch (Exception e) {
-            log.error("Erro ao processar Webhook Hikvision", e);
+            log.error("Error processing Hikvision webhook", e);
             return ResponseEntity.status(500).body("Error processing webhook");
         }
     }

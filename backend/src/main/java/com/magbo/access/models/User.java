@@ -40,4 +40,7 @@ public class User {
     @Column(nullable = false)
     @Builder.Default
     private Boolean ativo = true;
+
+    @Column(name = "hikvision_employee_id", unique = true, length = 64)
+    private String hikvisionEmployeeId;
 }

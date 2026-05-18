@@ -20,6 +20,7 @@ public class HikvisionWebhookController {
 
     private final AccessLogRepository accessLogRepository;
     private final DoorMappingService doorMappingService;
+    private final com.magbo.access.repositories.UserRepository userRepository;
 
     @Value("${magbo.webhook.token:}")
     private String webhookToken;
@@ -50,7 +51,12 @@ public class HikvisionWebhookController {
             }
 
             if (event != null && event.getEmployeeNoString() != null && !event.getEmployeeNoString().isEmpty()) {
-                String userId = event.getEmployeeNoString();
+                String hikvisionId = event.getEmployeeNoString();
+                String userId = userRepository.findByHikvisionEmployeeId(hikvisionId)
+                        .map(u -> u.getId())
+                        .orElse(hikvisionId);
+                boolean isMapped = !userId.equals(hikvisionId);
+                log.info("Hikvision event: hikvisionId={}, resolvedUserId={}, isMapped={}", hikvisionId, userId, isMapped);
 
                 DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(
                         event.getDoorNo(),

@@ -126,6 +126,22 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 - Installation per-machine avec raccourci menu Démarrer + bureau
 - Distribuable sans environnement de développement (Node.js / Maven non requis sur la machine cible)
 
+### 🐳 Déploiement production
+
+- **Profile `prod` Spring Boot** : bascule entre H2 (dev) et PostgreSQL 16 (prod) via une variable d'environnement (`spring-boot.run.profiles=prod`)
+- **Persistance complète** : les données (utilisateurs, logs, mappings, opérateurs) survivent aux redémarrages du backend, contrairement à H2 in-memory utilisé en dev
+- **Stack `docker-compose`** dans le dossier [`deploy/`](./deploy/) : un fichier suffit pour démarrer Postgres + backend sur une VM (`docker compose up -d`)
+- **Healthcheck** sur Postgres + `depends_on` avec `condition: service_healthy` → le backend n'essaie pas de démarrer tant que la BDD n'est pas prête
+- **Variables sensibles** (mot de passe BDD, secret JWT) injectées via `.env` (gitignored), template fourni dans `.env.example`
+- **Documentation déploiement** : voir [`deploy/README.md`](./deploy/README.md) (setup, opérations, backup/restore, checklist sécurité)
+
+### 🎥 Intégration Hikvision (configurable)
+
+- **DoorMapping configurable** : table de correspondance `(terminalIp, doorNo, readerNo)` → `(pointId, action)` éditable via API admin
+- **3 niveaux de résolution** : exact match (IP + porte + lecteur) → match générique (porte + lecteur) → fallback legacy (`PORT{doorNo}` + `ENTRADA`)
+- **Mapping Hikvision ↔ MAGBO** : l'`employeeNoString` envoyé par le terminal est résolu vers l'`id` MAGBO via le champ `hikvision_employee_id`, permettant de garder la base utilisateurs MAGBO décorrelée des IDs internes Hikvision
+- **Audit trail** : chaque accès enregistre un flag `isMapped` indiquant si la résolution a utilisé le mapping ou le fallback (utile pour identifier les IDs Hikvision orphelins)
+
 ---
 
 ## 🛠️ Stack technique
@@ -271,6 +287,19 @@ La fenêtre **MAGBO Access Control — Lycée Molière** s'ouvre alors (1200×80
 3. Cliquer sur le résultat **Lucas Dupont**
 4. La modale double doit s'afficher avec **Lucas Dupont (élève)** et **Marie Dupont (Mère)**
 5. Cliquer sur **CONFIRMER SORTIE** : l'événement est enregistré dans la base et apparaît dans « Activité en temps réel »
+
+### 🐳 Déploiement sur VM avec Docker
+
+Pour le déploiement en production (ex : VM de l'établissement), le dossier `deploy/` fournit une stack `docker-compose` complète :
+
+```bash
+cd deploy/
+cp .env.example .env
+# Éditer .env avec les vraies valeurs (mot de passe Postgres, JWT secret)
+docker compose up -d
+```
+
+Voir [`deploy/README.md`](./deploy/README.md) pour la procédure complète (setup, sauvegarde, restauration, checklist sécurité avant mise en production).
 
 ---
 
@@ -482,9 +511,15 @@ Il sert de **référence vivante** lorsque le code évolue et permet à un nouve
 | 6.2 | Filtres de logs (secteur, action, dates) | ✅ Terminée |
 | 6.3 | Refonte UI institutionnelle (Lycée Molière) | ✅ Terminée |
 | 6.4 | Installateur Windows (electron-builder) | ✅ Terminée |
-| 7 | Intégration Hikvision (webhook ISAPI matériel réel) | 🔒 En attente du SI |
-| 8 | Conformité RGPD + validation DPO | 🔒 En attente de la direction |
-| 9 | Démo vidéo + présentation institutionnelle | 🔜 À planifier |
+| 6.5 | Profile `prod` PostgreSQL + persistance entre redémarrages | ✅ Terminée |
+| 6.6 | DoorMapping configurable (doorNo/readerNo → pointId/action) | ✅ Terminée |
+| 6.7 | Mapping Hikvision employeeID ↔ MAGBO userId | ✅ Terminée |
+| 6.8 | Stack `docker-compose` pour déploiement production | ✅ Terminée |
+| 7 | Intégration matérielle Hikvision (DS-K1T344MX-E1) | 🔄 Specs VM envoyées au SI, en attente |
+| 8 | Importation CSV des IDs Hikvision pour mapping en masse | 🔜 À démarrer (dès réception du CSV du SI) |
+| 9 | Déploiement pilote sur portail réel + tests | 🔜 À démarrer (après VM provisionnée) |
+| 10 | Conformité RGPD + validation DPO académique | 🔒 En attente de la direction |
+| 11 | Démo vidéo finale + présentation institutionnelle | 🔄 v1 produite (Remotion 60s), v2 avec captures réelles à finaliser |
 
 ---
 

@@ -33,6 +33,9 @@ public class User {
     @Column(name = "responsavel_id")
     private String responsavelId;
 
+    @Column(name = "responsavel2_id")
+    private String responsavel2Id;
+
     @Column(name = "meal_count", nullable = false)
     @Builder.Default
     private Integer mealCount = 0;

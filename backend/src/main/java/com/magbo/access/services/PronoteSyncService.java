@@ -129,11 +129,12 @@ public class PronoteSyncService {
      * Processa uma linha do CSV. Retorna o userId processado, ou null se nada
      * foi feito. Lança exceção em caso de erro.
      * Formato: userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+     *          [;resp2Id;resp2Nome;resp2Parentesco;resp2Telefone]  ← opcional
      */
     private String processLine(String line, SyncReport report) {
         String[] data = line.split(";", -1);
         if (data.length < 8) {
-            throw new IllegalArgumentException("Colunas insuficientes (esperadas 8, recebidas " + data.length + ")");
+            throw new IllegalArgumentException("Colunas insuficientes (esperadas 8+, recebidas " + data.length + ")");
         }
 
         String userId = data[0].trim();
@@ -145,27 +146,42 @@ public class PronoteSyncService {
         String respParentesco = data[6].trim();
         String respTelefone = data[7].trim();
 
+        // Responsável 2 (opcional — colunas 8-11)
+        String resp2Id = data.length > 8 ? data[8].trim() : "";
+        String resp2Nome = data.length > 9 ? data[9].trim() : "";
+        String resp2Parentesco = data.length > 10 ? data[10].trim() : "";
+        String resp2Telefone = data.length > 11 ? data[11].trim() : "";
+
         if (userId.isEmpty() || nome.isEmpty()) {
             throw new IllegalArgumentException("ID ou nome vazios");
         }
 
-        // 1. Upsert Responsável (sem soft delete — responsáveis não têm "ativo")
+        // 1. Upsert Responsável 1
         if (!respId.isEmpty() && !respNome.isEmpty()) {
-            Responsavel responsavel = responsavelRepository.findById(respId).orElse(new Responsavel());
-            responsavel.setId(respId);
-            responsavel.setNome(respNome);
-            if (!respParentesco.isEmpty()) responsavel.setParentesco(respParentesco);
-            if (!respTelefone.isEmpty()) responsavel.setTelefone(respTelefone);
-            responsavelRepository.save(responsavel);
+            Responsavel r = responsavelRepository.findById(respId).orElse(new Responsavel());
+            r.setId(respId);
+            r.setNome(respNome);
+            if (!respParentesco.isEmpty()) r.setParentesco(respParentesco);
+            if (!respTelefone.isEmpty()) r.setTelefone(respTelefone);
+            responsavelRepository.save(r);
         }
 
-        // 2. Upsert User (com tracking de created vs updated)
-        boolean isNew = !userRepository.existsById(userId);
+        // 1b. Upsert Responsável 2
+        if (!resp2Id.isEmpty() && !resp2Nome.isEmpty()) {
+            Responsavel r2 = responsavelRepository.findById(resp2Id).orElse(new Responsavel());
+            r2.setId(resp2Id);
+            r2.setNome(resp2Nome);
+            if (!resp2Parentesco.isEmpty()) r2.setParentesco(resp2Parentesco);
+            if (!resp2Telefone.isEmpty()) r2.setTelefone(resp2Telefone);
+            responsavelRepository.save(r2);
+        }
 
+        // 2. Upsert User
+        boolean isNew = !userRepository.existsById(userId);
         User user = userRepository.findById(userId).orElse(new User());
         user.setId(userId);
         user.setNome(nome);
-        user.setAtivo(true); // sempre reativa quem aparece no CSV
+        user.setAtivo(true);
 
         try {
             user.setTipo(UserType.valueOf(tipoStr.toUpperCase()));
@@ -177,6 +193,9 @@ public class PronoteSyncService {
 
         if (!respId.isEmpty() && "ALUNO".equalsIgnoreCase(tipoStr)) {
             user.setResponsavelId(respId);
+        }
+        if (!resp2Id.isEmpty() && "ALUNO".equalsIgnoreCase(tipoStr)) {
+            user.setResponsavel2Id(resp2Id);
         }
 
         if (user.getMealCount() == null) user.setMealCount(0);

@@ -37,4 +37,7 @@ public class AccessLog {
 
     @Column(name = "created_by_user", length = 50)
     private String createdByUser;
+
+    @Column(name = "flag", length = 32)
+    private String flag;
 }

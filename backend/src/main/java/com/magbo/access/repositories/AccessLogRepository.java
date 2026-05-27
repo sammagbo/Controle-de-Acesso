@@ -1,11 +1,13 @@
 package com.magbo.access.repositories;
 
+import com.magbo.access.models.AccessAction;
 import com.magbo.access.models.AccessLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Pageable;
 import java.util.List;
+import java.util.Optional;
 import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +18,9 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     List<AccessLog> findByPointIdOrderByTimestampDesc(String pointId);
 
     List<AccessLog> findAllByOrderByTimestampDesc(Pageable pageable);
+
+    Optional<AccessLog> findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(
+            String userId, String pointId, AccessAction action);
 
     @Query("""
         SELECT a FROM AccessLog a

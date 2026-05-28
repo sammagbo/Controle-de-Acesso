@@ -56,10 +56,35 @@ public class AccessController {
     }
 
     @GetMapping("/logs/refectory")
-    public List<AccessLog> refectoryLogs() {
+    public List<AccessLog> refectoryLogs(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) String action,
+            @RequestParam(defaultValue = "500") Integer limit) {
+
         List<String> refIds = List.of("REFEI1", "REFEI2", "CANTINA1");
-        return accessLogRepository.findByPointIdInAndTimestampAfterOrderByTimestampDesc(
-                refIds, LocalDateTime.now().minusHours(3));
+
+        LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : LocalDateTime.now().minusDays(30);
+        LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : LocalDateTime.now();
+
+        List<AccessLog> logs = accessLogRepository
+                .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(refIds, from, to);
+
+        if (action != null && !action.isEmpty()) {
+            com.magbo.access.models.AccessAction act =
+                    com.magbo.access.models.AccessAction.valueOf(action);
+            logs = logs.stream()
+                    .filter(l -> l.getAction() == act)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        if (logs.size() > limit) {
+            logs = logs.subList(0, limit);
+        }
+        return logs;
     }
 
     @GetMapping("/logs/{pointId}")

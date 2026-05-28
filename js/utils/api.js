@@ -124,12 +124,18 @@ async function fetchLogs(pointId) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// fetchRefectoryLogs() — GET /api/access/logs/refectory
-// Returns raw log array (last 3h, REFEI1+REFEI2) or [] on error
+// fetchRefectoryLogs(filters?) — GET /api/access/logs/refectory
+// Accepts optional { dateFrom, dateTo, action, limit }
+// Called without args by CantineMonitor (gets last 30d, limit 500)
 // ─────────────────────────────────────────────────────────────
-async function fetchRefectoryLogs() {
+async function fetchRefectoryLogs(filters = {}) {
       try {
-            const res = await fetch(`${API_BASE}/access/logs/refectory`, {
+            const params = new URLSearchParams();
+            if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+            if (filters.dateTo)   params.set('dateTo',   filters.dateTo);
+            if (filters.action)   params.set('action',   filters.action);
+            params.set('limit', String(filters.limit || 500));
+            const res = await fetch(`${API_BASE}/access/logs/refectory?${params.toString()}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
             if (!res.ok) return [];

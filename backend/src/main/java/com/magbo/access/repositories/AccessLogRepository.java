@@ -58,4 +58,8 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     List<AccessLog> findByPointIdInAndTimestampAfterOrderByTimestampDesc(
             List<String> pointIds, LocalDateTime after);
+
+    List<AccessLog> findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
+            List<String> pointIds, LocalDateTime from, LocalDateTime to);
 }
+

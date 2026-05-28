@@ -409,7 +409,7 @@ function BibliotecaView({ onBack }) {
                   <footer className="h-14 bg-white border-t flex items-center justify-between px-5 shrink-0">
                         <div className="flex flex-col text-xs text-slate-400">
                               <span>© 2026 SafeTrack. Tous droits réservés.</span>
-                              <span>Developed with <span className="text-red-500">♥</span> by <a href="https://www.linkedin.com/in/sam-magbo-02086555/" target="_blank" rel="noopener noreferrer" className="font-bold text-slate-600 hover:text-blue-600 hover:underline">Magbo Studio</a></span>
+                              <span>Developed with <span className="text-red-500">❤️</span> by <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="font-bold text-slate-600 hover:text-blue-600 hover:underline">Magbo Studio</a></span>
                         </div>
                         <button onClick={() => setEmergency(true)} className="flex items-center gap-2 text-sm text-slate-500 hover:text-red-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
                               <CdiIcon name="shield-alert" size={16} /> <span className="font-semibold">MODE URGENCE</span>

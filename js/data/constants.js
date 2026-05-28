@@ -20,6 +20,7 @@ const ACCESS_POINTS = [
       { id: 'REFEI1', nome: 'Cantine Principale',    icon: 'utensils',         description: 'Refeitório 1',            category: 'refeitorio' },
       { id: 'REFEI2', nome: 'Cantine Secondaire',    icon: 'utensils-crossed', description: 'Refeitório 2',            category: 'refeitorio' },
       { id: 'CANTINA_MONITOR', nome: 'Monitor Cantine', icon: 'monitor', description: 'Surveillance temps réel', category: 'monitor' },
+      { id: 'CANTINA_REPORT',  nome: 'Rapport Cantine', icon: 'file-text', description: 'Historique et export',   category: 'monitor' },
 ];
 
 

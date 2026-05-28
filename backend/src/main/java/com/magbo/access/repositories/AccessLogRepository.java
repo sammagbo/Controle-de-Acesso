@@ -55,4 +55,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
           )
     """)
     long countActiveUsersSince(@Param("start") LocalDateTime start);
+
+    List<AccessLog> findByPointIdInAndTimestampAfterOrderByTimestampDesc(
+            List<String> pointIds, LocalDateTime after);
 }

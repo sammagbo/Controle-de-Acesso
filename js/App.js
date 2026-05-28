@@ -248,6 +248,8 @@ function App() {
                               onSelectPoint={setCurrentPoint}
                               accessLogs={accessLogs}
                         />
+                  ) : currentPoint && currentPoint.id === 'CANTINA_MONITOR' ? (
+                        <CantineMonitor />
                   ) : (
                   <SectorView
                         point={currentPoint}

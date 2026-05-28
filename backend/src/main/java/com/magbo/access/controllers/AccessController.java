@@ -55,6 +55,13 @@ public class AccessController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
+    @GetMapping("/logs/refectory")
+    public List<AccessLog> refectoryLogs() {
+        List<String> refIds = List.of("REFEI1", "REFEI2", "CANTINA1");
+        return accessLogRepository.findByPointIdInAndTimestampAfterOrderByTimestampDesc(
+                refIds, LocalDateTime.now().minusHours(3));
+    }
+
     @GetMapping("/logs/{pointId}")
     public ResponseEntity<List<AccessLog>> getLogsByPoint(@PathVariable String pointId) {
         List<AccessLog> logs = accessLogRepository.findByPointIdOrderByTimestampDesc(pointId);

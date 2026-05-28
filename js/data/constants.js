@@ -19,6 +19,7 @@ const ACCESS_POINTS = [
       { id: 'ENFERM', nome: 'Infirmerie',            icon: 'heart-pulse',      description: 'Enfermaria',              category: 'especial'  },
       { id: 'REFEI1', nome: 'Cantine Principale',    icon: 'utensils',         description: 'Refeitório 1',            category: 'refeitorio' },
       { id: 'REFEI2', nome: 'Cantine Secondaire',    icon: 'utensils-crossed', description: 'Refeitório 2',            category: 'refeitorio' },
+      { id: 'CANTINA_MONITOR', nome: 'Monitor Cantine', icon: 'monitor', description: 'Surveillance temps réel', category: 'monitor' },
 ];
 
 
@@ -44,4 +45,5 @@ const CATEGORY_COLORS = {
       portaria:   { bg: 'bg-accent-500',  iconBg: 'bg-accent-600',  ring: 'ring-accent-200'  },
       especial:   { bg: 'bg-warning-500', iconBg: 'bg-warning-600', ring: 'ring-warning-200' },
       refeitorio: { bg: 'bg-success-500', iconBg: 'bg-success-600', ring: 'ring-success-200' },
+      monitor:    { bg: 'bg-navy-500',    iconBg: 'bg-navy-600',    ring: 'ring-navy-200'    },
 };

@@ -122,3 +122,20 @@ async function fetchLogs(pointId) {
             throw err;
       }
 }
+
+// ─────────────────────────────────────────────────────────────
+// fetchRefectoryLogs() — GET /api/access/logs/refectory
+// Returns raw log array (last 3h, REFEI1+REFEI2) or [] on error
+// ─────────────────────────────────────────────────────────────
+async function fetchRefectoryLogs() {
+      try {
+            const res = await fetch(`${API_BASE}/access/logs/refectory`, {
+                  headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            if (!res.ok) return [];
+            return await res.json();
+      } catch (e) {
+            console.error('[API] fetchRefectoryLogs error:', e);
+            return [];
+      }
+}

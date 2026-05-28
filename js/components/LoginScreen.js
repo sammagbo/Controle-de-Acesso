@@ -21,6 +21,7 @@ function LoginScreen({ onLoginSuccess }) {
     setError('');
     try {
       const data = await window.auth.login(username.trim(), password);
+      await window.userCache?.reload();
       onLoginSuccess(data);
     } catch (err) {
       setError(err.message || 'Erreur de connexion.');

@@ -6,20 +6,16 @@ import com.magbo.access.models.User;
 import com.magbo.access.models.UserType;
 import com.magbo.access.repositories.ResponsavelRepository;
 import com.magbo.access.repositories.UserRepository;
+import com.magbo.access.services.pronote.PronoteDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,9 +27,16 @@ public class PronoteSyncService {
 
     private final UserRepository userRepository;
     private final ResponsavelRepository responsavelRepository;
+    private final ApplicationContext applicationContext;
 
-    @Value("${pronote.sync.filepath}")
-    private String syncFilePath;
+    @Value("${pronote.source:csv}")
+    private String pronoteSource;
+
+    private PronoteDataSource dataSource() {
+        String beanName = "api".equalsIgnoreCase(pronoteSource)
+                ? "apiPronoteDataSource" : "csvPronoteDataSource";
+        return applicationContext.getBean(beanName, PronoteDataSource.class);
+    }
 
     /**
      * Job agendado pelo cron — descarta o relatório porque executa em background.
@@ -53,35 +56,31 @@ public class PronoteSyncService {
      */
     @Transactional
     public SyncReport syncPronoteData() {
+        PronoteDataSource source = dataSource();
         SyncReport report = SyncReport.builder()
                 .syncedAt(LocalDateTime.now())
-                .filePath(syncFilePath)
+                .filePath(source.describe())
                 .build();
 
-        Path path = Paths.get(syncFilePath);
-
-        if (!Files.exists(path)) {
-            String msg = "Nenhum ficheiro para sincronizar: " + syncFilePath;
+        if (!source.isAvailable()) {
+            String msg = "Fonte de dados indispon\u00edvel: " + source.describe();
             log.warn(msg);
             report.addError(msg);
             return report;
         }
 
-        log.info("Iniciando sincronização Pronote: {}", syncFilePath);
-
+        log.info("Iniciando sincroniza\u00e7\u00e3o Pronote a partir de: {}", source.describe());
         Set<String> idsVistosNoCsv = new HashSet<>();
 
         try {
-            List<String> lines = Files.readAllLines(path);
+            List<String> lines = source.fetchLines();
 
             boolean isFirstLine = true;
             int lineNumber = 0;
-
             for (String line : lines) {
                 lineNumber++;
                 if (isFirstLine) { isFirstLine = false; continue; }
                 if (line.trim().isEmpty()) continue;
-
                 try {
                     String userId = processLine(line, report);
                     if (userId != null) idsVistosNoCsv.add(userId);
@@ -92,34 +91,28 @@ public class PronoteSyncService {
                 }
             }
 
-            // Soft delete: desativa usuários que estavam ATIVOS no banco
-            // mas não apareceram neste CSV
+            // Soft delete: desativa usu\u00e1rios que estavam ATIVOS no banco
+            // mas n\u00e3o apareceram neste CSV
             List<User> ativos = userRepository.findByAtivoTrue();
             for (User user : ativos) {
                 if (!idsVistosNoCsv.contains(user.getId())) {
                     user.setAtivo(false);
                     userRepository.save(user);
                     report.incrementDeactivated();
-                    log.info("Soft delete: usuário {} marcado como inativo", user.getId());
+                    log.info("Soft delete: usu\u00e1rio {} marcado como inativo", user.getId());
                 }
             }
 
-            log.info("Sincronização concluída: created={}, updated={}, deactivated={}, errors={}",
+            log.info("Sincroniza\u00e7\u00e3o conclu\u00edda: created={}, updated={}, deactivated={}, errors={}",
                     report.getCreated(), report.getUpdated(),
                     report.getDeactivated(), report.getErrors());
 
-            // Move o arquivo se 100% sucesso
             if (report.getErrors() == 0) {
-                String dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                Path processedPath = Paths.get(syncFilePath.replace(".csv", "_" + dateSuffix + ".csv.processed"));
-                Files.move(path, processedPath);
-                log.info("Ficheiro movido para: {}", processedPath);
+                source.onSyncComplete();
             }
-
-        } catch (IOException e) {
-            log.error("Erro de IO lendo CSV", e);
-            report.addError("Erro de IO: " + e.getMessage());
-            throw new RuntimeException("Falha na sincronização", e);
+        } catch (Exception e) {
+            log.error("Erro durante sincroniza\u00e7\u00e3o", e);
+            report.addError("Erro: " + e.getMessage());
         }
 
         return report;

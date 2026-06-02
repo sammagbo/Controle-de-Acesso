@@ -39,6 +39,15 @@
       .includes(String(sectorId).toUpperCase());
   }
 
+  function canAccessArea(area) {
+      if (!_user) return false;
+      if (_user.role === 'ADMIN') return true;
+      if (!_user.setoresPermitidos) return false;
+      const perms = _user.setoresPermitidos.trim();
+      if (perms === '*') return true;
+      return perms.split(',').map(s => s.trim().toLowerCase()).includes((area || '').toLowerCase());
+  }
+
   function onAuthChange(fn) {
     listeners.push(fn);
     return () => {
@@ -78,6 +87,6 @@
   
   globalObj.auth = {
     login, logout, getToken, getUser, isLoggedIn,
-    isAdmin, isOperator, canOperateSector, onAuthChange
+    isAdmin, isOperator, canOperateSector, canAccessArea, onAuthChange
   };
 })();

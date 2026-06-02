@@ -71,7 +71,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
 
                   {/* Access Point Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {ACCESS_POINTS.map((point) => {
+                        {ACCESS_POINTS.filter(point => window.auth.canAccessArea(point.area)).map((point) => {
                               const colors = CATEGORY_COLORS[point.category];
                               const count = activeCounts[point.id] || 0;
                               return (

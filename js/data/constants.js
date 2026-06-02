@@ -12,16 +12,16 @@
 // Alterar aqui reflete em toda a UI (SectorView, Dashboard, etc.)
 // ---------------------------------------------------------------------
 const ACCESS_POINTS = [
-      { id: 'PORT1',  nome: 'Portail Principal',    icon: 'door-open',        description: 'Entrada Principal',        category: 'portaria'  },
-      { id: 'PORT2',  nome: 'Portail Terrain',       icon: 'door-closed',      description: 'Entrada Lateral Norte',    category: 'portaria'  },
-      { id: 'PORT3',  nome: 'Garage',                icon: 'door-closed',      description: 'Entrada Lateral Sul',      category: 'portaria'  },
-      { id: 'BIBLIO', nome: 'CDI - Biblioteca',      icon: 'book-open',        description: 'Centre de Documentation', category: 'especial'  },
-      { id: 'ENFERM', nome: 'Infirmerie',            icon: 'heart-pulse',      description: 'Enfermaria',              category: 'especial'  },
-      { id: 'REFEI1', nome: 'Cantine Principale',    icon: 'utensils',         description: 'Refeitório 1',            category: 'refeitorio' },
-      { id: 'REFEI2', nome: 'Cantine Secondaire',    icon: 'utensils-crossed', description: 'Refeitório 2',            category: 'refeitorio' },
-      { id: 'CANTINA_MONITOR', nome: 'Monitor Cantine', icon: 'monitor', description: 'Surveillance temps réel', category: 'monitor' },
-      { id: 'CANTINA_REPORT',  nome: 'Rapport Cantine', icon: 'file-text', description: 'Historique et export',   category: 'monitor' },
-      { id: 'INFIRMARY_REPORT', nome: 'Rapport Infirmerie', icon: 'clipboard-list', description: 'Visites et séjours', category: 'monitor' },
+      { id: 'PORT1',  nome: 'Portail Principal',    icon: 'door-open',        description: 'Entrada Principal',        category: 'portaria', area: 'portail' },
+      { id: 'PORT2',  nome: 'Portail Terrain',       icon: 'door-closed',      description: 'Entrada Lateral Norte',    category: 'portaria', area: 'portail' },
+      { id: 'PORT3',  nome: 'Garage',                icon: 'door-closed',      description: 'Entrada Lateral Sul',      category: 'portaria', area: 'portail' },
+      { id: 'BIBLIO', nome: 'CDI - Biblioteca',      icon: 'book-open',        description: 'Centre de Documentation', category: 'especial', area: 'cdi' },
+      { id: 'ENFERM', nome: 'Infirmerie',            icon: 'heart-pulse',      description: 'Enfermaria',              category: 'especial', area: 'infirmerie' },
+      { id: 'REFEI1', nome: 'Cantine Principale',    icon: 'utensils',         description: 'Refeitório 1',            category: 'refeitorio', area: 'cantine' },
+      { id: 'REFEI2', nome: 'Cantine Secondaire',    icon: 'utensils-crossed', description: 'Refeitório 2',            category: 'refeitorio', area: 'cantine' },
+      { id: 'CANTINA_MONITOR', nome: 'Monitor Cantine', icon: 'monitor', description: 'Surveillance temps réel', category: 'monitor', area: 'cantine' },
+      { id: 'CANTINA_REPORT',  nome: 'Rapport Cantine', icon: 'file-text', description: 'Historique et export',   category: 'monitor', area: 'cantine' },
+      { id: 'INFIRMARY_REPORT', nome: 'Rapport Infirmerie', icon: 'clipboard-list', description: 'Visites et séjours', category: 'monitor', area: 'infirmerie' },
 ];
 
 

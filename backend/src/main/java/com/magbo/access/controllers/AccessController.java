@@ -203,4 +203,84 @@ public class AccessController {
         List<AccessLog> logs = accessLogRepository.findFilteredLogs(start, end, pointId, actionEnum, pageable);
         return ResponseEntity.ok(logs);
     }
+
+    private static final int INFIRMARY_LONG_STAY_MIN = 30;
+
+    @GetMapping("/infirmary/visits")
+    public java.util.List<com.magbo.access.dto.InfirmaryVisit> infirmaryVisits(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        java.util.List<String> infIds = java.util.List.of("ENFERM");
+
+        java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : java.time.LocalDateTime.now();
+
+        java.util.List<AccessLog> logs = accessLogRepository
+                .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(infIds, from, to);
+
+        java.util.Map<String, java.util.List<AccessLog>> byUserDay = new java.util.HashMap<>();
+        java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (AccessLog log : logs) {
+            String day = log.getTimestamp().format(dayFmt);
+            String key = log.getUserId() + "|" + day;
+            byUserDay.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(log);
+        }
+
+        java.time.format.DateTimeFormatter hm = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+        java.util.List<com.magbo.access.dto.InfirmaryVisit> visits = new java.util.ArrayList<>();
+
+        for (java.util.Map.Entry<String, java.util.List<AccessLog>> entry : byUserDay.entrySet()) {
+            java.util.List<AccessLog> dayLogs = entry.getValue();
+            dayLogs.sort(java.util.Comparator.comparing(AccessLog::getTimestamp));
+
+            AccessLog entrada = null, saida = null;
+            for (AccessLog l : dayLogs) {
+                if (entrada == null && l.getAction() == com.magbo.access.models.AccessAction.ENTRADA) {
+                    entrada = l;
+                } else if (entrada != null && saida == null && l.getAction() == com.magbo.access.models.AccessAction.SAIDA) {
+                    saida = l;
+                    break;
+                }
+            }
+            if (entrada == null) continue;
+
+            String userId = entrada.getUserId();
+            User u = userRepository.findById(userId).orElse(null);
+            String day = entrada.getTimestamp().format(dayFmt);
+
+            Integer duration = null;
+            String exitTime = null;
+            boolean exitRegistered = false;
+            boolean longStay = false;
+            if (saida != null) {
+                exitTime = saida.getTimestamp().format(hm);
+                exitRegistered = true;
+                duration = (int) java.time.Duration.between(entrada.getTimestamp(), saida.getTimestamp()).toMinutes();
+                longStay = duration > INFIRMARY_LONG_STAY_MIN;
+            }
+
+            visits.add(com.magbo.access.dto.InfirmaryVisit.builder()
+                    .userId(userId)
+                    .nome(u != null ? u.getNome() : userId)
+                    .turma(u != null ? u.getTurma() : "")
+                    .date(day)
+                    .entryTime(entrada.getTimestamp().format(hm))
+                    .exitTime(exitTime)
+                    .durationMinutes(duration)
+                    .longStay(longStay)
+                    .exitRegistered(exitRegistered)
+                    .build());
+        }
+
+        visits.sort(java.util.Comparator
+                .comparing(com.magbo.access.dto.InfirmaryVisit::getDate).reversed()
+                .thenComparing(com.magbo.access.dto.InfirmaryVisit::getEntryTime));
+
+        return visits;
+    }
 }

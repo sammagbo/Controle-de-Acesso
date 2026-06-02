@@ -252,6 +252,8 @@ function App() {
                         <CantineMonitor />
                   ) : currentPoint && currentPoint.id === 'CANTINA_REPORT' ? (
                         <RefectoryReport />
+                  ) : currentPoint && currentPoint.id === 'INFIRMARY_REPORT' ? (
+                        <InfirmaryReport />
                   ) : (
                   <SectorView
                         point={currentPoint}

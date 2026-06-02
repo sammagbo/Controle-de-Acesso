@@ -165,3 +165,22 @@ async function fetchRefectoryMeals(filters = {}) {
         return [];
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// fetchInfirmaryVisits(filters?) — GET /api/access/infirmary/visits
+// ─────────────────────────────────────────────────────────────
+async function fetchInfirmaryVisits(filters = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        const res = await fetch(`${API_BASE}/access/infirmary/visits?${params.toString()}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+        });
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (e) {
+        console.error('[API] fetchInfirmaryVisits error:', e);
+        return [];
+    }
+}

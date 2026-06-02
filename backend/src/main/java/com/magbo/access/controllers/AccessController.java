@@ -4,7 +4,9 @@ import com.magbo.access.dto.AccessRequest;
 import com.magbo.access.models.AccessLog;
 import com.magbo.access.models.SystemUser;
 import com.magbo.access.repositories.AccessLogRepository;
+import com.magbo.access.models.User;
 import com.magbo.access.repositories.SystemUserRepository;
+import com.magbo.access.repositories.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,7 @@ public class AccessController {
 
     private final AccessLogRepository accessLogRepository;
     private final SystemUserRepository systemUserRepository;
+    private final UserRepository userRepository;
 
     @PostMapping
     public ResponseEntity<?> registerAccess(@Valid @RequestBody AccessRequest request) {
@@ -85,6 +88,84 @@ public class AccessController {
             logs = logs.subList(0, limit);
         }
         return logs;
+    }
+
+    @GetMapping("/refectory/meals")
+    public java.util.List<com.magbo.access.dto.RefectoryMeal> refectoryMeals(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        java.util.List<String> refIds = java.util.List.of("REFEI1", "REFEI2", "CANTINA1");
+
+        java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : java.time.LocalDateTime.now();
+
+        java.util.List<AccessLog> logs = accessLogRepository
+                .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(refIds, from, to);
+
+        // agrupa por (userId + dia), ordena cronológico, pareia 1a entrada + 1a saída seguinte
+        java.util.Map<String, java.util.List<AccessLog>> byUserDay = new java.util.HashMap<>();
+        java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (AccessLog log : logs) {
+            String day = log.getTimestamp().format(dayFmt);
+            String key = log.getUserId() + "|" + day;
+            byUserDay.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(log);
+        }
+
+        java.time.format.DateTimeFormatter hm = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+        java.util.List<com.magbo.access.dto.RefectoryMeal> meals = new java.util.ArrayList<>();
+
+        for (java.util.Map.Entry<String, java.util.List<AccessLog>> entry : byUserDay.entrySet()) {
+            java.util.List<AccessLog> dayLogs = entry.getValue();
+            dayLogs.sort(java.util.Comparator.comparing(AccessLog::getTimestamp)); // cronológico
+
+            AccessLog entrada = null, saida = null;
+            for (AccessLog l : dayLogs) {
+                if (entrada == null && l.getAction() == com.magbo.access.models.AccessAction.ENTRADA) {
+                    entrada = l;
+                } else if (entrada != null && saida == null && l.getAction() == com.magbo.access.models.AccessAction.SAIDA) {
+                    saida = l;
+                    break;
+                }
+            }
+            if (entrada == null) continue; // só saída solta, ignora
+
+            String userId = entrada.getUserId();
+            User u = userRepository.findById(userId).orElse(null);
+            String day = entrada.getTimestamp().format(dayFmt);
+
+            Integer duration = null;
+            String exitTime = null;
+            boolean exitRegistered = false;
+            if (saida != null) {
+                exitTime = saida.getTimestamp().format(hm);
+                exitRegistered = true;
+                duration = (int) java.time.Duration.between(entrada.getTimestamp(), saida.getTimestamp()).toMinutes();
+            }
+
+            meals.add(com.magbo.access.dto.RefectoryMeal.builder()
+                    .userId(userId)
+                    .nome(u != null ? u.getNome() : userId)
+                    .turma(u != null ? u.getTurma() : "")
+                    .date(day)
+                    .entryTime(entrada.getTimestamp().format(hm))
+                    .exitTime(exitTime)
+                    .durationMinutes(duration)
+                    .onTime(entrada.getFlag() == null)   // flag null = entrou na hora certa
+                    .exitRegistered(exitRegistered)
+                    .build());
+        }
+
+        // ordena por data desc, depois por hora de entrada
+        meals.sort(java.util.Comparator
+                .comparing(com.magbo.access.dto.RefectoryMeal::getDate).reversed()
+                .thenComparing(com.magbo.access.dto.RefectoryMeal::getEntryTime));
+
+        return meals;
     }
 
     @GetMapping("/logs/{pointId}")

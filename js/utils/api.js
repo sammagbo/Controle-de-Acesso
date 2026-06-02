@@ -145,3 +145,23 @@ async function fetchRefectoryLogs(filters = {}) {
             return [];
       }
 }
+
+// ─────────────────────────────────────────────────────────────
+// fetchRefectoryMeals(filters?) — GET /api/access/refectory/meals
+// Returns paired meals (entry+exit) with duration and on-time flag.
+// ─────────────────────────────────────────────────────────────
+async function fetchRefectoryMeals(filters = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        const res = await fetch(`${API_BASE}/access/refectory/meals?${params.toString()}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+        });
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (e) {
+        console.error('[API] fetchRefectoryMeals error:', e);
+        return [];
+    }
+}

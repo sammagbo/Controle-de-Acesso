@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +59,7 @@ public class AccessController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
+    @PreAuthorize("@areaSecurity.can('cantine')")
     @GetMapping("/logs/refectory")
     public List<AccessLog> refectoryLogs(
             @RequestParam(required = false) String dateFrom,
@@ -90,6 +92,7 @@ public class AccessController {
         return logs;
     }
 
+    @PreAuthorize("@areaSecurity.can('cantine')")
     @GetMapping("/refectory/meals")
     public java.util.List<com.magbo.access.dto.RefectoryMeal> refectoryMeals(
             @RequestParam(required = false) String dateFrom,
@@ -206,6 +209,7 @@ public class AccessController {
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;
 
+    @PreAuthorize("@areaSecurity.can('infirmerie')")
     @GetMapping("/infirmary/visits")
     public java.util.List<com.magbo.access.dto.InfirmaryVisit> infirmaryVisits(
             @RequestParam(required = false) String dateFrom,

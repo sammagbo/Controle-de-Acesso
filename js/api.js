@@ -106,12 +106,14 @@ const api = {
     },
 
     /**
-     * Busca os últimos 50 logs globais (todos os setores).
+     * Busca logs globais (todos os setores).
      * ALWAYS returns an array. Accepts optional filters object.
+     * @param {Object} filters - { pointId, action, dateFrom, dateTo, limit }
+     *   limit defaults to 500 when not specified.
      */
     async fetchAllLogs(filters = {}) {
         try {
-            const params = new URLSearchParams({ limit: '50' });
+            const params = new URLSearchParams({ limit: String(filters.limit || 500) });
             if (filters.pointId)  params.set('pointId',  filters.pointId);
             if (filters.action)   params.set('action',   filters.action);
             if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);

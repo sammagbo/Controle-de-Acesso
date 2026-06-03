@@ -18,6 +18,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
       const [lastSync, setLastSync] = React.useState('03:00');
       const [showUserMgmt, setShowUserMgmt] = React.useState(false);
       const [showUserList, setShowUserList] = React.useState(false);
+      const [showGeneralReport, setShowGeneralReport] = React.useState(false);
 
       const EMPTY_FILTERS = { pointId: '', action: '', dateFrom: '', dateTo: '' };
       const [filters, setFilters] = React.useState(EMPTY_FILTERS);
@@ -294,7 +295,80 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                   </div>
 
                   {/* ══════════════════════════════════════════════════════════ */}
-                  {/* SECTION 2 — PRONOTE SYNC                                  */}
+                  {/* SECTION 2 — GESTÃO DE OPERADORES (admin only)            */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {window.auth && window.auth.isAdmin() && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                              {/* Gestão de Operadores */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="shield-check" size={24} className="text-accent-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Gestão de Operadores</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Criar, editar e desativar operadores do sistema
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={() => setShowUserMgmt(true)}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="users" size={16} />
+                                          Abrir gestão de operadores
+                                    </button>
+                              </div>
+
+                              {/* Gestão de Usuários Gerais */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="users" size={24} className="text-indigo-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Gestão de Usuários</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Editar ou desativar alunos, professores, funcionários e responsáveis
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={() => setShowUserList(true)}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="edit" size={16} />
+                                          Abrir gestão de usuários
+                                    </button>
+                              </div>
+
+                              {/* Rapport Général */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-navy-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="layout-dashboard" size={24} className="text-navy-500" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Rapport Général</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Vue consolidée — KPIs, par élève, journal
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={() => setShowGeneralReport(true)}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-navy-500 text-white hover:bg-navy-600 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="bar-chart-3" size={16} />
+                                          Ouvrir le rapport
+                                    </button>
+                              </div>
+                        </div>
+                  )}
+
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {/* SECTION 3 — PRONOTE SYNC                                  */}
                   {/* ══════════════════════════════════════════════════════════ */}
                   <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm mb-8">
                         <div className="flex items-center justify-between flex-wrap gap-4">
@@ -498,56 +572,6 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                         )}
                   </div>
 
-                  {/* ══════════════════════════════════════════════════════════ */}
-                  {/* SECTION 4 — GESTÃO DE OPERADORES (admin only)            */}
-                  {/* ══════════════════════════════════════════════════════════ */}
-                  {window.auth && window.auth.isAdmin() && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                              {/* Gestão de Operadores */}
-                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <div className="flex items-start gap-4 mb-4">
-                                          <div className="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
-                                                <LucideIcon name="shield-check" size={24} className="text-accent-600" />
-                                          </div>
-                                          <div>
-                                                <h3 className="text-base font-bold text-navy-500">Gestão de Operadores</h3>
-                                                <p className="text-sm text-slate-400">
-                                                      Criar, editar e desativar operadores do sistema
-                                                </p>
-                                          </div>
-                                    </div>
-                                    <button
-                                          onClick={() => setShowUserMgmt(true)}
-                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
-                                    >
-                                          <LucideIcon name="users" size={16} />
-                                          Abrir gestão de operadores
-                                    </button>
-                              </div>
-
-                              {/* Gestão de Usuários Gerais */}
-                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <div className="flex items-start gap-4 mb-4">
-                                          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                                                <LucideIcon name="users" size={24} className="text-indigo-600" />
-                                          </div>
-                                          <div>
-                                                <h3 className="text-base font-bold text-navy-500">Gestão de Usuários</h3>
-                                                <p className="text-sm text-slate-400">
-                                                      Editar ou desativar alunos, professores, funcionários e responsáveis
-                                                </p>
-                                          </div>
-                                    </div>
-                                    <button
-                                          onClick={() => setShowUserList(true)}
-                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-95"
-                                    >
-                                          <LucideIcon name="edit" size={16} />
-                                          Abrir gestão de usuários
-                                    </button>
-                              </div>
-                        </div>
-                  )}
 
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* MODAL — User Management (fullscreen overlay)             */}
@@ -586,6 +610,36 @@ function AdminDashboard({ onBack, onShowToast, activeTimers }) {
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* MODAL — User List (fullscreen overlay)                     */}
                   {/* ══════════════════════════════════════════════════════════ */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {/* MODAL — General Report (fullscreen overlay)               */}
+                  {/* ══════════════════════════════════════════════════════════ */}
+                  {showGeneralReport && (
+                        <div className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                              <div className="bg-white rounded-[24px] w-full max-w-7xl shadow-2xl overflow-hidden animate-zoom-in h-[90vh] flex flex-col">
+                                    <div className="bg-navy-500 p-6 flex items-center justify-between flex-shrink-0">
+                                          <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                                                      <LucideIcon name="layout-dashboard" size={20} className="text-white" />
+                                                </div>
+                                                <div>
+                                                      <h2 className="text-xl font-bold text-white">Rapport Général</h2>
+                                                      <p className="text-xs text-white/50">Vue consolidée de toutes les zones</p>
+                                                </div>
+                                          </div>
+                                          <button
+                                                onClick={() => setShowGeneralReport(false)}
+                                                className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                                          >
+                                                <LucideIcon name="x" size={20} />
+                                          </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-6 min-h-0">
+                                          <GeneralReport onClose={() => setShowGeneralReport(false)} />
+                                    </div>
+                              </div>
+                        </div>
+                  )}
+
                   {showUserList && (
                         <div className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
                               <div className="bg-white rounded-[24px] w-full max-w-5xl shadow-2xl overflow-hidden animate-zoom-in h-[90vh] flex flex-col">

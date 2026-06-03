@@ -227,14 +227,45 @@ function UserFormModal({ user, onClose, onSaved }) {
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Setores (CSV)'),
-              React.createElement('input', {
-                type: 'text',
-                value: form.setoresPermitidos,
-                onChange: (e) => setForm({ ...form, setoresPermitidos: e.target.value }),
-                placeholder: 'BIBLIO,CDI ou *',
-                className: 'w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 font-mono text-sm text-navy-500'
-              })
+              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Secteurs autorisés'),
+              React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                [
+                  { val: 'cantine',    label: 'Cantine' },
+                  { val: 'infirmerie', label: 'Infirmerie' },
+                  { val: 'cdi',        label: 'CDI / Bibliothèque' },
+                  { val: 'portail',    label: 'Portail (entrées)' },
+                  { val: '*',          label: 'Tout (admin)' },
+                ].map((area) => {
+                  const current  = (form.setoresPermitidos || '').split(',').map(s => s.trim()).filter(Boolean);
+                  const isAll    = current.includes('*');
+                  const checked  = area.val === '*' ? isAll : current.includes(area.val);
+                  const disabled = area.val !== '*' && isAll;
+                  return React.createElement('label', {
+                    key: area.val,
+                    className: `flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${checked ? 'border-accent-500 bg-accent-500/5 text-accent-700 font-semibold' : 'border-soft-200 text-slate-600'} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`
+                  },
+                    React.createElement('input', {
+                      type: 'checkbox',
+                      checked: checked,
+                      disabled: disabled,
+                      onChange: () => {
+                        if (area.val === '*') {
+                          setForm({ ...form, setoresPermitidos: checked ? '' : '*' });
+                          return;
+                        }
+                        let next = current.filter(v => v !== '*');
+                        if (next.includes(area.val)) {
+                          next = next.filter(v => v !== area.val);
+                        } else {
+                          next.push(area.val);
+                        }
+                        setForm({ ...form, setoresPermitidos: next.join(',') });
+                      }
+                    }),
+                    area.label
+                  );
+                })
+              )
             )
           ),
 

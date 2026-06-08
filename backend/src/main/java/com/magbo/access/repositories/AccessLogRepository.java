@@ -62,6 +62,10 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     List<AccessLog> findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
             List<String> pointIds, LocalDateTime from, LocalDateTime to);
 
+    // Total de movimentos no período (excluindo portões)
+    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3')", nativeQuery = true)
+    long countMovementsInternal(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
     // Total de movimentos no período
     @Query(value = "SELECT COUNT(*) FROM access_logs WHERE timestamp BETWEEN :from AND :to", nativeQuery = true)
     long countMovements(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
@@ -71,7 +75,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     long countUniqueStudents(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Movimentos por hora (0-23)
-    @Query(value = "SELECT CAST(EXTRACT(HOUR FROM timestamp) AS int) AS hour, COUNT(*) AS cnt FROM access_logs WHERE timestamp BETWEEN :from AND :to GROUP BY hour ORDER BY hour", nativeQuery = true)
+    @Query(value = "SELECT CAST(EXTRACT(HOUR FROM timestamp) AS int) AS hour, COUNT(*) AS cnt FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3') GROUP BY hour ORDER BY hour", nativeQuery = true)
     java.util.List<Object[]> countByHour(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Movimentos, únicos e entradas por point_id no período

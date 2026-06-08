@@ -281,6 +281,53 @@ function OverviewTab() {
                 </div>
             </div>
 
+            {/* ── Affluence par Heure ── */}
+            {(() => {
+                const maxHourCount = Math.max(...(data?.byHour||[]).map(h=>h.count), 1);
+                return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
+                    React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
+                    React.createElement("div", { className: "flex items-end gap-1 h-32" },
+                        (data?.byHour || []).map(function(h) {
+                            const count = h.count;
+                            const isMax = count === maxHourCount && count > 0;
+                            return React.createElement("div", { key: h.hour, className: "flex-1 flex flex-col items-center" },
+                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count/1000).toFixed(1) + "k" : count) : ""),
+                                React.createElement("div", { 
+                                    className: "w-full rounded-t", 
+                                    style: { 
+                                        height: (count / maxHourCount * 100) + "%", 
+                                        minHeight: "4px", 
+                                        backgroundColor: isMax ? "#F59E0B" : "#0055FF" 
+                                    } 
+                                }),
+                                React.createElement("span", { className: "text-[10px] text-slate-400 mt-1" }, h.hour + "h")
+                            );
+                        })
+                    )
+                );
+            })()}
+
+            {/* ── Répartition par Zone ── */}
+            {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
+                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Répartition par Zone"),
+                [...areaStats].sort((a, b) => b.total - a.total).map(function(a) {
+                    const areaColorMap = { cantine: "#3B82F6", infirmerie: "#EF4444", cdi: "#F59E0B", portail: "#1E293B" };
+                    return React.createElement("div", { key: a.key, className: "flex items-center gap-3 mb-2" },
+                        React.createElement("span", { className: "w-24 text-sm font-medium text-slate-700" }, a.label),
+                        React.createElement("div", { className: "flex-1 h-6 bg-slate-200 rounded-full overflow-hidden" },
+                            React.createElement("div", {
+                                className: "h-full rounded-full",
+                                style: {
+                                    width: (a.total / maxAreaTotal * 100) + "%",
+                                    backgroundColor: areaColorMap[a.key] || "#94a3b8"
+                                }
+                            })
+                        ),
+                        React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString("fr-FR") + " mvt")
+                    );
+                })
+            )}
+
             {/* ── Points d'attention ── */}
             <div className={`rounded-2xl border p-4 mb-5 ${attention.total === 0 ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
                 <div className="flex items-center gap-2 mb-3">

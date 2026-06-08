@@ -306,9 +306,9 @@ public class AccessController {
         java.time.LocalDateTime prevTo = from.minusSeconds(1);
         java.time.LocalDateTime prevFrom = from.minusDays(days);
 
-        long total = accessLogRepository.countMovements(from, to);
+        long total = accessLogRepository.countMovementsInternal(from, to);
         long uniques = accessLogRepository.countUniqueStudents(from, to);
-        long prevTotal = accessLogRepository.countMovements(prevFrom, prevTo);
+        long prevTotal = accessLogRepository.countMovementsInternal(prevFrom, prevTo);
         long offSchedule = accessLogRepository.countOffScheduleMeals(from, to);
 
         // por hora
@@ -330,13 +330,13 @@ public class AccessController {
         // agrega por área a partir do por-ponto
         java.util.Map<String, long[]> areaAgg = new java.util.LinkedHashMap<>(); // area -> [mov, entries]
         java.util.Map<String, java.util.Set<String>> areaUniq = new java.util.HashMap<>();
-        for (String a : java.util.List.of("cantine", "infirmerie", "cdi", "portail")) {
+        for (String a : java.util.List.of("cantine", "infirmerie", "cdi")) {
             areaAgg.put(a, new long[]{0, 0});
         }
         for (Object[] row : accessLogRepository.statsByPoint(from, to)) {
             String pid = (String) row[0];
             String area = areaOf.getOrDefault(pid, null);
-            if (area == null) continue;
+            if (area == null || area.equals("portail")) continue;
             long mov = ((Number) row[1]).longValue();
             long entries = ((Number) row[3]).longValue();
             long[] agg = areaAgg.get(area);
@@ -355,7 +355,7 @@ public class AccessController {
             String pid = (String) row[0];
             long cnt = ((Number) row[1]).longValue();
             String area = areaOf.get(pid);
-            if (area != null) {
+            if (area != null && !area.equals("portail")) {
                 occByArea.merge(area, cnt, Long::sum);
                 totalInSectors += cnt;
             }

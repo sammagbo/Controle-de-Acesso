@@ -146,6 +146,25 @@ const api = {
     },
 
     /**
+     * Busca dados agregados para a Vue d'ensemble (Admin)
+     */
+    async fetchOverview(filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        try {
+            const res = await fetch(`${API_BASE_URL}/access/overview?${params.toString()}`, {
+                headers: authHeaders()
+            });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            console.error('[API] fetchOverview error:', e);
+            return null;
+        }
+    },
+
+    /**
      * Força sincronização manual com o Pronote.
      * @returns { success, message }
      */

@@ -61,5 +61,53 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     List<AccessLog> findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
             List<String> pointIds, LocalDateTime from, LocalDateTime to);
-}
 
+    // Total de movimentos no período
+    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE timestamp BETWEEN :from AND :to", nativeQuery = true)
+    long countMovements(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Alunos únicos no período
+    @Query(value = "SELECT COUNT(DISTINCT user_id) FROM access_logs WHERE timestamp BETWEEN :from AND :to", nativeQuery = true)
+    long countUniqueStudents(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Movimentos por hora (0-23)
+    @Query(value = "SELECT CAST(EXTRACT(HOUR FROM timestamp) AS int) AS hour, COUNT(*) AS cnt FROM access_logs WHERE timestamp BETWEEN :from AND :to GROUP BY hour ORDER BY hour", nativeQuery = true)
+    java.util.List<Object[]> countByHour(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Movimentos, únicos e entradas por point_id no período
+    @Query(value = "SELECT point_id, COUNT(*) AS mov, COUNT(DISTINCT user_id) AS uniq, COUNT(*) FILTER (WHERE action='ENTRADA') AS entries FROM access_logs WHERE timestamp BETWEEN :from AND :to GROUP BY point_id", nativeQuery = true)
+    java.util.List<Object[]> statsByPoint(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Refeições fora do horário (flag)
+    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE action='ENTRADA' AND flag='FORA_HORARIO' AND timestamp BETWEEN :from AND :to", nativeQuery = true)
+    long countOffScheduleMeals(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Alunos distintos que entraram por um portão hoje
+    @Query(value = "SELECT COUNT(DISTINCT user_id) FROM access_logs " +
+           "WHERE action='ENTRADA' AND point_id IN ('PORT1','PORT2','PORT3') " +
+           "AND timestamp >= :dayStart", nativeQuery = true)
+    long countPresentToday(@Param("dayStart") java.time.LocalDateTime dayStart);
+
+    // Séjours prolongés na enfermaria no período (entrada + saída pareadas, dur > 30min)
+    @Query(value = "SELECT COUNT(*) FROM (" +
+           "  SELECT e.user_id, e.timestamp AS ent, " +
+           "    (SELECT MIN(s.timestamp) FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id='ENFERM' AND s.action='SAIDA' AND s.timestamp > e.timestamp) AS sai " +
+           "  FROM access_logs e WHERE e.point_id='ENFERM' AND e.action='ENTRADA' AND e.timestamp BETWEEN :from AND :to" +
+           ") t WHERE t.sai IS NOT NULL AND EXTRACT(EPOCH FROM (t.sai - t.ent))/60 > 30", nativeQuery = true)
+    long countLongInfirmaryStays(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Entradas sem saída correspondente (cantina + enfermaria) no período
+    @Query(value = "SELECT COUNT(*) FROM access_logs e " +
+           "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
+           "AND e.timestamp BETWEEN :from AND :to " +
+           "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours')", nativeQuery = true)
+    long countUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    // Ocupação atual por setor: última ação de cada user em cada ponto = ENTRADA
+    @Query(value = "SELECT point_id, COUNT(*) FROM (" +
+           "  SELECT DISTINCT ON (user_id, point_id) user_id, point_id, action " +
+           "  FROM access_logs WHERE timestamp >= :dayStart " +
+           "  ORDER BY user_id, point_id, timestamp DESC" +
+           ") last WHERE action='ENTRADA' GROUP BY point_id", nativeQuery = true)
+    java.util.List<Object[]> currentOccupancyByPoint(@Param("dayStart") java.time.LocalDateTime dayStart);
+}

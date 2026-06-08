@@ -287,4 +287,102 @@ public class AccessController {
 
         return visits;
     }
+
+    @GetMapping("/overview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public com.magbo.access.dto.OverviewStats overview(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : java.time.LocalDate.now().minusDays(6).atStartOfDay();
+        java.time.LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : java.time.LocalDateTime.now();
+
+        // período anterior (mesmo tamanho) para tendência
+        long days = java.time.temporal.ChronoUnit.DAYS.between(from.toLocalDate(), to.toLocalDate()) + 1;
+        java.time.LocalDateTime prevTo = from.minusSeconds(1);
+        java.time.LocalDateTime prevFrom = from.minusDays(days);
+
+        long total = accessLogRepository.countMovements(from, to);
+        long uniques = accessLogRepository.countUniqueStudents(from, to);
+        long prevTotal = accessLogRepository.countMovements(prevFrom, prevTo);
+        long offSchedule = accessLogRepository.countOffScheduleMeals(from, to);
+
+        // por hora
+        java.util.List<com.magbo.access.dto.OverviewStats.HourStat> byHour = new java.util.ArrayList<>();
+        for (Object[] row : accessLogRepository.countByHour(from, to)) {
+            byHour.add(com.magbo.access.dto.OverviewStats.HourStat.builder()
+                    .hour(((Number) row[0]).intValue())
+                    .count(((Number) row[1]).longValue())
+                    .build());
+        }
+
+        // mapa pointId -> área
+        java.util.Map<String, String> areaOf = new java.util.HashMap<>();
+        areaOf.put("REFEI1", "cantine"); areaOf.put("REFEI2", "cantine");
+        areaOf.put("ENFERM", "infirmerie");
+        areaOf.put("BIBLIO", "cdi");
+        areaOf.put("PORT1", "portail"); areaOf.put("PORT2", "portail"); areaOf.put("PORT3", "portail");
+
+        // agrega por área a partir do por-ponto
+        java.util.Map<String, long[]> areaAgg = new java.util.LinkedHashMap<>(); // area -> [mov, entries]
+        java.util.Map<String, java.util.Set<String>> areaUniq = new java.util.HashMap<>();
+        for (String a : java.util.List.of("cantine", "infirmerie", "cdi", "portail")) {
+            areaAgg.put(a, new long[]{0, 0});
+        }
+        for (Object[] row : accessLogRepository.statsByPoint(from, to)) {
+            String pid = (String) row[0];
+            String area = areaOf.getOrDefault(pid, null);
+            if (area == null) continue;
+            long mov = ((Number) row[1]).longValue();
+            long entries = ((Number) row[3]).longValue();
+            long[] agg = areaAgg.get(area);
+            agg[0] += mov; agg[1] += entries;
+        }
+
+        java.time.LocalDateTime dayStart = java.time.LocalDate.now().atStartOfDay();
+        long presentToday = accessLogRepository.countPresentToday(dayStart);
+        long longStays = accessLogRepository.countLongInfirmaryStays(from, to);
+        long noExit = accessLogRepository.countUnregisteredExits(from, to);
+
+        // ocupação atual por setor -> por área
+        java.util.Map<String, Long> occByArea = new java.util.HashMap<>();
+        long totalInSectors = 0;
+        for (Object[] row : accessLogRepository.currentOccupancyByPoint(dayStart)) {
+            String pid = (String) row[0];
+            long cnt = ((Number) row[1]).longValue();
+            String area = areaOf.get(pid);
+            if (area != null) {
+                occByArea.merge(area, cnt, Long::sum);
+                totalInSectors += cnt;
+            }
+        }
+
+        java.util.List<com.magbo.access.dto.OverviewStats.AreaStat> areas = new java.util.ArrayList<>();
+        for (var e : areaAgg.entrySet()) {
+            areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
+                    .area(e.getKey())
+                    .movements(e.getValue()[0])
+                    .entries(e.getValue()[1])
+                    .uniqueStudents(0) // únicos por área omitido (custo); 0 por enquanto
+                    .currentOccupancy(occByArea.getOrDefault(e.getKey(), 0L))
+                    .build());
+        }
+
+        return com.magbo.access.dto.OverviewStats.builder()
+                .totalMovements(total)
+                .uniqueStudents(uniques)
+                .areas(areas)
+                .byHour(byHour)
+                .longInfirmaryStays(longStays)
+                .offScheduleMeals(offSchedule)
+                .unregisteredExits(noExit)
+                .previousTotal(prevTotal)
+                .presentToday(presentToday)
+                .currentlyInSectors(totalInSectors)
+                .build();
+    }
 }

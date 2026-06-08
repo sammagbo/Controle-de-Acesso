@@ -176,11 +176,8 @@ function JournalTab() {
 // ── Overview Tab ─────────────────────────────────────────────────────
 function OverviewTab() {
     const [period,   setPeriod]   = React.useState('week'); // 'week' | 'month'
-    const [logs,     setLogs]     = React.useState([]);
-    const [meals,    setMeals]    = React.useState([]);
-    const [visits,   setVisits]   = React.useState([]);
-    const [prevTotal, setPrevTotal] = React.useState(null);
-    const [loading,  setLoading]  = React.useState(false);
+    const [data, setData] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
 
     // Calcular dateFrom/dateTo a partir do period
     const { dateFrom, dateTo } = React.useMemo(() => {
@@ -192,108 +189,51 @@ function OverviewTab() {
         return { dateFrom: fmt(from), dateTo: fmt(to) };
     }, [period]);
 
-    // Período anterior de mesmo tamanho (para tendência)
-    const { prevFrom, prevTo } = React.useMemo(() => {
-        const to   = new Date(dateTo);
-        const from = new Date(dateFrom);
-        const days = Math.round((to - from) / 86400000) + 1;
-        const pTo   = new Date(from); pTo.setDate(from.getDate() - 1);
-        const pFrom = new Date(pTo);  pFrom.setDate(pTo.getDate() - (days - 1));
-        const fmt = d => d.toISOString().slice(0, 10);
-        return { prevFrom: fmt(pFrom), prevTo: fmt(pTo) };
-    }, [dateFrom, dateTo]);
-
     const load = React.useCallback(async () => {
         setLoading(true);
         try {
-            const [allLogs, mealsData, visitsData, prevLogs] = await Promise.all([
-                window.api.fetchAllLogs({ dateFrom, dateTo, limit: 500 }),
-                fetchRefectoryMeals({ dateFrom, dateTo }),
-                fetchInfirmaryVisits({ dateFrom, dateTo }),
-                window.api.fetchAllLogs({ dateFrom: prevFrom, dateTo: prevTo, limit: 500 }),
-            ]);
-            setLogs(Array.isArray(allLogs)    ? allLogs    : []);
-            setMeals(Array.isArray(mealsData)  ? mealsData  : []);
-            setVisits(Array.isArray(visitsData) ? visitsData : []);
-            setPrevTotal(Array.isArray(prevLogs) ? prevLogs.length : null);
-        } catch (e) {
-            setLogs([]); setMeals([]); setVisits([]); setPrevTotal(null);
-        } finally { setLoading(false); }
-    }, [dateFrom, dateTo, prevFrom, prevTo]);
+            const d = await window.api.fetchOverview({ dateFrom, dateTo });
+            setData(d);
+        } catch (e) { setData(null); }
+        finally { setLoading(false); }
+    }, [dateFrom, dateTo]);
 
     React.useEffect(() => { load(); }, [load]);
 
-    const areaOf = (pointId) => {
-        const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === pointId);
-        return p ? (p.area || 'autre') : 'autre';
-    };
-
-    const { areaStats, grandTotal, allUniques, zonaMaisAtiva, picoHora } = React.useMemo(() => {
-        const areas = {
-            cantine:    { label: 'Cantine',    icon: 'utensils',    total: 0, uniques: new Set(), entradas: 0, saidas: 0 },
-            infirmerie: { label: 'Infirmerie', icon: 'heart-pulse', total: 0, uniques: new Set(), entradas: 0, saidas: 0 },
-            cdi:        { label: 'CDI',         icon: 'book-open',   total: 0, uniques: new Set(), entradas: 0, saidas: 0 },
-            portail:    { label: 'Portail',     icon: 'door-open',   total: 0, uniques: new Set(), entradas: 0, saidas: 0 },
-        };
-        const horaCounts = {};
-        const allUniqueSet = new Set();
-
-        for (const l of logs) {
-            // por área
-            const a = areaOf(l.pointId);
-            if (areas[a]) {
-                areas[a].total++;
-                areas[a].uniques.add(l.userId);
-                if (l.action === 'ENTRADA') areas[a].entradas++;
-                else if (l.action === 'SAIDA') areas[a].saidas++;
-            }
-            // pico de hora
-            const h = new Date(safeDateParse(l.timestamp)).getHours();
-            horaCounts[h] = (horaCounts[h] || 0) + 1;
-            // alunos únicos global
-            allUniqueSet.add(l.userId);
-        }
-
-        const areaStats = Object.entries(areas).map(([key, v]) => ({
-            key, label: v.label, icon: v.icon,
-            total: v.total, uniques: v.uniques.size, entradas: v.entradas, saidas: v.saidas
-        }));
-
-        const grandTotal = areaStats.reduce((s, a) => s + a.total, 0);
-        const allUniques = allUniqueSet.size;
-
-        // zona mais ativa
-        const zonaMaisAtiva = areaStats.reduce(
-            (best, a) => a.total > best.total ? a : best,
-            { label: '—', total: 0 }
-        );
-
-        // pico de hora
-        let picoHora = '—';
-        if (Object.keys(horaCounts).length > 0) {
-            const h = Object.entries(horaCounts).sort((a, b) => b[1] - a[1])[0][0];
-            picoHora = h;
-        }
-
-        return { areaStats, grandTotal, allUniques, zonaMaisAtiva, picoHora };
-    }, [logs]);
-
-    // Exceções — Points d'attention
-    const attention = React.useMemo(() => {
-        const repasHorsHoraire  = meals.filter(m => m.onTime === false).length;
-        const sejoursLongs      = visits.filter(v => v.longStay).length;
-        const sortiesNonEnreg   = meals.filter(m => !m.exitRegistered).length
-                                + visits.filter(v => !v.exitRegistered).length;
-        const total = repasHorsHoraire + sejoursLongs + sortiesNonEnreg;
-        return { repasHorsHoraire, sejoursLongs, sortiesNonEnreg, total };
-    }, [meals, visits]);
-
-    // Tendência vs período anterior
+    const grandTotal = data?.totalMovements || 0;
+    const allUniques = data?.uniqueStudents || 0;
+    const prevTotal = data?.previousTotal ?? null;
     const trend = (prevTotal == null || prevTotal === 0) ? null
         : Math.round(((grandTotal - prevTotal) / prevTotal) * 100);
 
-    // max total de área (para barra relativa)
-    const maxAreaTotal = Math.max(...(areaStats.map(a => a.total)), 1);
+    const areaLabels = { cantine: 'Cantine', infirmerie: 'Infirmerie', cdi: 'CDI', portail: 'Portail' };
+    const areaIcons = { cantine: 'utensils', infirmerie: 'heart-pulse', cdi: 'book-open', portail: 'door-open' };
+    const areaStats = (data?.areas || []).map(a => ({
+        key: a.area,
+        label: areaLabels[a.area] || a.area,
+        icon: areaIcons[a.area] || 'square',
+        total: a.movements,
+        uniques: a.uniqueStudents,
+        entradas: a.entries,
+    }));
+    const maxAreaTotal = Math.max(...areaStats.map(a => a.total), 1);
+
+    const attention = {
+        sejoursLongs: data?.longInfirmaryStays || 0,
+        repasHorsHoraire: data?.offScheduleMeals || 0,
+        sortiesNonEnreg: data?.unregisteredExits || 0,
+        total: (data?.longInfirmaryStays || 0) + (data?.offScheduleMeals || 0) + (data?.unregisteredExits || 0),
+    };
+
+    // pico de hora (do byHour)
+    const picoHora = (() => {
+        const bh = data?.byHour || [];
+        if (!bh.length) return null;
+        return bh.reduce((max, h) => h.count > max.count ? h : max, bh[0]).hour;
+    })();
+    const zonaMaisAtiva = areaStats.length
+        ? areaStats.reduce((max, a) => a.total > max.total ? a : max, areaStats[0])
+        : null;
 
     const areaColor = {
         cantine: 'bg-accent-500', infirmerie: 'bg-danger-500', cdi: 'bg-warning-500', portail: 'bg-navy-500'

@@ -357,23 +357,51 @@ function OverviewTab() {
             </div>
 
             {/* ── KPIs globaux ── */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
-                <div className="bg-navy-500 rounded-2xl p-5 text-white">
-                    <p className="text-xs font-bold uppercase opacity-70">Total mouvements</p>
-                    <p className="text-3xl font-black mt-1">{grandTotal}</p>
-                    <p className="text-xs opacity-50 mt-1">{periodoLabel}</p>
-                    {trend !== null && (
-                        <p className="text-xs font-bold mt-1 opacity-90">
-                            {trend >= 0 ? '▲' : '▼'} {Math.abs(trend)}% vs période précédente
-                        </p>
-                    )}
-                </div>
-                <div className="bg-accent-500 rounded-2xl p-5 text-white">
-                    <p className="text-xs font-bold uppercase opacity-70">Élèves uniques</p>
-                    <p className="text-3xl font-black mt-1">{allUniques}</p>
-                    <p className="text-xs opacity-50 mt-1">élèves distincts</p>
-                </div>
-            </div>
+            {React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" },
+                // 1. Mouvements
+                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                    React.createElement("div", null,
+                        React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, grandTotal.toLocaleString('fr-FR')),
+                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Mouvements"),
+                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "secteurs internes")
+                    ),
+                    trend !== null ? React.createElement("p", { className: "text-[11px] font-medium mt-2 text-slate-500" },
+                        (trend >= 0 ? '▲ ' : '▼ ') + Math.abs(trend) + "%"
+                    ) : null
+                ),
+                // 2. Élèves uniques
+                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                    React.createElement("div", null,
+                        React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString('fr-FR')),
+                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Élèves uniques"),
+                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "sur la période")
+                    )
+                ),
+                // 3. Présents aujourd'hui
+                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                    React.createElement("div", null,
+                        React.createElement("p", { className: "text-2xl font-bold text-emerald-600" }, (data?.presentToday || 0).toLocaleString('fr-FR')),
+                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Présents aujourd'hui"),
+                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "entrés dans l'école")
+                    )
+                ),
+                // 4. Dans les secteurs
+                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                    React.createElement("div", null,
+                        React.createElement("p", { className: "text-2xl font-bold text-indigo-600" }, (data?.currentlyInSectors || 0).toLocaleString('fr-FR')),
+                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Dans les secteurs"),
+                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "en ce moment")
+                    )
+                ),
+                // 5. Alertes actives
+                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                    React.createElement("div", null,
+                        React.createElement("p", { className: "text-2xl font-bold " + (attention.total > 0 ? "text-rose-600" : "text-emerald-600") }, (attention.total || 0).toLocaleString('fr-FR')),
+                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Alertes actives"),
+                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "points d'attention")
+                    )
+                )
+            )}
 
             {/* ── Cards par zone avec barre CSS ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

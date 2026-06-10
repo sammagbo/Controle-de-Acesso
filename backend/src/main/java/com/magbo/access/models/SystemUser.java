@@ -59,12 +59,36 @@ public class SystemUser {
 
     /**
      * Verifica se este operador pode atuar no setor informado.
+     * Suporta tanto o ID específico do ponto (ex: REFEI1) quanto a área geral (ex: cantine).
      */
     public boolean canOperateSector(String sectorId) {
         if (role == Role.ADMIN) return true;
         if (setoresPermitidos == null || setoresPermitidos.isBlank()) return false;
         if ("*".equals(setoresPermitidos.trim())) return true;
+        
         List<String> permitidos = Arrays.asList(setoresPermitidos.split(","));
-        return permitidos.stream().map(String::trim).anyMatch(s -> s.equalsIgnoreCase(sectorId));
+        boolean directMatch = permitidos.stream()
+                .map(String::trim)
+                .anyMatch(s -> s.equalsIgnoreCase(sectorId));
+                
+        if (directMatch) return true;
+        
+        // Se não houver match direto, tenta mapear o ponto para sua área macro e verifica.
+        String area = getAreaForPoint(sectorId);
+        if (area != null) {
+            return permitidos.stream()
+                    .map(String::trim)
+                    .anyMatch(s -> s.equalsIgnoreCase(area));
+        }
+        return false;
+    }
+
+    private String getAreaForPoint(String pointId) {
+        if (pointId == null) return null;
+        if (pointId.startsWith("PORT")) return "portail";
+        if (pointId.equalsIgnoreCase("BIBLIO")) return "cdi";
+        if (pointId.startsWith("ENFERM") || pointId.equals("INFIRMARY_REPORT")) return "infirmerie";
+        if (pointId.startsWith("REFEI") || pointId.startsWith("CANTINA")) return "cantine";
+        return null;
     }
 }

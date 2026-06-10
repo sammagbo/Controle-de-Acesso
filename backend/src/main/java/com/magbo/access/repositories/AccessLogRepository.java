@@ -15,7 +15,7 @@ import org.springframework.data.repository.query.Param;
 @Repository
 public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
-    List<AccessLog> findByPointIdOrderByTimestampDesc(String pointId);
+    List<AccessLog> findTop500ByPointIdAndTimestampGreaterThanEqualOrderByTimestampDesc(String pointId, LocalDateTime timestamp);
 
     List<AccessLog> findAllByOrderByTimestampDesc(Pageable pageable);
 

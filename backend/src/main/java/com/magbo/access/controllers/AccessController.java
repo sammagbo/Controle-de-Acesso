@@ -173,7 +173,8 @@ public class AccessController {
 
     @GetMapping("/logs/{pointId}")
     public ResponseEntity<List<AccessLog>> getLogsByPoint(@PathVariable String pointId) {
-        List<AccessLog> logs = accessLogRepository.findByPointIdOrderByTimestampDesc(pointId);
+        LocalDateTime start = LocalDateTime.now().minusHours(24);
+        List<AccessLog> logs = accessLogRepository.findTop500ByPointIdAndTimestampGreaterThanEqualOrderByTimestampDesc(pointId, start);
         return ResponseEntity.ok(logs);
     }
 

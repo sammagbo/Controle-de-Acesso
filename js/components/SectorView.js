@@ -181,7 +181,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                 <h3 className="text-sm font-bold text-navy-500 uppercase tracking-wider">Últimos Acessos</h3>
                                           </div>
                                           <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full">
-                                                {pointLogs.length} registros
+                                                {pointLogs.length} acessos (24h)
                                           </span>
                                     </div>
 
@@ -195,7 +195,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                       <p className="text-xs text-slate-300">Os acessos aparecerão aqui em tempo real</p>
                                                 </div>
                                           )}
-                                          {pointLogs.map((log, idx) => {
+                                          {pointLogs.slice(0, 50).map((log, idx) => {
                                                 const user = (window.userCache?.byId(log.userId)) || null;
                                                 if (!user) return null;
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;

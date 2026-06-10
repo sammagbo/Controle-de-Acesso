@@ -5,7 +5,8 @@
 // específicos. Expõe funções globais usadas por componentes.
 
 (function() {
-      const API_BASE = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
+      const API_BASE = window.API_BASE_URL
+            || ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
       let cache = [];
       let loadedAt = null;
 
@@ -40,7 +41,8 @@
                   window.dispatchEvent(new CustomEvent('user-cache-updated', { detail: { count: cache.length } }));
                   return cache;
             } catch (e) {
-                  console.warn('userCache reload failed:', e);
+                  console.error('[userCache] reload FAILED:', e.message);
+                  window.dispatchEvent(new CustomEvent('user-cache-error', { detail: { message: e.message } }));
                   return cache;
             }
       }

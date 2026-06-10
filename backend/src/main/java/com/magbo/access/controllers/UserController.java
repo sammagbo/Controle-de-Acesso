@@ -20,13 +20,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final UserRepository userRepository;
     private final ResponsavelRepository responsavelRepository;
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getUserById(@PathVariable String id) {
         return userRepository.findById(id)
                 .map(user -> {
@@ -44,6 +44,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserListResponse> searchUsers(
             @RequestParam(name = "q", defaultValue = "") String q,
             @RequestParam(name = "limit", defaultValue = "20") Integer limit) {
@@ -61,6 +62,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserListResponse> listActiveUsers() {
         List<User> users = userRepository.findByAtivoTrue();
         return ResponseEntity.ok(
@@ -180,6 +182,7 @@ public class UserController {
         Map<String, Object> response = new HashMap<>();
         List<Map<String, String>> errors = new ArrayList<>();
         int successCount = 0;
+        int skippedCount = 0;
 
         // Sort: RESPONSAVEL first, then others (resolves responsavelId dependencies)
         users.sort((a, b) -> {
@@ -191,12 +194,25 @@ public class UserController {
         for (int i = 0; i < users.size(); i++) {
             com.magbo.access.dto.UserRegistrationDto dto = users.get(i);
             try {
+                if (dto.getId() == null || dto.getId().isBlank()) {
+                    throw new IllegalArgumentException("ID obrigatório");
+                }
                 if (dto.getNome() == null || dto.getNome().isBlank()) {
                     throw new IllegalArgumentException("Nome obrigatório");
                 }
-                if ("RESPONSAVEL".equalsIgnoreCase(dto.getTipo())) {
+
+                String tipo = dto.getTipo() != null ? dto.getTipo().toUpperCase() : "";
+
+                if ("RESPONSAVEL".equals(tipo)) {
+                    if (!dto.getId().matches("^R\\d{4,}$")) {
+                        throw new IllegalArgumentException("ID fora do padrão institucional para RESPONSAVEL");
+                    }
+                    if (responsavelRepository.existsById(dto.getId())) {
+                        throw new IllegalArgumentException("ID já existe — bulk não sobrescreve");
+                    }
+
                     Responsavel r = Responsavel.builder()
-                            .id(dto.getId() != null && !dto.getId().isEmpty() ? dto.getId() : "RESP" + System.currentTimeMillis() + i)
+                            .id(dto.getId())
                             .nome(dto.getNome())
                             .parentesco(dto.getParentesco())
                             .telefone(dto.getTelefone())
@@ -204,17 +220,40 @@ public class UserController {
                             .build();
                     responsavelRepository.save(r);
                 } else {
-                    com.magbo.access.models.UserType type;
-                    try {
-                        type = com.magbo.access.models.UserType.valueOf(
-                            dto.getTipo() != null ? dto.getTipo().toUpperCase() : "ALUNO");
-                    } catch (Exception e) {
-                        type = com.magbo.access.models.UserType.ALUNO;
+                    if (!List.of("ALUNO", "PROFESSOR", "FUNCIONARIO").contains(tipo)) {
+                        throw new IllegalArgumentException("Tipo inválido: " + tipo);
                     }
+                    if (userRepository.existsById(dto.getId())) {
+                        throw new IllegalArgumentException("ID já existe — bulk não sobrescreve");
+                    }
+
+                    if ("ALUNO".equals(tipo)) {
+                        if (!dto.getId().matches("^\\d{7}$")) {
+                            throw new IllegalArgumentException("ID fora do padrão institucional para ALUNO");
+                        }
+                        if (dto.getTurma() == null || dto.getTurma().isBlank()) {
+                            throw new IllegalArgumentException("Turma obrigatória para ALUNO");
+                        }
+                    } else if ("PROFESSOR".equals(tipo)) {
+                        if (!dto.getId().matches("^P\\d{4,}$")) {
+                            throw new IllegalArgumentException("ID fora do padrão institucional para PROFESSOR");
+                        }
+                    } else if ("FUNCIONARIO".equals(tipo)) {
+                        if (!dto.getId().matches("^F\\d{4,}$")) {
+                            throw new IllegalArgumentException("ID fora do padrão institucional para FUNCIONARIO");
+                        }
+                    }
+
+                    if (dto.getResponsavelId() != null && !dto.getResponsavelId().isBlank()) {
+                        if (!responsavelRepository.existsById(dto.getResponsavelId())) {
+                            throw new IllegalArgumentException("ResponsavelId não encontrado: " + dto.getResponsavelId());
+                        }
+                    }
+
                     User u = User.builder()
-                            .id(dto.getId() != null && !dto.getId().isEmpty() ? dto.getId() : "USR" + System.currentTimeMillis() + i)
+                            .id(dto.getId())
                             .nome(dto.getNome())
-                            .tipo(type)
+                            .tipo(com.magbo.access.models.UserType.valueOf(tipo))
                             .turma(dto.getTurma())
                             .fotoUrl(dto.getFotoUrl())
                             .responsavelId(dto.getResponsavelId())
@@ -225,9 +264,10 @@ public class UserController {
                 }
                 successCount++;
             } catch (Exception e) {
+                skippedCount++;
                 Map<String, String> err = new HashMap<>();
                 err.put("linha", String.valueOf(i + 2)); // +2: header is row 1 in Excel
-                err.put("nome", dto.getNome() != null ? dto.getNome() : "(vazio)");
+                err.put("nome", dto.getNome() != null && !dto.getNome().isBlank() ? dto.getNome() : "(vazio)");
                 err.put("erro", e.getMessage() != null ? e.getMessage() : "Erro desconhecido");
                 errors.add(err);
             }
@@ -237,6 +277,7 @@ public class UserController {
         response.put("totalRecebido", users.size());
         response.put("sucesso", successCount);
         response.put("falhas", errors.size());
+        response.put("skippedCount", skippedCount);
         response.put("detalheErros", errors);
         return ResponseEntity.ok(response);
     }

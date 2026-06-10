@@ -175,9 +175,11 @@ function JournalTab() {
 
 // ── Overview Tab ─────────────────────────────────────────────────────
 function OverviewTab() {
-    const [period,   setPeriod]   = React.useState('week'); // 'week' | 'month'
-    const [data, setData] = React.useState(null);
-    const [loading, setLoading] = React.useState(false);
+    const [period,    setPeriod]    = React.useState('week'); // 'week' | 'month'
+    const [data,      setData]      = React.useState(null);
+    const [loading,   setLoading]   = React.useState(false);
+    const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
+    const [updatedAt, setUpdatedAt] = React.useState(null);  // HH:mm:ss string
 
     // Calcular dateFrom/dateTo a partir do period
     const { dateFrom, dateTo } = React.useMemo(() => {
@@ -189,13 +191,29 @@ function OverviewTab() {
         return { dateFrom: fmt(from), dateTo: fmt(to) };
     }, [period]);
 
+    const fmtHHmm   = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const fmtHHmmss = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
     const load = React.useCallback(async () => {
         setLoading(true);
         try {
-            const d = await window.api.fetchOverview({ dateFrom, dateTo });
+            const [d, recentLogs] = await Promise.all([
+                window.api.fetchOverview({ dateFrom, dateTo }),
+                window.api.fetchAllLogs({ limit: 1 }).catch(() => [])
+            ]);
             setData(d);
-        } catch (e) { setData(null); }
-        finally { setLoading(false); }
+            if (Array.isArray(recentLogs) && recentLogs.length > 0 && recentLogs[0].timestamp) {
+                setLastEvent(fmtHHmm(new Date(recentLogs[0].timestamp)));
+            } else {
+                setLastEvent(null);
+            }
+        } catch (e) {
+            setData(null);
+            setLastEvent(null);
+        } finally {
+            setUpdatedAt(fmtHHmmss(new Date()));
+            setLoading(false);
+        }
     }, [dateFrom, dateTo]);
 
     React.useEffect(() => { load(); }, [load]);
@@ -267,186 +285,235 @@ function OverviewTab() {
                 )}
             </div>
 
-            {/* ── Analyse de l'Activité ── */}
-            <div className="bg-warning-50 border border-warning-200 rounded-2xl p-4 mb-5 flex gap-3">
-                <LucideIcon name="lightbulb" size={20} className="text-warning-600 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className="font-bold text-warning-700 text-sm">Analyse de l'Activité</p>
-                    <p className="text-sm text-slate-600 mt-1">
-                        {grandTotal === 0
-                            ? 'Aucune activité sur la période.'
-                            : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} élève{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).</>)
-                        }
-                    </p>
+            {/* ── État loading initial (sans data préalable) ── */}
+            {loading && data === null && (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <LucideIcon name="loader-2" size={32} className="animate-spin mb-3" />
+                    <span className="text-sm">Chargement...</span>
                 </div>
-            </div>
+            )}
 
-            {/* ── Affluence par Heure ── */}
-            {(() => {
-                const maxHourCount = Math.max(...(data?.byHour||[]).map(h=>h.count), 1);
-                return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
-                    React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
-                    React.createElement("div", { className: "flex items-end gap-1 h-32" },
-                        (data?.byHour || []).map(function(h) {
-                            const count = h.count;
-                            const isMax = count === maxHourCount && count > 0;
-                            return React.createElement("div", { key: h.hour, className: "flex-1 flex flex-col items-center" },
-                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count/1000).toFixed(1) + "k" : count) : ""),
-                                React.createElement("div", { 
-                                    className: "w-full rounded-t", 
-                                    style: { 
-                                        height: (count / maxHourCount * 100) + "%", 
-                                        minHeight: "4px", 
-                                        backgroundColor: isMax ? "#F59E0B" : "#0055FF" 
-                                    } 
-                                }),
-                                React.createElement("span", { className: "text-[10px] text-slate-400 mt-1" }, h.hour + "h")
-                            );
-                        })
-                    )
-                );
-            })()}
+            {/* ── État erreur ── */}
+            {!loading && data === null && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-4">
+                    <LucideIcon name="wifi-off" size={40} className="text-slate-300" />
+                    <p className="text-sm font-semibold text-slate-500">Impossible de charger les données</p>
+                    <button
+                        onClick={load}
+                        className="px-5 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 transition-colors"
+                    >
+                        Réessayer
+                    </button>
+                </div>
+            )}
 
-            {/* ── Répartition par Zone ── */}
-            {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
-                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Répartition par Zone"),
-                [...areaStats].sort((a, b) => b.total - a.total).map(function(a) {
-                    const areaColorMap = { cantine: "#3B82F6", infirmerie: "#EF4444", cdi: "#F59E0B", portail: "#1E293B" };
-                    return React.createElement("div", { key: a.key, className: "flex items-center gap-3 mb-2" },
-                        React.createElement("span", { className: "w-24 text-sm font-medium text-slate-700" }, a.label),
-                        React.createElement("div", { className: "flex-1 h-6 bg-slate-200 rounded-full overflow-hidden" },
-                            React.createElement("div", {
-                                className: "h-full rounded-full",
-                                style: {
-                                    width: (a.total / maxAreaTotal * 100) + "%",
-                                    backgroundColor: areaColorMap[a.key] || "#94a3b8"
-                                }
-                            })
+            {/* ── Contenu principal (data disponível) ── */}
+            {data !== null && !loading && (
+                <>
+                    {/* ── KPIs globaux ── */}
+                    {React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" },
+                        // 1. Mouvements
+                        React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                            React.createElement("div", null,
+                                React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, grandTotal.toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Mouvements"),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "secteurs internes")
+                            ),
+                            trend !== null ? React.createElement("p", { className: "text-[11px] font-medium mt-2 text-slate-500" },
+                                (trend >= 0 ? '▲ ' : '▼ ') + Math.abs(trend) + "%"
+                            ) : null
                         ),
-                        React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString("fr-FR") + " mvt")
-                    );
-                })
-            )}
+                        // 2. Élèves uniques
+                        React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                            React.createElement("div", null,
+                                React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Élèves uniques"),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "sur la période")
+                            )
+                        ),
+                        // 3. Présents aujourd'hui
+                        React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                            React.createElement("div", null,
+                                React.createElement("p", { className: "text-2xl font-bold text-emerald-600" }, (data?.presentToday || 0).toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Présents aujourd'hui"),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "entrés dans l'école")
+                            )
+                        ),
+                        // 4. Dans les secteurs
+                        React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                            React.createElement("div", null,
+                                React.createElement("p", { className: "text-2xl font-bold text-indigo-600" }, (data?.currentlyInSectors || 0).toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Dans les secteurs"),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "en ce moment")
+                            )
+                        ),
+                        // 5. Alertes actives
+                        React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
+                            React.createElement("div", null,
+                                React.createElement("p", { className: "text-2xl font-bold " + (attention.total > 0 ? "text-rose-600" : "text-emerald-600") }, (attention.total || 0).toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Alertes actives"),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "points d'attention")
+                            )
+                        )
+                    )}
 
-            {/* ── Points d'attention ── */}
-            <div className={`rounded-2xl border p-4 mb-5 ${attention.total === 0 ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
-                <div className="flex items-center gap-2 mb-3">
-                    <LucideIcon name={attention.total === 0 ? 'shield-check' : 'alert-triangle'} size={20} className={attention.total === 0 ? 'text-success-600' : 'text-danger-600'} />
-                    <h3 className={`font-black text-sm ${attention.total === 0 ? 'text-success-700' : 'text-danger-700'}`}>
-                        Points d'attention {attention.total > 0 ? `(${attention.total})` : ''}
-                    </h3>
-                </div>
-                {attention.total === 0 ? (
-                    <p className="text-sm text-slate-600">Aucune anomalie détectée sur la période.</p>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div className="bg-white rounded-xl p-3 border border-danger-100">
-                            <p className="text-2xl font-black text-danger-600">{attention.sejoursLongs}</p>
-                            <p className="text-xs text-slate-500 mt-1">Séjours prolongés (infirmerie)</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 border border-danger-100">
-                            <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
-                            <p className="text-xs text-slate-500 mt-1">Repas hors horaire</p>
-                        </div>
-                        <div className="bg-white rounded-xl p-3 border border-danger-100">
-                            <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
-                            <p className="text-xs text-slate-500 mt-1">Sorties non enregistrées</p>
+                    {/* ── Barra de status ── */}
+                    <div className="flex items-center gap-4 text-xs text-slate-500 mb-5">
+                        <span className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${data ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            {data ? 'Serveur en ligne' : 'Serveur hors ligne'}
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span>Dernier événement&nbsp;: {lastEvent || '—'}</span>
+                        <span className="text-slate-300">|</span>
+                        <span>Mis à jour à {updatedAt || '—'}</span>
+                    </div>
+
+                    {/* ── Analyse de l'Activité ── */}
+                    <div className="bg-warning-50 border border-warning-200 rounded-2xl p-4 mb-5 flex gap-3">
+                        <LucideIcon name="lightbulb" size={20} className="text-warning-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-warning-700 text-sm">Analyse de l'Activité</p>
+                            <p className="text-sm text-slate-600 mt-1">
+                                {grandTotal === 0
+                                    ? 'Aucune activité sur la période.'
+                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} élève{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).</>)
+                                }
+                            </p>
                         </div>
                     </div>
-                )}
-            </div>
 
-            {/* ── KPIs globaux ── */}
-            {React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-3 mb-5" },
-                // 1. Mouvements
-                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
-                    React.createElement("div", null,
-                        React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, grandTotal.toLocaleString('fr-FR')),
-                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Mouvements"),
-                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "secteurs internes")
-                    ),
-                    trend !== null ? React.createElement("p", { className: "text-[11px] font-medium mt-2 text-slate-500" },
-                        (trend >= 0 ? '▲ ' : '▼ ') + Math.abs(trend) + "%"
-                    ) : null
-                ),
-                // 2. Élèves uniques
-                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
-                    React.createElement("div", null,
-                        React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString('fr-FR')),
-                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Élèves uniques"),
-                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "sur la période")
-                    )
-                ),
-                // 3. Présents aujourd'hui
-                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
-                    React.createElement("div", null,
-                        React.createElement("p", { className: "text-2xl font-bold text-emerald-600" }, (data?.presentToday || 0).toLocaleString('fr-FR')),
-                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Présents aujourd'hui"),
-                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "entrés dans l'école")
-                    )
-                ),
-                // 4. Dans les secteurs
-                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
-                    React.createElement("div", null,
-                        React.createElement("p", { className: "text-2xl font-bold text-indigo-600" }, (data?.currentlyInSectors || 0).toLocaleString('fr-FR')),
-                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Dans les secteurs"),
-                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "en ce moment")
-                    )
-                ),
-                // 5. Alertes actives
-                React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
-                    React.createElement("div", null,
-                        React.createElement("p", { className: "text-2xl font-bold " + (attention.total > 0 ? "text-rose-600" : "text-emerald-600") }, (attention.total || 0).toLocaleString('fr-FR')),
-                        React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Alertes actives"),
-                        React.createElement("p", { className: "text-[11px] text-slate-400" }, "points d'attention")
-                    )
-                )
-            )}
-
-            {/* ── Cards par zone avec barre CSS ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {areaStats.map(a => (
-                    <div key={a.key} className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
-                        {/* en-tête zone */}
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-10 h-10 rounded-xl ${areaColor[a.key] || 'bg-slate-400'} flex items-center justify-center`}>
-                                <LucideIcon name={a.icon} size={20} className="text-white" />
-                            </div>
-                            <h3 className="text-base font-black text-navy-500">{a.label}</h3>
+                    {/* ── Gráficos ou estado sem dados ── */}
+                    {grandTotal === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2 bg-slate-50 rounded-xl mb-5">
+                            <LucideIcon name="bar-chart-2" size={32} className="text-slate-300" />
+                            <p className="text-sm">Aucun mouvement sur la période</p>
                         </div>
+                    ) : (
+                        <>
+                            {/* ── Affluence par Heure ── */}
+                            {(() => {
+                                const maxHourCount = Math.max(...(data?.byHour||[]).map(h=>h.count), 1);
+                                return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
+                                    React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
+                                    React.createElement("div", { className: "flex items-end gap-1 h-32" },
+                                        (data?.byHour || []).map(function(h) {
+                                            const count = h.count;
+                                            const isMax = count === maxHourCount && count > 0;
+                                            return React.createElement("div", { key: h.hour, className: "flex-1 flex flex-col items-center" },
+                                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count/1000).toFixed(1) + "k" : count) : ""),
+                                                React.createElement("div", {
+                                                    className: "w-full rounded-t",
+                                                    style: {
+                                                        height: (count / maxHourCount * 100) + "%",
+                                                        minHeight: "4px",
+                                                        backgroundColor: isMax ? "#F59E0B" : "#0055FF"
+                                                    }
+                                                }),
+                                                React.createElement("span", { className: "text-[10px] text-slate-400 mt-1" }, h.hour + "h")
+                                            );
+                                        })
+                                    )
+                                );
+                            })()}
 
-                        {/* barre de fréquentation CSS (comme le CDI) */}
-                        <div className="mb-3">
-                            <div className="flex justify-between text-xs text-slate-400 mb-1">
-                                <span>Fréquentation relative</span>
-                                <span>{a.total} mvt</span>
-                            </div>
-                            <div className="h-3 bg-soft-100 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full rounded-full transition-all duration-500"
-                                    style={{ width: `${Math.round((a.total / maxAreaTotal) * 100)}%`, backgroundColor: areaBarColor[a.key] || '#94a3b8' }}
-                                />
-                            </div>
-                        </div>
+                            {/* ── Répartition par Zone ── */}
+                            {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
+                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Répartition par Zone"),
+                                [...areaStats].sort((a, b) => b.total - a.total).map(function(a) {
+                                    const areaColorMap = { cantine: "#3B82F6", infirmerie: "#EF4444", cdi: "#F59E0B", portail: "#1E293B" };
+                                    return React.createElement("div", { key: a.key, className: "flex items-center gap-3 mb-2" },
+                                        React.createElement("span", { className: "w-24 text-sm font-medium text-slate-700" }, a.label),
+                                        React.createElement("div", { className: "flex-1 h-6 bg-slate-200 rounded-full overflow-hidden" },
+                                            React.createElement("div", {
+                                                className: "h-full rounded-full",
+                                                style: {
+                                                    width: (a.total / maxAreaTotal * 100) + "%",
+                                                    backgroundColor: areaColorMap[a.key] || "#94a3b8"
+                                                }
+                                            })
+                                        ),
+                                        React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString("fr-FR") + " mvt")
+                                    );
+                                })
+                            )}
+                        </>
+                    )}
 
-                        {/* métriques */}
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                            <div>
-                                <p className="text-2xl font-black text-navy-500">{a.total}</p>
-                                <p className="text-xs text-slate-400">Mouvements</p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-black text-accent-600">{a.uniques}</p>
-                                <p className="text-xs text-slate-400">Élèves</p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-black text-success-600">{a.entradas}</p>
-                                <p className="text-xs text-slate-400">Entrées</p>
-                            </div>
+                    {/* ── Points d'attention ── */}
+                    <div className={`rounded-2xl border p-4 mb-5 ${attention.total === 0 ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <LucideIcon name={attention.total === 0 ? 'shield-check' : 'alert-triangle'} size={20} className={attention.total === 0 ? 'text-success-600' : 'text-danger-600'} />
+                            <h3 className={`font-black text-sm ${attention.total === 0 ? 'text-success-700' : 'text-danger-700'}`}>
+                                Points d'attention {attention.total > 0 ? `(${attention.total})` : ''}
+                            </h3>
                         </div>
+                        {attention.total === 0 ? (
+                            <p className="text-sm text-slate-600">Aucune anomalie détectée sur la période.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                    <p className="text-2xl font-black text-danger-600">{attention.sejoursLongs}</p>
+                                    <p className="text-xs text-slate-500 mt-1">Séjours prolongés (infirmerie)</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                    <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
+                                    <p className="text-xs text-slate-500 mt-1">Repas hors horaire</p>
+                                </div>
+                                <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                    <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
+                                    <p className="text-xs text-slate-500 mt-1">Sorties non enregistrées</p>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ))}
-            </div>
+
+                    {/* ── Cards par zone avec barre CSS ── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {areaStats.map(a => (
+                            <div key={a.key} className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
+                                {/* en-tête zone */}
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className={`w-10 h-10 rounded-xl ${areaColor[a.key] || 'bg-slate-400'} flex items-center justify-center`}>
+                                        <LucideIcon name={a.icon} size={20} className="text-white" />
+                                    </div>
+                                    <h3 className="text-base font-black text-navy-500">{a.label}</h3>
+                                </div>
+
+                                {/* barre de fréquentation CSS (comme le CDI) */}
+                                <div className="mb-3">
+                                    <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                        <span>Fréquentation relative</span>
+                                        <span>{a.total} mvt</span>
+                                    </div>
+                                    <div className="h-3 bg-soft-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.round((a.total / maxAreaTotal) * 100)}%`, backgroundColor: areaBarColor[a.key] || '#94a3b8' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* métriques */}
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                    <div>
+                                        <p className="text-2xl font-black text-navy-500">{a.total}</p>
+                                        <p className="text-xs text-slate-400">Mouvements</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-black text-accent-600">{a.uniques}</p>
+                                        <p className="text-xs text-slate-400">Élèves</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-black text-success-600">{a.entradas}</p>
+                                        <p className="text-xs text-slate-400">Entrées</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 }

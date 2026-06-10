@@ -39,3 +39,8 @@ test-*.json
 test-*.ps1
 run-sync.ps1
 backend-run.log
+
+# local seed/scratch
+seed_demo.sql
+movimento_real.sql
+backend/server.log

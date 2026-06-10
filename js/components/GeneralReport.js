@@ -175,11 +175,12 @@ function JournalTab() {
 
 // ── Overview Tab ─────────────────────────────────────────────────────
 function OverviewTab() {
-    const [period,    setPeriod]    = React.useState('week'); // 'week' | 'month'
-    const [data,      setData]      = React.useState(null);
-    const [loading,   setLoading]   = React.useState(false);
-    const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
-    const [updatedAt, setUpdatedAt] = React.useState(null);  // HH:mm:ss string
+    const [period,      setPeriod]      = React.useState('week'); // 'week' | 'month'
+    const [data,        setData]        = React.useState(null);
+    const [loading,     setLoading]     = React.useState(false);
+    const [lastEvent,   setLastEvent]   = React.useState(null);  // HH:mm string ou null
+    const [updatedAt,   setUpdatedAt]   = React.useState(null);  // HH:mm:ss string
+    const [todayAlerts, setTodayAlerts] = React.useState([]);    // alertas de hoje
 
     // Calcular dateFrom/dateTo a partir do period
     const { dateFrom, dateTo } = React.useMemo(() => {
@@ -196,10 +197,19 @@ function OverviewTab() {
 
     const load = React.useCallback(async () => {
         setLoading(true);
+        const today = new Date().toISOString().slice(0, 10);
         try {
-            const [d, recentLogs] = await Promise.all([
+            const [d, recentLogs, visits, meals] = await Promise.all([
                 window.api.fetchOverview({ dateFrom, dateTo }),
-                window.api.fetchAllLogs({ limit: 1 }).catch(() => [])
+                window.api.fetchAllLogs({ limit: 1 }).catch(() => []),
+                (typeof fetchInfirmaryVisits === 'function'
+                    ? fetchInfirmaryVisits({ dateFrom: today, dateTo: today })
+                    : Promise.resolve([])
+                ).catch(() => []),
+                (typeof fetchRefectoryMeals === 'function'
+                    ? fetchRefectoryMeals({ dateFrom: today, dateTo: today })
+                    : Promise.resolve([])
+                ).catch(() => [])
             ]);
             setData(d);
             if (Array.isArray(recentLogs) && recentLogs.length > 0 && recentLogs[0].timestamp) {
@@ -207,9 +217,66 @@ function OverviewTab() {
             } else {
                 setLastEvent(null);
             }
+            // ── Construir lista de alertas client-side ──────────────────
+            const alerts = [];
+            (Array.isArray(visits) ? visits : []).forEach(v => {
+                if (!v.exitRegistered) {
+                    alerts.push({
+                        severite: 'critique',
+                        type: 'Sans sortie (infirmerie)',
+                        nome: v.nome || v.userId,
+                        turma: v.turma || '—',
+                        heure: v.entryTime || '—',
+                        detail: 'Pas de sortie enregistrée',
+                    });
+                } else if (v.durationMinutes != null && v.durationMinutes > 45) {
+                    alerts.push({
+                        severite: 'critique',
+                        type: 'Séjour prolongé',
+                        nome: v.nome || v.userId,
+                        turma: v.turma || '—',
+                        heure: v.entryTime || '—',
+                        detail: v.durationMinutes + ' min',
+                    });
+                } else if (v.durationMinutes != null && v.durationMinutes > 30) {
+                    alerts.push({
+                        severite: 'attention',
+                        type: 'Séjour prolongé',
+                        nome: v.nome || v.userId,
+                        turma: v.turma || '—',
+                        heure: v.entryTime || '—',
+                        detail: v.durationMinutes + ' min',
+                    });
+                }
+            });
+            (Array.isArray(meals) ? meals : []).forEach(m => {
+                if (!m.exitRegistered) {
+                    alerts.push({
+                        severite: 'attention',
+                        type: 'Sans sortie (cantine)',
+                        nome: m.nome || m.userId,
+                        turma: m.turma || '—',
+                        heure: m.entryTime || '—',
+                        detail: 'Pas de sortie enregistrée',
+                    });
+                } else if (!m.onTime) {
+                    alerts.push({
+                        severite: 'info',
+                        type: 'Repas hors horaire',
+                        nome: m.nome || m.userId,
+                        turma: m.turma || '—',
+                        heure: m.entryTime || '—',
+                        detail: 'Hors créneau',
+                    });
+                }
+            });
+            // Ordenar por heure desc
+            alerts.sort((a, b) => (b.heure || '').localeCompare(a.heure || ''));
+            setTodayAlerts(alerts);
         } catch (e) {
             setData(null);
             setLastEvent(null);
+            setTodayAlerts([]);
         } finally {
             setUpdatedAt(fmtHHmmss(new Date()));
             setLoading(false);
@@ -441,32 +508,83 @@ function OverviewTab() {
                     )}
 
                     {/* ── Points d'attention ── */}
-                    <div className={`rounded-2xl border p-4 mb-5 ${attention.total === 0 ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
-                        <div className="flex items-center gap-2 mb-3">
-                            <LucideIcon name={attention.total === 0 ? 'shield-check' : 'alert-triangle'} size={20} className={attention.total === 0 ? 'text-success-600' : 'text-danger-600'} />
-                            <h3 className={`font-black text-sm ${attention.total === 0 ? 'text-success-700' : 'text-danger-700'}`}>
-                                Points d'attention {attention.total > 0 ? `(${attention.total})` : ''}
-                            </h3>
-                        </div>
-                        {attention.total === 0 ? (
-                            <p className="text-sm text-slate-600">Aucune anomalie détectée sur la période.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="bg-white rounded-xl p-3 border border-danger-100">
-                                    <p className="text-2xl font-black text-danger-600">{attention.sejoursLongs}</p>
-                                    <p className="text-xs text-slate-500 mt-1">Séjours prolongés (infirmerie)</p>
+                    {(() => {
+                        const severiteCls = {
+                            critique:  { badge: 'bg-rose-100 text-rose-700',   icon: 'alert-octagon',    border: 'border-rose-100' },
+                            attention: { badge: 'bg-amber-100 text-amber-700', icon: 'alert-triangle',   border: 'border-amber-100' },
+                            info:      { badge: 'bg-sky-100 text-sky-700',     icon: 'info',             border: 'border-sky-100' },
+                        };
+                        const visibleAlerts = todayAlerts.slice(0, 10);
+                        const hasAlerts = attention.total > 0 || todayAlerts.length > 0;
+                        return (
+                            <div className={`rounded-2xl border p-4 mb-5 ${hasAlerts ? 'bg-danger-50 border-danger-200' : 'bg-success-50 border-success-200'}`}>
+                                {/* ── En-tête ── */}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <LucideIcon name={hasAlerts ? 'alert-triangle' : 'shield-check'} size={20} className={hasAlerts ? 'text-danger-600' : 'text-success-600'} />
+                                    <h3 className={`font-black text-sm ${hasAlerts ? 'text-danger-700' : 'text-success-700'}`}>
+                                        Points d'attention {attention.total > 0 ? `(${attention.total})` : ''}
+                                    </h3>
                                 </div>
-                                <div className="bg-white rounded-xl p-3 border border-danger-100">
-                                    <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
-                                    <p className="text-xs text-slate-500 mt-1">Repas hors horaire</p>
-                                </div>
-                                <div className="bg-white rounded-xl p-3 border border-danger-100">
-                                    <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
-                                    <p className="text-xs text-slate-500 mt-1">Sorties non enregistrées</p>
+
+                                {/* ── Contadores do período (mantidos) ── */}
+                                {attention.total === 0 && todayAlerts.length === 0 ? (
+                                    <p className="text-sm text-slate-600 mb-0">Aucune anomalie détectée sur la période.</p>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                                        <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                            <p className="text-2xl font-black text-danger-600">{attention.sejoursLongs}</p>
+                                            <p className="text-xs text-slate-500 mt-1">Séjours prolongés (infirmerie)</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                            <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
+                                            <p className="text-xs text-slate-500 mt-1">Repas hors horaire</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl p-3 border border-danger-100">
+                                            <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
+                                            <p className="text-xs text-slate-500 mt-1">Sorties non enregistrées</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── Alertes récentes (aujourd'hui) ── */}
+                                <div className="mt-1">
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                                        Alertes récentes (aujourd'hui)
+                                    </p>
+                                    {todayAlerts.length === 0 ? (
+                                        <div className="flex items-center gap-2 text-success-700 text-sm py-2">
+                                            <LucideIcon name="check-circle-2" size={16} className="text-success-500" />
+                                            Aucune alerte aujourd'hui
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-2">
+                                                {visibleAlerts.map((al, i) => {
+                                                    const cls = severiteCls[al.severite] || severiteCls.info;
+                                                    return (
+                                                        <div key={i} className={`flex items-center gap-3 bg-white rounded-xl px-3 py-2 border ${cls.border}`}>
+                                                            <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${cls.badge}`}>
+                                                                {al.severite}
+                                                            </span>
+                                                            <span className="font-bold text-sm text-slate-800 truncate">{al.nome}</span>
+                                                            <span className="text-xs text-slate-400 shrink-0">{al.turma}</span>
+                                                            <span className="text-xs text-slate-500 truncate flex-1">{al.type}</span>
+                                                            <span className="text-xs text-slate-400 font-mono shrink-0">{al.heure}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            {todayAlerts.length > 10 && (
+                                                <p className="text-xs text-slate-400 mt-2 text-right">
+                                                    {todayAlerts.length} alertes aujourd'hui au total
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        );
+                    })()}
 
                     {/* ── Cards par zone avec barre CSS ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

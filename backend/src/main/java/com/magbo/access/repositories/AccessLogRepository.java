@@ -17,6 +17,8 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     List<AccessLog> findTop500ByPointIdAndTimestampGreaterThanEqualOrderByTimestampDesc(String pointId, LocalDateTime timestamp);
 
+    List<AccessLog> findTop500ByUserIdAndTimestampBetweenOrderByTimestampDesc(String userId, LocalDateTime from, LocalDateTime to);
+
     List<AccessLog> findAllByOrderByTimestampDesc(Pageable pageable);
 
     Optional<AccessLog> findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(

@@ -7,12 +7,12 @@
 function JournalTab() {
     const todayStr = () => new Date().toISOString().slice(0, 10);
     const [dateFrom, setDateFrom] = React.useState(todayStr());
-    const [dateTo,   setDateTo]   = React.useState(todayStr());
-    const [pointId,  setPointId]  = React.useState('');
-    const [action,   setAction]   = React.useState('');
-    const [aluno,    setAluno]    = React.useState('');
-    const [logs,     setLogs]     = React.useState([]);
-    const [loading,  setLoading]  = React.useState(false);
+    const [dateTo, setDateTo] = React.useState(todayStr());
+    const [pointId, setPointId] = React.useState('');
+    const [action, setAction] = React.useState('');
+    const [aluno, setAluno] = React.useState('');
+    const [logs, setLogs] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
 
     const load = React.useCallback(async () => {
         setLoading(true);
@@ -154,11 +154,10 @@ function JournalTab() {
                                         <td className="px-4 py-2 text-slate-500">{u?.turma || '—'}</td>
                                         <td className="px-4 py-2 text-slate-600">{pointName(l.pointId)}</td>
                                         <td className="px-4 py-2">
-                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                                isEntrada
+                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${isEntrada
                                                     ? 'text-success-700 bg-success-100'
                                                     : 'text-danger-700 bg-danger-100'
-                                            }`}>
+                                                }`}>
                                                 {isEntrada ? 'Entrée' : 'Sortie'}
                                             </span>
                                         </td>
@@ -173,35 +172,295 @@ function JournalTab() {
     );
 }
 
-// ── Overview Tab ─────────────────────────────────────────────────────
-function OverviewTab() {
-    const [period,      setPeriod]      = React.useState('week'); // 'week' | 'month'
-    const [data,        setData]        = React.useState(null);
-    const [loading,     setLoading]     = React.useState(false);
-    const [lastEvent,   setLastEvent]   = React.useState(null);  // HH:mm string ou null
-    const [updatedAt,   setUpdatedAt]   = React.useState(null);  // HH:mm:ss string
-    const [todayAlerts, setTodayAlerts] = React.useState([]);    // alertas de hoje
+// ── Par élève Tab ────────────────────────────────────────────────────
+function ParEleveTab() {
+    const todayStr = () => new Date().toISOString().slice(0, 10);
 
-    // Calcular dateFrom/dateTo a partir do period
+    const [query,    setQuery]    = React.useState('');
+    const [results,  setResults]  = React.useState([]);
+    const [selected, setSelected] = React.useState(null);
+    const [period,   setPeriod]   = React.useState('today');
+    const [logs,     setLogs]     = React.useState([]);
+    const [loading,  setLoading]  = React.useState(false);
+    const [searched, setSearched] = React.useState(false);
+
+    // Debounced search 250 ms
+    React.useEffect(() => {
+        if (!query.trim()) { setResults([]); setSearched(false); return; }
+        const tid = setTimeout(() => {
+            const hits = (window.userCache?.search?.(query.trim(), 8)) || [];
+            setResults(hits);
+            setSearched(true);
+        }, 250);
+        return () => clearTimeout(tid);
+    }, [query]);
+
     const { dateFrom, dateTo } = React.useMemo(() => {
         const to   = new Date();
         const from = new Date();
-        if (period === 'week')  from.setDate(to.getDate() - 6);
-        else                    from.setDate(to.getDate() - 29);
+        if (period === 'week')       from.setDate(to.getDate() - 6);
+        else if (period === 'month') from.setDate(to.getDate() - 29);
         const fmt = d => d.toISOString().slice(0, 10);
         return { dateFrom: fmt(from), dateTo: fmt(to) };
     }, [period]);
 
-    const fmtHHmm   = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const loadLogs = React.useCallback(async (user) => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            const data = await window.api.fetchUserLogs(user.id, { dateFrom, dateTo });
+            setLogs(Array.isArray(data) ? data : []);
+        } catch (e) {
+            setLogs([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [dateFrom, dateTo]);
+
+    React.useEffect(() => {
+        const u = selected?.user || selected;
+        if (u) loadLogs(u);
+    }, [loadLogs, selected]);
+
+    const pointName = (id) => {
+        const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === id);
+        return p ? p.nome : id;
+    };
+    const tsMs = (ts) => typeof ts === 'number' ? ts : new Date(ts).getTime();
+    const fmtTime = (ts) => new Date(tsMs(ts)).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const fmtDayHeader = (dateStr) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    };
+
+    // Chips de présence derivados dos logs de hoje
+    const presenceChips = React.useMemo(() => {
+        const today = todayStr();
+        const todayLogs = logs
+            .filter(l => new Date(tsMs(l.timestamp)).toISOString().slice(0, 10) === today)
+            .sort((a, b) => tsMs(a.timestamp) - tsMs(b.timestamp));
+
+        const entry = todayLogs.find(l => l.action === 'ENTRADA' && String(l.pointId).startsWith('PORT'));
+        const entryChip = entry
+            ? { label: `Entré à ${fmtTime(entry.timestamp)}`, cls: 'bg-success-100 text-success-700' }
+            : { label: 'Pas encore entré', cls: 'bg-slate-100 text-slate-500' };
+
+        const internalPoints = ['REFEI1', 'REFEI2', 'CANTINA1', 'ENFERM', 'BIBLIO'];
+        const lastInternal = [...todayLogs].reverse().find(l => internalPoints.includes(l.pointId));
+        let locationChip = { label: 'Actuellement: —', cls: 'bg-slate-100 text-slate-500' };
+        if (lastInternal && lastInternal.action === 'ENTRADA') {
+            const hasExitAfter = todayLogs.some(
+                l => l.pointId === lastInternal.pointId && l.action === 'SAIDA' &&
+                    tsMs(l.timestamp) > tsMs(lastInternal.timestamp)
+            );
+            if (!hasExitAfter) {
+                locationChip = { label: `Actuellement: ${pointName(lastInternal.pointId)}`, cls: 'bg-accent-100 text-accent-700' };
+            }
+        }
+        return [entryChip, locationChip];
+    }, [logs]);
+
+    // Grouper logs par jour (decroissant)
+    const logsByDay = React.useMemo(() => {
+        const days = {};
+        logs.forEach(l => {
+            const key = new Date(tsMs(l.timestamp)).toISOString().slice(0, 10);
+            if (!days[key]) days[key] = [];
+            days[key].push(l);
+        });
+        return Object.entries(days).sort(([a], [b]) => b.localeCompare(a));
+    }, [logs]);
+
+    const u = selected?.user || selected;
+    const foto = u?.foto_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u?.nome || 'U')}`;
+    const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 bg-white';
+    const periodBtns = [
+        { id: 'today', label: "Aujourd'hui" },
+        { id: 'week',  label: '7 jours' },
+        { id: 'month', label: '30 jours' },
+    ];
+
+    return (
+        <div>
+            {/* ── Busca ── */}
+            <div className="mb-4 relative">
+                <div className="relative">
+                    <LucideIcon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="Rechercher un élève par nom ou ID..."
+                        className={inputCls + ' pl-9'}
+                    />
+                </div>
+                {searched && results.length === 0 && (
+                    <div className="mt-1 text-xs text-slate-400 pl-1">Aucun résultat</div>
+                )}
+                {results.length > 0 && (
+                    <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-soft-200 shadow-lg overflow-hidden">
+                        {results.map((hit, i) => {
+                            const hu = hit.user || hit;
+                            const hFoto = hu.foto_url ||
+                                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(hu.nome || 'U')}`;
+                            return (
+                                <button
+                                    key={hu.id || i}
+                                    onClick={() => { setSelected(hit); setQuery(''); setResults([]); setSearched(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-soft-50 transition-colors text-left"
+                                >
+                                    <img src={hFoto} alt=""
+                                        className="w-8 h-8 rounded-full object-cover bg-soft-100 shrink-0"
+                                        onError={e => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(hu.nome || 'U')}`; }}
+                                    />
+                                    <span className="font-bold text-sm text-navy-500 flex-1 truncate">{hu.nome}</span>
+                                    <span className="text-xs text-slate-400 shrink-0">{hu.turma || '—'}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Nenhum aluno selecionado ── */}
+            {!u && (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
+                    <LucideIcon name="user-search" size={40} className="text-slate-300" />
+                    <p className="text-sm">Recherchez un élève pour voir sa présence et sa timeline</p>
+                </div>
+            )}
+
+            {/* ── Aluno selecionado ── */}
+            {u && (
+                <>
+                    {/* Card */}
+                    <div className="flex items-center gap-4 bg-soft-50 rounded-2xl p-4 mb-4 border border-soft-200">
+                        <img src={foto} alt=""
+                            className="w-14 h-14 rounded-2xl object-cover bg-soft-200 shrink-0"
+                            onError={e => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.nome || 'U')}`; }}
+                        />
+                        <div className="flex-1 min-w-0">
+                            <p className="font-black text-navy-500 text-base truncate">{u.nome}</p>
+                            <p className="text-xs text-slate-400">{u.turma || '—'} &middot; <span className="font-mono">{u.id}</span></p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {presenceChips.map((c, i) => (
+                                    <span key={i} className={`text-xs font-bold px-2.5 py-1 rounded-full ${c.cls}`}>{c.label}</span>
+                                ))}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => { setSelected(null); setLogs([]); }}
+                            className="shrink-0 p-1 text-slate-400 hover:text-danger-500 transition-colors"
+                            title="Désélectionner"
+                        >
+                            <LucideIcon name="x" size={18} />
+                        </button>
+                    </div>
+
+                    {/* Sélecteur de période */}
+                    <div className="flex gap-2 mb-4">
+                        {periodBtns.map(b => (
+                            <button key={b.id} onClick={() => setPeriod(b.id)}
+                                className={`px-4 py-1.5 rounded-xl text-sm font-bold transition-colors ${
+                                    period === b.id ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'
+                                }`}
+                            >{b.label}</button>
+                        ))}
+                        {loading && (
+                            <span className="self-center text-xs text-slate-400 flex items-center gap-1 ml-2">
+                                <LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Timeline */}
+                    {loading && logs.length === 0 && (
+                        <div className="animate-pulse flex flex-col gap-6 mt-6">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="relative pl-6 border-l-2 border-slate-200">
+                                    <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-300"></div>
+                                    <div className="bg-white border border-soft-200 rounded-2xl p-4 h-20 shadow-sm flex items-center justify-between">
+                                        <div className="w-1/2">
+                                            <div className="h-4 bg-slate-200 rounded w-full mb-2"></div>
+                                            <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                                        </div>
+                                        <div className="h-6 bg-slate-100 rounded-full w-16"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!loading && logs.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+                            <LucideIcon name="calendar-x" size={32} className="text-slate-300" />
+                            <p className="text-sm">Aucun mouvement sur la période</p>
+                        </div>
+                    )}
+                    {logs.length > 0 && (
+                        <div className="space-y-5">
+                            {logsByDay.map(([dayKey, dayLogs]) => (
+                                <div key={dayKey}>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 capitalize">
+                                        {fmtDayHeader(dayKey)}
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {dayLogs
+                                            .slice()
+                                            .sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp))
+                                            .map((l, i) => {
+                                                const isEntrada = l.action === 'ENTRADA';
+                                                return (
+                                                    <div key={l.id || i} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-100">
+                                                        <span className="font-mono text-xs text-slate-400 w-12 shrink-0">{fmtTime(l.timestamp)}</span>
+                                                        <span className="flex-1 text-sm text-slate-700 truncate">{pointName(l.pointId)}</span>
+                                                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                                            isEntrada ? 'bg-success-100 text-success-700' : 'bg-rose-100 text-rose-700'
+                                                        }`}>
+                                                            {isEntrada ? 'Entrée' : 'Sortie'}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })
+                                        }
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+// ── Overview Tab ─────────────────────────────────────────────────────
+function OverviewTab() {
+    const [period, setPeriod] = React.useState('week'); // 'week' | 'month'
+    const [data, setData] = React.useState(null);
+    const [loading, setLoading] = React.useState(false);
+    const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
+    const [updatedAt, setUpdatedAt] = React.useState(null);  // HH:mm:ss string
+    const [todayAlerts, setTodayAlerts] = React.useState([]);    // alertas de hoje
+
+    // Calcular dateFrom/dateTo a partir do period
+    const { dateFrom, dateTo } = React.useMemo(() => {
+        const to = new Date();
+        const from = new Date();
+        if (period === 'week') from.setDate(to.getDate() - 6);
+        else from.setDate(to.getDate() - 29);
+        const fmt = d => d.toISOString().slice(0, 10);
+        return { dateFrom: fmt(from), dateTo: fmt(to) };
+    }, [period]);
+
+    const fmtHHmm = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const fmtHHmmss = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     const load = React.useCallback(async () => {
         setLoading(true);
         const today = new Date().toISOString().slice(0, 10);
         try {
-            const [d, recentLogs, visits, meals] = await Promise.all([
+            const [d, visits, meals] = await Promise.all([
                 window.api.fetchOverview({ dateFrom, dateTo }),
-                window.api.fetchAllLogs({ limit: 1 }).catch(() => []),
                 (typeof fetchInfirmaryVisits === 'function'
                     ? fetchInfirmaryVisits({ dateFrom: today, dateTo: today })
                     : Promise.resolve([])
@@ -212,8 +471,9 @@ function OverviewTab() {
                 ).catch(() => [])
             ]);
             setData(d);
-            if (Array.isArray(recentLogs) && recentLogs.length > 0 && recentLogs[0].timestamp) {
-                setLastEvent(fmtHHmm(new Date(recentLogs[0].timestamp)));
+            // Derive last event from overview data if available
+            if (d && d.lastEventTimestamp) {
+                setLastEvent(fmtHHmm(new Date(d.lastEventTimestamp)));
             } else {
                 setLastEvent(null);
             }
@@ -354,9 +614,30 @@ function OverviewTab() {
 
             {/* ── État loading initial (sans data préalable) ── */}
             {loading && data === null && (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <LucideIcon name="loader-2" size={32} className="animate-spin mb-3" />
-                    <span className="text-sm">Chargement...</span>
+                <div className="animate-pulse flex flex-col gap-5 mt-2">
+                    {/* Skeleton KPIs */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-4 h-28 flex flex-col justify-between">
+                                <div>
+                                    <div className="h-8 bg-slate-200 rounded w-1/2 mb-2"></div>
+                                    <div className="h-3 bg-slate-200 rounded w-3/4"></div>
+                                </div>
+                                <div className="h-2 bg-slate-200 rounded w-1/3"></div>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Skeleton Charts Area */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 h-72 flex flex-col">
+                            <div className="h-5 bg-slate-200 rounded w-1/3 mb-6"></div>
+                            <div className="flex-1 bg-slate-100 rounded-xl"></div>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 h-72 flex flex-col">
+                            <div className="h-5 bg-slate-200 rounded w-1/3 mb-6"></div>
+                            <div className="flex-1 bg-slate-100 rounded-xl"></div>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -431,7 +712,7 @@ function OverviewTab() {
                             {data ? 'Serveur en ligne' : 'Serveur hors ligne'}
                         </span>
                         <span className="text-slate-300">|</span>
-                        <span>Dernier événement&nbsp;: {lastEvent || '—'}</span>
+                        <span>Dernier événement&nbsp;: {lastEvent || 'Non disponible'}</span>
                         <span className="text-slate-300">|</span>
                         <span>Mis à jour à {updatedAt || '—'}</span>
                     </div>
@@ -460,15 +741,15 @@ function OverviewTab() {
                         <>
                             {/* ── Affluence par Heure ── */}
                             {(() => {
-                                const maxHourCount = Math.max(...(data?.byHour||[]).map(h=>h.count), 1);
+                                const maxHourCount = Math.max(...(data?.byHour || []).map(h => h.count), 1);
                                 return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
                                     React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
                                     React.createElement("div", { className: "flex items-end gap-1 h-32" },
-                                        (data?.byHour || []).map(function(h) {
+                                        (data?.byHour || []).map(function (h) {
                                             const count = h.count;
                                             const isMax = count === maxHourCount && count > 0;
                                             return React.createElement("div", { key: h.hour, className: "flex-1 flex flex-col items-center" },
-                                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count/1000).toFixed(1) + "k" : count) : ""),
+                                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count / 1000).toFixed(1) + "k" : count) : ""),
                                                 React.createElement("div", {
                                                     className: "w-full rounded-t",
                                                     style: {
@@ -487,7 +768,7 @@ function OverviewTab() {
                             {/* ── Répartition par Zone ── */}
                             {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
                                 React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Répartition par Zone"),
-                                [...areaStats].sort((a, b) => b.total - a.total).map(function(a) {
+                                [...areaStats].sort((a, b) => b.total - a.total).map(function (a) {
                                     const areaColorMap = { cantine: "#3B82F6", infirmerie: "#EF4444", cdi: "#F59E0B", portail: "#1E293B" };
                                     return React.createElement("div", { key: a.key, className: "flex items-center gap-3 mb-2" },
                                         React.createElement("span", { className: "w-24 text-sm font-medium text-slate-700" }, a.label),
@@ -510,9 +791,9 @@ function OverviewTab() {
                     {/* ── Points d'attention ── */}
                     {(() => {
                         const severiteCls = {
-                            critique:  { badge: 'bg-rose-100 text-rose-700',   icon: 'alert-octagon',    border: 'border-rose-100' },
-                            attention: { badge: 'bg-amber-100 text-amber-700', icon: 'alert-triangle',   border: 'border-amber-100' },
-                            info:      { badge: 'bg-sky-100 text-sky-700',     icon: 'info',             border: 'border-sky-100' },
+                            critique: { badge: 'bg-rose-100 text-rose-700', icon: 'alert-octagon', border: 'border-rose-100' },
+                            attention: { badge: 'bg-amber-100 text-amber-700', icon: 'alert-triangle', border: 'border-amber-100' },
+                            info: { badge: 'bg-sky-100 text-sky-700', icon: 'info', border: 'border-sky-100' },
                         };
                         const visibleAlerts = todayAlerts.slice(0, 10);
                         const hasAlerts = attention.total > 0 || todayAlerts.length > 0;
@@ -637,44 +918,57 @@ function OverviewTab() {
 }
 
 // ── GeneralReport ─────────────────────────────────────────────────────
-function GeneralReport({ onClose }) {
+function GeneralReport({ onBack }) {
     const [tab, setTab] = React.useState('overview'); // 'overview' | 'student' | 'journal'
 
     const tabBtn = (id, label, icon) => (
         <button onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                tab === id ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'
-            }`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors ${tab === id ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'
+                }`}>
             <LucideIcon name={icon} size={16} /> {label}
         </button>
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-6 animate-fade-in">
-            <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-navy-500 flex items-center justify-center">
-                        <LucideIcon name="layout-dashboard" size={24} className="text-white" />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-black text-navy-500">Rapport Général</h2>
-                        <p className="text-sm text-slate-400">Vue consolidée de toutes les zones</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+            {/* ── Page Header ── */}
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="w-10 h-10 rounded-xl bg-white border border-soft-200 shadow-sm flex items-center justify-center hover:bg-soft-50 transition-colors"
+                        >
+                            <LucideIcon name="arrow-left" size={18} className="text-navy-500" />
+                        </button>
+                    )}
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-navy-500 flex items-center justify-center">
+                            <LucideIcon name="layout-dashboard" size={24} className="text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-navy-500 tracking-tight">Rapport Général</h1>
+                            <p className="text-sm text-slate-400 mt-0.5">Vue consolidée de toutes les zones · Lycée Molière</p>
+                        </div>
                     </div>
                 </div>
-                {onClose && (
-                    <button onClick={onClose} className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 font-bold text-sm hover:bg-soft-200 transition-colors">Fermer</button>
-                )}
+                <span className="text-xs text-slate-400 font-medium bg-soft-100 px-3 py-1.5 rounded-lg border border-soft-200">
+                    <LucideIcon name="shield-check" size={12} className="inline mr-1 text-accent-500" />
+                    Accès Administrateur
+                </span>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-5">
+            {/* ── Tab Bar ── */}
+            <div className="flex flex-wrap gap-2 mb-6">
                 {tabBtn('overview', "Vue d'ensemble", 'bar-chart-3')}
                 {tabBtn('student', 'Par élève', 'user-search')}
                 {tabBtn('journal', 'Journal', 'list')}
             </div>
 
-            <div className="bg-white rounded-2xl border border-soft-200 p-6 shadow-sm min-h-[300px]">
+            {/* ── Tab Content ── */}
+            <div className="bg-white rounded-2xl border border-soft-200 p-6 shadow-sm min-h-[400px]">
                 {tab === 'overview' && <OverviewTab />}
-                {tab === 'student'  && <div className="text-center text-slate-400 py-16">Par élève — à venir</div>}
+                {tab === 'student'  && <ParEleveTab />}
                 {tab === 'journal'  && <JournalTab />}
             </div>
         </div>

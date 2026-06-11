@@ -171,6 +171,22 @@ public class AccessController {
         return meals;
     }
 
+    @PreAuthorize("@areaSecurity.can('overview')")
+    @GetMapping("/logs/user/{userId}")
+    public ResponseEntity<List<AccessLog>> getLogsByUser(
+            @PathVariable String userId,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+        java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : java.time.LocalDate.now().minusDays(30).atStartOfDay();
+        java.time.LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : java.time.LocalDateTime.now();
+        return ResponseEntity.ok(
+            accessLogRepository.findTop500ByUserIdAndTimestampBetweenOrderByTimestampDesc(userId, from, to));
+    }
+
     @GetMapping("/logs/{pointId}")
     public ResponseEntity<List<AccessLog>> getLogsByPoint(@PathVariable String pointId) {
         LocalDateTime start = LocalDateTime.now().minusHours(24);

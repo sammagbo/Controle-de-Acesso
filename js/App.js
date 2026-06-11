@@ -242,6 +242,11 @@ function App() {
                         onBack={() => setAdminView(false)}
                         onShowToast={setToast}
                         activeTimers={activeTimers}
+                        onNavigateToReport={() => {
+                              setAdminView(false);
+                              const pt = ACCESS_POINTS.find(p => p.id === 'GENERAL_REPORT');
+                              if (pt) setCurrentPoint(pt);
+                        }}
                   />
             ) : !currentPoint ? (
                         <Dashboard
@@ -254,6 +259,8 @@ function App() {
                         <RefectoryReport />
                   ) : currentPoint && currentPoint.id === 'INFIRMARY_REPORT' ? (
                         <InfirmaryReport />
+                  ) : currentPoint && currentPoint.id === 'GENERAL_REPORT' ? (
+                        <GeneralReport onBack={() => setCurrentPoint(null)} />
                   ) : (
                   <SectorView
                         point={currentPoint}

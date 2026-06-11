@@ -165,6 +165,29 @@ const api = {
     },
 
     /**
+     * Busca logs de um aluno específico por período.
+     * @param {string} userId
+     * @param {Object} filters - { dateFrom, dateTo }
+     * @returns Array de AccessLog (máx 500)
+     */
+    async fetchUserLogs(userId, filters = {}) {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo)   params.set('dateTo',   filters.dateTo);
+        try {
+            const res = await fetch(`${API_BASE_URL}/access/logs/user/${encodeURIComponent(userId)}?${params.toString()}`, {
+                headers: authHeaders()
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            console.error('[API] fetchUserLogs error:', e);
+            return [];
+        }
+    },
+
+    /**
      * Força sincronização manual com o Pronote.
      * @returns { success, message }
      */

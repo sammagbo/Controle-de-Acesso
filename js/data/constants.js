@@ -22,6 +22,7 @@ const ACCESS_POINTS = [
       { id: 'CANTINA_MONITOR', nome: 'Monitor Cantine', icon: 'monitor', description: 'Surveillance temps réel', category: 'monitor', area: 'cantine' },
       { id: 'CANTINA_REPORT',  nome: 'Rapport Cantine', icon: 'file-text', description: 'Historique et export',   category: 'monitor', area: 'cantine' },
       { id: 'INFIRMARY_REPORT', nome: 'Rapport Infirmerie', icon: 'clipboard-list', description: 'Visites et séjours', category: 'monitor', area: 'infirmerie' },
+      { id: 'GENERAL_REPORT',   nome: 'Rapport Général',    icon: 'layout-dashboard', description: 'Vue consolidée — KPIs, élèves, journal', category: 'monitor', area: 'admin' },
 ];
 
 

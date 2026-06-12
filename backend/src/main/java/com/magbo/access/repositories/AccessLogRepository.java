@@ -116,4 +116,24 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "  ORDER BY user_id, point_id, timestamp DESC" +
            ") last WHERE action='ENTRADA' GROUP BY point_id", nativeQuery = true)
     java.util.List<Object[]> currentOccupancyByPoint(@Param("dayStart") java.time.LocalDateTime dayStart);
+
+    // Élèves únicos no período para um conjunto de pontos (uma área)
+    @Query(value = "SELECT COUNT(DISTINCT user_id) FROM access_logs " +
+           "WHERE timestamp BETWEEN :from AND :to AND point_id IN (:points)", nativeQuery = true)
+    long countUniqueStudentsByPoints(@Param("from") java.time.LocalDateTime from,
+                                     @Param("to") java.time.LocalDateTime to,
+                                     @Param("points") java.util.Collection<String> points);
+
+    // Permanência média (min): pares ENTRADA→SAIDA do mesmo user/ponto/dia via LAG
+    @Query(value = "SELECT AVG(EXTRACT(EPOCH FROM (ts - prev_ts)) / 60.0) FROM (" +
+           "  SELECT action, timestamp AS ts, " +
+           "    LAG(action) OVER w AS prev_action, " +
+           "    LAG(timestamp) OVER w AS prev_ts " +
+           "  FROM access_logs " +
+           "  WHERE timestamp BETWEEN :from AND :to AND point_id IN (:points) " +
+           "  WINDOW w AS (PARTITION BY user_id, point_id, CAST(timestamp AS date) ORDER BY timestamp)" +
+           ") t WHERE t.action = 'SAIDA' AND t.prev_action = 'ENTRADA'", nativeQuery = true)
+    Double avgStayMinutesByPoints(@Param("from") java.time.LocalDateTime from,
+                                  @Param("to") java.time.LocalDateTime to,
+                                  @Param("points") java.util.Collection<String> points);
 }

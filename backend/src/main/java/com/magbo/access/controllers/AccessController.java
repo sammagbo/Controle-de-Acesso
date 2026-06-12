@@ -346,7 +346,7 @@ public class AccessController {
 
         // agrega por área a partir do por-ponto
         java.util.Map<String, long[]> areaAgg = new java.util.LinkedHashMap<>(); // area -> [mov, entries]
-        java.util.Map<String, java.util.Set<String>> areaUniq = new java.util.HashMap<>();
+
         for (String a : java.util.List.of("cantine", "infirmerie", "cdi")) {
             areaAgg.put(a, new long[]{0, 0});
         }
@@ -378,14 +378,22 @@ public class AccessController {
             }
         }
 
+        // pontos de cada área, derivado de areaOf (sem nova cópia do mapeamento)
+        java.util.Map<String, java.util.List<String>> pointsOfArea = new java.util.HashMap<>();
+        areaOf.forEach((pid, ar) -> pointsOfArea.computeIfAbsent(ar, k -> new java.util.ArrayList<>()).add(pid));
+
         java.util.List<com.magbo.access.dto.OverviewStats.AreaStat> areas = new java.util.ArrayList<>();
         for (var e : areaAgg.entrySet()) {
+            java.util.List<String> pts = pointsOfArea.getOrDefault(e.getKey(), java.util.List.of());
+            long areaUniques = pts.isEmpty() ? 0 : accessLogRepository.countUniqueStudentsByPoints(from, to, pts);
+            Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(from, to, pts);
             areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
                     .area(e.getKey())
                     .movements(e.getValue()[0])
                     .entries(e.getValue()[1])
-                    .uniqueStudents(0) // únicos por área omitido (custo); 0 por enquanto
+                    .uniqueStudents(areaUniques)
                     .currentOccupancy(occByArea.getOrDefault(e.getKey(), 0L))
+                    .avgDurationMin(avgStay == null ? null : (int) Math.round(avgStay))
                     .build());
         }
 

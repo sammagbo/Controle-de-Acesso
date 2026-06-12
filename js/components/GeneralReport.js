@@ -1075,11 +1075,11 @@ function OverviewTab() {
                                         <p className="text-xs text-slate-400">Occupation act.</p>
                                     </div>
                                     <div>
-                                        <p className="text-lg font-black text-slate-300" title="Donnée non fournie par le serveur">—</p>
+                                        <p className={`text-2xl font-black ${a.uniques > 0 ? 'text-accent-600' : 'text-slate-300'}`}>{a.uniques > 0 ? a.uniques : '—'}</p>
                                         <p className="text-xs text-slate-400">Élèves uniques</p>
                                     </div>
                                     <div>
-                                        <p className="text-lg font-black text-slate-300" title="Donnée non fournie par le serveur">{a.dureeMoy != null ? a.dureeMoy + ' min' : 'Indispo.'}</p>
+                                        <p className={`font-black ${a.dureeMoy != null ? 'text-2xl text-navy-500' : 'text-lg text-slate-300'}`}>{a.dureeMoy != null ? a.dureeMoy + ' min' : 'Indispo.'}</p>
                                         <p className="text-xs text-slate-400">Durée moy.</p>
                                     </div>
                                 </div>

@@ -54,11 +54,14 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                   } else {
                         const newAttempts = attempts + 1;
                         setAttempts(newAttempts);
-                        setError(`PIN incorreto. Tentativa ${newAttempts}.`);
-                        setPin('');
-                        if (newAttempts >= 3) {
+                        if (data.message && data.message !== 'PIN incorreto') {
+                              setError(data.message);
+                        } else if (newAttempts >= 3) {
                               setError(`PIN incorreto. Já errou ${newAttempts} vezes.`);
+                        } else {
+                              setError(`PIN incorreto. Tentativa ${newAttempts}.`);
                         }
+                        setPin('');
                         if (inputRef.current) inputRef.current.focus();
                   }
             } catch (e) {

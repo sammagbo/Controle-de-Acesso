@@ -53,11 +53,15 @@ public class HikvisionWebhookController {
             @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
             @RequestBody HikvisionEventDto payload) {
 
-        if (webhookToken != null && !webhookToken.isBlank()) {
-            if (incomingToken == null || !webhookToken.equals(incomingToken)) {
-                log.warn("Webhook rejected: invalid or missing token");
-                return ResponseEntity.status(401).body("Unauthorized");
-            }
+        if (webhookToken == null || webhookToken.isBlank()) {
+            log.error("Webhook rejected: token not configured (deny-by-default). Defina MAGBO_WEBHOOK_TOKEN.");
+            return ResponseEntity.status(503).body("Webhook token not configured");
+        }
+        if (incomingToken == null || !java.security.MessageDigest.isEqual(
+                webhookToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                incomingToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+            log.warn("Webhook rejected: invalid or missing token");
+            return ResponseEntity.status(401).body("Unauthorized");
         }
 
         log.info("Received Hikvision Webhook: {}", payload);

@@ -13,14 +13,21 @@ function JournalTab() {
     const [aluno, setAluno] = React.useState('');
     const [logs, setLogs] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [classe, setClasse] = React.useState('');
+    const [sortDir, setSortDir] = React.useState('desc');
+    const [page, setPage] = React.useState(1);
+    const PAGE_SIZE = 50;
 
     const load = React.useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const data = await window.api.fetchAllLogs({ dateFrom, dateTo, pointId, action, limit: 500 });
             setLogs(Array.isArray(data) ? data : []);
         } catch (e) {
             setLogs([]);
+            setError('Impossible de charger le journal. Vérifiez la connexion au serveur.');
         } finally {
             setLoading(false);
         }
@@ -30,14 +37,35 @@ function JournalTab() {
 
     // filtro client-side por nome/ID do aluno
     const filtered = React.useMemo(() => {
-        if (!aluno.trim()) return logs;
-        const q = aluno.trim().toLowerCase();
+        const qA = aluno.trim().toLowerCase();
+        const qC = classe.trim().toLowerCase();
         return logs.filter(l => {
             const u = window.userCache?.byId(l.userId);
-            const nome = (u?.nome || '').toLowerCase();
-            return nome.includes(q) || String(l.userId).includes(aluno.trim());
+            if (qA) {
+                const nome = (u?.nome || '').toLowerCase();
+                if (!nome.includes(qA) && !String(l.userId).includes(aluno.trim())) return false;
+            }
+            if (qC) {
+                const turma = (u?.turma || '').toLowerCase();
+                if (!turma.includes(qC)) return false;
+            }
+            return true;
         });
-    }, [logs, aluno]);
+    }, [logs, aluno, classe]);
+
+    const sorted = React.useMemo(() => {
+        const arr = [...filtered];
+        arr.sort((a, b) => sortDir === 'desc'
+            ? new Date(b.timestamp) - new Date(a.timestamp)
+            : new Date(a.timestamp) - new Date(b.timestamp));
+        return arr;
+    }, [filtered, sortDir]);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const pageRows = React.useMemo(
+        () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+        [sorted, page]
+    );
+    React.useEffect(() => { setPage(1); }, [filtered]);
 
     const pointName = (id) => {
         const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === id);
@@ -101,6 +129,16 @@ function JournalTab() {
                         <option value="SAIDA">Sortie</option>
                     </select>
                 </div>
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Classe</label>
+                    <input
+                        type="text"
+                        value={classe}
+                        onChange={e => setClasse(e.target.value)}
+                        placeholder="ex: CE1D"
+                        className={inputCls + ' w-24'}
+                    />
+                </div>
                 <div className="flex-1 min-w-[160px]">
                     <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Élève</label>
                     <input
@@ -119,6 +157,14 @@ function JournalTab() {
                 </button>
             </div>
 
+            {error && (
+                <div className="mb-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-xl px-4 py-2.5">
+                    <LucideIcon name="wifi-off" size={16} />
+                    <span className="flex-1">{error}</span>
+                    <button onClick={load} className="font-bold underline hover:no-underline">Réessayer</button>
+                </div>
+            )}
+
             {/* ── Tabela ── */}
             <div className="border border-soft-200 rounded-xl overflow-hidden">
                 <div className="px-4 py-2 border-b border-soft-100 flex items-center justify-between">
@@ -129,7 +175,13 @@ function JournalTab() {
                     <table className="w-full text-sm">
                         <thead className="bg-soft-50 sticky top-0 z-10">
                             <tr className="text-left text-xs font-bold text-slate-400 uppercase">
-                                <th className="px-4 py-2">Date / Heure</th>
+                                <th className="px-4 py-2">
+                                    <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                                        className="flex items-center gap-1 uppercase font-bold hover:text-navy-500 transition-colors">
+                                        Date / Heure
+                                        <LucideIcon name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={12} />
+                                    </button>
+                                </th>
                                 <th className="px-4 py-2">Élève</th>
                                 <th className="px-4 py-2">Classe</th>
                                 <th className="px-4 py-2">Zone</th>
@@ -144,7 +196,7 @@ function JournalTab() {
                                     </td>
                                 </tr>
                             )}
-                            {filtered.map((l, i) => {
+                            {pageRows.map((l, i) => {
                                 const u = window.userCache?.byId(l.userId);
                                 const isEntrada = l.action === 'ENTRADA';
                                 return (
@@ -167,6 +219,15 @@ function JournalTab() {
                         </tbody>
                     </table>
                 </div>
+                {totalPages > 1 && (
+                    <div className="px-4 py-2 border-t border-soft-100 flex items-center justify-between text-sm">
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">‹ Précédent</button>
+                        <span className="text-xs text-slate-400">Page {page} / {totalPages} · {sorted.length} résultats{logs.length === 500 ? ' (max 500 chargés)' : ''}</span>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">Suivant ›</button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -260,18 +321,34 @@ function ParEleveTab() {
         return [entryChip, locationChip];
     }, [logs]);
 
-    // Grouper logs par jour (decroissant)
+    // Grouper logs par jour (decroissant) + durées dérivées (ENTRADA→SAIDA même point, même jour)
     const logsByDay = React.useMemo(() => {
         const days = {};
         logs.forEach(l => {
             const key = new Date(tsMs(l.timestamp)).toISOString().slice(0, 10);
             if (!days[key]) days[key] = [];
-            days[key].push(l);
+            days[key].push({ ...l });
+        });
+        Object.values(days).forEach(dayLogs => {
+            dayLogs.sort((a, b) => tsMs(a.timestamp) - tsMs(b.timestamp));
+            const open = {};
+            dayLogs.forEach(l => {
+                if (l.action === 'ENTRADA') {
+                    open[l.pointId] = l;
+                } else if (l.action === 'SAIDA' && open[l.pointId]) {
+                    l._dur = Math.round((tsMs(l.timestamp) - tsMs(open[l.pointId].timestamp)) / 60000);
+                    delete open[l.pointId];
+                }
+            });
+            Object.values(open).forEach(l => {
+                if (!String(l.pointId).startsWith('PORT')) l._open = true;
+            });
         });
         return Object.entries(days).sort(([a], [b]) => b.localeCompare(a));
     }, [logs]);
 
     const u = selected?.user || selected;
+    const lastMove = logs.length > 0 ? logs[0] : null;
     const foto = u?.foto_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u?.nome || 'U')}`;
     const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 bg-white';
     const periodBtns = [
@@ -342,6 +419,11 @@ function ParEleveTab() {
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-navy-500 text-base truncate">{u.nome}</p>
                             <p className="text-xs text-slate-400">{u.turma || '—'} &middot; <span className="font-mono">{u.id}</span></p>
+                            {lastMove && (
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                    Dernier passage&nbsp;: <b className="text-slate-600">{pointName(lastMove.pointId)}</b> à {fmtTime(lastMove.timestamp)} &middot; {logs.length}{logs.length === 500 ? '+' : ''} mouvement{logs.length > 1 ? 's' : ''} sur la période
+                                </p>
+                            )}
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {presenceChips.map((c, i) => (
                                     <span key={i} className={`text-xs font-bold px-2.5 py-1 rounded-full ${c.cls}`}>{c.label}</span>
@@ -413,10 +495,15 @@ function ParEleveTab() {
                                                     <div key={l.id || i} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-100">
                                                         <span className="font-mono text-xs text-slate-400 w-12 shrink-0">{fmtTime(l.timestamp)}</span>
                                                         <span className="flex-1 text-sm text-slate-700 truncate">{pointName(l.pointId)}</span>
+                                                        {l._open && (
+                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-amber-100 text-amber-700">
+                                                                sans sortie
+                                                            </span>
+                                                        )}
                                                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                                                             isEntrada ? 'bg-success-100 text-success-700' : 'bg-rose-100 text-rose-700'
                                                         }`}>
-                                                            {isEntrada ? 'Entrée' : 'Sortie'}
+                                                            {isEntrada ? 'Entrée' : 'Sortie'}{!isEntrada && l._dur != null ? ` (${l._dur} min)` : ''}
                                                         </span>
                                                     </div>
                                                 );
@@ -435,22 +522,28 @@ function ParEleveTab() {
 
 // ── Overview Tab ─────────────────────────────────────────────────────
 function OverviewTab() {
-    const [period, setPeriod] = React.useState('week'); // 'week' | 'month'
+    const [period, setPeriod] = React.useState('week'); // 'today' | 'week' | 'month' | 'custom'
+    const [customFrom, setCustomFrom] = React.useState(new Date().toISOString().slice(0, 10));
+    const [customTo,   setCustomTo]   = React.useState(new Date().toISOString().slice(0, 10));
     const [data, setData] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
     const [updatedAt, setUpdatedAt] = React.useState(null);  // HH:mm:ss string
     const [todayAlerts, setTodayAlerts] = React.useState([]);    // alertas de hoje
 
-    // Calcular dateFrom/dateTo a partir do period
     const { dateFrom, dateTo } = React.useMemo(() => {
+        const fmt = d => d.toISOString().slice(0, 10);
+        if (period === 'custom') {
+            const f = customFrom <= customTo ? customFrom : customTo;
+            const t = customFrom <= customTo ? customTo : customFrom;
+            return { dateFrom: f, dateTo: t };
+        }
         const to = new Date();
         const from = new Date();
         if (period === 'week') from.setDate(to.getDate() - 6);
-        else from.setDate(to.getDate() - 29);
-        const fmt = d => d.toISOString().slice(0, 10);
+        else if (period === 'month') from.setDate(to.getDate() - 29);
         return { dateFrom: fmt(from), dateTo: fmt(to) };
-    }, [period]);
+    }, [period, customFrom, customTo]);
 
     const fmtHHmm = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const fmtHHmmss = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -459,8 +552,9 @@ function OverviewTab() {
         setLoading(true);
         const today = new Date().toISOString().slice(0, 10);
         try {
-            const [d, visits, meals] = await Promise.all([
+            const [d, lastLogArr, visits, meals] = await Promise.all([
                 window.api.fetchOverview({ dateFrom, dateTo }),
+                window.api.fetchAllLogs({ limit: 1 }).catch(() => []),
                 (typeof fetchInfirmaryVisits === 'function'
                     ? fetchInfirmaryVisits({ dateFrom: today, dateTo: today })
                     : Promise.resolve([])
@@ -471,12 +565,8 @@ function OverviewTab() {
                 ).catch(() => [])
             ]);
             setData(d);
-            // Derive last event from overview data if available
-            if (d && d.lastEventTimestamp) {
-                setLastEvent(fmtHHmm(new Date(d.lastEventTimestamp)));
-            } else {
-                setLastEvent(null);
-            }
+            const lastLog = Array.isArray(lastLogArr) && lastLogArr.length > 0 ? lastLogArr[0] : null;
+            setLastEvent(lastLog && lastLog.timestamp ? fmtHHmm(new Date(lastLog.timestamp)) : null);
             // ── Construir lista de alertas client-side ──────────────────
             const alerts = [];
             (Array.isArray(visits) ? visits : []).forEach(v => {
@@ -560,6 +650,8 @@ function OverviewTab() {
         total: a.movements,
         uniques: a.uniqueStudents,
         entradas: a.entries,
+        occupation: a.currentOccupancy,
+        dureeMoy: a.avgDurationMin,
     }));
     const maxAreaTotal = Math.max(...areaStats.map(a => a.total), 1);
 
@@ -587,24 +679,37 @@ function OverviewTab() {
         cantine: '#f97316', infirmerie: '#ef4444', cdi: '#eab308', portail: '#0c1b3a'
     };
 
-    const periodoLabel = period === 'week' ? '7 derniers jours' : '30 derniers jours';
+    const periodoLabel = period === 'today' ? "aujourd'hui"
+        : period === 'week' ? '7 derniers jours'
+        : period === 'month' ? '30 derniers jours'
+        : 'période personnalisée';
 
     return (
         <div>
-            {/* ── Toggle de período ── */}
-            <div className="flex gap-2 mb-5">
-                <button
-                    onClick={() => setPeriod('week')}
-                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${period === 'week' ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'}`}
-                >
-                    Cette semaine
-                </button>
-                <button
-                    onClick={() => setPeriod('month')}
-                    className={`flex-1 py-2 rounded-xl font-bold text-sm transition-colors ${period === 'month' ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'}`}
-                >
-                    Ce mois
-                </button>
+            {/* ── Toggle de période ── */}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+                {[
+                    { id: 'today',  label: "Aujourd'hui" },
+                    { id: 'week',   label: 'Cette semaine' },
+                    { id: 'month',  label: 'Ce mois' },
+                    { id: 'custom', label: 'Personnalisé' },
+                ].map(p => (
+                    <button key={p.id}
+                        onClick={() => setPeriod(p.id)}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm transition-colors ${period === p.id ? 'bg-accent-500 text-white shadow-sm' : 'bg-soft-100 text-navy-500 hover:bg-soft-200'}`}
+                    >
+                        {p.label}
+                    </button>
+                ))}
+                {period === 'custom' && (
+                    <span className="flex items-center gap-2 ml-1">
+                        <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                            className="px-3 py-1.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300" />
+                        <span className="text-xs text-slate-400">au</span>
+                        <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                            className="px-3 py-1.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300" />
+                    </span>
+                )}
                 {loading && (
                     <span className="self-center text-xs text-slate-400 flex items-center gap-1 ml-2">
                         <LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...
@@ -705,16 +810,44 @@ function OverviewTab() {
                         )
                     )}
 
+                    {(() => {
+                        const totEntrees = areaStats.reduce((s, a) => s + (a.entradas || 0), 0);
+                        const totSorties = Math.max(0, grandTotal - totEntrees);
+                        return (
+                            <div className="grid grid-cols-3 gap-3 mb-5">
+                                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                                    <p className="text-xl font-bold text-emerald-600">{totEntrees.toLocaleString('fr-FR')}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Entrées (secteurs internes)</p>
+                                </div>
+                                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                                    <p className="text-xl font-bold text-rose-600">{totSorties.toLocaleString('fr-FR')}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Sorties (secteurs internes)</p>
+                                </div>
+                                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                                    <p className="text-xl font-bold text-amber-600">{(attention.sortiesNonEnreg || 0).toLocaleString('fr-FR')}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Mouvements incomplets</p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* ── Barra de status ── */}
-                    <div className="flex items-center gap-4 text-xs text-slate-500 mb-5">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mb-5">
                         <span className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${data ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                             {data ? 'Serveur en ligne' : 'Serveur hors ligne'}
                         </span>
                         <span className="text-slate-300">|</span>
+                        <span>Période&nbsp;: {dateFrom.split('-').reverse().join('/')} – {dateTo.split('-').reverse().join('/')}</span>
+                        <span className="text-slate-300">|</span>
                         <span>Dernier événement&nbsp;: {lastEvent || 'Non disponible'}</span>
                         <span className="text-slate-300">|</span>
                         <span>Mis à jour à {updatedAt || '—'}</span>
+                        <button onClick={load} disabled={loading}
+                            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-soft-100 text-navy-500 font-bold hover:bg-soft-200 transition-colors disabled:opacity-50">
+                            <LucideIcon name="refresh-cw" size={12} className={loading ? 'animate-spin' : ''} />
+                            Actualiser
+                        </button>
                     </div>
 
                     {/* ── Analyse de l'Activité ── */}
@@ -725,7 +858,7 @@ function OverviewTab() {
                             <p className="text-sm text-slate-600 mt-1">
                                 {grandTotal === 0
                                     ? 'Aucune activité sur la période.'
-                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} élève{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).</>)
+                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} élève{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).{attention.total > 0 ? (<> Principal point d'attention&nbsp;: <b>{attention.sortiesNonEnreg >= attention.repasHorsHoraire && attention.sortiesNonEnreg >= attention.sejoursLongs ? 'sorties non enregistrées' : (attention.repasHorsHoraire >= attention.sejoursLongs ? 'repas hors horaire' : 'séjours prolongés \u00e0 l\'infirmerie')}</b> ({Math.max(attention.sejoursLongs, attention.repasHorsHoraire, attention.sortiesNonEnreg)} cas).</>) : null}</>)
                                 }
                             </p>
                         </div>
@@ -782,6 +915,29 @@ function OverviewTab() {
                                             })
                                         ),
                                         React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString("fr-FR") + " mvt")
+                                    );
+                                })
+                            )}
+
+                            {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
+                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Entrées vs Sorties par zone"),
+                                [...areaStats].sort((a, b) => b.total - a.total).map(function (a) {
+                                    const sorties = Math.max(0, a.total - (a.entradas || 0));
+                                    const maxRef = Math.max(maxAreaTotal, 1);
+                                    return React.createElement("div", { key: a.key, className: "mb-3" },
+                                        React.createElement("div", { className: "flex justify-between text-xs text-slate-500 mb-1" },
+                                            React.createElement("span", { className: "font-medium text-slate-700" }, a.label),
+                                            React.createElement("span", null,
+                                                React.createElement("span", { className: "text-emerald-600 font-bold" }, a.entradas),
+                                                " entrées \u00b7 ",
+                                                React.createElement("span", { className: "text-rose-600 font-bold" }, sorties),
+                                                " sorties"
+                                            )
+                                        ),
+                                        React.createElement("div", { className: "flex gap-1" },
+                                            React.createElement("div", { className: "h-2.5 rounded-full bg-emerald-500", style: { width: Math.max((a.entradas / maxRef) * 100, 1) + "%" } }),
+                                            React.createElement("div", { className: "h-2.5 rounded-full bg-rose-400", style: { width: Math.max((sorties / maxRef) * 100, 1) + "%" } })
+                                        )
                                     );
                                 })
                             )}
@@ -900,16 +1056,49 @@ function OverviewTab() {
                                         <p className="text-xs text-slate-400">Mouvements</p>
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-black text-accent-600">{a.uniques}</p>
-                                        <p className="text-xs text-slate-400">Élèves</p>
-                                    </div>
-                                    <div>
                                         <p className="text-2xl font-black text-success-600">{a.entradas}</p>
                                         <p className="text-xs text-slate-400">Entrées</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-black text-rose-500">{Math.max(0, a.total - (a.entradas || 0))}</p>
+                                        <p className="text-xs text-slate-400">Sorties</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-black text-indigo-600">{a.occupation ?? 0}</p>
+                                        <p className="text-xs text-slate-400">Occupation act.</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-black text-slate-300" title="Donnée non fournie par le serveur">—</p>
+                                        <p className="text-xs text-slate-400">Élèves uniques</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-black text-slate-300" title="Donnée non fournie par le serveur">{a.dureeMoy != null ? a.dureeMoy + ' min' : 'Indispo.'}</p>
+                                        <p className="text-xs text-slate-400">Durée moy.</p>
                                     </div>
                                 </div>
                             </div>
                         ))}
+                        <div className="bg-white rounded-2xl border-2 border-dashed border-navy-200 p-4 shadow-sm">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-navy-500 flex items-center justify-center">
+                                    <LucideIcon name="door-open" size={20} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-navy-500">Portail</h3>
+                                    <p className="text-[11px] text-slate-400">Flux de bordure — exclu des statistiques internes</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-center">
+                                <div>
+                                    <p className="text-2xl font-black text-emerald-600">{(data?.presentToday || 0).toLocaleString('fr-FR')}</p>
+                                    <p className="text-xs text-slate-400">Entrés aujourd'hui</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-black text-indigo-600">{(data?.currentlyInSectors || 0).toLocaleString('fr-FR')}</p>
+                                    <p className="text-xs text-slate-400">Dans les secteurs</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}
@@ -967,9 +1156,9 @@ function GeneralReport({ onBack }) {
 
             {/* ── Tab Content ── */}
             <div className="bg-white rounded-2xl border border-soft-200 p-6 shadow-sm min-h-[400px]">
-                {tab === 'overview' && <OverviewTab />}
-                {tab === 'student'  && <ParEleveTab />}
-                {tab === 'journal'  && <JournalTab />}
+                <div className={tab === 'overview' ? '' : 'hidden'}><OverviewTab /></div>
+                <div className={tab === 'student' ? '' : 'hidden'}><ParEleveTab /></div>
+                <div className={tab === 'journal' ? '' : 'hidden'}><JournalTab /></div>
             </div>
         </div>
     );

@@ -245,15 +245,22 @@ function ParEleveTab() {
     const [loading,  setLoading]  = React.useState(false);
     const [searched, setSearched] = React.useState(false);
 
-    // Debounced search 250 ms
+    // Debounced search 250 ms (userCache.search é assíncrono — busca no backend)
     React.useEffect(() => {
         if (!query.trim()) { setResults([]); setSearched(false); return; }
-        const tid = setTimeout(() => {
-            const hits = (window.userCache?.search?.(query.trim(), 8)) || [];
-            setResults(hits);
+        let cancelled = false;
+        const tid = setTimeout(async () => {
+            let hits = [];
+            try {
+                hits = await (window.userCache?.search?.(query.trim(), 8) || []);
+            } catch (e) {
+                hits = [];
+            }
+            if (cancelled) return;
+            setResults(Array.isArray(hits) ? hits : []);
             setSearched(true);
         }, 250);
-        return () => clearTimeout(tid);
+        return () => { cancelled = true; clearTimeout(tid); };
     }, [query]);
 
     const { dateFrom, dateTo } = React.useMemo(() => {

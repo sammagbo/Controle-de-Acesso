@@ -44,3 +44,5 @@ backend-run.log
 seed_demo.sql
 movimento_real.sql
 backend/server.log
+
+backup_*.sql

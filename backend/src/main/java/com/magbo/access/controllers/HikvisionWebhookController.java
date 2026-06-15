@@ -84,8 +84,18 @@ public class HikvisionWebhookController {
 
             String hikvisionId = event.getEmployeeNoString();
             Optional<User> userOpt = userRepository.findByHikvisionEmployeeId(hikvisionId);
-            String userId = userOpt.map(User::getId).orElse(hikvisionId);
-            boolean isMapped = userOpt.isPresent();
+
+            // Pessoa reconhecida pelo terminal mas ausente/desativada no banco:
+            // NAO gravar em access_logs (evita poluir estatisticas com ID externo cru).
+            // F5e tratara o registro de eventos nao resolvidos quando houver payload real.
+            if (userOpt.isEmpty()) {
+                log.warn("Evento ignorado: employeeNoString '{}' sem correspondencia no banco (doorNo={}, readerNo={})",
+                        hikvisionId, event.getDoorNo(), event.getReaderNo());
+                return ResponseEntity.ok("Success");
+            }
+
+            String userId = userOpt.get().getId();
+            boolean isMapped = true;
 
             DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(
                     event.getDoorNo(),

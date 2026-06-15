@@ -337,12 +337,8 @@ public class AccessController {
                     .build());
         }
 
-        // mapa pointId -> área
-        java.util.Map<String, String> areaOf = new java.util.HashMap<>();
-        areaOf.put("REFEI1", "cantine"); areaOf.put("REFEI2", "cantine");
-        areaOf.put("ENFERM", "infirmerie");
-        areaOf.put("BIBLIO", "cdi");
-        areaOf.put("PORT1", "portail"); areaOf.put("PORT2", "portail"); areaOf.put("PORT3", "portail");
+        // mapa pointId -> área (fonte única: AreaMapping)
+        java.util.Map<String, String> areaOf = com.magbo.access.config.AreaMapping.pointToArea();
 
         // agrega por área a partir do por-ponto
         java.util.Map<String, long[]> areaAgg = new java.util.LinkedHashMap<>(); // area -> [mov, entries]

@@ -84,11 +84,6 @@ public class SystemUser {
     }
 
     private String getAreaForPoint(String pointId) {
-        if (pointId == null) return null;
-        if (pointId.startsWith("PORT")) return "portail";
-        if (pointId.equalsIgnoreCase("BIBLIO")) return "cdi";
-        if (pointId.startsWith("ENFERM") || pointId.equals("INFIRMARY_REPORT")) return "infirmerie";
-        if (pointId.startsWith("REFEI") || pointId.startsWith("CANTINA")) return "cantine";
-        return null;
+        return com.magbo.access.config.AreaMapping.areaForPoint(pointId);
     }
 }

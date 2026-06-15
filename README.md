@@ -6,11 +6,11 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/sammagbo/Controle-de-Acesso)
 [![Build](https://img.shields.io/badge/build-passing-success.svg)](#-statut-de-développement)
-[![Auth](https://img.shields.io/badge/auth-JWT%20%2B%20RBAC-purple.svg)](#-authentification-et-sécurité)
+[![Auth](https://img.shields.io/badge/auth-JWT%20%2B%20RBAC-purple.svg)](#-sécurité-et-authentification)
 [![Download](https://img.shields.io/badge/télécharger-v1.0.0%20Windows-blue.svg?style=flat&logo=windows)](https://github.com/sammagbo/Controle-de-Acesso/releases/latest)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](./LICENSE)
-[![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](#prérequis)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green.svg)](#stack-technique)
+[![Java](https://img.shields.io/badge/Java-17%2B-orange.svg)](#-prérequis)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green.svg)](#️-stack-technique)
 [![MAGBO STUDIO](https://img.shields.io/badge/MAGBO%20STUDIO-sammagbo.com-00234b.svg)](https://www.sammagbo.com)
 
 *Une réalisation [MAGBO STUDIO](https://www.sammagbo.com)*
@@ -46,16 +46,16 @@
 
 **MAGBO Access Control** est un système institutionnel destiné à gérer le contrôle d'accès des élèves, des enseignants et du personnel au sein du **Lycée Molière** (Rio de Janeiro). Il a été conçu pour la **Vie Scolaire** afin de tracer en temps réel les entrées et sorties à chaque point d'accès de l'établissement.
 
-Le système couvre cinq types de points d'accès :
+Le système couvre plusieurs types de points d'accès :
 
 | Type de point | Exemples | Logique métier |
 |---|---|---|
 | **Portails (`GATE`)** | Portail Principal, Portail 2, Portail 3 | Vérification du lien élève / responsable légal lors de la sortie |
 | **Bibliothèque (`SPECIAL`)** | CDI Axelle Beurel | Suivi du temps de présence (limite de 2h) |
 | **Infirmerie (`SPECIAL`)** | Infirmerie | Suivi du temps de présence (limite de 30 min) |
-| **Réfectoires (`REFECTORY`)** | Réfectoire 1, Réfectoire 2 | Comptage des repas avec alerte de doublon |
+| **Réfectoires (`REFECTORY`)** | Réfectoire 1, Réfectoire 2 | Comptage des repas avec contrôle d'horaire et de doublon |
 
-L'interface est fournie sous forme d'application **desktop Electron**, le backend en **Java / Spring Boot** expose une API REST, et la base de données utilise **H2 en mémoire** (développement) ou **PostgreSQL** (production).
+L'interface est fournie sous forme d'application **desktop Electron**, le backend en **Java / Spring Boot** expose une API REST, et la base de données utilise **H2 en mémoire** (développement) ou **PostgreSQL 16** (production).
 
 ---
 
@@ -70,6 +70,11 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 ### Tableau de bord — Sélection du point de travail
 
 ![Dashboard avec points d'accès](docs/screenshots/dashboard.png)
+
+### Rapport Général — Tableau de bord analytique (administrateur)
+
+<!-- (à capturer) docs/screenshots/rapport-general.png -->
+![Rapport Général — KPIs, alertes, par élève](docs/screenshots/rapport-general.png)
 
 ### Panneau administratif
 
@@ -86,18 +91,27 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 ## ✨ Fonctionnalités
 
 ### Côté agent à la portière (Vie Scolaire)
-- Lecture rapide d'un identifiant (carte ou saisie manuelle) avec recherche progressive
+- Lecture rapide d'un identifiant (reconnaissance faciale Hikvision ou saisie manuelle) avec recherche progressive
 - Modale de validation **double** (élève + responsable) aux portails
 - Modale simple avec photo et statut pour les autres secteurs
 - Bandeau d'alerte rouge en cas de blocage (temps minimum non atteint, repas dupliqué, etc.)
-- Liste « Activité en temps réel » par point d'accès
+- Liste « Activité en temps réel » par point d'accès (bornée à 24h / 500 lignes pour la performance)
 - Compteurs de temps actifs pour la bibliothèque et l'infirmerie
 
+### Rapport Général — tableau de bord analytique (administrateur)
+Page dédiée (et non plus modale), accessible uniquement après validation du **PIN administrateur**. Trois onglets :
+
+- **Vue d'ensemble** — KPIs exécutifs (mouvements avec tendance, élèves uniques, présents aujourd'hui, dans les secteurs, alertes actives, entrées/sorties internes, mouvements incomplets) ; sélecteurs de période (Aujourd'hui / Cette semaine / Ce mois / Personnalisé) ; barre de statut (serveur en ligne, dernier événement, dernière mise à jour, bouton Actualiser) ; synthèse automatique de l'activité
+- **Graphiques** — affluence par heure, répartition par zone, entrées vs sorties par zone (rendus en CSS pur, sans bibliothèque externe)
+- **Points d'attention** — panneau d'alertes nommées du jour avec niveau de gravité (critique / attention / info) : séjours prolongés à l'infirmerie, repas hors horaire, sorties non enregistrées
+- **Cartes par secteur** — Cantine, Infirmerie, CDI (mouvements, entrées, sorties, occupation actuelle, élèves uniques, durée moyenne de présence) + carte **Portail** distincte (flux de bordure, exclu des statistiques internes)
+- **Par élève** — recherche par nom ou ID, fiche de présence (entré à / actuellement dans), et **timeline** des mouvements groupée par jour avec durées de présence dérivées
+- **Journal** — table de tous les logs avec filtres (période, zone, action, classe, élève), tri par date, pagination et export CSV
+
 ### Côté administration
-- Tableau de bord avec **KPIs en temps réel** (entrées du jour, utilisateurs actifs, total enregistrés)
-- Tableau global des derniers logs avec filtres
-- Export CSV pour reporting
-- Bouton de **synchronisation Pronote** avec rapport détaillé (créés / mis à jour / désactivés / erreurs)
+- Gestion des opérateurs (création, secteurs autorisés, désactivation)
+- Synchronisation **Pronote** avec rapport détaillé (créés / mis à jour / désactivés / erreurs)
+- Importation en masse via Excel
 
 ### Robustesse
 - Profil de développement avec base **H2 en mémoire** + jeu de données seed (`data.sql`)
@@ -105,20 +119,25 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 - CORS configuré pour permettre la communication Electron ↔ Spring Boot
 - Gestion des dates « safe parse » côté frontend pour éviter les crashs
 - Toast d'alerte « Serveur Hors Ligne » en cas de coupure du backend
+- Requêtes de logs **bornées** (fenêtre 24h + plafond de lignes) pour éviter la saturation mémoire du rendu
 
 ### 🔐 Sécurité et authentification
 
 - **Authentification multi-utilisateur** via JWT (Spring Security 6, BCrypt)
 - **RBAC** : deux rôles distincts — `ADMIN` (gestion complète) et `OPERATOR` (opération sectorielle)
-- **Contrôle par secteur** : un opérateur ne peut enregistrer des accès que dans son/ses secteur(s) autorisé(s). Tentative hors secteur → HTTP 403
+- **Contrôle par secteur** : un opérateur ne peut enregistrer des accès que dans son/ses secteur(s) autorisé(s) ; la résolution point → secteur passe par une **source unique** (`AreaMapping`). Tentative hors secteur → HTTP 403
 - **Audit trail** : chaque enregistrement d'accès est tracé avec l'identifiant de l'opérateur (`created_by_user`)
+- **Durcissement production (profil `prod`)** :
+  - Secrets (mot de passe BDD, secret JWT, token webhook, PIN admin) injectés par **variables d'environnement** ; un contrôle au démarrage (`ProdSecurityStartupCheck`) émet un **WARN** tant que des valeurs de développement sont utilisées
+  - **Webhook Hikvision en deny-by-default** : si aucun token n'est configuré, l'endpoint renvoie 503 ; comparaison du token en **temps constant**
+  - **PIN administrateur** : comparaison en temps constant + **verrouillage 60 s** après 5 tentatives échouées
 - **Soft delete** : utilisateurs et opérateurs désactivés (jamais supprimés) pour préserver l'historique
 
 ### 📥 Importation en masse via Excel
 
-- Import bulk de utilisateurs (élèves, professeurs, fonctionnaires, responsables) via fichier `.xlsx`
-- Validation ligne par ligne avec rapport d'erreurs détaillé
-- Validé avec un fichier de **155 lignes** en environnement de test
+- Import bulk d'utilisateurs (élèves, professeurs, fonctionnaires, responsables) via fichier `.xlsx`
+- Validation ligne par ligne stricte (type, doublons, IDs institutionnels) avec rapport d'erreurs détaillé
+- Voir le modèle de colonnes dans [`docs/IMPORT_TEMPLATE.md`](./docs/IMPORT_TEMPLATE.md)
 
 ### 💾 Distribution Windows
 
@@ -128,19 +147,22 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 
 ### 🐳 Déploiement production
 
-- **Profile `prod` Spring Boot** : bascule entre H2 (dev) et PostgreSQL 16 (prod) via une variable d'environnement (`spring-boot.run.profiles=prod`)
-- **Persistance complète** : les données (utilisateurs, logs, mappings, opérateurs) survivent aux redémarrages du backend, contrairement à H2 in-memory utilisé en dev
-- **Stack `docker-compose`** dans le dossier [`deploy/`](./deploy/) : un fichier suffit pour démarrer Postgres + backend sur une VM (`docker compose up -d`)
-- **Healthcheck** sur Postgres + `depends_on` avec `condition: service_healthy` → le backend n'essaie pas de démarrer tant que la BDD n'est pas prête
-- **Variables sensibles** (mot de passe BDD, secret JWT) injectées via `.env` (gitignored), template fourni dans `.env.example`
-- **Documentation déploiement** : voir [`deploy/README.md`](./deploy/README.md) (setup, opérations, backup/restore, checklist sécurité)
+- **Profile `prod` Spring Boot** : bascule entre H2 (dev) et PostgreSQL 16 (prod) via `spring-boot.run.profiles=prod`
+- **Persistance complète** : les données survivent aux redémarrages du backend, contrairement à H2 in-memory
+- **Stack `docker-compose`** dans le dossier [`deploy/`](./deploy/) : `docker compose up -d` démarre Postgres + backend
+- **Healthcheck** sur Postgres + `depends_on` avec `condition: service_healthy`
+- **Variables sensibles** injectées via `.env` (gitignored), template fourni dans `.env.example`
+- **Documentation déploiement** : voir [`deploy/README.md`](./deploy/README.md)
 
-### 🎥 Intégration Hikvision (configurable)
+### 🎥 Intégration Hikvision — reconnaissance faciale
 
-- **DoorMapping configurable** : table de correspondance `(terminalIp, doorNo, readerNo)` → `(pointId, action)` éditable via API admin
-- **3 niveaux de résolution** : exact match (IP + porte + lecteur) → match générique (porte + lecteur) → fallback legacy (`PORT{doorNo}` + `ENTRADA`)
-- **Mapping Hikvision ↔ MAGBO** : l'`employeeNoString` envoyé par le terminal est résolu vers l'`id` MAGBO via le champ `hikvision_employee_id`, permettant de garder la base utilisateurs MAGBO décorrelée des IDs internes Hikvision
-- **Audit trail** : chaque accès enregistre un flag `isMapped` indiquant si la résolution a utilisé le mapping ou le fallback (utile pour identifier les IDs Hikvision orphelins)
+Le système est conçu pour fonctionner **prioritairement avec des terminaux Hikvision de reconnaissance faciale** (le badge/carte n'est pas le mécanisme principal d'identification).
+
+- **Identification** : l'`employeeNoString` envoyé par le terminal est résolu vers l'`id` MAGBO via le champ `hikvision_employee_id` (stocké en `String`, pour préserver les zéros à gauche des IDs à 7 chiffres)
+- **Personne non résolue** : si l'`employeeNoString` ne correspond à **aucun** utilisateur en base, **aucun** `access_log` n'est créé (un WARN est journalisé). Le système n'enregistre jamais un mouvement avec un identifiant externe brut
+- **DoorMapping configurable** : table de correspondance `(terminalIp, doorNo, readerNo)` → `(pointId, action)` éditable via API admin, avec 3 niveaux de résolution (exact → générique → fallback legacy)
+
+> 🚧 **En attente de matériel** — La déduplication par identifiant natif d'événement, la distinction reconnaissance / autorisation / passage (via `majorEventType` / `subEventType`), la table des événements non résolus et la synchronisation en masse des IDs Hikvision sont **conçues mais gelées** : leur implémentation nécessite la capture d'un payload réel issu d'un terminal facial de production.
 
 ---
 
@@ -151,10 +173,10 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 | **Frontend** | React 18 (via Babel Standalone), Tailwind CSS (CDN), Lucide Icons |
 | **Conteneur desktop** | Electron 33 |
 | **Backend** | Java 17+, Spring Boot 3.2, Spring Data JPA, Lombok |
-| **Base de données** | PostgreSQL (production) / H2 in-memory (développement) |
+| **Base de données** | PostgreSQL 16 (production) / H2 in-memory (développement) |
 | **Build backend** | Maven 3.6+ |
 | **Déploiement** | Docker & Docker Compose |
-| **Intégration matérielle** | Lecteurs de reconnaissance faciale Hikvision via le protocole ISAPI (Webhook) |
+| **Intégration matérielle** | Terminaux de reconnaissance faciale Hikvision via le protocole ISAPI (Webhook) |
 | **Intégration logicielle** | Pronote (synchronisation des élèves, enseignants et personnel via CSV) |
 
 > ⚠️ **Note technique** — En l'état actuel, les balises `<script src="...">` chargent React, Babel et Tailwind via CDN. Pour un déploiement de production, ces ressources devront être pré-compilées localement.
@@ -168,41 +190,38 @@ magbo-access-control/
 ├── docker-compose.yml              # Orchestration Docker (Postgres, Backend, Nginx)
 ├── backend/                        # API Java / Spring Boot
 │   ├── Dockerfile                  # Image Docker multi-stage du Backend
-│   ├── .dockerignore               # Fichiers ignorés par Docker
 │   ├── pom.xml
 │   ├── ftp_drop/                   # Dossier de drop des CSV Pronote
 │   └── src/main/
 │       ├── java/com/magbo/access/
 │       │   ├── MagboAccessApplication.java
-│       │   ├── config/             # CORS, etc.
-│       │   ├── controllers/        # REST endpoints (Access, User, Stats, Pronote, Health)
-│       │   ├── dto/                # GlobalStats, SyncReport, AccessRequest
-│       │   ├── models/             # User (avec champ ativo), Responsavel, AccessLog
-│       │   ├── repositories/       # Spring Data JPA
-│       │   └── services/           # PronoteSyncService (cron + trigger manuel)
+│       │   ├── config/             # CORS, AreaMapping (source unique point→secteur),
+│       │   │                       #   ProdSecurityStartupCheck (gate de sécurité prod)
+│       │   ├── controllers/        # Access, User, Stats, Pronote, Admin, HikvisionWebhook, Health
+│       │   ├── dto/                # OverviewStats, GlobalStats, SyncReport, AccessRequest…
+│       │   ├── models/             # User (champ ativo, hikvision_employee_id), AccessLog, SystemUser
+│       │   ├── repositories/       # Spring Data JPA (agrégations SQL natives pour /overview)
+│       │   ├── security/           # JWT, AreaSecurity (@PreAuthorize)
+│       │   └── services/           # PronoteSyncService, DoorMappingService
 │       └── resources/
-│           ├── application.properties        # Profil par défaut (PostgreSQL)
-│           ├── application-dev.properties    # Profil développement (H2)
-│           └── data.sql                      # Jeu de données seed
+│           ├── application.properties         # Profil par défaut
+│           ├── application-prod.properties    # Profil production (PostgreSQL, secrets via env)
+│           └── data.sql                        # Jeu de données seed
 │
 ├── js/                             # Frontend React
 │   ├── App.js                      # Composant racine
 │   ├── api.js                      # Client HTTP brut (window.api)
-│   ├── components/                 # Header, Dashboard, SectorView, AccessModals…
+│   ├── components/                 # Header, Dashboard, SectorView, GeneralReport, AdminPinModal…
 │   ├── cdi/                        # Module bibliothèque (CDI Axelle Beurel)
-│   ├── data/                       # Données mock (fallback)
-│   └── utils/
-│       ├── api.js                  # Client API normalisé (camelCase ↔ snake_case)
-│       └── helpers.js
+│   ├── data/                       # constants.js (points d'accès + secteurs)
+│   └── utils/                      # api.js (normalisé), userCache, helpers
 │
-├── css/styles.css                  # Variables CSS personnalisées
-├── libs/xlsx.min.js                # Lecture de fichiers Excel (CDI)
-├── index.html                      # Point d'entrée Electron
-├── main.js                         # Bootstrap Electron
-├── package.json
-├── LICENSE                         # Licence MAGBO STUDIO
-└── README.md
+├── deploy/                         # Stack docker-compose production + docs
+├── docs/                           # IMPORT_TEMPLATE, PROCEDURE_ANNUELLE, screenshots
+└── index.html · main.js · package.json · LICENSE · README.md
 ```
+
+> 🧭 **Source unique du mapping point → secteur** — La correspondance `pointId → area` (cantine, infirmerie, cdi, portail) est centralisée dans `config/AreaMapping`, consommée à la fois par la logique d'autorisation (`SystemUser.canOperateSector`) et par l'agrégation du tableau de bord (`/overview`).
 
 ---
 
@@ -243,8 +262,6 @@ cd Controle-de-Acesso
 
 ### 2A. Déploiement via Docker Compose (Production / Homologation)
 
-La méthode la plus simple pour lancer l'infrastructure complète (PostgreSQL, Backend Spring Boot et Nginx pour le Frontend) est d'utiliser Docker :
-
 ```bash
 docker-compose up -d --build
 ```
@@ -257,7 +274,7 @@ cd backend
 mvn spring-boot:run
 ```
 
-Le serveur démarre sur **http://localhost:8080**. Le profil `dev` est activé par défaut, la base H2 est créée en mémoire et le fichier `data.sql` peuple automatiquement les tables avec un jeu de données de test (5 responsables, 8 élèves, 2 enseignants, 1 personnel).
+Le serveur démarre sur **http://localhost:8080**. Le profil `dev` est activé par défaut, la base H2 est créée en mémoire et `data.sql` peuple automatiquement les tables avec un jeu de données de test.
 
 Vérification rapide :
 ```bash
@@ -283,19 +300,17 @@ La fenêtre **MAGBO Access Control — Lycée Molière** s'ouvre alors (1200×80
 ### 4. Test de bout en bout
 
 1. Cliquer sur **Portail Principal**
-2. Saisir `A001` ou `Lucas` dans le champ « Lire la carte »
+2. Saisir `A001` ou `Lucas` dans le champ de recherche
 3. Cliquer sur le résultat **Lucas Dupont**
 4. La modale double doit s'afficher avec **Lucas Dupont (élève)** et **Marie Dupont (Mère)**
-5. Cliquer sur **CONFIRMER SORTIE** : l'événement est enregistré dans la base et apparaît dans « Activité en temps réel »
+5. Cliquer sur **CONFIRMER SORTIE** : l'événement est enregistré et apparaît dans « Activité en temps réel »
 
 ### 🐳 Déploiement sur VM avec Docker
-
-Pour le déploiement en production (ex : VM de l'établissement), le dossier `deploy/` fournit une stack `docker-compose` complète :
 
 ```bash
 cd deploy/
 cp .env.example .env
-# Éditer .env avec les vraies valeurs (mot de passe Postgres, JWT secret)
+# Éditer .env avec les vraies valeurs (mot de passe Postgres, JWT secret, token webhook)
 docker compose up -d
 ```
 
@@ -318,13 +333,13 @@ Voir [`deploy/README.md`](./deploy/README.md) pour la procédure complète (setu
 
 ### Réfectoires (`REFECTORY`)
 - **Tentative de double repas le même jour** : bandeau rouge « AVIS REPAS DUPLIQUÉ »
+- **Repas hors horaire** : un repas pris en dehors de la fenêtre horaire de la classe est signalé (`FORA_HORARIO`)
 - **Temps minimum (10 min)** : si l'élève tente de sortir avant 10 min, l'accès est bloqué et un message le redirige vers la cantine
 
 ### Cycle de vie d'un utilisateur (soft delete)
-- Le champ `ativo` (boolean) sur chaque utilisateur indique s'il est actuellement membre de l'établissement
-- Lorsqu'un élève / enseignant / personnel disparaît du CSV Pronote lors d'une synchronisation, son enregistrement n'est **pas supprimé physiquement** : il passe à `ativo=false`
-- Cela préserve l'intégralité de l'historique de ses logs d'accès et permet une réactivation si la personne réapparaît dans un CSV ultérieur
-- L'historique d'audit est ainsi protégé même après le départ de la personne
+- Le champ `ativo` (boolean) indique si l'utilisateur est actuellement membre de l'établissement
+- Lorsqu'une personne disparaît du CSV Pronote, son enregistrement passe à `ativo=false` (pas de suppression physique)
+- Cela préserve l'historique des logs d'accès et permet une réactivation ultérieure
 
 ---
 
@@ -336,13 +351,18 @@ Voir [`deploy/README.md`](./deploy/README.md) pour la procédure complète (setu
 |---|---|---|---|
 | `GET` | `/health` | Vérification de l'état du serveur | ✅ Implémenté |
 | `GET` | `/users/{id}` | Récupère un utilisateur **et** son responsable | ✅ Implémenté |
-| `POST` | `/api/users` | Enregistre manuellement un nouvel utilisateur / parent | ✅ Implémenté |
+| `GET` | `/users/search?q=` | Recherche d'utilisateurs (nom ou ID) | ✅ Implémenté |
+| `POST` | `/users` | Enregistre manuellement un utilisateur | ✅ Implémenté |
+| `POST` | `/users/bulk` | Import en masse (validation stricte) | ✅ Implémenté |
 | `POST` | `/access` | Enregistre une entrée ou sortie | ✅ Implémenté |
-| `GET` | `/access/logs/{pointId}` | Logs d'un point d'accès donné | ✅ Implémenté |
-| `GET` | `/access/logs/all?limit=50` | Tous les logs récents (pour Admin) | ✅ Implémenté |
+| `GET` | `/access/logs/{pointId}` | Logs d'un point (fenêtre 24h + plafond 500) | ✅ Implémenté |
+| `GET` | `/access/logs/user/{userId}` | Logs d'un élève (timeline, période filtrable) | ✅ Implémenté |
+| `GET` | `/access/logs/all?limit=` | Tous les logs récents (Admin) | ✅ Implémenté |
+| `GET` | `/access/overview` | Agrégats du tableau de bord (KPIs, secteurs, alertes) | ✅ Implémenté |
 | `GET` | `/stats/global` | KPIs globaux (Admin Dashboard) | ✅ Implémenté |
+| `POST` | `/admin/verify` | Vérifie le PIN administrateur (verrouillage anti brute-force) | ✅ Implémenté |
 | `POST` | `/pronote/sync` | Force la synchronisation Pronote | ✅ Implémenté |
-| `POST` | `/api/hikvision/webhook` | Webhook ISAPI Hikvision | ✅ Implémenté |
+| `POST` | `/hikvision/webhook` | Webhook ISAPI Hikvision (deny-by-default) | ✅ Implémenté |
 
 ### Exemple : récupérer un utilisateur
 
@@ -371,26 +391,14 @@ Réponse :
 }
 ```
 
-### Exemple : KPIs globaux
+### Exemple : agrégats du tableau de bord
 
 ```bash
-curl http://localhost:8080/api/stats/global
+curl "http://localhost:8080/api/access/overview?dateFrom=2026-06-01&dateTo=2026-06-14" \
+  -H "Authorization: Bearer <token>"
 ```
 
-Réponse :
-```json
-{
-  "totalToday": 42,
-  "activeUsers": 7,
-  "totalUsers": 11
-}
-```
-
-| Champ | Signification |
-|---|---|
-| `totalToday` | Nombre total d'événements (entrées + sorties) depuis 00h00 |
-| `activeUsers` | Nombre de personnes actuellement « à l'intérieur » d'un secteur (ENTRÉE sans SORTIE postérieure) |
-| `totalUsers` | Nombre total d'utilisateurs enregistrés en base |
+Renvoie notamment : `totalMovements`, `uniqueStudents`, `presentToday`, `currentlyInSectors`, `previousTotal`, les compteurs d'alertes (`longInfirmaryStays`, `offScheduleMeals`, `unregisteredExits`), la ventilation `byHour[]`, et `areas[]` (par secteur : mouvements, entrées, occupation actuelle, élèves uniques, durée moyenne).
 
 ---
 
@@ -407,7 +415,7 @@ Cette fonctionnalité importe la liste des élèves, enseignants et personnel de
 
 ### Format du fichier CSV
 
-Chemin attendu : `backend/ftp_drop/export_pronote.csv` (configurable via la propriété `pronote.sync.filepath`)
+Chemin attendu : `backend/ftp_drop/export_pronote.csv` (configurable via `pronote.sync.filepath`)
 
 Encodage : **UTF-8**, séparateur : **point-virgule** (`;`)
 
@@ -421,20 +429,11 @@ userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;respo
 | `userId` | Oui | Identifiant unique (clé primaire en base) |
 | `nome` | Oui | Nom complet |
 | `tipo` | Oui | `ALUNO`, `PROFESSOR` ou `FUNCIONARIO` |
-| `turma` | Pour les élèves | Classe de l'élève (vide pour enseignant/personnel) |
+| `turma` | Pour les élèves | Classe de l'élève |
 | `responsavelId` | Pour les élèves | Identifiant du responsable légal |
 | `responsavelNome` | Pour les élèves | Nom du responsable |
 | `responsavelParentesco` | Pour les élèves | Lien (Mère, Père, Tuteur…) |
 | `responsavelTelefone` | Pour les élèves | Téléphone du responsable |
-
-### Exemple complet de CSV
-
-```csv
-userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
-A001;Lucas Dupont;ALUNO;6ème A;R001;Marie Dupont;Mère;+33 6 12 34 56 78
-A099;Aluno Novo Teste;ALUNO;6ème C;R099;Pai Novo;Père;+33 6 99 99 99 99
-P001;Prof. Catherine Blanc;PROFESSOR;Mathématiques;;;;
-```
 
 ### Comportement de la synchronisation
 
@@ -448,48 +447,13 @@ Pour chaque ligne du CSV :
 
 Après une synchronisation **sans erreur**, le fichier CSV est renommé en `export_pronote_AAAAMMJJ.csv.processed`. Un second appel à `/sync` ne reprocessera **pas** les mêmes données.
 
-### Format de la réponse
-
-```bash
-curl -X POST http://localhost:8080/api/pronote/sync
-```
-
-```json
-{
-  "created": 1,
-  "updated": 2,
-  "deactivated": 9,
-  "errors": 0,
-  "errorMessages": [],
-  "syncedAt": "2026-04-30T15:09:19.861664692",
-  "filePath": "./ftp_drop/export_pronote.csv"
-}
-```
-
-| Champ | Signification |
-|---|---|
-| `created` | Nouveaux utilisateurs insérés |
-| `updated` | Utilisateurs existants mis à jour |
-| `deactivated` | Utilisateurs absents du CSV → `ativo=false` |
-| `errors` | Lignes du CSV ayant échoué |
-| `errorMessages` | Détails des erreurs (jusqu'à 10 messages) |
-| `syncedAt` | Horodatage de la fin de synchronisation |
-| `filePath` | Chemin du fichier traité |
-
-> 💡 **Évolution prévue** — Lorsque l'API REST de Pronote sera disponible, la couche `PronoteSyncService` sera adaptée pour consommer cette API au lieu du CSV. Le contrat HTTP du système (endpoint `/api/pronote/sync`) restera identique.
+> 💡 **Évolution prévue** — Quand l'API REST de Pronote sera disponible, la couche `PronoteSyncService` sera adaptée pour consommer cette API au lieu du CSV. Le contrat HTTP (`/api/pronote/sync`) restera identique.
 
 ---
 
 ## 📚 Document de planification
 
-Le fichier [`_Desenvolvimento_de_Sistemas_Institucionais_Robustos_.md`](./_Desenvolvimento_de_Sistemas_Institucionais_Robustos_.md) décrit en détail :
-
-- les **7 phases** de construction du système (Fondation → Hikvision)
-- les contraintes techniques et règles métier détaillées
-- les décisions d'architecture
-- les contrats des entités et endpoints
-
-Il sert de **référence vivante** lorsque le code évolue et permet à un nouveau développeur de comprendre l'intégralité du système en une lecture.
+Le fichier [`_Desenvolvimento_de_Sistemas_Institucionais_Robustos_.md`](./_Desenvolvimento_de_Sistemas_Institucionais_Robustos_.md) décrit en détail les phases de construction, les contraintes techniques, les règles métier et les décisions d'architecture. Il sert de **référence vivante** lorsque le code évolue.
 
 ---
 
@@ -515,11 +479,17 @@ Il sert de **référence vivante** lorsque le code évolue et permet à un nouve
 | 6.6 | DoorMapping configurable (doorNo/readerNo → pointId/action) | ✅ Terminée |
 | 6.7 | Mapping Hikvision employeeID ↔ MAGBO userId | ✅ Terminée |
 | 6.8 | Stack `docker-compose` pour déploiement production | ✅ Terminée |
-| 7 | Intégration matérielle Hikvision (DS-K1T344MX-E1) | 🔄 Specs VM envoyées au SI, en attente |
-| 8 | Importation CSV des IDs Hikvision pour mapping en masse | 🔜 À démarrer (dès réception du CSV du SI) |
-| 9 | Déploiement pilote sur portail réel + tests | 🔜 À démarrer (après VM provisionnée) |
-| 10 | Conformité RGPD + validation DPO académique | 🔒 En attente de la direction |
-| 11 | Démo vidéo finale + présentation institutionnelle | 🔄 v1 produite (Remotion 60s), v2 avec captures réelles à finaliser |
+| 6.9 | **Rapport Général — tableau de bord analytique** (KPIs exécutifs, alertes nommées, par élève, journal, graphiques CSS) | ✅ Terminée |
+| 6.10 | **Agrégations SQL `/overview`** (élèves uniques + durée moyenne par secteur) | ✅ Terminée |
+| 6.11 | **Durcissement sécurité production** (secrets via env, webhook deny-by-default, PIN anti brute-force, comparaisons temps constant) | ✅ Terminée |
+| 6.12 | **Source unique du mapping point → secteur** (`AreaMapping`) | ✅ Terminée |
+| 6.13 | **Webhook : rejet des IDs Hikvision non résolus** (anti-pollution des statistiques) | ✅ Terminée |
+| 7 | Intégration matérielle Hikvision (DS-K1T344MX-E1) | 🚧 Specs VM envoyées au SI, en attente |
+| 7.1 | Déduplication + distinction reconnaissance/autorisation/passage + événements non résolus | 🚧 Conçue, gelée (nécessite payload réel d'un terminal) |
+| 8 | Importation CSV des IDs Hikvision pour mapping en masse | 🚧 À démarrer (dès réception du CSV du SI) |
+| 9 | Déploiement pilote sur portail réel + tests | 🚧 À démarrer (après VM provisionnée) |
+| 10 | Conformité RGPD + validation DPO académique | 🚧 En attente de la direction |
+| 11 | Démo vidéo finale + présentation institutionnelle | 🚧 v1 produite (Remotion 60s), v2 avec captures réelles à finaliser |
 
 ---
 
@@ -534,7 +504,7 @@ Il sert de **référence vivante** lorsque le code évolue et permet à un nouve
 ### Outils d'IA utilisés en pair-programming
 Le développement a été réalisé en collaboration avec deux assistants IA. La direction technique, les décisions d'architecture, les tests et la validation finale relèvent de MAGBO STUDIO ; les IA ont contribué à la génération de code, à la résolution de problèmes ponctuels et à la documentation.
 
-- **Antigravity** (Google) — IDE basé sur VS Code avec agents intégrés, utilisé pour la génération initiale du code et les itérations
+- **Antigravity** (Google) — IDE basé sur VS Code avec agents intégrés, utilisé pour la génération de code et les itérations
 - **Claude** (Anthropic) — Assistant utilisé pour le débogage approfondi, les revues de code, les décisions d'architecture et la rédaction technique
 
 ### Données de test
@@ -564,16 +534,7 @@ Voir le fichier [`LICENSE`](./LICENSE) pour le texte intégral.
 
 **MAGBO Access Control** é um sistema institucional para gestão do controle de acesso de alunos, professores e funcionários do **Lycée Molière** (Rio de Janeiro). Foi concebido para a **Vie Scolaire** com o objetivo de rastrear em tempo real as entradas e saídas em cada ponto de acesso da escola.
 
-O sistema cobre cinco tipos de pontos:
-
-| Tipo | Exemplos | Lógica de negócio |
-|---|---|---|
-| **Portarias (`GATE`)** | Portaria Principal, Portaria 2, Portaria 3 | Verificação do vínculo aluno / responsável na saída |
-| **Biblioteca (`SPECIAL`)** | CDI Axelle Beurel | Controle de tempo (limite 2h) |
-| **Enfermaria (`SPECIAL`)** | Enfermaria | Controle de tempo (limite 30min) |
-| **Refeitórios (`REFECTORY`)** | Refeitório 1, Refeitório 2 | Contagem de refeições com alerta de duplicidade |
-
-A interface é entregue como aplicativo **desktop Electron**, o backend em **Java / Spring Boot** expõe uma API REST, e o banco de dados utiliza **H2 em memória** (desenvolvimento) ou **PostgreSQL** (produção).
+A interface é entregue como aplicativo **desktop Electron**, o backend em **Java / Spring Boot** expõe uma API REST, e o banco de dados utiliza **H2 em memória** (desenvolvimento) ou **PostgreSQL 16** (produção).
 
 ## 🛠️ Stack
 
@@ -582,9 +543,16 @@ A interface é entregue como aplicativo **desktop Electron**, o backend em **Jav
 | **Frontend** | React 18, Tailwind CSS, Lucide Icons |
 | **Container desktop** | Electron 33 |
 | **Backend** | Java 17+, Spring Boot 3.2, Spring Data JPA, Lombok |
-| **Banco** | PostgreSQL (produção) / H2 in-memory (desenvolvimento) |
-| **Hardware** | Leitores faciais Hikvision via ISAPI (Fase 7) |
-| **Integração** | Pronote (sincronização de alunos, professores e funcionários via CSV) |
+| **Banco** | PostgreSQL 16 (produção) / H2 in-memory (desenvolvimento) |
+| **Hardware** | Terminais faciais Hikvision via ISAPI (Fase 7) |
+| **Integração** | Pronote (sincronização via CSV) |
+
+## ✨ Destaques
+
+- **Rapport Général** — painel analítico (página dedicada, protegida por PIN admin) com 3 abas: Vue d'ensemble (KPIs executivos, períodos, gráficos CSS), Par élève (busca + timeline com durações) e Journal (filtros, ordenação, paginação, export CSV)
+- **Pontos de atenção** — alertas nomeados do dia por gravidade (crítico/atenção/info): permanência longa na enfermaria, refeição fora de horário, saída não registrada
+- **Cartões por setor** — Cantine, Infirmerie, CDI (movimentos, entradas, saídas, ocupação, alunos únicos, duração média) + cartão Portail separado (fluxo de borda)
+- **Segurança de produção** — segredos via variáveis de ambiente, webhook deny-by-default, PIN admin com bloqueio anti força-bruta, comparações em tempo constante
 
 ## 🚀 Como rodar localmente
 
@@ -612,94 +580,34 @@ Abre a janela do Electron 1200×800.
 
 - **Portarias** — saída de aluno só com responsável identificado e confirmado na tela
 - **Biblioteca / Enfermaria** — cronômetro inicia na entrada, alerta se exceder o limite (2h / 30min)
-- **Refeitórios** — bloqueia segundo registro de refeição no mesmo dia + tempo mínimo de 10min antes da saída
+- **Refeitórios** — bloqueia segundo registro no mesmo dia, sinaliza refeição fora de horário, e exige tempo mínimo de 10min antes da saída
 - **Soft delete** — usuários removidos do Pronote ficam com `ativo=false`, preservando o histórico de logs
+- **Mapeamento ponto → setor** — fonte única (`AreaMapping`), usada pela autorização e pelo dashboard
+- **Reconhecimento facial** — método principal de identificação; um `employeeNoString` sem correspondência no banco **não** gera registro de acesso
 
 ## 🔄 Sincronização Pronote
 
 Importa a lista de alunos, professores e funcionários a partir de um CSV exportado do **Pronote**.
 
-### Quando roda
 - **Automaticamente:** todo dia às 03h00 (cron `@Scheduled` do Spring)
 - **Manualmente:** botão "Sincronizar Agora" no Painel Admin, ou `POST /api/pronote/sync`
 
-### Formato do CSV
-
-Caminho esperado: `backend/ftp_drop/export_pronote.csv` (configurável via `pronote.sync.filepath`)
-
-Encoding **UTF-8**, separador **ponto-e-vírgula** (`;`), 8 colunas:
-
+Caminho esperado: `backend/ftp_drop/export_pronote.csv` · Encoding **UTF-8** · separador `;` · 8 colunas:
 ```
 userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
 ```
 
-| Coluna | Obrigatória | Notas |
-|---|---|---|
-| `userId` | Sim | Identificador único (chave primária no banco) |
-| `nome` | Sim | Nome completo |
-| `tipo` | Sim | `ALUNO`, `PROFESSOR` ou `FUNCIONARIO` |
-| `turma` | Para alunos | Classe (vazio para professor/funcionário) |
-| `responsavelId` | Para alunos | Identificador do responsável legal |
-| `responsavelNome` | Para alunos | Nome do responsável |
-| `responsavelParentesco` | Para alunos | Vínculo (Mãe, Pai, Tutor…) |
-| `responsavelTelefone` | Para alunos | Telefone do responsável |
+Comportamento: `userId` existente → atualização (e reativação se estava `ativo=false`); novo → criação; ausente do CSV → soft delete. Após sincronização sem erros, o arquivo é renomeado para `.processed` (idempotência).
 
-### Exemplo completo de CSV
-
-```csv
-userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
-A001;Lucas Dupont;ALUNO;6ème A;R001;Marie Dupont;Mãe;+33 6 12 34 56 78
-A099;Aluno Novo Teste;ALUNO;6ème C;R099;Pai Novo;Pai;+33 6 99 99 99 99
-P001;Prof. Catherine Blanc;PROFESSOR;Mathématiques;;;;
-```
-
-### Comportamento
-
-Para cada linha do CSV:
-- Se `userId` **já existe** → atualização (e `ativo` volta a `true` se tinha sido desativado)
-- Se `userId` **não existe** → criação
-- Usuários **no banco mas ausentes do CSV** → soft delete (`ativo=false`)
-- O responsável vinculado a um aluno é criado/atualizado da mesma forma
-
-### Idempotência
-
-Após sincronização **sem erros**, o arquivo CSV é renomeado para `export_pronote_AAAAMMDD.csv.processed`. Uma segunda chamada a `/sync` **não** reprocessa os mesmos dados.
-
-### Formato da resposta
-
-```bash
-curl -X POST http://localhost:8080/api/pronote/sync
-```
-
-```json
-{
-  "created": 1,
-  "updated": 2,
-  "deactivated": 9,
-  "errors": 0,
-  "errorMessages": [],
-  "syncedAt": "2026-04-30T15:09:19.861664692",
-  "filePath": "./ftp_drop/export_pronote.csv"
-}
-```
-
-| Campo | Significado |
-|---|---|
-| `created` | Novos usuários inseridos |
-| `updated` | Usuários existentes atualizados |
-| `deactivated` | Usuários ausentes do CSV → `ativo=false` |
-| `errors` | Linhas que falharam |
-| `errorMessages` | Detalhes dos erros (até 10 mensagens) |
-| `syncedAt` | Timestamp da sincronização |
-| `filePath` | Caminho do arquivo processado |
-
-> 💡 **Evolução prevista** — Quando a API REST do Pronote estiver disponível, a camada `PronoteSyncService` será adaptada para consumir essa API ao invés do CSV. O contrato HTTP do sistema (endpoint `/api/pronote/sync`) permanecerá idêntico.
+> 💡 **Evolução prevista** — Quando a API REST do Pronote estiver disponível, a camada `PronoteSyncService` será adaptada para consumir essa API em vez do CSV. O contrato HTTP (`/api/pronote/sync`) permanecerá idêntico.
 
 ## 📊 Status atual
 
-- ✅ Fases 1 a 4 concluídas (frontend, backend, integração, estabilização)
-- ✅ Fase 6 concluída (Painel Admin + 3 endpoints + sincronização Pronote com soft delete)
-- 🔜 Fase 7 — integração com leitores Hikvision
+- ✅ Fases 1 a 6 concluídas (frontend, backend, integração, painel admin, Pronote)
+- ✅ Rapport Général (painel analítico) + agregações SQL por setor
+- ✅ Durcissement de segurança de produção (segredos via env, webhook deny-by-default, PIN anti força-bruta)
+- ✅ Fonte única do mapeamento ponto → setor + webhook anti-poluição
+- 🚧 Fase 7 — integração com terminais faciais Hikvision (em espera de hardware)
 
 ## 👥 Créditos
 

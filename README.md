@@ -76,6 +76,10 @@ L'interface est fournie sous forme d'application **desktop Electron**, le backen
 <!-- (à capturer) docs/screenshots/rapport-general.png -->
 ![Rapport Général — KPIs, alertes, par élève](docs/screenshots/rapport-general.png)
 
+### Accès administrateur — Saisie du PIN
+
+![Modal de saisie du PIN administrateur](docs/screenshots/pin-admin.png)
+
 ### Panneau administratif
 
 ![Panneau administratif avec filtres et Pronote](docs/screenshots/admin-panel.png)

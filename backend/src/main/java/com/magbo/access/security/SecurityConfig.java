@@ -40,6 +40,7 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/health",
                     "/api/hikvision/webhook",
+                    "/api/hikvision/webhook/capture",
                     "/h2-console/**"
                 ).permitAll()
                 .anyRequest().authenticated()

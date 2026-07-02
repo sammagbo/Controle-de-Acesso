@@ -217,4 +217,81 @@ public class HikvisionWebhookController {
             return null;
         }
     }
+
+    // ── F6a: endpoint de captura — descoberta do payload real do terminal ──
+    // Apontar o terminal para /api/hikvision/webhook/capture na primeira ligacao.
+    // Aceita QUALQUER content-type (JSON, multipart, form) e loga headers + corpo bruto.
+    // Token via header X-MAGBO-WEBHOOK-TOKEN OU via URL (?token=...), para terminais
+    // que nao suportam headers customizados. Nao grava nada no banco.
+    @PostMapping("/webhook/capture")
+    public ResponseEntity<String> captureWebhook(
+            @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String headerToken,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        if (webhookToken == null || webhookToken.isBlank()) {
+            log.error("Capture rejected: token not configured (deny-by-default).");
+            return ResponseEntity.status(503).body("Webhook token not configured");
+        }
+        String queryToken = null;
+        String qs = request.getQueryString();
+        if (qs != null) {
+            for (String p : qs.split("&")) {
+                if (p.startsWith("token=")) {
+                    queryToken = java.net.URLDecoder.decode(p.substring(6), java.nio.charset.StandardCharsets.UTF_8);
+                    break;
+                }
+            }
+        }
+        String provided = headerToken != null ? headerToken : queryToken;
+        if (provided == null || !java.security.MessageDigest.isEqual(
+                webhookToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                provided.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+            log.warn("Capture rejected: invalid or missing token");
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        try {
+            StringBuilder headers = new StringBuilder();
+            java.util.Enumeration<String> names = request.getHeaderNames();
+            while (names.hasMoreElements()) {
+                String n = names.nextElement();
+                if (n.equalsIgnoreCase("X-MAGBO-WEBHOOK-TOKEN")) continue;
+                headers.append(n).append(": ").append(request.getHeader(n)).append(" | ");
+            }
+            byte[] body = request.getInputStream().readAllBytes();
+            int limit = Math.min(body.length, 8192);
+            String preview = new String(body, 0, limit, java.nio.charset.StandardCharsets.UTF_8);
+
+            log.info("=== HIKVISION CAPTURE ===");
+            log.info("Remote IP: {}", request.getRemoteAddr());
+            log.info("Content-Type: {} | Content-Length: {} bytes", request.getContentType(), body.length);
+            log.info("Headers: {}", headers);
+            log.info("Body (primeiros {} bytes):\n{}", limit, preview);
+            if (body.length > limit) {
+                log.info("(corpo truncado — total {} bytes; provavel imagem embutida)", body.length);
+            }
+            if (body.length == 0 && request.getContentType() != null
+                    && request.getContentType().toLowerCase().contains("multipart")) {
+                log.info("Requisicao multipart — listando parts:");
+                for (jakarta.servlet.http.Part part : request.getParts()) {
+                    byte[] pb = part.getInputStream().readAllBytes();
+                    boolean texto = part.getContentType() == null
+                            || part.getContentType().contains("json")
+                            || part.getContentType().contains("text");
+                    if (texto && pb.length <= 8192) {
+                        log.info("Part '{}' | type={} | {} bytes:\n{}", part.getName(), part.getContentType(),
+                                pb.length, new String(pb, java.nio.charset.StandardCharsets.UTF_8));
+                    } else {
+                        log.info("Part '{}' | type={} | {} bytes (binario/omitido)", part.getName(),
+                                part.getContentType(), pb.length);
+                    }
+                }
+            }
+            log.info("=== FIM CAPTURE ===");
+            return ResponseEntity.ok("Captured");
+        } catch (Exception e) {
+            log.error("Capture error: {}", e.getMessage(), e);
+            return ResponseEntity.ok("Captured with errors");
+        }
+    }
 }

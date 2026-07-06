@@ -25,7 +25,9 @@ public class DoorMapping {
     @Column(name = "terminal_ip", length = 64)
     private String terminalIp;
 
-    @Column(name = "door_no", nullable = false)
+    // Nulo quando o dispositivo é mapeado apenas por IP (ex.: câmeras DeepinView
+    // do portão, que cobrem um único sentido e não enviam doorNo)
+    @Column(name = "door_no")
     private Integer doorNo;
 
     @Column(name = "reader_no")

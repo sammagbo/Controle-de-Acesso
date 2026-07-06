@@ -38,7 +38,13 @@ public class DoorMappingBootstrap implements CommandLineRunner {
                 build(5, 1, "ENFERM", AccessAction.ENTRADA, "Infirmerie - Entrée"),
                 build(5, 2, "ENFERM", AccessAction.SAIDA,   "Infirmerie - Sortie"),
                 build(6, 1, "REFEI1", AccessAction.ENTRADA, "Cantine Principale - Entrée"),
-                build(6, 2, "REFEI1", AccessAction.SAIDA,   "Cantine Principale - Sortie")
+                build(6, 2, "REFEI1", AccessAction.SAIDA,   "Cantine Principale - Sortie"),
+                // Cameras DeepinView do Portail Principal — mapeadas por IP,
+                // uma por sentido (confirmado no HikCentral em 06/07/2026)
+                buildIpOnly("192.168.1.167", "PORT1", AccessAction.ENTRADA,
+                        "Portail Principal - Caméra Entrée (ENTRADA-INTERNA-01)"),
+                buildIpOnly("192.168.1.166", "PORT1", AccessAction.SAIDA,
+                        "Portail Principal - Caméra Sortie (ENTRADA-INTERNA-02)")
         );
 
         repository.saveAll(defaults);
@@ -49,6 +55,16 @@ public class DoorMappingBootstrap implements CommandLineRunner {
         return DoorMapping.builder()
                 .doorNo(doorNo)
                 .readerNo(readerNo)
+                .pointId(pointId)
+                .action(action)
+                .label(label)
+                .ativo(true)
+                .build();
+    }
+
+    private DoorMapping buildIpOnly(String terminalIp, String pointId, AccessAction action, String label) {
+        return DoorMapping.builder()
+                .terminalIp(terminalIp)
                 .pointId(pointId)
                 .action(action)
                 .label(label)

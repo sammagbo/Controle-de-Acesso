@@ -22,21 +22,35 @@ public class DoorMappingService {
      * Resolution order:
      *  1. exact match (terminalIp + doorNo + readerNo)
      *  2. doorNo + readerNo with NULL terminalIp (generic)
-     *  3. fallback: PORT{doorNo} + ENTRADA (legacy behavior)
+     *  3. IP-only mapping (terminalIp set, doorNo NULL) — single-direction devices
+     *     like the DeepinView portal cameras, which do not send doorNo
+     *  4. fallback: PORT{doorNo} + ENTRADA (legacy behavior)
      */
     public ResolvedMapping resolve(Integer doorNo, Integer readerNo, String terminalIp) {
-        if (doorNo == null) {
-            log.warn("doorNo is null, using legacy fallback PORT1 + ENTRADA");
-            return new ResolvedMapping("PORT1", AccessAction.ENTRADA, true);
+        if (doorNo != null) {
+            List<DoorMapping> matches = repository.findBestMatch(doorNo, readerNo, terminalIp);
+            if (!matches.isEmpty()) {
+                DoorMapping match = matches.get(0);
+                log.info("Resolved doorNo={}, readerNo={}, ip={} -> pointId={}, action={}",
+                        doorNo, readerNo, terminalIp, match.getPointId(), match.getAction());
+                return new ResolvedMapping(match.getPointId(), match.getAction(), false);
+            }
         }
 
-        List<DoorMapping> matches = repository.findBestMatch(doorNo, readerNo, terminalIp);
+        if (terminalIp != null && !terminalIp.isBlank()) {
+            List<DoorMapping> ipMatches = repository.findIpOnlyMatch(terminalIp);
+            if (!ipMatches.isEmpty()) {
+                DoorMapping match = ipMatches.get(0);
+                log.info("Resolved by terminalIp={} (doorNo={}) -> pointId={}, action={}",
+                        terminalIp, doorNo, match.getPointId(), match.getAction());
+                return new ResolvedMapping(match.getPointId(), match.getAction(), false);
+            }
+        }
 
-        if (!matches.isEmpty()) {
-            DoorMapping match = matches.get(0);
-            log.info("Resolved doorNo={}, readerNo={}, ip={} -> pointId={}, action={}",
-                    doorNo, readerNo, terminalIp, match.getPointId(), match.getAction());
-            return new ResolvedMapping(match.getPointId(), match.getAction(), false);
+        if (doorNo == null) {
+            log.warn("No mapping for terminalIp={} and doorNo is null, using legacy fallback PORT1 + ENTRADA",
+                    terminalIp);
+            return new ResolvedMapping("PORT1", AccessAction.ENTRADA, true);
         }
 
         // Fallback: legacy behavior

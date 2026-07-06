@@ -303,14 +303,14 @@ A topologia real difere do diagrama genérico acima. Dois tipos de dispositivo:
 
 | Nome no HikCentral | IP | Modelo | Firmware | Papel |
 |---|---|---|---|---|
-| ENTRADA-INTERNA-01 | 192.168.1.167 | iDS-2CD7A46G2-IZHSY | V5.9.10 build 260420 | ⚠️ confirmar sentido (entrada ou saída) |
-| ENTRADA-INTERNA-02 | 192.168.1.166 | iDS-2CD7A46G2-IZHSY | V5.9.10 build 260420 | ⚠️ confirmar sentido (entrada ou saída) |
+| ENTRADA-INTERNA-01 | 192.168.1.167 | iDS-2CD7A46G2-IZHSY | V5.9.10 build 260420 | **ENTRADA** (confirmado) |
+| ENTRADA-INTERNA-02 | 192.168.1.166 | iDS-2CD7A46G2-IZHSY | V5.9.10 build 260420 | **SAÍDA** (confirmado) |
 
 Como cada câmera cobre **um único sentido**, o mapeamento correto para elas é por **`terminalIp`** (o `DoorMappingService` já resolve por IP com prioridade sobre `doorNo`/`readerNo`): IP da câmera de entrada → `PORT1` + `ENTRADA`; IP da de saída → `PORT1` + `SAIDA`. Cada uma tem 2 entradas / 2 saídas de alarme, utilizáveis futuramente para acionar fechadura/cancela.
 
 ⚠️ **Atenção:** são câmeras DeepinView (reconhecimento facial de vigilância), **não** terminais de controle de acesso. O payload de evento facial delas pode não seguir o schema `AccessControllerEvent`/`employeeNoString` esperado pelo DTO atual — validar com o endpoint `/webhook/capture` antes de qualquer outra coisa (ver 4.3.1, item 3).
 
-**Cantine (`REFEI1`) — 4 terminais de controle de acesso (hardware ainda não identificado no HikCentral):**
+**Cantine (`REFEI1`) — 4 terminais de controle de acesso (ainda não comprados; existe 1 unidade de teste disponível):**
 
 | Posição | Sentido | Público | Mapeamento alvo |
 |---|---|---|---|
@@ -319,7 +319,7 @@ Como cada câmera cobre **um único sentido**, o mapeamento correto para elas é
 | Saída 1 | SAIDA | alunos altos | `REFEI1` + `SAIDA` |
 | Saída 2 | SAIDA | alunos baixos | `REFEI1` + `SAIDA` |
 
-Dois dispositivos físicos distintos mapeiam para o **mesmo** par (`pointId`, `action`) — o modelo `DoorMapping` já suporta isso (uma linha por dispositivo, mesma resolução). Pendências: modelo/IP dos 4 terminais, e os `doorNo`/`readerNo` reais que eles enviam (descobrir via `/webhook/capture`, cadastrar via `DoorMappingController`).
+Dois dispositivos físicos distintos mapeiam para o **mesmo** par (`pointId`, `action`) — o modelo `DoorMapping` já suporta isso (uma linha por dispositivo, mesma resolução). Pendências: compra dos 4 terminais definitivos, e os `doorNo`/`readerNo` reais que eles enviam (descobrir com a **unidade de teste** via `/webhook/capture`, cadastrar via `DoorMappingController`).
 
 ### 4.2 IP fixo e DNS interno
 

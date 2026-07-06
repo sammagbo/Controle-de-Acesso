@@ -51,7 +51,8 @@ public class HikvisionWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<String> receiveWebhook(
             @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
-            @RequestBody HikvisionEventDto payload) {
+            @RequestBody HikvisionEventDto payload,
+            jakarta.servlet.http.HttpServletRequest request) {
 
         if (webhookToken == null || webhookToken.isBlank()) {
             log.error("Webhook rejected: token not configured (deny-by-default). Defina MAGBO_WEBHOOK_TOKEN.");
@@ -75,6 +76,12 @@ public class HikvisionWebhookController {
             } else if (payload.getEventNotificationAlert() != null) {
                 event = payload.getEventNotificationAlert().getAccessControllerEvent();
                 terminalIp = payload.getEventNotificationAlert().getIpAddress();
+            }
+
+            // Cameras em LAN direta: se o payload nao traz ipAddress, o IP de
+            // origem da requisicao e o proprio dispositivo (nao ha proxy interno)
+            if (terminalIp == null || terminalIp.isBlank()) {
+                terminalIp = request.getRemoteAddr();
             }
 
             if (event == null || event.getEmployeeNoString() == null || event.getEmployeeNoString().isEmpty()) {

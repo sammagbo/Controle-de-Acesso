@@ -22,6 +22,10 @@ public interface DoorMappingRepository extends JpaRepository<DoorMapping, Long> 
             @Param("readerNo") Integer readerNo,
             @Param("terminalIp") String terminalIp);
 
+    @Query("SELECT dm FROM DoorMapping dm WHERE dm.ativo = true " +
+            "AND dm.terminalIp = :terminalIp AND dm.doorNo IS NULL")
+    List<DoorMapping> findIpOnlyMatch(@Param("terminalIp") String terminalIp);
+
     List<DoorMapping> findAllByOrderByDoorNoAscReaderNoAsc();
 
     Optional<DoorMapping> findByDoorNoAndReaderNoAndTerminalIp(

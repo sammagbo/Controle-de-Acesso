@@ -36,6 +36,11 @@ public class HikvisionWebhookController {
     @Value("${magbo.webhook.token:}")
     private String webhookToken;
 
+    @jakarta.annotation.PostConstruct
+    private void trimToken() {
+        if (webhookToken != null) webhookToken = webhookToken.trim();
+    }
+
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
             "T1", "T2",
@@ -58,10 +63,12 @@ public class HikvisionWebhookController {
             log.error("Webhook rejected: token not configured (deny-by-default). Defina MAGBO_WEBHOOK_TOKEN.");
             return ResponseEntity.status(503).body("Webhook token not configured");
         }
-        if (incomingToken == null || !java.security.MessageDigest.isEqual(
+        String trimmedIncoming = incomingToken != null ? incomingToken.trim() : null;
+        if (trimmedIncoming == null || !java.security.MessageDigest.isEqual(
                 webhookToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                incomingToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
-            log.warn("Webhook rejected: invalid or missing token");
+                trimmedIncoming.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+            log.warn("Webhook rejected: invalid or missing token (len expected={}, got={})",
+                    webhookToken.length(), trimmedIncoming != null ? trimmedIncoming.length() : -1);
             return ResponseEntity.status(401).body("Unauthorized");
         }
 

@@ -318,9 +318,10 @@ O contrato técnico atual implementado no `HikvisionWebhookController`:
 | Item | Valor |
 |---|---|
 | **Endpoint** | `POST http://magbo-access.local:8080/api/hikvision/webhook` |
-| **Content-Type** | `application/json` |
+| **Endpoint de descoberta** | `POST /api/hikvision/webhook/capture` — aceita qualquer content-type, loga headers + corpo bruto sem gravar nada, para descobrir o payload real de um terminal ainda não integrado |
+| **Content-Type** | `application/json` (o `capture` aceita também multipart/form) |
 | **Body** | JSON com `AccessControllerEvent` ou `EventNotificationAlert.AccessControllerEvent` |
-| **Autenticação** | ⚠️ **Nenhuma** atualmente — ver seção 6 |
+| **Autenticação** | ✅ Implementada — header `X-MAGBO-WEBHOOK-TOKEN` **ou** query param `?token=` (fallback para terminais sem suporte a header customizado). Deny-by-default se `MAGBO_WEBHOOK_TOKEN` não estiver configurado |
 | **Resposta esperada** | `200 OK` em < 5 segundos |
 
 **Configuração na interface web da câmera:**
@@ -328,11 +329,26 @@ O contrato técnico atual implementado no `HikvisionWebhookController`:
 2. Login admin
 3. Configuration → Network → Advanced Settings → HTTP Listening / Event Notification
 4. Adicionar:
-   - URL: `http://magbo-access.local:8080/api/hikvision/webhook`
+   - URL: `http://magbo-access.local:8080/api/hikvision/webhook/capture?token=<MAGBO_WEBHOOK_TOKEN>` (usar `/capture` na primeira ligação de cada terminal, trocar para `/webhook` depois de validar o payload nos logs)
    - Protocol: HTTP
    - Method: POST
    - Format: JSON
 5. Em Configuration → Event → Smart Event → Face Recognition: marcar "Notify Surveillance Center" → salvar
+
+### 4.3.1 Informações que faltam obter do terminal/TI antes de ligar um ponto real
+
+O código já foi escrito para ser tolerante a variações (dois formatos de payload aceitos, mapeamento `doorNo`/`readerNo` configurável via admin, fallback de auth por query string). O que **só dá pra confirmar com o hardware físico em mãos** — ideal levantar com o TI/fornecedor antes ou durante a primeira ligação:
+
+| # | Informação | Por quê importa | Como descobrir |
+|---|---|---|---|
+| 1 | O modelo/firmware do terminal suporta **HTTP Listening / Event Notification** nativo (push) | Risco R2 — alguns modelos só suportam polling via ISAPI (`GET /ISAPI/AccessControl/AcsEvent`), não push | Tela local do terminal: Configuration → Network → Advanced Settings. Se não existir a opção, é polling |
+| 2 | O terminal aceita **header HTTP customizado** na configuração do listener | Define se dá pra usar `X-MAGBO-WEBHOOK-TOKEN` ou se precisa cair no fallback `?token=` (já implementado) | Tentar configurar o header na tela do terminal; se o campo não existir, usar query string |
+| 3 | Formato exato do payload enviado (JSON puro vs. multipart com foto embutida) | Define se `HikvisionEventDto` cobre o caso ou precisa de campo novo | Apontar o terminal para `/api/hikvision/webhook/capture` e ler o log (`=== HIKVISION CAPTURE ===`) |
+| 4 | Esquema do **"Employee No"** usado no cadastro facial local do terminal (matrícula Pronote? ID sequencial próprio do terminal?) | É o valor que chega em `employeeNoString` e precisa bater com `hikvisionEmployeeId` de cada `User` — reconciliado via `/api/admin/hikvision-mapping` | Perguntar ao TI como os alunos/funcionários são cadastrados no terminal (iVMS-4200 ou app local) |
+| 5 | `doorNo` / `readerNo` reais de cada terminal físico instalado (os valores em `DoorMappingBootstrap` são placeholder) | Sem isso o evento cai no fallback genérico `PORT{doorNo}` + `ENTRADA`, que pode estar errado | Testar fisicamente: passar o rosto e conferir `doorNo`/`readerNo` recebidos no `/capture`, depois ajustar via `DoorMappingController` |
+| 6 | IP fixo de cada terminal + confirmação de rota de rede até o servidor (VLAN/firewall) | Risco R7 — câmera pode estar numa VLAN sem rota ao backend | Validar com TI antes da instalação física |
+
+**Caminho prático recomendado:** para cada terminal novo, apontar primeiro para `/webhook/capture`, passar um rosto de teste, ler o log do backend — isso responde empiricamente os itens 3, 4 e 5 sem precisar de documentação Hikvision. Só os itens 1, 2 e 6 dependem de confirmação prévia com o TI/fabricante.
 
 ### 4.4 Firewall
 

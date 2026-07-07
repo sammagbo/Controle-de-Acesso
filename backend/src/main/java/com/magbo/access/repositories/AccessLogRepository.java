@@ -43,6 +43,10 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     // Conta TODOS os eventos de acesso a partir de um instante (use start = hoje 00:00)
     long countByTimestampGreaterThanEqual(LocalDateTime start);
 
+    // Conta acessos barrados hoje (com flag definida)
+    @Query("SELECT COUNT(a) FROM AccessLog a WHERE a.timestamp >= :start AND a.flag IS NOT NULL AND a.flag <> ''")
+    long countBlockedSince(@Param("start") LocalDateTime start);
+
     // Conta pessoas "dentro" de pontos especiais: usuarios com ENTRADA hoje sem SAIDA correspondente posterior
     // Simplificação: conta IDs distintos de usuários cuja última ação hoje foi ENTRADA
     @Query("""

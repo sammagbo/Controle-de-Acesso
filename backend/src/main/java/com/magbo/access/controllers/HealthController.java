@@ -26,7 +26,8 @@ public class HealthController {
         boolean dbUp = checkDatabase();
 
         result.put("status", dbUp ? "UP" : "DEGRADED");
-        result.put("database", dbUp ? "UP" : "DOWN");
+        result.put("database", dbUp ? "CONNECTED" : "DOWN");
+        result.put("service", "MAGBO Access Control Backend");
         result.put("timestamp", Instant.now().toString());
         result.put("version", "1.0.0");
 

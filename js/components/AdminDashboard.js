@@ -12,7 +12,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
 
       // ── State ──
       const [globalLogs, setGlobalLogs] = React.useState([]);
-      const [stats, setStats] = React.useState({ totalToday: 0, activeUsers: 0, totalUsers: 0 });
+      const [stats, setStats] = React.useState({ totalToday: 0, activeUsers: 0, totalUsers: 0, blockedToday: 0, authorizedToday: 0 });
       const [loadingLogs, setLoadingLogs] = React.useState(true);
       const [loadingSync, setLoadingSync] = React.useState(false);
       const [lastSync, setLastSync] = React.useState('03:00');
@@ -52,7 +52,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
             loadLogs(empty);
       };
 
-      // ── Fetch data on mount ──
+      // ── Fetch data on mount & Polling ──
       React.useEffect(() => {
             const loadData = async () => {
                   try {
@@ -61,20 +61,33 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                               setStats({
                                     totalToday: s.totalToday || 0,
                                     activeUsers: s.activeUsers || 0,
-                                    totalUsers: s.totalUsers || (window.userCache?.all().length || 0)
+                                    totalUsers: s.totalUsers || (window.userCache?.all().length || 0),
+                                    blockedToday: s.blockedToday || 0,
+                                    authorizedToday: s.authorizedToday || (s.totalToday || 0)
                               });
                         }
                   } catch (e) {
-                        setStats({
-                              totalToday: 0,
-                              activeUsers: (activeTimers || []).length,
-                              totalUsers: (window.userCache?.all().length || 0)
-                        });
+                        // ignore error in polling
                   }
-                  loadLogs({});
+                  
+                  // Disable loading state if polling to prevent flickering
+                  try {
+                        const logs = await window.api.fetchAllLogs(appliedFilters);
+                        setGlobalLogs(Array.isArray(logs) ? logs : []);
+                  } catch (e) {
+                        // ignore
+                  } finally {
+                        setLoadingLogs(false);
+                  }
             };
+            
+            setLoadingLogs(true);
             loadData();
-      }, [loadLogs]);
+            
+            // Polling interval 5 seconds
+            const interval = setInterval(loadData, 5000);
+            return () => clearInterval(interval);
+      }, [appliedFilters]);
 
       // ── Pronote Sync ──
       const handlePronoteSync = async () => {
@@ -250,7 +263,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* SECTION 1 — KPI CARDS                                     */}
                   {/* ══════════════════════════════════════════════════════════ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
 
                         {/* KPI: Total Acessos Hoje */}
                         <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
@@ -259,8 +272,34 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                                           <LucideIcon name="activity" size={28} className="text-accent-500" />
                                     </div>
                                     <div>
-                                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Total de Acessos Hoje</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Acessos Hoje</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.totalToday}</p>
+                                    </div>
+                              </div>
+                        </div>
+                        
+                        {/* KPI: Acessos Autorizados */}
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-success-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="check-circle-2" size={28} className="text-success-500" />
+                                    </div>
+                                    <div>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Autorizados</p>
+                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.authorizedToday}</p>
+                                    </div>
+                              </div>
+                        </div>
+
+                        {/* KPI: Acessos Barrados */}
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-danger-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="x-circle" size={28} className="text-danger-500" />
+                                    </div>
+                                    <div>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Barrados</p>
+                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.blockedToday}</p>
                                     </div>
                               </div>
                         </div>
@@ -268,27 +307,12 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                         {/* KPI: Utilizadores Ativos */}
                         <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
                               <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-success-500/10 flex items-center justify-center flex-shrink-0">
-                                          <LucideIcon name="users" size={28} className="text-success-500" />
+                                    <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="users" size={28} className="text-indigo-500" />
                                     </div>
                                     <div>
-                                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Utilizadores Ativos</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Em Áreas Especiais</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.activeUsers}</p>
-                                          <p className="text-[10px] text-slate-400 mt-0.5">Em áreas especiais agora</p>
-                                    </div>
-                              </div>
-                        </div>
-
-                        {/* KPI: Total Cadastrados */}
-                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
-                              <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-navy-500/10 flex items-center justify-center flex-shrink-0">
-                                          <LucideIcon name="database" size={28} className="text-navy-500" />
-                                    </div>
-                                    <div>
-                                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Total na Base de Dados</p>
-                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.totalUsers}</p>
-                                          <p className="text-[10px] text-slate-400 mt-0.5">Utilizadores cadastrados</p>
                                     </div>
                               </div>
                         </div>
@@ -531,6 +555,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                                                 {sortedLogs.map((log, idx) => {
                                                       const time = new Date(safeDateParse(log.timestamp));
                                                       const isEntrada = (log.status || log.action) === 'ENTRADA';
+                                                      const isBlocked = !!log.flag;
+                                                      const blockedReason = log.flag;
+                                                      
                                                       return (
                                                             <tr
                                                                   key={log.id || idx}
@@ -554,14 +581,21 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                                                                         </span>
                                                                   </td>
                                                                   <td className="px-6 py-3">
-                                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                                                              isEntrada
-                                                                                    ? 'bg-success-50 text-success-600'
-                                                                                    : 'bg-danger-50 text-danger-600'
-                                                                        }`}>
-                                                                              <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={12} />
-                                                                              {isEntrada ? 'ENTRADA' : 'SAÍDA'}
-                                                                        </span>
+                                                                        {isBlocked ? (
+                                                                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-danger-50 text-danger-600">
+                                                                                    <LucideIcon name="shield-alert" size={12} />
+                                                                                    BARRADO: {blockedReason}
+                                                                              </span>
+                                                                        ) : (
+                                                                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                                                    isEntrada
+                                                                                          ? 'bg-success-50 text-success-600'
+                                                                                          : 'bg-indigo-50 text-indigo-600'
+                                                                              }`}>
+                                                                                    <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={12} />
+                                                                                    {isEntrada ? 'ENTRADA' : 'SAÍDA'}
+                                                                              </span>
+                                                                        )}
                                                                   </td>
                                                             </tr>
                                                       );

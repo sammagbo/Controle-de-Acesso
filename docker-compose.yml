@@ -21,9 +21,9 @@ services:
     container_name: magbo-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_URL: jdbc:postgresql://db:5432/magbo_access
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      MAGBO_DB_URL: jdbc:postgresql://db:5432/magbo_access
+      MAGBO_DB_USERNAME: postgres
+      MAGBO_DB_PASSWORD: postgres
       SERVER_PORT: 8080
       ADMIN_PIN: 1234
     ports:

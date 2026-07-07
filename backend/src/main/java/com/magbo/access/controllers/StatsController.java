@@ -27,12 +27,15 @@ public class StatsController {
     public ResponseEntity<GlobalStats> getGlobalStats() {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIDNIGHT);
 
-        long totalToday   = accessLogRepository.countByTimestampGreaterThanEqual(startOfDay);
-        long activeUsers  = accessLogRepository.countActiveUsersSince(startOfDay);
-        long totalUsers   = userRepository.count();
+        long totalToday    = accessLogRepository.countByTimestampGreaterThanEqual(startOfDay);
+        long blockedToday  = accessLogRepository.countBlockedSince(startOfDay);
+        long activeUsers   = accessLogRepository.countActiveUsersSince(startOfDay);
+        long totalUsers    = userRepository.count();
 
         GlobalStats stats = GlobalStats.builder()
             .totalToday(totalToday)
+            .blockedToday(blockedToday)
+            .authorizedToday(totalToday - blockedToday)
             .activeUsers(activeUsers)
             .totalUsers(totalUsers)
             .build();

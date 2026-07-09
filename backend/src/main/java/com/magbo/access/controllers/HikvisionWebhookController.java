@@ -32,6 +32,7 @@ public class HikvisionWebhookController {
     private final DoorMappingService doorMappingService;
     private final UserRepository userRepository;
     private final ClassScheduleRepository classScheduleRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${magbo.webhook.token:}")
     private String webhookToken;
@@ -56,20 +57,35 @@ public class HikvisionWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<String> receiveWebhook(
             @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
-            @RequestBody HikvisionEventDto payload,
             jakarta.servlet.http.HttpServletRequest request) {
 
         if (webhookToken == null || webhookToken.isBlank()) {
             log.error("Webhook rejected: token not configured (deny-by-default). Defina MAGBO_WEBHOOK_TOKEN.");
             return ResponseEntity.status(503).body("Webhook token not configured");
         }
-        String trimmedIncoming = incomingToken != null ? incomingToken.trim() : null;
+        String queryToken = null;
+        String qs = request.getQueryString();
+        if (qs != null) {
+            for (String p : qs.split("&")) {
+                if (p.startsWith("token=")) {
+                    queryToken = java.net.URLDecoder.decode(p.substring(6), java.nio.charset.StandardCharsets.UTF_8);
+                    break;
+                }
+            }
+        }
+        String trimmedIncoming = incomingToken != null ? incomingToken.trim()
+                : (queryToken != null ? queryToken.trim() : null);
         if (trimmedIncoming == null || !java.security.MessageDigest.isEqual(
                 webhookToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 trimmedIncoming.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             log.warn("Webhook rejected: invalid or missing token (len expected={}, got={})",
                     webhookToken.length(), trimmedIncoming != null ? trimmedIncoming.length() : -1);
             return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        HikvisionEventDto payload = parsePayload(request);
+        if (payload == null) {
+            return ResponseEntity.ok("Success");
         }
 
         log.info("Received Hikvision Webhook: {}", payload);
@@ -150,6 +166,45 @@ public class HikvisionWebhookController {
         } catch (Exception e) {
             log.error("Error processing webhook", e);
             return ResponseEntity.status(500).body("Error");
+        }
+    }
+
+    /**
+     * F6b: extrai o HikvisionEventDto do corpo da requisicao.
+     * Terminais MinMoe (DS-K1T344) enviam multipart/form-data com o JSON na
+     * part 'AccessControllerEvent' + uma part 'Picture' (jpeg). Cameras
+     * DeepinView enviam JSON puro (EventNotificationAlert). Retorna null se
+     * nao houver JSON parseavel (o chamador responde 200 para evitar
+     * tempestade de retries do aparelho).
+     */
+    private HikvisionEventDto parsePayload(jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            String json = null;
+            String ct = request.getContentType() != null ? request.getContentType().toLowerCase() : "";
+            if (ct.contains("multipart")) {
+                for (jakarta.servlet.http.Part part : request.getParts()) {
+                    String pct = part.getContentType();
+                    boolean isJson = (pct != null && pct.toLowerCase().contains("json"))
+                            || "AccessControllerEvent".equalsIgnoreCase(part.getName());
+                    if (isJson) {
+                        json = new String(part.getInputStream().readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
+                        break;
+                    }
+                }
+            } else {
+                json = new String(request.getInputStream().readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8);
+            }
+            if (json == null || json.isBlank()) {
+                log.warn("Webhook: corpo vazio ou sem part JSON (contentType={})", request.getContentType());
+                return null;
+            }
+            return objectMapper.readValue(json, HikvisionEventDto.class);
+        } catch (Exception e) {
+            log.warn("Webhook: payload nao parseavel (contentType={}): {}",
+                    request.getContentType(), e.getMessage());
+            return null;
         }
     }
 

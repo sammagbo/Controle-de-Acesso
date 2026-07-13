@@ -19,7 +19,7 @@ dist/
 
 
 # Local artifacts
-.claude/
+.claude/settings.local.json
 backend-run.log
 build/icon-temp-*.png
 
@@ -46,3 +46,5 @@ movimento_real.sql
 backend/server.log
 
 backup_*.sql
+
+backups/

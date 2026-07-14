@@ -40,4 +40,11 @@ public class AccessLog {
 
     @Column(name = "flag", length = 32)
     private String flag;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_method", length = 8)
+    private AuthMethod authMethod;
+
+    @Column(name = "hikvision_sub_event_type")
+    private Integer hikvisionSubEventType;
 }

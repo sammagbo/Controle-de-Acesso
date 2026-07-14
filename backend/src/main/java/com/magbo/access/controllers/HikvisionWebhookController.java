@@ -3,6 +3,7 @@ package com.magbo.access.controllers;
 import com.magbo.access.dto.hikvision.HikvisionEventDto;
 import com.magbo.access.models.AccessAction;
 import com.magbo.access.models.AccessLog;
+import com.magbo.access.models.AuthMethod;
 import com.magbo.access.models.ClassSchedule;
 import com.magbo.access.models.User;
 import com.magbo.access.repositories.AccessLogRepository;
@@ -156,11 +157,14 @@ public class HikvisionWebhookController {
                     .action(resolved.action())
                     .timestamp(now)
                     .flag(flag)
+                    .authMethod(resolveAuthMethod(event.getSubEventType()))
+                    .hikvisionSubEventType(event.getSubEventType())
                     .build();
 
             accessLogRepository.save(accessLog);
-            log.info("Access Log: user={}, point={}, action={}, flag={}, fallback={}",
-                    userId, resolved.pointId(), resolved.action(), flag, resolved.isFallback());
+            log.info("Access Log: user={}, point={}, action={}, flag={}, method={}, subType={}, fallback={}",
+                    userId, resolved.pointId(), resolved.action(), flag,
+                    resolveAuthMethod(event.getSubEventType()), event.getSubEventType(), resolved.isFallback());
 
             return ResponseEntity.ok("Success");
         } catch (Exception e) {
@@ -206,6 +210,21 @@ public class HikvisionWebhookController {
                     request.getContentType(), e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * F1: mapeia o subEventType do evento Hikvision para o metodo de autenticacao.
+     * Confirmado com hardware (DS-K1T344MX, fw V4.13.0): 75=face, 1=cartao.
+     * Qualquer outro subtipo com identidade (ex.: 8=negado) cai em UNKNOWN aqui;
+     * o roteamento de eventos negados sera tratado no Patch 2 (access_attempts).
+     */
+    private AuthMethod resolveAuthMethod(Integer subEventType) {
+        if (subEventType == null) return AuthMethod.UNKNOWN;
+        return switch (subEventType) {
+            case 75 -> AuthMethod.FACE;
+            case 1  -> AuthMethod.CARD;
+            default -> AuthMethod.UNKNOWN;
+        };
     }
 
     /**

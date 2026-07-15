@@ -2,7 +2,7 @@
 // ADMIN DASHBOARD — Painel Administrativo (PIN-gated)
 // =====================================================================
 
-function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport }) {
+function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit }) {
       const [, setCacheTick] = React.useState(0);
       React.useEffect(() => {
             const handler = () => setCacheTick(t => t + 1);
@@ -12,7 +12,11 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
 
       // ── State ──
       const [globalLogs, setGlobalLogs] = React.useState([]);
-      const [stats, setStats] = React.useState({ totalToday: 0, activeUsers: 0, totalUsers: 0, blockedToday: 0, authorizedToday: 0 });
+      const [stats, setStats] = React.useState({ 
+            totalToday: 0, activeUsers: 0, totalUsers: 0, 
+            blockedToday: 0, authorizedToday: 0,
+            alertasHoje: 0, negadasHoje: 0, divergenciaHoje: 0
+      });
       const [loadingLogs, setLoadingLogs] = React.useState(true);
       const [loadingSync, setLoadingSync] = React.useState(false);
       const [lastSync, setLastSync] = React.useState('03:00');
@@ -63,7 +67,10 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                                     activeUsers: s.activeUsers || 0,
                                     totalUsers: s.totalUsers || (window.userCache?.all().length || 0),
                                     blockedToday: s.blockedToday || 0,
-                                    authorizedToday: s.authorizedToday || (s.totalToday || 0)
+                                    authorizedToday: s.authorizedToday || (s.totalToday || 0),
+                                    alertasHoje: s.alertasHoje || 0,
+                                    negadasHoje: s.negadasHoje || 0,
+                                    divergenciaHoje: s.divergenciaHoje || 0
                               });
                         }
                   } catch (e) {
@@ -318,6 +325,54 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                         </div>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                        {/* KPI: Alertas Hoje */}
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="bell-ring" size={28} className="text-orange-500" />
+                                    </div>
+                                    <div>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Alertas Hoje</p>
+                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.alertasHoje}</p>
+                                    </div>
+                              </div>
+                        </div>
+
+                        {/* KPI: Tentativas Negadas */}
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
+                              <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-danger-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="shield-off" size={28} className="text-danger-500" />
+                                    </div>
+                                    <div>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tentativas Negadas</p>
+                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.negadasHoje}</p>
+                                    </div>
+                              </div>
+                        </div>
+
+                        {/* KPI: Divergências */}
+                        <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm group relative">
+                              <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-warning-500/10 flex items-center justify-center flex-shrink-0">
+                                          <LucideIcon name="split" size={28} className="text-warning-500" />
+                                    </div>
+                                    <div>
+                                          <div className="flex items-center gap-1 cursor-help">
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Divergências</p>
+                                                <LucideIcon name="info" size={12} className="text-slate-300" />
+                                          </div>
+                                          <p className="text-3xl font-black text-navy-500 leading-tight">{stats.divergenciaHoje}</p>
+                                    </div>
+                              </div>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-navy-800 text-white text-xs p-3 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                    <p className="font-bold mb-1">Qu'est-ce qu'une divergence ?</p>
+                                    <p className="text-navy-100">Accès via code terminal sans correspondance dans la base de données (Ex : Terminal non reconnu, badge inconnu).</p>
+                              </div>
+                        </div>
+                  </div>
+
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* SECTION 2 — GESTÃO DE OPERADORES (admin only)            */}
                   {/* ══════════════════════════════════════════════════════════ */}
@@ -386,6 +441,50 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport 
                                     >
                                           <LucideIcon name="bar-chart-3" size={16} />
                                           Ouvrir le rapport
+                                    </button>
+                              </div>
+
+                              {/* Gestion des Droits Repas */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-success-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="utensils" size={24} className="text-success-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Droits Repas</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Gérer les accès cantine et imports XLSX
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToMeal}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-success-600 text-white hover:bg-success-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="utensils" size={16} />
+                                          Gérer les droits
+                                    </button>
+                              </div>
+
+                              {/* Autorisations de Sortie */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="door-open" size={24} className="text-orange-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">Autorisations de Sortie</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      Gérer les permissions de sortie des élèves
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToExit}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-orange-500 text-white hover:bg-orange-600 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="door-open" size={16} />
+                                          Gérer les sorties
                                     </button>
                               </div>
                         </div>

@@ -247,6 +247,16 @@ function App() {
                               const pt = ACCESS_POINTS.find(p => p.id === 'GENERAL_REPORT');
                               if (pt) setCurrentPoint(pt);
                         }}
+                        onNavigateToMeal={() => {
+                              setAdminView(false);
+                              const pt = ACCESS_POINTS.find(p => p.id === 'MEAL_ENTITLEMENT_MANAGEMENT');
+                              if (pt) setCurrentPoint(pt);
+                        }}
+                        onNavigateToExit={() => {
+                              setAdminView(false);
+                              const pt = ACCESS_POINTS.find(p => p.id === 'EXIT_PERMISSION_MANAGEMENT');
+                              if (pt) setCurrentPoint(pt);
+                        }}
                   />
             ) : !currentPoint ? (
                         <Dashboard
@@ -261,6 +271,10 @@ function App() {
                         <InfirmaryReport />
                   ) : currentPoint && currentPoint.id === 'GENERAL_REPORT' ? (
                         <GeneralReport onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'MEAL_ENTITLEMENT_MANAGEMENT' ? (
+                        <MealEntitlementManagement onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'EXIT_PERMISSION_MANAGEMENT' ? (
+                        <ExitPermissionManagement onBack={() => setCurrentPoint(null)} />
                   ) : (
                   <SectorView
                         point={currentPoint}

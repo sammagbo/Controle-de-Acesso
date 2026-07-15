@@ -23,6 +23,8 @@ const ACCESS_POINTS = [
       { id: 'CANTINA_REPORT',  nome: 'Rapport Cantine', icon: 'file-text', description: 'Historique et export',   category: 'monitor', area: 'cantine' },
       { id: 'INFIRMARY_REPORT', nome: 'Rapport Infirmerie', icon: 'clipboard-list', description: 'Visites et séjours', category: 'monitor', area: 'infirmerie' },
       { id: 'GENERAL_REPORT',   nome: 'Rapport Général',    icon: 'layout-dashboard', description: 'Vue consolidée — KPIs, élèves, journal', category: 'monitor', area: 'admin', hidden: true },
+      { id: 'MEAL_ENTITLEMENT_MANAGEMENT', nome: 'Droits Repas', icon: 'utensils', description: 'Gestion des droits', category: 'monitor', area: 'admin', hidden: true },
+      { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
 ];
 
 
@@ -49,4 +51,46 @@ const CATEGORY_COLORS = {
       especial:   { bg: 'bg-warning-500', iconBg: 'bg-warning-600', ring: 'ring-warning-200' },
       refeitorio: { bg: 'bg-success-500', iconBg: 'bg-success-600', ring: 'ring-success-200' },
       monitor:    { bg: 'bg-navy-500',    iconBg: 'bg-navy-600',    ring: 'ring-navy-200'    },
+};
+
+// ---------------------------------------------------------------------
+// LABELS GERAIS E MOTIVOS DE RECUSA
+// ---------------------------------------------------------------------
+const DENIAL_REASON_LABELS = {
+      MEAL_NOT_ENTITLED:   "Pas de droit au repas",
+      OUTSIDE_MEAL_TIME:   "Hors horaire",
+      DUPLICATE_MEAL:      "Repas dupliqué",
+      EXIT_NOT_AUTHORIZED: "Sortie non autorisée",
+      OUTSIDE_EXIT_WINDOW: "Hors fenêtre de sortie",
+      USER_INACTIVE:       "Utilisateur inactif",
+      UNKNOWN_USER:        "Personne inconnue",
+      MISSING_DOOR_MAPPING:"Terminal non configuré",
+      DEVICE_DENIED:       "Refusé par le terminal",
+      NORMAL:              "Normal"
+};
+
+const AUTH_METHOD_LABELS = { 
+      FACE: "Visage", 
+      CARD: "Carte", 
+      UNKNOWN: "Inconnu" 
+};
+
+const ENTITLEMENT_STATUS_LABELS = { 
+      AUTHORIZED: "Autorisé", 
+      NOT_AUTHORIZED: "Non autorisé", 
+      PENDING: "En attente" 
+};
+
+const EXIT_PERMISSION_TYPE_LABELS = { 
+      PERMANENT: "Permanent", 
+      RECURRING: "Récurrent", 
+      DATE_RANGE: "Période", 
+      SINGLE: "Ponctuel" 
+};
+
+const EXIT_PERMISSION_STATUS_LABELS = { 
+      ACTIVE: "Actif", 
+      REVOKED: "Révoqué", 
+      USED: "Utilisé", 
+      EXPIRED: "Expiré" 
 };

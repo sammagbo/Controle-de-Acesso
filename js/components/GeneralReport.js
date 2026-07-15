@@ -1107,6 +1107,11 @@ function OverviewTab() {
                             </div>
                         </div>
                     </div>
+
+                    {/* ── Tentatives Refusées ── */}
+                    <div className="mt-6">
+                        <DeniedAttemptsFeed />
+                    </div>
                 </>
             )}
         </div>

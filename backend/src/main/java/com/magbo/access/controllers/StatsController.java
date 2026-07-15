@@ -23,21 +23,29 @@ public class StatsController {
     private final AccessLogRepository accessLogRepository;
     private final UserRepository userRepository;
 
+    private final com.magbo.access.repositories.AccessAttemptRepository accessAttemptRepository;
+
     @GetMapping("/global")
     public ResponseEntity<GlobalStats> getGlobalStats() {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIDNIGHT);
 
         long totalToday    = accessLogRepository.countByTimestampGreaterThanEqual(startOfDay);
-        long blockedToday  = accessLogRepository.countBlockedSince(startOfDay);
+        long alertas       = accessLogRepository.countBlockedSince(startOfDay);
         long activeUsers   = accessLogRepository.countActiveUsersSince(startOfDay);
         long totalUsers    = userRepository.count();
 
+        long negadas       = accessAttemptRepository.countByTimestampGreaterThanEqual(startOfDay);
+        long divergencia   = accessAttemptRepository.countDivergenceSince(startOfDay);
+
         GlobalStats stats = GlobalStats.builder()
             .totalToday(totalToday)
-            .blockedToday(blockedToday)
-            .authorizedToday(totalToday - blockedToday)
+            .blockedToday(alertas)
+            .authorizedToday(totalToday - alertas)
             .activeUsers(activeUsers)
             .totalUsers(totalUsers)
+            .alertasHoje(alertas)
+            .negadasHoje(negadas)
+            .divergenciaHoje(divergencia)
             .build();
 
         return ResponseEntity.ok(stats);

@@ -57,9 +57,8 @@ public class MealEntitlementController {
         return ResponseEntity.ok(mealEntitlementService.history(userId));
     }
 
-    // FASE F: trocar para hasPermission
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('MEAL_ENTITLEMENT_WRITE')")
     public ResponseEntity<?> upsert(
             @PathVariable String userId,
             @Valid @RequestBody MealEntitlementRequest req) {

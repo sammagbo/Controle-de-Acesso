@@ -11,5 +11,6 @@ public class LoginResponse {
     private String nomeCompleto;
     private String role;
     private String setoresPermitidos;
+    private String permissoes;
     private long expiresInMs;
 }

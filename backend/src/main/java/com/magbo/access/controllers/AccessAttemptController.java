@@ -24,9 +24,8 @@ public class AccessAttemptController {
 
     private final AccessAttemptQueryService queryService;
 
-    // FASE F: adicionar or @areaSecurity.hasPermission('ATTEMPTS_READ')
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('ATTEMPTS_READ')")
     public ResponseEntity<Page<AccessAttemptDto>> getFiltered(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
@@ -40,9 +39,8 @@ public class AccessAttemptController {
         return ResponseEntity.ok(queryService.getFiltered(from, to, pointId, userId, reason, method, page, size));
     }
 
-    // FASE F: adicionar or @areaSecurity.hasPermission('ATTEMPTS_READ')
     @GetMapping("/stats")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('ATTEMPTS_READ')")
     public ResponseEntity<AttemptStatsDto> getStats(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {

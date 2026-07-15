@@ -71,9 +71,8 @@ public class ExitPermissionController {
                 .toList());
     }
 
-    // FASE F: trocar para hasPermission('EXIT_PERMISSION_WRITE')
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('EXIT_PERMISSION_WRITE')")
     public ResponseEntity<?> create(@Valid @RequestBody ExitPermissionRequest req) {
         try {
             String createdBy = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -88,9 +87,8 @@ public class ExitPermissionController {
         public String note;
     }
 
-    // FASE F: trocar para hasPermission('EXIT_PERMISSION_WRITE')
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('EXIT_PERMISSION_WRITE')")
     public ResponseEntity<?> revoke(@PathVariable Long id, @RequestBody(required = false) RevokeRequest req) {
         try {
             String revokedBy = SecurityContextHolder.getContext().getAuthentication().getName();

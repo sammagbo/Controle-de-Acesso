@@ -34,4 +34,24 @@ public class AreaSecurity {
         // reuse the entity's own permission logic
         return user.canOperateSector(area);
     }
+
+    /**
+     * Verifica permissão granular de ESCRITA (ex.: MEAL_ENTITLEMENT_WRITE).
+     * ADMIN sempre passa. Operadores precisam da permissão listada em SystemUser.permissoes ("*" = todas).
+     * Permissões granulares NÃO governam leitura — leitura continua por setor (can(area)).
+     */
+    public boolean hasPermission(String permission) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (isAdmin) return true;
+
+        String username = auth.getName();
+        SystemUser user = systemUserRepository.findByUsername(username).orElse(null);
+        if (user == null) return false;
+
+        return user.hasPermission(permission);
+    }
 }

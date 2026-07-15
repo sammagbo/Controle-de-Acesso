@@ -59,6 +59,7 @@ public class AuthController {
                 .nomeCompleto(user.getNomeCompleto())
                 .role(user.getRole().name())
                 .setoresPermitidos(user.getSetoresPermitidos())
+                .permissoes(user.getPermissoes())
                 .expiresInMs(expirationMs)
                 .build());
     }
@@ -74,7 +75,8 @@ public class AuthController {
                 "username", user.getUsername(),
                 "nomeCompleto", user.getNomeCompleto(),
                 "role", user.getRole().name(),
-                "setoresPermitidos", user.getSetoresPermitidos() != null ? user.getSetoresPermitidos() : ""
+                "setoresPermitidos", user.getSetoresPermitidos() != null ? user.getSetoresPermitidos() : "",
+                "permissoes", user.getPermissoes() != null ? user.getPermissoes() : ""
         ));
     }
 }

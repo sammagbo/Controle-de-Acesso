@@ -42,6 +42,15 @@ public class SystemUser {
     @Column(name = "setores_permitidos", length = 255)
     private String setoresPermitidos;
 
+    /**
+     * CSV de permissões granulares deste operador.
+     * Valores reconhecidos: MEAL_ENTITLEMENT_WRITE, EXIT_PERMISSION_WRITE, ATTEMPTS_READ.
+     * "*" = todas. null = nenhuma permissão granular (não remove nada do que
+     * setoresPermitidos já concede — apenas escrita de entitlements/permissões exige isto).
+     */
+    @Column(name = "permissoes", length = 255)
+    private String permissoes;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean ativo = true;
@@ -81,6 +90,17 @@ public class SystemUser {
                     .anyMatch(s -> s.equalsIgnoreCase(area));
         }
         return false;
+    }
+
+    public boolean hasPermission(String permission) {
+        if (role == Role.ADMIN) return true;
+        if (permissoes == null || permissoes.isBlank()) return false;
+        if ("*".equals(permissoes.trim())) return true;
+
+        List<String> permitidas = Arrays.asList(permissoes.split(","));
+        return permitidas.stream()
+                .map(String::trim)
+                .anyMatch(s -> s.equalsIgnoreCase(permission));
     }
 
     private String getAreaForPoint(String pointId) {

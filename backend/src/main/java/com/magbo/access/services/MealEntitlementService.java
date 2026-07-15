@@ -64,7 +64,11 @@ public class MealEntitlementService {
         return new EntitlementDecision(EntitlementStatus.PENDING, false, null);
     }
 
-    @Transactional
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private MealEntitlementService self;
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public MealEntitlement upsert(String userId, EntitlementStatus status, LocalDate validFrom,
                                   LocalDate validUntil, String note, String changedBy, String source) {
         
@@ -202,5 +206,72 @@ public class MealEntitlementService {
                 .updatedBy(entity.getUpdatedBy())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    public com.magbo.access.dto.BulkResultDto importBulk(List<com.magbo.access.dto.MealEntitlementBulkItem> items, boolean overwrite, String changedBy) {
+        com.magbo.access.dto.BulkResultDto result = new com.magbo.access.dto.BulkResultDto();
+        result.setTotalRecebido(items.size());
+
+        for (int i = 0; i < items.size(); i++) {
+            com.magbo.access.dto.MealEntitlementBulkItem item = items.get(i);
+            int linha = i + 1;
+            String uId = item.getUserId();
+            
+            try {
+                if (uId == null || uId.isBlank()) {
+                    throw new IllegalArgumentException("ID obrigatório");
+                }
+                if (!userRepository.existsById(uId)) {
+                    throw new IllegalArgumentException("Aluno não encontrado");
+                }
+                
+                EntitlementStatus parsedStatus;
+                try {
+                    if (item.getStatus() == null || item.getStatus().isBlank()) {
+                        throw new IllegalArgumentException("Status obrigatório");
+                    }
+                    parsedStatus = EntitlementStatus.valueOf(item.getStatus().trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Status inválido: " + item.getStatus() + ". Válidos: AUTHORIZED, NOT_AUTHORIZED, PENDING");
+                }
+                
+                if (item.getValidFrom() != null && item.getValidUntil() != null && item.getValidFrom().isAfter(item.getValidUntil())) {
+                    throw new IllegalArgumentException("Data inicial posterior à data final");
+                }
+                
+                boolean exists = mealEntitlementRepository.findById(uId).isPresent();
+                if (exists && !overwrite) {
+                    result.setTotalIgnorado(result.getTotalIgnorado() + 1);
+                    result.getErros().add(Map.of(
+                        "linha", String.valueOf(linha),
+                        "userId", uId,
+                        "erro", "Já existe — use overwrite=true para atualizar"
+                    ));
+                    continue;
+                }
+                
+                self.upsert(uId, parsedStatus, item.getValidFrom(), item.getValidUntil(), item.getNote(), changedBy, "BULK");
+                
+                if (exists) {
+                    result.setTotalAtualizado(result.getTotalAtualizado() + 1);
+                } else {
+                    result.setTotalCriado(result.getTotalCriado() + 1);
+                }
+                
+            } catch (Exception e) {
+                result.setTotalFalhas(result.getTotalFalhas() + 1);
+                result.getErros().add(Map.of(
+                    "linha", String.valueOf(linha),
+                    "userId", uId != null ? uId : "",
+                    "erro", e.getMessage() != null ? e.getMessage() : "Erro desconhecido"
+                ));
+            }
+        }
+        
+        log.info("Bulk meal entitlements by {}: recebido={}, criado={}, atualizado={}, ignorado={}, falhas={}",
+                changedBy, result.getTotalRecebido(), result.getTotalCriado(),
+                result.getTotalAtualizado(), result.getTotalIgnorado(), result.getTotalFalhas());
+        
+        return result;
     }
 }

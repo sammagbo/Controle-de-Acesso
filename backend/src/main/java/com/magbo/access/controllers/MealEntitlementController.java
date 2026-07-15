@@ -74,4 +74,22 @@ public class MealEntitlementController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('MEAL_ENTITLEMENT_WRITE')")
+    public ResponseEntity<?> importBulk(
+            @RequestBody List<com.magbo.access.dto.MealEntitlementBulkItem> items,
+            @RequestParam(defaultValue = "false") boolean overwrite) {
+        
+        if (items == null || items.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lote vazio ou nulo"));
+        }
+        if (items.size() > 2000) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lote muito grande (máx 2000)"));
+        }
+        
+        String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        com.magbo.access.dto.BulkResultDto result = mealEntitlementService.importBulk(items, overwrite, changedBy);
+        return ResponseEntity.ok(result);
+    }
 }

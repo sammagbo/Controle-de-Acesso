@@ -12,6 +12,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     java.util.List<User> findByResponsavelId(String responsavelId);
     java.util.List<User> findByAtivoTrue();
     java.util.List<User> findByAtivoFalse();
+    long countByTipoAndAtivoTrue(String tipo);
 
     // Busca por nome OU turma OU id (case-insensitive), só ativos
     @org.springframework.data.jpa.repository.Query("""

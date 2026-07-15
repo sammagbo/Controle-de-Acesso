@@ -1,7 +1,9 @@
 package com.magbo.access.services;
 
 import com.magbo.access.config.PolicyProperties;
+import com.magbo.access.dto.EntitlementDecision;
 import com.magbo.access.dto.EventClassification;
+import com.magbo.access.dto.ExitDecision;
 import com.magbo.access.dto.hikvision.HikvisionEventDto;
 import com.magbo.access.models.AccessAction;
 import com.magbo.access.models.AccessLog;
@@ -10,6 +12,7 @@ import com.magbo.access.models.AuthResult;
 import com.magbo.access.models.AuthorizationResult;
 import com.magbo.access.models.ClassSchedule;
 import com.magbo.access.models.DenialReason;
+import com.magbo.access.models.EntitlementStatus;
 import com.magbo.access.models.PolicyMode;
 import com.magbo.access.models.User;
 import com.magbo.access.repositories.AccessLogRepository;
@@ -40,6 +43,8 @@ public class AccessDecisionService {
     private final DeduplicationService dedupService;
     private final AccessAttemptService attemptService;
     private final PolicyProperties policyProperties;
+    private final MealEntitlementService mealEntitlementService;
+    private final ExitPermissionService exitPermissionService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -166,7 +171,50 @@ public class AccessDecisionService {
                 }
                 
                 // FASE C:
-                
+                EntitlementDecision decision = mealEntitlementService.evaluate(userId, now.toLocalDate());
+
+                if (decision.effectiveStatus() == EntitlementStatus.NOT_AUTHORIZED
+                        || (decision.effectiveStatus() == EntitlementStatus.AUTHORIZED && !decision.entitled())) {
+                    PolicyMode mode = policyProperties.getPolicy().getMealNotEntitled();
+                    if (mode == PolicyMode.DENY) {
+                        attemptService.record(
+                                userId, employeeNoRaw, nomeSnapshot,
+                                resolved.pointId(), resolved.action(), terminalIp,
+                                classification.method(), classification.result(),
+                                AuthorizationResult.DENIED, DenialReason.MEAL_NOT_ENTITLED,
+                                subType, resolved.isFallback()
+                        );
+                        return;
+                    } else if (mode == PolicyMode.OBSERVATION) {
+                        attemptService.record(
+                                userId, employeeNoRaw, nomeSnapshot,
+                                resolved.pointId(), resolved.action(), terminalIp,
+                                classification.method(), classification.result(),
+                                AuthorizationResult.OBSERVATION, DenialReason.MEAL_NOT_ENTITLED,
+                                subType, resolved.isFallback()
+                        );
+                    }
+                } else if (decision.effectiveStatus() == EntitlementStatus.PENDING) {
+                    PolicyMode mode = policyProperties.getPolicy().getMealPending();
+                    if (mode == PolicyMode.DENY) {
+                        attemptService.record(
+                                userId, employeeNoRaw, nomeSnapshot,
+                                resolved.pointId(), resolved.action(), terminalIp,
+                                classification.method(), classification.result(),
+                                AuthorizationResult.DENIED, DenialReason.MEAL_NOT_ENTITLED,
+                                subType, resolved.isFallback()
+                        );
+                        return;
+                    } else if (mode == PolicyMode.OBSERVATION) {
+                        attemptService.record(
+                                userId, employeeNoRaw, nomeSnapshot,
+                                resolved.pointId(), resolved.action(), terminalIp,
+                                classification.method(), classification.result(),
+                                AuthorizationResult.OBSERVATION, DenialReason.MEAL_NOT_ENTITLED,
+                                subType, resolved.isFallback()
+                        );
+                    }
+                }
                 flag = validateEntryWindow(user, now);
                 if ("FORA_HORARIO".equals(flag)) {
                     PolicyMode mode = policyProperties.getPolicy().getOutsideMealTime();
@@ -195,6 +243,35 @@ public class AccessDecisionService {
         }
         
         // FASE D:
+        boolean isGate = pid.startsWith("PORT");
+        Long consumedPermissionId = null;
+
+        if (isGate && resolved.action() == AccessAction.SAIDA) {
+            ExitDecision exitDecision = exitPermissionService.evaluate(userId, now);
+            if (!exitDecision.allowed()) {
+                PolicyMode mode = policyProperties.getPolicy().getExitNotAuthorized();
+                if (mode == PolicyMode.DENY) {
+                    attemptService.record(
+                            userId, employeeNoRaw, nomeSnapshot,
+                            resolved.pointId(), resolved.action(), terminalIp,
+                            classification.method(), classification.result(),
+                            AuthorizationResult.DENIED, exitDecision.reason(),
+                            subType, resolved.isFallback()
+                    );
+                    return;
+                } else if (mode == PolicyMode.OBSERVATION) {
+                    attemptService.record(
+                            userId, employeeNoRaw, nomeSnapshot,
+                            resolved.pointId(), resolved.action(), terminalIp,
+                            classification.method(), classification.result(),
+                            AuthorizationResult.OBSERVATION, exitDecision.reason(),
+                            subType, resolved.isFallback()
+                    );
+                }
+            } else {
+                consumedPermissionId = exitDecision.permissionId();
+            }
+        }
 
         AccessLog accessLog = AccessLog.builder()
                 .userId(userId)
@@ -207,6 +284,11 @@ public class AccessDecisionService {
                 .build();
 
         accessLogRepository.save(accessLog);
+        
+        if (consumedPermissionId != null) {
+            exitPermissionService.consumeIfSingle(consumedPermissionId);
+        }
+        
         log.info("Access Log: user={}, point={}, action={}, flag={}, method={}, subType={}, fallback={}",
                 userId, resolved.pointId(), resolved.action(), flag,
                 classification.method(), subType, resolved.isFallback());

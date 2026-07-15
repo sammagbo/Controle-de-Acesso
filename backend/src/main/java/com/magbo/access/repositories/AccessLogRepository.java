@@ -24,6 +24,9 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     Optional<AccessLog> findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(
             String userId, String pointId, AccessAction action);
 
+    List<AccessLog> findByUserIdAndPointIdAndActionAndTimestampAfter(
+            String userId, String pointId, AccessAction action, LocalDateTime after);
+
     @Query("""
         SELECT a FROM AccessLog a
         WHERE (:#{#dateFrom == null} = true OR a.timestamp >= :dateFrom)

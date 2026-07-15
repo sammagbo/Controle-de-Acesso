@@ -1,27 +1,12 @@
 package com.magbo.access.controllers;
 
 import com.magbo.access.dto.hikvision.HikvisionEventDto;
-import com.magbo.access.models.AccessAction;
-import com.magbo.access.models.AccessLog;
-import com.magbo.access.models.AuthMethod;
-import com.magbo.access.models.ClassSchedule;
-import com.magbo.access.models.User;
-import com.magbo.access.repositories.AccessLogRepository;
-import com.magbo.access.repositories.ClassScheduleRepository;
-import com.magbo.access.repositories.UserRepository;
-import com.magbo.access.services.DoorMappingService;
+import com.magbo.access.services.AccessDecisionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.DayOfWeek;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Optional;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/hikvision")
@@ -29,10 +14,7 @@ import java.util.Set;
 @Slf4j
 public class HikvisionWebhookController {
 
-    private final AccessLogRepository accessLogRepository;
-    private final DoorMappingService doorMappingService;
-    private final UserRepository userRepository;
-    private final ClassScheduleRepository classScheduleRepository;
+    private final AccessDecisionService accessDecisionService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${magbo.webhook.token:}")
@@ -42,18 +24,6 @@ public class HikvisionWebhookController {
     private void trimToken() {
         if (webhookToken != null) webhookToken = webhookToken.trim();
     }
-
-    // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
-    private static final Set<String> LYCEE_CLASSES = Set.of(
-            "T1", "T2",
-            "1E1", "1E2", "1E3",
-            "2E1", "2E2", "2E3"
-    );
-
-    private static final LocalTime LYCEE_START = LocalTime.of(11, 0);
-    private static final LocalTime LYCEE_END = LocalTime.of(15, 0);
-    private static final Duration MAX_CANTINA_TIME = Duration.ofHours(1);
-    private static final Duration LUNCH_WINDOW = Duration.ofHours(1);
 
     @PostMapping("/webhook")
     public ResponseEntity<String> receiveWebhook(
@@ -113,59 +83,7 @@ public class HikvisionWebhookController {
                 return ResponseEntity.ok("Success");
             }
 
-            String hikvisionId = event.getEmployeeNoString();
-            Optional<User> userOpt = userRepository.findByHikvisionEmployeeId(hikvisionId);
-
-            // Pessoa reconhecida pelo terminal mas ausente/desativada no banco:
-            // NAO gravar em access_logs (evita poluir estatisticas com ID externo cru).
-            // F5e tratara o registro de eventos nao resolvidos quando houver payload real.
-            if (userOpt.isEmpty()) {
-                log.warn("Evento ignorado: employeeNoString '{}' sem correspondencia no banco (doorNo={}, readerNo={})",
-                        hikvisionId, event.getDoorNo(), event.getReaderNo());
-                return ResponseEntity.ok("Success");
-            }
-
-            String userId = userOpt.get().getId();
-            boolean isMapped = true;
-
-            DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(
-                    event.getDoorNo(),
-                    event.getReaderNo(),
-                    terminalIp
-            );
-
-            LocalDateTime now = LocalDateTime.now();
-            String flag = null;
-
-            // Lógica de refeitório (pointId começa com "REFEI" ou "CANTINA")
-            String pid = resolved.pointId() == null ? "" : resolved.pointId().toUpperCase();
-            boolean isRefectory = pid.startsWith("REFEI") || pid.startsWith("CANTINA");
-
-            if (isRefectory && isMapped) {
-                User user = userOpt.get();
-
-                if (resolved.action() == AccessAction.ENTRADA) {
-                    flag = validateEntryWindow(user, now);
-                } else if (resolved.action() == AccessAction.SAIDA) {
-                    flag = validateExitTime(userId, pid, now);
-                }
-            }
-
-            AccessLog accessLog = AccessLog.builder()
-                    .userId(userId)
-                    .pointId(resolved.pointId())
-                    .action(resolved.action())
-                    .timestamp(now)
-                    .flag(flag)
-                    .authMethod(resolveAuthMethod(event.getSubEventType()))
-                    .hikvisionSubEventType(event.getSubEventType())
-                    .build();
-
-            accessLogRepository.save(accessLog);
-            log.info("Access Log: user={}, point={}, action={}, flag={}, method={}, subType={}, fallback={}",
-                    userId, resolved.pointId(), resolved.action(), flag,
-                    resolveAuthMethod(event.getSubEventType()), event.getSubEventType(), resolved.isFallback());
-
+            accessDecisionService.process(event, terminalIp);
             return ResponseEntity.ok("Success");
         } catch (Exception e) {
             log.error("Error processing webhook", e);
@@ -208,100 +126,6 @@ public class HikvisionWebhookController {
         } catch (Exception e) {
             log.warn("Webhook: payload nao parseavel (contentType={}): {}",
                     request.getContentType(), e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * F1: mapeia o subEventType do evento Hikvision para o metodo de autenticacao.
-     * Confirmado com hardware (DS-K1T344MX, fw V4.13.0): 75=face, 1=cartao.
-     * Qualquer outro subtipo com identidade (ex.: 8=negado) cai em UNKNOWN aqui;
-     * o roteamento de eventos negados sera tratado no Patch 2 (access_attempts).
-     */
-    private AuthMethod resolveAuthMethod(Integer subEventType) {
-        if (subEventType == null) return AuthMethod.UNKNOWN;
-        return switch (subEventType) {
-            case 75 -> AuthMethod.FACE;
-            case 1  -> AuthMethod.CARD;
-            default -> AuthMethod.UNKNOWN;
-        };
-    }
-
-    /**
-     * Valida janela de entrada na cantina.
-     * Retorna null se OK, "FORA_HORARIO" se fora da janela.
-     */
-    private String validateEntryWindow(User user, LocalDateTime now) {
-        String turma = user.getTurma();
-        if (turma == null) return null;
-
-        LocalTime time = now.toLocalTime();
-
-        // Lycée: janela fixa 11h-15h, qualquer dia
-        if (LYCEE_CLASSES.contains(turma)) {
-            if (time.isBefore(LYCEE_START) || time.isAfter(LYCEE_END)) {
-                return "FORA_HORARIO";
-            }
-            return null;
-        }
-
-        // Outras turmas: usa horário da turma para o dia da semana
-        Optional<ClassSchedule> schedOpt = classScheduleRepository.findById(turma);
-        if (schedOpt.isEmpty()) return null; // sem horário definido = não alerta
-
-        ClassSchedule sched = schedOpt.get();
-        String dayHour = getLunchTimeForDay(sched, now.getDayOfWeek());
-
-        if (dayHour == null || "N".equalsIgnoreCase(dayHour) || dayHour.isEmpty()) {
-            return "FORA_HORARIO"; // dia sem refeição = alerta
-        }
-
-        LocalTime expected = parseHour(dayHour);
-        if (expected == null) return null;
-
-        LocalTime windowEnd = expected.plus(LUNCH_WINDOW);
-        if (time.isBefore(expected) || time.isAfter(windowEnd)) {
-            return "FORA_HORARIO";
-        }
-        return null;
-    }
-
-    /**
-     * Valida tempo dentro da cantina (na SAIDA).
-     * Retorna "EXCEDEU_TEMPO" se passou mais de 1h desde a ENTRADA mais recente.
-     */
-    private String validateExitTime(String userId, String pointId, LocalDateTime now) {
-        Optional<AccessLog> lastEntry = accessLogRepository
-                .findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(userId, pointId, AccessAction.ENTRADA);
-
-        if (lastEntry.isEmpty()) return null;
-
-        Duration inside = Duration.between(lastEntry.get().getTimestamp(), now);
-        if (inside.compareTo(MAX_CANTINA_TIME) > 0) {
-            return "EXCEDEU_TEMPO";
-        }
-        return null;
-    }
-
-    private String getLunchTimeForDay(ClassSchedule s, DayOfWeek day) {
-        switch (day) {
-            case MONDAY: return s.getLunMidi();
-            case TUESDAY: return s.getMarMidi();
-            case WEDNESDAY: return s.getMerMidi();
-            case THURSDAY: return s.getJeuMidi();
-            case FRIDAY: return s.getVenMidi();
-            default: return null;
-        }
-    }
-
-    private LocalTime parseHour(String h) {
-        if (h == null || h.isEmpty()) return null;
-        try {
-            // Formato "11H00", "12H30", "13H00"
-            String clean = h.toUpperCase().replace("H", ":");
-            return LocalTime.parse(clean);
-        } catch (Exception e) {
-            log.warn("Could not parse lunch time: {}", h);
             return null;
         }
     }

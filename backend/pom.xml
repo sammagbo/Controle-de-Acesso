@@ -107,6 +107,23 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!--
+              Fase I: por convencao o Surefire (mvn test) roda *Test.java mas
+              IGNORA *IT.java (esse sufixo e do Failsafe/mvn verify). A spec
+              nomeia os testes de integracao como *IT E fixa o comando como
+              'mvn clean test'; sem este include, os 17 ITs seriam pulados em
+              silencio. Versao gerenciada pelo spring-boot-starter-parent.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

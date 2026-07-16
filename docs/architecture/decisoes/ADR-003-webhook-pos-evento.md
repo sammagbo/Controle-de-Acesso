@@ -46,3 +46,12 @@ Referência: `§4.7` da especificação técnica. Coberto conceitualmente por `W
 
 ## Status
 **Aceita** — 2026-07-15.
+
+## Refinado por
+- **ADR-004 (2026-07-16)** — para **refeição**, a escola decidiu **não** usar bloqueio físico via
+  HikCentral (nem no roadmap): a cantina opera em **bloqueio operacional assistido** (terminal =
+  identidade · MAGBO = regra · operador = exceção). Este ADR-003 permanece **integral** (webhook
+  pós-evento; o MAGBO não fecha porta); o ADR-004 apenas fixa que, **para refeição**, o "bloqueio
+  via HikCentral" citado nas Consequências acima **não** será implementado — a divergência
+  `divergenciaHoje`, nesse caso, é permanente e por design. Para **saída/portail**, o texto acima
+  segue valendo.

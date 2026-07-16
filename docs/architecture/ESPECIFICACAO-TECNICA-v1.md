@@ -360,6 +360,8 @@ Serviço puro, sem dependências de banco. Entrada: `subEventType`. Saída: `Eve
 3. Bloqueio físico real só existe **no lado do dispositivo**: HikCentral distribuindo access levels/schedules (procedimento operacional, ver §11.3), não código do backend.
 4. **Divergência física × lógica** é dado de primeira classe e deve ser consultável: `auth_result=SUCCESS` **E** `authorization_result=DENIED` ⇒ "porta abriu, mas o MAGBO não contou como acesso válido". Este é o KPI que mede a eficácia do futuro bloqueio via HikCentral.
 
+> **Refinamento — ADR-004 (2026-07-16):** para **refeição** **não** haverá bloqueio físico via HikCentral (nem no roadmap). O modelo da cantina é **bloqueio operacional assistido** (terminal = identidade · MAGBO = regra · operador = exceção). Para refeição, a divergência da conclusão 4 é **permanente e por design** (carga de exceção do operador), não "eficácia de bloqueio futuro". As conclusões 1–2 (webhook pós-evento; MAGBO não fecha porta) permanecem integrais. Ver `decisoes/ADR-004-bloqueio-operacional-assistido.md`.
+
 ---
 
 ## 5. CAMADA DE SERVIÇOS
@@ -828,6 +830,13 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ## 16. PROCEDIMENTO OPERACIONAL — BLOQUEIO FÍSICO VIA HIKCENTRAL
 
 **Documento a escrever** (`docs/operacional/procedimento-hikcentral.md`), **não é código**. Conteúdo obrigatório — a ser preenchido **com o Fabiano**, pois depende de decisões operacionais da escola:
+
+> ⚠️ **Refinado por ADR-004 (2026-07-16) — para REFEIÇÃO.** A reunião com o Fabiano decidiu que
+> **não há bloqueio físico via HikCentral para refeição** (nem no roadmap): a cantina opera em
+> **bloqueio operacional assistido** e o HikCentral é **provisionamento puro de pessoas**. Os
+> itens 1–8 abaixo (redação original, orientada a "bloqueio físico via HCP") permanecem válidos
+> como referência para **saída/portail**, mas para refeição o documento vigente é o
+> `procedimento-hikcentral.md` já consolidado (D1–D9). Ver `decisoes/ADR-004-bloqueio-operacional-assistido.md`.
 
 1. **Quem cria os grupos:** definir responsável (Fabiano/SI) e nomenclatura (ex.: `CANTINA-AUTORIZADOS`, `SAIDA-AUTORIZADOS`).
 2. **Como alunos autorizados são incluídos:** processo a partir do MAGBO (`GET /api/admin/meal-entitlements?status=AUTHORIZED` → export CSV) → importação no HikCentral → atribuição ao access level dos terminais REFEI*.

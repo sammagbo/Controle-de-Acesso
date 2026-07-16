@@ -98,38 +98,36 @@ class MealEntitlementFlowIT extends AbstractIT {
     }
 
     /**
-     * ★ BUG DE PRODUCAO CONGELADO — reportado ao Sam em 16/07/2026.
+     * Bug de producao corrigido em 16/07/2026 (Fase B.1): summary() passava
+     * a String "ALUNO" a countByTipoAndAtivoTrue, mas o campo `tipo` e o enum
+     * UserType — o Hibernate 6 rejeitava com InvalidDataAccessApiUsageException
+     * e o endpoint respondia 500 (asercao congelada aqui ate a correcao).
+     * Agora a assinatura recebe UserType e o endpoint responde 200.
      *
-     * MealEntitlementService.summary() (linha 160) chama
-     * userRepository.countByTipoAndAtivoTrue("ALUNO") passando uma String,
-     * mas o campo `tipo` e o enum UserType (@Enumerated(STRING)). O Hibernate 6
-     * rejeita o argumento na validacao de tipo — ANTES de gerar SQL — com
-     * InvalidDataAccessApiUsageException. Como e checagem da camada Hibernate,
-     * e independente de dialeto: o endpoint GET /api/admin/meal-entitlements/
-     * summary responde 500 tambem em PostgreSQL de producao (o card de resumo
-     * do painel da Fase H esta morto).
-     *
-     * NAO corrigido nesta fase (Fase I nao altera producao). A correcao e
-     * trocar por countByTipoAndAtivoTrue(UserType.ALUNO) ou declarar o
-     * parametro como UserType. Quando isso for feito, este teste vai virar
-     * vermelho — sinal para trocar a asercao para 200. NAO e maquiagem: o teste
-     * esta nomeado como bug e documenta o 500 real ate a correcao.
+     * pending e derivado: totalStudents - authorized - notAuthorized
+     * (aluno sem linha de entitlement = dado nao preenchido).
      */
     @Test
-    @DisplayName("★ CONGELADO: GET /summary lanca type-mismatch do Hibernate (bug reportado)")
-    void summaryQuebraPorBugDeTipo() throws Exception {
+    @DisplayName("GET /summary -> 200 com contagens corretas (bug de tipo corrigido)")
+    void summaryRetornaContagensCorretas() throws Exception {
+        userRepository.save(TestFixtures.aluno(TestFixtures.EMPLOYEE_PILOTO, null));
+        userRepository.save(TestFixtures.aluno("9990001", null));
+        userRepository.save(TestFixtures.aluno("9990002", null));
+        userRepository.save(TestFixtures.alunoInativo("9990003", null));
+        mealEntitlementRepository.save(TestFixtures.entitlement(
+                TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED));
+        mealEntitlementRepository.save(TestFixtures.entitlement(
+                "9990001", EntitlementStatus.NOT_AUTHORIZED));
+
         String token = TestAuthHelper.loginAdmin(mockMvc);
 
-        // MockMvc re-lanca a excecao nao-tratada (num container real, o
-        // BasicErrorController mapearia para 500). Congelamos a excecao em si:
-        // e a prova mais direta do bug de tipo em summary().
-        assertThat(org.assertj.core.api.Assertions.catchThrowable(() ->
-                mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/meal-entitlements/summary")
-                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))))
-                .cause()
-                .isInstanceOf(org.springframework.dao.InvalidDataAccessApiUsageException.class)
-                .hasMessageContaining("did not match parameter type")
-                .hasMessageContaining("UserType");
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/meal-entitlements/summary")
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalStudents").value(3))
+                .andExpect(jsonPath("$.authorized").value(1))
+                .andExpect(jsonPath("$.notAuthorized").value(1))
+                .andExpect(jsonPath("$.pending").value(1));
     }
 
     @Test

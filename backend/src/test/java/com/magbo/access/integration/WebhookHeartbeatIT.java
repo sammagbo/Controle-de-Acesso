@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * de boot. Nada disso pode poluir access_logs NEM access_attempts.
  *
  * NOTA DE FIACAO: os 0 attempts vem do guard do CONTROLLER
- * (HikvisionWebhookController:81 — employeeNoString null/vazio -> 200 sem
+ * (HikvisionWebhookController:81 — employeeNoString null/em branco -> 200 sem
  * processar), nao do classificador. Um subtipo 21 que TROUXESSE identidade
  * cairia no ramo !isAccessCandidate e geraria attempt — ver o caso congelado
  * em AccessDecisionServiceTest#subtipoDesconhecidoGravaDeviceDeniedIndevidamente.
@@ -68,28 +68,24 @@ class WebhookHeartbeatIT extends AbstractIT {
     }
 
     /**
-     * CONGELAMENTO DE ACHADO — o guard do controller usa isEmpty(), nao
-     * isBlank(). Um employeeNoString de espacos passa do guard, chega ao
-     * AccessAttemptService — que LANCA (employeeNoRaw blank) — e o controller
-     * responde 500.
-     *
-     * Por que importa: os MinMoe ENFILEIRAM e reenviam eventos quando o
-     * destino responde erro (observado 2x em bancada). Um payload assim
-     * entraria em loop de retry eterno. Reportado ao Sam em 15/07/2026;
-     * o hardware real nunca enviou espacos ate hoje, entao o congelamento
-     * documenta o comportamento sem corrigi-lo nesta fase.
+     * Achado corrigido em 16/07/2026 (Fase B.1): o guard do controller usava
+     * isEmpty(), um employeeNoString de espacos passava e o controller
+     * respondia 500 — e os MinMoe ENFILEIRAM e reenviam eventos quando o
+     * destino responde erro (observado 2x em bancada), risco de loop de retry
+     * eterno. Com isBlank() o payload e ignorado como os demais ruidos: 200
+     * sem processar, nada persiste.
      */
     @Test
-    @DisplayName("CONGELADO: employeeNoString de espacos passa do guard e responde 500")
-    void employeeNoDeEspacosResultaEm500() throws Exception {
+    @DisplayName("employeeNoString de espacos -> 200 ignorado, 0 logs, 0 attempts")
+    void employeeNoDeEspacosEhIgnorado() throws Exception {
         String payload = TestFixtures.withEmployeeNo(TestFixtures.payload("door-21.txt"), " ");
 
         mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_CANTINA_ENTRADA))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count()).isZero();
         assertThat(accessAttemptRepository.count())
-                .as("o record() lanca antes de salvar: nada persiste")
+                .as("o guard do controller ignora antes de processar: nada persiste")
                 .isZero();
     }
 }

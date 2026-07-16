@@ -7,6 +7,7 @@ import com.magbo.access.models.DenialReason;
 import com.magbo.access.models.EntitlementStatus;
 import com.magbo.access.models.MealEntitlement;
 import com.magbo.access.models.MealEntitlementEvent;
+import com.magbo.access.models.UserType;
 import com.magbo.access.repositories.MealEntitlementEventRepository;
 import com.magbo.access.repositories.MealEntitlementRepository;
 import com.magbo.access.repositories.UserRepository;
@@ -157,7 +158,7 @@ public class MealEntitlementService {
     public Map<String, Long> summary() {
         long authorized = mealEntitlementRepository.countByStatus(EntitlementStatus.AUTHORIZED);
         long notAuthorized = mealEntitlementRepository.countByStatus(EntitlementStatus.NOT_AUTHORIZED);
-        long totalStudents = userRepository.countByTipoAndAtivoTrue("ALUNO");
+        long totalStudents = userRepository.countByTipoAndAtivoTrue(UserType.ALUNO);
         long pending = totalStudents - authorized - notAuthorized;
 
         return Map.of(

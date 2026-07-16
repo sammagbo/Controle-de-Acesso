@@ -78,7 +78,7 @@ public class HikvisionWebhookController {
                 terminalIp = request.getRemoteAddr();
             }
 
-            if (event == null || event.getEmployeeNoString() == null || event.getEmployeeNoString().isEmpty()) {
+            if (event == null || event.getEmployeeNoString() == null || event.getEmployeeNoString().isBlank()) {
                 log.warn("Payload ignored: no employeeNoString");
                 return ResponseEntity.ok("Success");
             }

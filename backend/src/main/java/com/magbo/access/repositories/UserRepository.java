@@ -1,6 +1,7 @@
 package com.magbo.access.repositories;
 
 import com.magbo.access.models.User;
+import com.magbo.access.models.UserType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,7 +13,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     java.util.List<User> findByResponsavelId(String responsavelId);
     java.util.List<User> findByAtivoTrue();
     java.util.List<User> findByAtivoFalse();
-    long countByTipoAndAtivoTrue(String tipo);
+    long countByTipoAndAtivoTrue(UserType tipo);
 
     // Busca por nome OU turma OU id (case-insensitive), só ativos
     @org.springframework.data.jpa.repository.Query("""

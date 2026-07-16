@@ -82,9 +82,9 @@ class PermissionsIT extends AbstractIT {
         String token = TestAuthHelper.login(mockMvc, OP_USER, OP_PASS);
 
         // GET /{userId} (getOrPending -> findById) prova o "pode ler por setor".
-        // NAO usar /summary aqui: esse endpoint quebra por um bug de tipo de
-        // producao (ver MealEntitlementFlowIT#summaryQuebraPorBugDeTipo) e
-        // mascararia o que este teste realmente valida (leitura autorizada).
+        // NAO usar /summary aqui: o comportamento dele ja e coberto por
+        // MealEntitlementFlowIT#summaryRetornaContagensCorretas e misturaria
+        // outra logica ao que este teste realmente valida (leitura autorizada).
         mockMvc.perform(MockMvcRequestBuilders.get(
                                 "/api/admin/meal-entitlements/" + TestFixtures.EMPLOYEE_PILOTO)
                         .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))

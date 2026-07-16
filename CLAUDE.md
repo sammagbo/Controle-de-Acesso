@@ -29,13 +29,20 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 4. 2 WARNs `SECURITY [prod]` no PC são normais; na VM seriam erro de config.
 5. Health: `Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing | Select -ExpandProperty Content` → `"database":"CONNECTED"`.
 6. **IPs dançam** (PC .7→.14→.12; terminal .17→.14 em 3 dias). Pedir reserva DHCP ao SI. Toda sessão: `ipconfig` + IP no display do terminal + conferir `Écoute HTTP` e `door_mappings`.
+7. **Testes (Fase I):** a env var `MAGBO_WEBHOOK_TOKEN` (do `setx` no PC) **vence** o `application-test.properties` no mesmo processo — os ITs precisaram fixar o token via `@SpringBootTest(properties=...)` para não pegar o do ambiente. Na VM o token vem do `.env`. Rodar a suíte com `mvn test` (o surefire já inclui `*IT.java`).
 
-## Estado atual (2026-07-10, commit `0f655b4`)
-- Pipeline **validado ponta a ponta com hardware**: rosto → multipart → parse → token (?token=) → mapping por IP → AccessLog `REFEI1/fallback=false`.
-- F6a (captura) e F6b (parse tolerante + token query) commitados e validados.
-- Absorvidos no main (NÃO refazer): busca backend-driven (userCache + eventos `user-cache-updated`), remoção do mockData, Dashboard 2.0, D4, Fase 3 segurança, F5a AreaMapping, F5b anti-poluição.
-- Pendentes: T8 (bateria 13/07) → F5c dedupe → F5d classificação de eventos → flags refinadas + política + rename `blockedToday`→`alertasHoje` → docs/implantacao (commit) → VM.
-- Detalhes: `docs/architecture/relatorio-auditoria-2026-07-10.md` e `docs/testing/plano-2026-07-13.md`.
+## Estado atual (2026-07-16)
+- **Camada de decisão implementada (Fases A–K da `docs/architecture/ESPECIFICACAO-TECNICA-v1.md`).** Fases A–H commitadas (HEAD `ff41ed1`); Fases I (testes) e J (migrations) implementadas, ainda **não commitadas**. Validação com hardware (bateria V01–V14) **pendente** — só após `mvn test` verde.
+- **Regra estrutural:** `access_logs` = acesso **efetivo/autorizado** · `access_attempts` = tudo **tentado e negado** (ADR-001). Nenhuma query legada de `access_logs` mudou.
+- **Novas tabelas:** `access_attempts`, `meal_entitlements`, `meal_entitlement_events` (histórico), `student_exit_permissions`; + coluna aditiva `system_users.permissoes` (CSV granular, nullable).
+- **Taxonomia de 4 eixos** em `access_attempts`: método (`auth_method` FACE/CARD/UNKNOWN) · resultado físico do terminal (`auth_result`) · decisão do MAGBO (`authorization_result`) · motivo (`denial_reason`).
+- **MAGBO é observacional:** o webhook é pós-evento; **não bloqueia porta** (ADR-003). Bloqueio físico só via HikCentral. Divergência física×lógica medida por `divergenciaHoje` (`auth_result=SUCCESS` E `authorization_result=DENIED`).
+- **Políticas por properties** (sem recompilar) `magbo.policy.*`: meal-not-entitled, meal-pending, outside-meal-time, duplicate-meal, exit-not-authorized, user-inactive, missing-door-mapping + `magbo.dedup.{enabled,window-seconds}`. Piloto: negadas de refeição=DENY, alertas=OBSERVATION.
+- **Whitelist rígida de subtipos:** só 75(face)/1(cartão) geram `access_logs`; 8 e desconhecidos → `access_attempts`. `auth_method` gravado em `access_logs`.
+- **Testes automatizados existem (Fase I):** `mvn test` → 183 testes, 0 falhas (7 unitários + 17 ITs). ⚠️ o `pom.xml` tem `maven-surefire-plugin` com `<include>*IT.java` — **sem isso o Surefire pula os 17 ITs em silêncio**. 2 queries nativas PostgreSQL-only ficam `@Disabled` (H2 não roda) → conferência manual obrigatória na V13.
+- **Dívidas conhecidas (congeladas em teste, NÃO corrigir sem decisão):** (1) `/meal-entitlements/summary` responde **500** — `MealEntitlementService.summary()` passa `"ALUNO"` String a `countByTipoAndAtivoTrue`, mas `tipo` é enum `UserType` (congelado em `MealEntitlementFlowIT#summaryQuebraPorBugDeTipo`); (2) `DEVICE_DENIED` gravado p/ subtipos desconhecidos (falta `UNKNOWN_EVENT` no enum) — polui `divergenciaHoje`; (3) guard `isEmpty()` vs `isBlank()` no webhook — `employeeNoString` só de espaços vira 500 (risco retry-storm); (4) endpoints `@PreAuthorize` sem token devolvem **403**, não 401 (só o webhook devolve 401).
+- **SQL versionado** em `deploy/migrations/` (Fase J); Flyway **não** adotado ainda (decisão registrada no README das migrations).
+- Detalhes: spec `ESPECIFICACAO-TECNICA-v1.md`, ADRs em `docs/architecture/decisoes/`, bateria em `docs/testing/plano-validacao-estrutural.md`. Histórico: `docs/architecture/relatorio-auditoria-2026-07-10.md` e `docs/testing/plano-2026-07-13.md`.
 
 ## Onde procurar
 - Padrões por área: `.claude/rules/`

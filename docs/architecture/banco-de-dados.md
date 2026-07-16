@@ -1,9 +1,15 @@
 # Banco de dados (magbodb @ PC)
 
 - **app_users**: id PK(String), nome, tipo(ALUNO/PROFESSOR/FUNCIONARIO), turma, foto_url, responsavel_id, responsavel2_id, meal_count(dormante), ativo, hikvision_employee_id UNIQUE.
-- **access_logs**: id BIGSERIAL, user_id, point_id, action(ENTRADA/SAIDA), timestamp(local BRT, sem tz), created_by_user(nulo=webhook), flag(≤32: FORA_HORARIO|EXCEDEU_TEMPO|null).
+- **access_logs**: id BIGSERIAL, user_id, point_id, action(ENTRADA/SAIDA), timestamp(local BRT, sem tz), created_by_user(nulo=webhook), flag(≤32: FORA_HORARIO|EXCEDEU_TEMPO|null), **auth_method**(F1: FACE/CARD/UNKNOWN), **hikvision_sub_event_type**(F1: INTEGER). Só acesso efetivo/autorizado — negadas vão para `access_attempts`.
 - **door_mappings**: id, terminal_ip, door_no(NULL p/ match por IP — constraint local já corrigida via ALTER), reader_no, point_id, action, label, ativo, created_at, updated_at. Seeds: .167→PORT1/ENTRADA, .166→PORT1/SAIDA. Bench: id15 = terminal de mesa→REFEI1/ENTRADA (IP volátil!).
 - **class_schedules**: classe PK, lun/mar/mer/jeu/ven_midi VARCHAR(8) — hora de início da janela; 'N' = dia sem refeição (gera FORA_HORARIO).
 - **responsaveis**: id, nome, parentesco, telefone, foto_url.
-- **system_users**: operadores (username UNIQUE, senha BCrypt, role, setoresPermitidos, ativo…).
-Notas: ddl-auto=update (aditivo); data.sql é H2-only (falha silenciosa em prod); dumps p/ VM somente após correções de schema.
+- **system_users**: operadores (username UNIQUE, senha BCrypt, role, setoresPermitidos, ativo…), + **permissoes**(VARCHAR 255, nullable — CSV granular MEAL_ENTITLEMENT_WRITE/EXIT_PERMISSION_WRITE/ATTEMPTS_READ/`*`; null não remove acesso).
+
+## Tabelas da camada de decisão (Fases A–J)
+- **access_attempts**: id BIGSERIAL, user_id(NULL p/ UNKNOWN_USER, sem FK), employee_no_raw(NOT NULL, zeros preservados), nome_snapshot, point_id, action, terminal_ip, auth_method, auth_result(NOT NULL), authorization_result(NOT NULL), denial_reason(NOT NULL), hikvision_sub_event_type, timestamp(NOT NULL, hora do servidor), door_mapping_fallback. Tentativas negadas — **nunca** em access_logs.
+- **meal_entitlements**: user_id PK(String), status(NOT NULL), valid_from, valid_until, note, `days_of_week`/`meal_type`(reservados, IGNORADOS pela regra atual), updated_by, updated_at(NOT NULL), created_at(NOT NULL). **Sem linha = PENDING** (não negado); nunca criar linha no webhook.
+- **meal_entitlement_events**: id, user_id(NOT NULL), old_status, new_status(NOT NULL), old/new_valid_from/until, changed_by(NOT NULL), changed_at(NOT NULL), note, source(NOT NULL). Histórico obrigatório na mesma transação de toda alteração de meal_entitlements.
+- **student_exit_permissions**: id, user_id(NOT NULL), permission_type(NOT NULL), valid_from/until, start_time/end_time(TIME), days_of_week, status(NOT NULL), reason(NOT NULL), note, created_by(NOT NULL), created_at(NOT NULL), revoked_by/at, used_at. Revogação soft; SINGLE consome só em saída efetiva.
+Notas: ddl-auto=update (aditivo); data.sql é H2-only (falha silenciosa em prod); dumps p/ VM somente após correções de schema. CHECK constraints das colunas de enum são gerados pelo Hibernate 6 e espelham os enums Java — **atualizar juntos**. SQL versionado em `deploy/migrations/` (V001..V006 idempotentes; Flyway ainda NÃO adotado). ⚠️ o CHECK de `meal_entitlement_events.source` (UI|BULK|API) é **guarda manual** só na VM — no Java `source` é String livre e o Hibernate não o gera (nem PC nem testes H2 o têm).

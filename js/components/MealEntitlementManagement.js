@@ -114,6 +114,7 @@ function MealEntitlementManagement() {
                   const items = rows.map(r => {
                         // O excel pode ter colunas variadas, vamos tentar encontrar a matrícula ou id
                         const matricula = r['Matricule'] || r['Matricula'] || r['ID'] || r['employeeNo'] || Object.values(r)[0];
+                        // Default AUTHORIZED é INTENCIONAL (D5): o bulk É a lista de autorizados da direção.
                         const statusStr = (r['Statut'] || r['Status'] || 'AUTHORIZED').toUpperCase();
                         let status = 'AUTHORIZED';
                         if (statusStr.includes('NOT') || statusStr.includes('NON') || statusStr.includes('N')) status = 'NOT_AUTHORIZED';
@@ -262,8 +263,9 @@ function MealEntitlementManagement() {
                                           <tbody className="divide-y divide-soft-100">
                                                 {mergedList.map(item => {
                                                       const ent = item.entitlement;
-                                                      const status = ent?.status || 'NOT_AUTHORIZED'; // Default
+                                                      const status = ent?.status || 'PENDING'; // Default: sem dado = En attente (nunca "negado")
                                                       const isAuth = status === 'AUTHORIZED';
+                                                      const isPending = status === 'PENDING';
                                                       
                                                       return (
                                                             <tr key={item.userId} className="hover:bg-soft-50/50 transition-colors">
@@ -284,12 +286,14 @@ function MealEntitlementManagement() {
                                                                               onClick={() => handleToggleStatus(item.userId, status)}
                                                                               disabled={!canEdit}
                                                                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                                                                                    isAuth 
-                                                                                          ? 'bg-success-100 text-success-700 hover:bg-success-200' 
-                                                                                          : 'bg-danger-100 text-danger-700 hover:bg-danger-200'
+                                                                                    isAuth
+                                                                                          ? 'bg-success-100 text-success-700 hover:bg-success-200'
+                                                                                          : isPending
+                                                                                                ? 'bg-warning-100 text-warning-600 hover:opacity-80'
+                                                                                                : 'bg-danger-100 text-danger-700 hover:bg-danger-200'
                                                                               } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                         >
-                                                                              <div className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-success-500' : 'bg-danger-500'}`}></div>
+                                                                              <div className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-success-500' : isPending ? 'bg-warning-500' : 'bg-danger-500'}`}></div>
                                                                               {window.ENTITLEMENT_STATUS_LABELS?.[status] || status}
                                                                         </button>
                                                                   </td>

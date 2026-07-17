@@ -190,11 +190,11 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                                                         <LucideIcon name="map-pin" size={10} />
                                                                         <span className="truncate max-w-[80px]">{pointName}</span>
                                                                   </span>
-                                                                  {getMethodBadge(attempt.method)}
+                                                                  {getMethodBadge(attempt.authMethod)}
                                                             </div>
                                                             
                                                             <div className="mt-1.5">
-                                                                  {getReasonBadge(attempt.reason)}
+                                                                  {getReasonBadge(attempt.denialReason)}
                                                             </div>
                                                       </div>
                                                 </div>

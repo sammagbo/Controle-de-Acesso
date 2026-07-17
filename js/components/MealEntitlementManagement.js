@@ -73,10 +73,15 @@ function MealEntitlementManagement() {
 
             try {
                   const updated = await window.api.putMealEntitlement(userId, payload);
-                  setEntitlements(prev => ({ ...prev, [userId]: updated }));
-                  // Atualizar resumo
-                  const sum = await window.api.getMealEntitlementSummary();
-                  setSummary(sum);
+                  if (updated) {
+                        setEntitlements(prev => ({ ...prev, [userId]: updated }));
+                        const sum = await window.api.getMealEntitlementSummary();
+                        setSummary(sum);
+                  } else {
+                        // 200 sem corpo (contrato do upsert): NUNCA injetar null no
+                        // estado — recarregar a verdade do servidor.
+                        await loadData();
+                  }
             } catch (err) {
                   alert(err.message);
             }

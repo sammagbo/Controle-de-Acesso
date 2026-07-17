@@ -245,7 +245,9 @@ async function putMealEntitlement(userId, payload) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || err.message || 'Erreur lors de la sauvegarde.');
       }
-      return await res.json();
+      // O upsert devolve 200 SEM corpo (ok().build()) — tolerar vazio.
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
 }
 
 async function getMealEntitlementHistory(userId) {

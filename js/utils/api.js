@@ -197,7 +197,7 @@ async function getMealEntitlements(filters = {}) {
       if (filters.page !== undefined) params.set('page', filters.page);
       if (filters.size !== undefined) params.set('size', filters.size);
 
-      const res = await fetch(`${API_BASE}/meal-entitlements?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -209,7 +209,7 @@ async function getMealEntitlements(filters = {}) {
 }
 
 async function getMealEntitlementSummary() {
-      const res = await fetch(`${API_BASE}/meal-entitlements/summary`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements/summary`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -221,7 +221,7 @@ async function getMealEntitlementSummary() {
 }
 
 async function getMealEntitlement(userId) {
-      const res = await fetch(`${API_BASE}/meal-entitlements/${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -234,7 +234,7 @@ async function getMealEntitlement(userId) {
 }
 
 async function putMealEntitlement(userId, payload) {
-      const res = await fetch(`${API_BASE}/meal-entitlements/${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements/${encodeURIComponent(userId)}`, {
             method: 'PUT',
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -249,7 +249,7 @@ async function putMealEntitlement(userId, payload) {
 }
 
 async function getMealEntitlementHistory(userId) {
-      const res = await fetch(`${API_BASE}/meal-entitlements/${encodeURIComponent(userId)}/history`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements/${encodeURIComponent(userId)}/history`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -261,7 +261,7 @@ async function getMealEntitlementHistory(userId) {
 }
 
 async function postMealEntitlementBulk(items, overwrite = false) {
-      const res = await fetch(`${API_BASE}/meal-entitlements/bulk?overwrite=${overwrite}`, {
+      const res = await fetch(`${API_BASE}/admin/meal-entitlements/bulk?overwrite=${overwrite}`, {
             method: 'POST',
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(items)
@@ -289,7 +289,7 @@ async function getExitPermissions(filters = {}) {
       if (filters.page !== undefined) params.set('page', filters.page);
       if (filters.size !== undefined) params.set('size', filters.size);
 
-      const res = await fetch(`${API_BASE}/exit-permissions?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/admin/exit-permissions?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -301,7 +301,7 @@ async function getExitPermissions(filters = {}) {
 }
 
 async function getActiveExitPermissions() {
-      const res = await fetch(`${API_BASE}/exit-permissions/active`, {
+      const res = await fetch(`${API_BASE}/admin/exit-permissions/active`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -313,7 +313,7 @@ async function getActiveExitPermissions() {
 }
 
 async function getExitPermissionsByUser(userId) {
-      const res = await fetch(`${API_BASE}/exit-permissions/user/${encodeURIComponent(userId)}`, {
+      const res = await fetch(`${API_BASE}/admin/exit-permissions/user/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
       checkAuthError(res);
@@ -325,7 +325,7 @@ async function getExitPermissionsByUser(userId) {
 }
 
 async function postExitPermission(payload) {
-      const res = await fetch(`${API_BASE}/exit-permissions`, {
+      const res = await fetch(`${API_BASE}/admin/exit-permissions`, {
             method: 'POST',
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -340,7 +340,7 @@ async function postExitPermission(payload) {
 }
 
 async function revokeExitPermission(id, note) {
-      const res = await fetch(`${API_BASE}/exit-permissions/${encodeURIComponent(id)}/revoke`, {
+      const res = await fetch(`${API_BASE}/admin/exit-permissions/${encodeURIComponent(id)}/revoke`, {
             method: 'POST',
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify({ note })

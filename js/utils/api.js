@@ -434,12 +434,21 @@ async function getAllAttempts() {
       return page?.content || [];
 }
 
-// Liga as funções do feed ao window.api — o CantineMonitor consome
-// window.api.getRefectoryAttempts; sem esta ligação (esquecida na Fase H)
-// o feed caía SEMPRE no fallback vazio e nunca exibia tentativa nenhuma.
+// Liga as funções da Fase H ao window.api — os componentes consomem
+// window.api.X; sem esta ligação (esquecida na Fase H) os feeds caíam no
+// fallback vazio e as telas de gestão (Droits Repas / Sorties) nunca
+// carregaram dados pela UI. Inventário completo fechado em 17/07 (10 órfãs).
 if (window.api) {
       window.api.getRefectoryAttempts = getRefectoryAttempts;
       window.api.getGateAttempts = getGateAttempts;
       window.api.getAllAttempts = getAllAttempts;
+      window.api.getMealEntitlements = getMealEntitlements;
+      window.api.getMealEntitlementSummary = getMealEntitlementSummary;
+      window.api.putMealEntitlement = putMealEntitlement;
+      window.api.postMealEntitlementBulk = postMealEntitlementBulk;
+      window.api.getMealEntitlementHistory = getMealEntitlementHistory;
+      window.api.getActiveExitPermissions = getActiveExitPermissions;
+      window.api.postExitPermission = postExitPermission;
+      window.api.revokeExitPermission = revokeExitPermission;
 }
 

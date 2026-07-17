@@ -420,3 +420,11 @@ async function getGateAttempts() {
       return await res.json();
 }
 
+// Liga as funções do feed ao window.api — o CantineMonitor consome
+// window.api.getRefectoryAttempts; sem esta ligação (esquecida na Fase H)
+// o feed caía SEMPRE no fallback vazio e nunca exibia tentativa nenhuma.
+if (window.api) {
+      window.api.getRefectoryAttempts = getRefectoryAttempts;
+      window.api.getGateAttempts = getGateAttempts;
+}
+

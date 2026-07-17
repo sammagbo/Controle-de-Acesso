@@ -179,23 +179,29 @@ function NewExitPermissionModal({ onClose, onSaved }) {
             if (!userId) return alert('Informe a matrícula do aluno.');
             setSaving(true);
 
+            // Espelha o ExitPermissionRequest do backend EXATAMENTE:
+            // permissionType / reason / note / validFrom-validUntil como LocalDate
+            // (YYYY-MM-DD) / startTime-endTime como LocalTime / daysOfWeek CSV.
             const payload = {
                   userId,
-                  type,
-                  authorizedByGuardian: authorizedBy,
-                  notes,
+                  permissionType: type,
+                  reason: authorizedBy,
+                  note: notes || null,
             };
 
             if (type === 'SINGLE') {
-                  payload.validFrom = new Date(validFrom).toISOString();
-                  payload.validUntil = new Date(validUntil).toISOString();
+                  payload.validFrom = validFrom.slice(0, 10);   // datetime-local -> YYYY-MM-DD
+                  payload.validUntil = validUntil.slice(0, 10);
+                  payload.startTime = validFrom.slice(11, 16) || null; // hora da saída
+                  payload.endTime = validUntil.slice(11, 16) || null;  // retorno máx
             } else {
-                  payload.startTime = startTime + ':00';
-                  payload.endTime = endTime + ':00';
-                  payload.allowedDays = Object.keys(days).filter(k => days[k]);
-                  // Para recurring infinito (ano letivo), o backend deve tratar datas default, ou passamos
-                  payload.validFrom = new Date().toISOString();
-                  payload.validUntil = new Date(new Date().getFullYear(), 11, 31).toISOString(); // Fim do ano
+                  payload.startTime = startTime;
+                  payload.endTime = endTime;
+                  payload.daysOfWeek = Object.keys(days).filter(k => days[k]).join(',');
+                  // Recorrente vale do dia atual até o fim do ano letivo civil
+                  const now = new Date();
+                  payload.validFrom = now.toISOString().slice(0, 10);
+                  payload.validUntil = `${now.getFullYear()}-12-31`;
             }
 
             try {

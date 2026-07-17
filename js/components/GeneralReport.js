@@ -1109,7 +1109,11 @@ function OverviewTab() {
 
                     {/* ── Tentatives Refusées ── */}
                     <div className="mt-6">
-                        <DeniedAttemptsFeed />
+                        <DeniedAttemptsFeed
+                            title="Tentatives refusées — tous les points"
+                            emptyMessage="Aucune tentative refusée"
+                            fetchFn={window.api?.getAllAttempts || (async () => [])}
+                        />
                     </div>
                 </>
             )}

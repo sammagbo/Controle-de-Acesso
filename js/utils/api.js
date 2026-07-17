@@ -420,11 +420,26 @@ async function getGateAttempts() {
       return await res.json();
 }
 
+async function getAllAttempts() {
+      // Endpoint GERAL (todos os pontos) — devolve Page paginado; o feed usa o .content
+      const res = await fetch(`${API_BASE}/access/attempts?size=50`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            // Se 403 ou erro, retorna lista vazia silenciosamente (para não quebrar polling)
+            return [];
+      }
+      const page = await res.json();
+      return page?.content || [];
+}
+
 // Liga as funções do feed ao window.api — o CantineMonitor consome
 // window.api.getRefectoryAttempts; sem esta ligação (esquecida na Fase H)
 // o feed caía SEMPRE no fallback vazio e nunca exibia tentativa nenhuma.
 if (window.api) {
       window.api.getRefectoryAttempts = getRefectoryAttempts;
       window.api.getGateAttempts = getGateAttempts;
+      window.api.getAllAttempts = getAllAttempts;
 }
 

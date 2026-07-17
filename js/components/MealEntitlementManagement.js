@@ -139,16 +139,7 @@ function MealEntitlementManagement() {
             }
       };
 
-      // Obter dados mesclados cache + entitlements
-      const allUsers = window.userCache?.all() || [];
-      // Filtragem local baseada na busca (pois API retorna paginado)
-      let displayUsers = allUsers.filter(u => {
-            if (filterTurma && u.turma !== filterTurma) return false;
-            if (searchTerm && !u.nome.toLowerCase().includes(searchTerm.toLowerCase()) && !u.userId.includes(searchTerm)) return false;
-            return true;
-      });
-
-      // Se API já retornou algo, usamos as chaves da API para ter a página correta, 
+      // Se API já retornou algo, usamos as chaves da API para ter a página correta,
       // ou misturamos com cache local para mostrar usuários que ainda não tem registro de entitlement (fallback para default).
       // Para manter simples e robusto: exibimos a lista da API, enriquecida com o userCache.
       const apiUserIds = Object.keys(entitlements);

@@ -40,6 +40,14 @@ window.playSuccessBeep = () => {
 };
 
 /**
+ * Bipe único e discreto — item novo no feed de negadas (F7a).
+ * 1 bipe por LOTE de itens novos; volume baixo para não assustar a fila.
+ */
+window.playDeniedFeedBeep = () => {
+      playTone(880, 'sine', 0.18, 0.25);
+};
+
+/**
  * Toca dois bipes graves curtos (Acesso Negado / Erro)
  */
 window.playErrorBeep = () => {

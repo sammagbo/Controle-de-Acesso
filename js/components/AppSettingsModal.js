@@ -182,7 +182,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
             tipo: manualForm.tipo,
             turma: manualForm.turma,
             horarioSaida: manualForm.horario_saida,
-            fotoUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${manualForm.nome.replace(' ', '')}&backgroundColor=10B981`
+            // F7c: sem fotoUrl — o data-URI do localAvatar não cabe em foto_url varchar(255);
+            // a exibição usa o fallback local (normaliseUser/handleImgError) com o mesmo visual.
         };
 
         if (manualForm.tipo === 'RESPONSAVEL') {

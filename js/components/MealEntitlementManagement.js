@@ -154,7 +154,7 @@ function MealEntitlementManagement() {
       const apiUserIds = Object.keys(entitlements);
       const mergedList = apiUserIds.map(uid => {
             const ent = entitlements[uid];
-            const cachedUser = window.userCache?.byId(uid) || { userId: uid, nome: uid, turma: 'Inconnu', foto_url: `https://api.dicebear.com/7.x/initials/svg?seed=${uid}` };
+            const cachedUser = window.userCache?.byId(uid) || { userId: uid, nome: uid, turma: 'Inconnu', foto_url: window.localAvatar(uid) };
             return {
                   ...cachedUser,
                   entitlement: ent

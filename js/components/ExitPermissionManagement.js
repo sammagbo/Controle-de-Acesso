@@ -95,7 +95,7 @@ function ExitPermissionManagement() {
                                                 {permissions.map(perm => {
                                                       const user = window.userCache?.byId(perm.userId);
                                                       const userName = user ? user.nome : perm.userId;
-                                                      const photoUrl = user ? user.foto_url : `https://api.dicebear.com/7.x/initials/svg?seed=${perm.userId}`;
+                                                      const photoUrl = user ? user.foto_url : window.localAvatar(perm.userId);
                                                       const typeLabel = window.EXIT_PERMISSION_TYPE_LABELS?.[perm.type] || perm.type;
 
                                                       return (

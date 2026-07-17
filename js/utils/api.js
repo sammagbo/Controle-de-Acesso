@@ -14,7 +14,7 @@ function normaliseUser(raw) {
             nome:            raw.nome,
             tipo:            raw.tipo,
             turma:           raw.turma   || null,
-            foto_url:        raw.fotoUrl || raw.foto_url || 'https://api.dicebear.com/7.x/initials/svg?seed=' + (raw.nome || 'U'),
+            foto_url:        raw.fotoUrl || raw.foto_url || window.localAvatar(raw.nome || 'U'),
             responsavel_id:  raw.responsavelId || raw.responsavel_id || null,
             mealCount:       raw.mealCount || 0,
       };
@@ -32,7 +32,7 @@ function normaliseResponsavel(raw) {
             parentesco: raw.parentesco || null,
             telefone:   raw.telefone   || null,
             foto_url:   raw.fotoUrl || raw.foto_url
-                        || 'https://api.dicebear.com/7.x/initials/svg?seed=' + (raw.nome || 'R'),
+                        || window.localAvatar(raw.nome || 'R'),
       };
 }
 

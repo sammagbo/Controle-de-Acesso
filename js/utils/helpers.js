@@ -72,8 +72,26 @@ function formatDuration(ms) {
 /** Default fallback for missing TIPO_LABELS entries */
 const TIPO_LABEL_FALLBACK = { label: 'Desconhecido', color: 'bg-slate-400', textColor: 'text-white' };
 
-/** Default avatar URL for broken/missing images */
-const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/initials/svg?seed=?&backgroundColor=94a3b8';
+/** Palette for local avatars (MAGBO tokens) — deterministic per seed */
+const AVATAR_BG_COLORS = ['#2E3F66', '#3AA3B0', '#2563EB', '#059669', '#D97706', '#576585'];
+
+/** Local avatar generator (F7c) — inline SVG data-URI with initials, zero network.
+ *  Replaces the api.dicebear.com fallback (broken images on offline kiosk). */
+function localAvatar(seed, bg) {
+      const s = String(seed || '?').trim() || '?';
+      const parts = s.split(/\s+/).filter(Boolean);
+      const initials = (parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : s.slice(0, 2))
+            .toUpperCase().replace(/[&<>]/g, '?');
+      let hash = 0;
+      for (let i = 0; i < s.length; i++) hash = (hash + s.charCodeAt(i)) % 997;
+      const fill = bg || AVATAR_BG_COLORS[hash % AVATAR_BG_COLORS.length];
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="${fill}"/><text x="32" y="32" dy=".35em" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">${initials}</text></svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+window.localAvatar = localAvatar;
+
+/** Default avatar for broken/missing images (local SVG — F7c) */
+const DEFAULT_AVATAR = localAvatar('?', '#94a3b8');
 
 /** onError handler for <img> tags — swaps to default avatar */
 function handleImgError(e) {

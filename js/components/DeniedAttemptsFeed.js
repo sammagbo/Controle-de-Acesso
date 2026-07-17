@@ -7,6 +7,12 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
       const [attempts, setAttempts] = React.useState([]);
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState(false);
+      // F7a — destaque + som para itens novos entre polls
+      const [newIds, setNewIds] = React.useState(() => new Set());
+      const [soundOn, setSoundOn] = React.useState(() => localStorage.getItem('magbo_feed_sound') !== 'off');
+      const knownIdsRef = React.useRef(null); // null = primeira carga ainda não aconteceu
+      const soundOnRef = React.useRef(soundOn);
+      React.useEffect(() => { soundOnRef.current = soundOn; }, [soundOn]);
 
       React.useEffect(() => {
             let active = true;
@@ -14,7 +20,26 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                   try {
                         const data = await fetchFn();
                         if (active) {
-                              setAttempts(Array.isArray(data) ? data : []);
+                              const list = Array.isArray(data) ? data : [];
+                              // F7a: detectar itens novos comparando ids com o poll anterior
+                              // (knownIdsRef null na primeira carga → nunca dispara no load inicial)
+                              if (knownIdsRef.current !== null) {
+                                    const fresh = list.filter(a => !knownIdsRef.current.has(a.id)).map(a => a.id);
+                                    if (fresh.length > 0) {
+                                          setNewIds(prev => new Set([...prev, ...fresh]));
+                                          if (soundOnRef.current) window.playDeniedFeedBeep?.(); // 1 bipe por lote
+                                          setTimeout(() => {
+                                                if (!active) return;
+                                                setNewIds(prev => {
+                                                      const next = new Set(prev);
+                                                      fresh.forEach(id => next.delete(id));
+                                                      return next;
+                                                });
+                                          }, 8000);
+                                    }
+                              }
+                              knownIdsRef.current = new Set(list.map(a => a.id));
+                              setAttempts(list);
                               setError(false);
                         }
                   } catch (err) {
@@ -83,11 +108,25 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                               <LucideIcon name="shield-alert" size={18} className="text-danger-600" />
                               <h3 className="text-sm font-black text-danger-700 uppercase tracking-wide">{title}</h3>
                         </div>
-                        {attempts.length > 0 && (
-                              <span className="bg-danger-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    {attempts.length}
-                              </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                              {/* F7a — toggle de som (preferência do operador, persiste em localStorage) */}
+                              <button
+                                    onClick={() => setSoundOn(prev => {
+                                          const next = !prev;
+                                          localStorage.setItem('magbo_feed_sound', next ? 'on' : 'off');
+                                          return next;
+                                    })}
+                                    title={soundOn ? 'Som ligado (clique para desligar)' : 'Som desligado (clique para ligar)'}
+                                    className={`p-1 rounded-lg transition-colors ${soundOn ? 'text-danger-600 hover:bg-danger-100' : 'text-slate-300 hover:bg-slate-100'}`}
+                              >
+                                    <LucideIcon name={soundOn ? 'volume-2' : 'volume-x'} size={16} />
+                              </button>
+                              {attempts.length > 0 && (
+                                    <span className="bg-danger-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                          {attempts.length}
+                                    </span>
+                              )}
+                        </div>
                   </div>
                   
                   <div className="p-3 flex-1 overflow-y-auto">
@@ -112,7 +151,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                           let userName = attempt.employeeNoRaw;
                                           let userTurma = null;
                                           let isUnknown = true;
-                                          let photoUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${attempt.employeeNoRaw || 'U'}`;
+                                          let photoUrl = localAvatar(attempt.employeeNoRaw || 'U');
 
                                           if (attempt.userId) {
                                                 const user = window.userCache?.byId(attempt.userId);
@@ -129,9 +168,11 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                           const pointInfo = window.ACCESS_POINTS?.find(p => p.id === attempt.pointId);
                                           const pointName = pointInfo ? pointInfo.nome : attempt.pointId;
 
+                                          const isNew = newIds.has(attempt.id); // F7a — destaque ~8s
+
                                           return (
-                                                <div key={attempt.id} className="flex gap-3 p-2 rounded-xl border border-danger-100 bg-white hover:bg-danger-50/50 transition-colors">
-                                                      <img src={photoUrl} className="w-10 h-10 rounded-lg flex-shrink-0 border border-slate-200" onError={e => { e.target.src = 'https://api.dicebear.com/7.x/initials/svg?seed=Err'; }} />
+                                                <div key={attempt.id} className={`flex gap-3 p-2 rounded-xl border transition-colors ${isNew ? 'border-danger-400 bg-danger-50 ring-2 ring-danger-300 animate-pulse' : 'border-danger-100 bg-white hover:bg-danger-50/50'}`}>
+                                                      <img src={photoUrl} className="w-10 h-10 rounded-lg flex-shrink-0 border border-slate-200" onError={handleImgError} />
                                                       <div className="flex-1 min-w-0">
                                                             <div className="flex items-start justify-between gap-2">
                                                                   <p className={`text-sm font-bold truncate ${isUnknown ? 'text-slate-500 italic' : 'text-navy-600'}`}>

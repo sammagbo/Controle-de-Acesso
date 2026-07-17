@@ -356,7 +356,7 @@ function ParEleveTab() {
 
     const u = selected?.user || selected;
     const lastMove = logs.length > 0 ? logs[0] : null;
-    const foto = u?.foto_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u?.nome || 'U')}`;
+    const foto = u?.foto_url || window.localAvatar(u?.nome || 'U');
     const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 bg-white';
     const periodBtns = [
         { id: 'today', label: "Aujourd'hui" },
@@ -385,8 +385,7 @@ function ParEleveTab() {
                     <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-soft-200 shadow-lg overflow-hidden">
                         {results.map((hit, i) => {
                             const hu = hit.user || hit;
-                            const hFoto = hu.foto_url ||
-                                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(hu.nome || 'U')}`;
+                            const hFoto = hu.foto_url || window.localAvatar(hu.nome || 'U');
                             return (
                                 <button
                                     key={hu.id || i}
@@ -395,7 +394,7 @@ function ParEleveTab() {
                                 >
                                     <img src={hFoto} alt=""
                                         className="w-8 h-8 rounded-full object-cover bg-soft-100 shrink-0"
-                                        onError={e => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(hu.nome || 'U')}`; }}
+                                        onError={e => { e.target.onerror = null; e.target.src = window.localAvatar(hu.nome || 'U'); }}
                                     />
                                     <span className="font-bold text-sm text-navy-500 flex-1 truncate">{hu.nome}</span>
                                     <span className="text-xs text-slate-400 shrink-0">{hu.turma || '—'}</span>
@@ -421,7 +420,7 @@ function ParEleveTab() {
                     <div className="flex items-center gap-4 bg-soft-50 rounded-2xl p-4 mb-4 border border-soft-200">
                         <img src={foto} alt=""
                             className="w-14 h-14 rounded-2xl object-cover bg-soft-200 shrink-0"
-                            onError={e => { e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.nome || 'U')}`; }}
+                            onError={e => { e.target.onerror = null; e.target.src = window.localAvatar(u.nome || 'U'); }}
                         />
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-navy-500 text-base truncate">{u.nome}</p>

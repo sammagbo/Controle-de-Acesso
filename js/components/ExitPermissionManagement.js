@@ -131,8 +131,8 @@ function ExitPermissionManagement() {
                                                                         </div>
                                                                   </td>
                                                                   <td className="px-6 py-3">
-                                                                        <div className="text-xs font-medium text-slate-700">{perm.authorizedByGuardian}</div>
-                                                                        {perm.notes && <div className="text-[10px] text-slate-500 italic mt-0.5">{perm.notes}</div>}
+                                                                        <div className="text-xs font-medium text-slate-700">{perm.reason}</div>
+                                                                        {perm.note && <div className="text-[10px] text-slate-500 italic mt-0.5">{perm.note}</div>}
                                                                   </td>
                                                                   <td className="px-6 py-3 text-right">
                                                                         <button 

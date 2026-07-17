@@ -128,7 +128,7 @@ function MealEntitlementManagement() {
                   if (items.length === 0) throw new Error("Aucune donnée valide trouvée.");
 
                   const result = await window.api.postMealEntitlementBulk(items, true); // true = overwrite
-                  alert(`Import terminé!\nTraités: ${result.processed}\nSuccès: ${result.successes}\nErreurs: ${result.failures}`);
+                  alert(`Import terminé!\nReçus: ${result.totalRecebido}\nCréés: ${result.totalCriado}\nMis à jour: ${result.totalAtualizado}\nIgnorés: ${result.totalIgnorado}\nErreurs: ${result.totalFalhas}`);
                   loadData();
 
             } catch (err) {

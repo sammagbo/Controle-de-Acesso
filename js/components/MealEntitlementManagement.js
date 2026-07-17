@@ -145,9 +145,10 @@ function MealEntitlementManagement() {
       const apiUserIds = Object.keys(entitlements);
       const mergedList = apiUserIds.map(uid => {
             const ent = entitlements[uid];
-            const cachedUser = window.userCache?.byId(uid) || { userId: uid, nome: uid, turma: 'Inconnu', foto_url: window.localAvatar(uid) };
+            const cachedUser = window.userCache?.byId(uid) || { nome: uid, turma: 'Inconnu', foto_url: window.localAvatar(uid) };
             return {
                   ...cachedUser,
+                  userId: uid, // explícito: o userCache usa `id`, não `userId` (toggle/histórico/key dependem disto)
                   entitlement: ent
             };
       });

@@ -42,7 +42,7 @@ Rodar **antes** de qualquer teste; nada de teste sem GATE A 100%.
 | **V03** | Cartão do Luis `0001764` | zeros à esquerda **preservados** em `employee`/log | | |
 | **V04** | `9999999` → `NOT_AUTHORIZED` → face | **0 logs** · 1 attempt `MEAL_NOT_ENTITLED` · painel da cantina mostra aluno/turma/hora/método/ponto/motivo | | |
 | **V05** ★ | Validade da pessoa no passado (no terminal) → face | terminal nega por voz · 1 attempt `DEVICE_DENIED` · **0 logs** (era a refeição falsa do sub 8) | | |
-| **V06** | 2 faces em 10 s | 1 log + 1 attempt `DUPLICATE_MEAL` (política OBSERVATION) | | |
+| **V06** | 2 faces em 10 s | **2 logs** + 1 attempt `DUPLICATE_MEAL` (política OBSERVATION grava log real **e** attempt de auditoria — ADR-001; errata 2026-07-17: versão anterior dizia "1 log", contradizendo o ADR) | | |
 | **V07** | Turma com dia `'N'` (sem refeição) → face | log **com** `flag=FORA_HORARIO` + 1 attempt OBSERVATION `OUTSIDE_MEAL_TIME` | | |
 | **V08** | Cartão/face de ID inexistente (`8888888`) | 1 attempt `UNKNOWN_USER` (`user_id`=null, `employee_no_raw` preenchido) · 0 logs | | |
 | **V09** | `ativo=false` → face | 1 attempt `USER_INACTIVE` · **0 logs** (política user-inactive=DENY) | | |

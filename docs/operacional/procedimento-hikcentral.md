@@ -162,6 +162,11 @@ Só estes 6 pontos ainda dependem de informação externa:
    ficaram fixos? `[A DEFINIR COM FABIANO]`
 
 ## Checklist antes do piloto
+- [ ] **Fixtures de teste nos terminais** (decisão da direção/Sam, não técnica): decidir se
+      `9999999`/`0001764`/`8888888` permanecem cadastrados nos terminais de produção. ⚠️ A
+      credencial do `8888888` (só no terminal, ausente do MAGBO) **abre o relé fisicamente**
+      mesmo registrando `UNKNOWN_USER` — em produção é uma credencial órfã circulando
+      (inventário: `docs/testing/evidencias/2026-07-17/registro-resultados.md`).
 - [ ] Direção importou a **lista de autorizados em lote** no MAGBO (pré-requisito do
       `meal-pending=DENY`).
 - [ ] **Operador** definido e treinado no feed de negadas + registro manual de exceção.

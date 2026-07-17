@@ -1,0 +1,7 @@
+== PREP-04 (2026-07-17) ==
+2026-07-17 11:01:31,454 [main] INFO  c.m.access.MagboAccessApplication - Started MagboAccessApplication in 5.432 seconds (process running for 5.783)
+2026-07-17 11:01:31,648 [main] WARN  c.m.a.c.ProdSecurityStartupCheck - SECURITY [prod]: senha de banco de DEV em uso. Defina MAGBO_DB_PASSWORD e troque a senha do Postgres antes do deploy real.
+2026-07-17 11:01:31,649 [main] WARN  c.m.a.c.ProdSecurityStartupCheck - SECURITY [prod]: JWT secret de DEV em uso. Defina MAGBO_JWT_SECRET (>= 48 bytes aleatorios, base64) antes do deploy real.
+
+== PREP-05 ==
+{"status":"UP","database":"CONNECTED","service":"MAGBO Access Control Backend","timestamp":"2026-07-17T14:02:01.126452300Z","version":"1.0.0"}

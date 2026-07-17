@@ -1,0 +1,9 @@
+magbo.policy.meal-not-entitled=DENY
+magbo.policy.meal-pending=DENY
+magbo.policy.outside-meal-time=OBSERVATION
+magbo.policy.duplicate-meal=OBSERVATION
+magbo.policy.exit-not-authorized=DENY
+magbo.policy.user-inactive=DENY
+magbo.policy.missing-door-mapping=FALLBACK
+magbo.dedup.enabled=true
+magbo.dedup.window-seconds=90

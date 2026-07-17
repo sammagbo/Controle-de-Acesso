@@ -1,0 +1,3 @@
+-- V13 conferencia manual 2026-07-17 (queries transcritas de AccessLogRepository.java:113-125)
+SELECT point_id, COUNT(*) FROM (SELECT DISTINCT ON (user_id, point_id) user_id, point_id, action FROM access_logs WHERE timestamp >= current_date ORDER BY user_id, point_id, timestamp DESC) last WHERE action='ENTRADA' GROUP BY point_id;
+SELECT COUNT(*) FROM access_logs e WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') AND e.timestamp BETWEEN current_date AND now() AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours');

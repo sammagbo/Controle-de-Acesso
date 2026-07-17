@@ -1,0 +1,12 @@
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.209 s -- in com.magbo.access.services.MealEntitlementServiceTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[WARNING] Tests run: 183, Failures: 0, Errors: 0, Skipped: 2
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  32.286 s
+[INFO] Finished at: 2026-07-17T10:59:50-03:00
+[INFO] ------------------------------------------------------------------------

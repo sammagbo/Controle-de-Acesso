@@ -197,7 +197,9 @@ function NewExitPermissionModal({ onClose, onSaved }) {
             } else {
                   payload.startTime = startTime;
                   payload.endTime = endTime;
-                  payload.daysOfWeek = Object.keys(days).filter(k => days[k]).join(',');
+                  // Backend valida daysOfWeek como números ISO 1-7 (provado por curl 17/07)
+                  const DAY_NUM = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5 };
+                  payload.daysOfWeek = Object.keys(days).filter(k => days[k]).map(k => DAY_NUM[k]).join(',');
                   // Recorrente vale do dia atual até o fim do ano letivo civil
                   const now = new Date();
                   payload.validFrom = now.toISOString().slice(0, 10);

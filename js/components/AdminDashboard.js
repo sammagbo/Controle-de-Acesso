@@ -366,9 +366,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.divergenciaHoje}</p>
                                     </div>
                               </div>
-                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-navy-800 text-white text-xs p-3 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-navy-800 text-white text-xs p-3 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                                     <p className="font-bold mb-1">Qu'est-ce qu'une divergence ?</p>
-                                    <p className="text-navy-100">Accès via code terminal sans correspondance dans la base de données (Ex : Terminal non reconnu, badge inconnu).</p>
+                                    <p className="text-navy-100">Le terminal a validé l'identité et laissé passer, mais MAGBO a refusé selon la règle (ex. : droit au repas non accordé). L'élève est entré malgré tout — c'est la charge d'exception que l'opérateur traite dans le flux des tentatives refusées.</p>
                               </div>
                         </div>
                   </div>

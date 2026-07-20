@@ -152,6 +152,16 @@ function ExitPermissionManagement() {
                         )}
                   </div>
 
+                  {/* Feed de tentativas negadas da portaria (D-H1) — mesmo componente
+                      reutilizável da cantina, ligado ao endpoint /gate. Acessos válidos
+                      (autorizações) e tentativas negadas ficam visualmente separados. */}
+                  <DeniedAttemptsFeed
+                        title="Tentatives Refusées — Portail"
+                        emptyMessage="Aucune tentative refusée"
+                        fetchFn={window.api?.getGateAttempts || (async () => [])}
+                        pollingMs={5000}
+                  />
+
                   {showModal && <NewExitPermissionModal onClose={() => setShowModal(false)} onSaved={loadPermissions} />}
             </div>
       );

@@ -444,6 +444,7 @@ if (window.api) {
       window.api.getRefectoryAttempts = getRefectoryAttempts;
       window.api.getGateAttempts = getGateAttempts;
       window.api.getAllAttempts = getAllAttempts;
+      window.api.getAttemptStats = getAttemptStats;
       window.api.getMealEntitlements = getMealEntitlements;
       window.api.getMealEntitlementSummary = getMealEntitlementSummary;
       window.api.putMealEntitlement = putMealEntitlement;

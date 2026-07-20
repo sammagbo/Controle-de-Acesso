@@ -527,6 +527,74 @@ function ParEleveTab() {
 }
 
 // ── Overview Tab ─────────────────────────────────────────────────────
+// D-H6 — agrégats des tentatives refusées (aujourd'hui), via /api/access/attempts/stats.
+// Composant autonome (fetch propre) : ajouté à OverviewTab sans toucher son flux de données.
+// N'affiche que les agrégations que le backend renvoie déjà (byReason/byPoint/byMethod/byTurma).
+function DeniedAttemptStats() {
+    const [stats, setStats] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState(false);
+
+    React.useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const s = await window.api.getAttemptStats(); // sans from/to → défaut = aujourd'hui
+                if (alive) { setStats(s); setLoading(false); }
+            } catch (e) {
+                if (alive) { setError(true); setLoading(false); }
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
+
+    const sorted = obj => Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+    const block = (title, obj, labels) => {
+        const rows = sorted(obj);
+        return (
+            <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
+                <h4 className="text-sm font-black text-navy-500 mb-2">{title}</h4>
+                {rows.length === 0 ? (
+                    <p className="text-xs text-slate-400">Aucune</p>
+                ) : (
+                    <div className="space-y-1">
+                        {rows.map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs">
+                                <span className="text-slate-600">{(labels && labels[k]) || k}</span>
+                                <span className="font-bold text-navy-700">{v}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <LucideIcon name="bar-chart-3" size={18} className="text-navy-500" />
+                <h3 className="text-base font-black text-navy-500">Tentatives refusées — agrégats (aujourd'hui)</h3>
+                {stats && (
+                    <span className="text-xs text-slate-400">Total : {stats.total} · Divergences : {stats.divergence}</span>
+                )}
+            </div>
+            {loading ? (
+                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">Chargement des statistiques…</div>
+            ) : error || !stats ? (
+                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">Statistiques indisponibles.</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {block('Par motif', stats.byReason, window.DENIAL_REASON_LABELS)}
+                    {block('Par point', stats.byPoint, null)}
+                    {block('Par méthode', stats.byMethod, window.AUTH_METHOD_LABELS)}
+                    {block('Par classe', stats.byTurma, null)}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function OverviewTab() {
     const [period, setPeriod] = React.useState('week'); // 'today' | 'week' | 'month' | 'custom'
     const [customFrom, setCustomFrom] = React.useState(new Date().toISOString().slice(0, 10));
@@ -1115,6 +1183,9 @@ function OverviewTab() {
                             fetchFn={window.api?.getAllAttempts || (async () => [])}
                         />
                     </div>
+
+                    {/* ── Agrégats des tentatives refusées (D-H6) ── */}
+                    <DeniedAttemptStats />
                 </>
             )}
         </div>

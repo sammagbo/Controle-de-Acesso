@@ -184,16 +184,24 @@ function MealEntitlementManagement() {
                         )}
                   </div>
 
-                  {/* Estatísticas */}
+                  {/* Estatísticas — o DTO do backend usa authorized/notAuthorized/pending/totalStudents */}
                   {summary && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Autorisés</p>
-                                    <p className="text-2xl font-black text-success-600 mt-2">{summary.totalAuthorized}</p>
+                                    <p className="text-2xl font-black text-success-600 mt-2">{summary.authorized ?? 0}</p>
                               </div>
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Non Autorisés</p>
-                                    <p className="text-2xl font-black text-danger-600 mt-2">{summary.totalNotAuthorized}</p>
+                                    <p className="text-2xl font-black text-danger-600 mt-2">{summary.notAuthorized ?? 0}</p>
+                              </div>
+                              <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">En attente</p>
+                                    <p className="text-2xl font-black text-warning-600 mt-2">{summary.pending ?? 0}</p>
+                              </div>
+                              <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Élèves</p>
+                                    <p className="text-2xl font-black text-navy-600 mt-2">{summary.totalStudents ?? 0}</p>
                               </div>
                         </div>
                   )}

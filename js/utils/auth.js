@@ -28,6 +28,21 @@
   function isAdmin() { return _user && _user.role === 'ADMIN'; }
   function isOperator() { return _user && _user.role === 'OPERATOR'; }
 
+  // Permissão granular de ESCRITA (espelha SystemUser.hasPermission do backend):
+  // ADMIN sempre passa; "*" = todas; senão o CSV `permissoes` precisa conter o valor.
+  // O backend é a autoridade real (@PreAuthorize); isto só governa o estado da UI.
+  function hasPermission(permission) {
+    if (!_user) return false;
+    if (_user.role === 'ADMIN') return true;
+    if (!_user.permissoes) return false;
+    const p = _user.permissoes.trim();
+    if (p === '*') return true;
+    return p
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .includes(String(permission).toUpperCase());
+  }
+
   function canOperateSector(sectorId) {
     if (!_user) return false;
     if (_user.role === 'ADMIN') return true;
@@ -73,7 +88,8 @@
       username: data.username,
       nomeCompleto: data.nomeCompleto,
       role: data.role,
-      setoresPermitidos: data.setoresPermitidos
+      setoresPermitidos: data.setoresPermitidos,
+      permissoes: data.permissoes
     });
     return data;
   }
@@ -87,6 +103,6 @@
   
   globalObj.auth = {
     login, logout, getToken, getUser, isLoggedIn,
-    isAdmin, isOperator, canOperateSector, canAccessArea, onAuthChange
+    isAdmin, isOperator, hasPermission, canOperateSector, canAccessArea, onAuthChange
   };
 })();

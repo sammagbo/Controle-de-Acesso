@@ -13,7 +13,9 @@ function MealEntitlementManagement() {
       const [error, setError] = React.useState('');
       const [selectedUserHistory, setSelectedUserHistory] = React.useState(null);
       
-      const canEdit = window.auth?.isAdmin() || false; // Simple check, full validation on backend
+      // Cantina: ADMIN OU operador com MEAL_ENTITLEMENT_WRITE (mesmo gate do backend
+      // no PUT/bulk). Decisão do Sam: o gerente da cantina é OPERATOR e gere os direitos.
+      const canEdit = window.auth?.isAdmin() || window.auth?.hasPermission?.('MEAL_ENTITLEMENT_WRITE') || false;
 
       // Carregar cache de usuários
       React.useEffect(() => {

@@ -71,7 +71,18 @@ function Dashboard({ onSelectPoint, accessLogs }) {
 
                   {/* Access Point Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {ACCESS_POINTS.filter(point => !point.hidden && window.auth.canAccessArea(point.area)).map((point) => {
+                        {ACCESS_POINTS.filter(point => {
+                              // Regra padrão: ponto visível se não-hidden e o usuário tem a área.
+                              if (!point.hidden && window.auth.canAccessArea(point.area)) return true;
+                              // Exceção (decisão do Sam): a gestão de Droits Repas (hidden, área admin)
+                              // é a porta de entrada dedicada do OPERATOR de cantina com
+                              // MEAL_ENTITLEMENT_WRITE — o painel admin exige PIN admin-only, então o
+                              // operador não chega lá. Admin continua entrando pelo painel (não vê aqui).
+                              if (point.id === 'MEAL_ENTITLEMENT_MANAGEMENT'
+                                    && !window.auth.isAdmin()
+                                    && window.auth.hasPermission?.('MEAL_ENTITLEMENT_WRITE')) return true;
+                              return false;
+                        }).map((point) => {
                               const colors = CATEGORY_COLORS[point.category];
                               const count = activeCounts[point.id] || 0;
                               return (

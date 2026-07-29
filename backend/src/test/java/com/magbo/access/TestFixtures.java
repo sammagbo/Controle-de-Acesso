@@ -44,8 +44,14 @@ public final class TestFixtures {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static final String WEBHOOK_URL = "/api/hikvision/webhook";
+    public static final String WEBHOOK_CAPTURE_URL = "/api/hikvision/webhook/capture";
     public static final String WEBHOOK_TOKEN = "test-token-fixo-para-integracao";
     public static final String TOKEN_HEADER = "X-MAGBO-WEBHOOK-TOKEN";
+
+    /** URL da variante com o token como segmento de caminho (camera DeepinView). */
+    public static String webhookPathTokenUrl(String token) {
+        return WEBHOOK_URL + "/t/" + token;
+    }
 
     /** IPs sinteticos — um mapping IP-only por cenario. */
     public static final String IP_CANTINA_ENTRADA = "10.10.0.1";
@@ -222,6 +228,18 @@ public final class TestFixtures {
         builder.header(TOKEN_HEADER, WEBHOOK_TOKEN);
         builder.with(remoteAddr(remoteAddr));
         return builder;
+    }
+
+    /**
+     * Camera DeepinView com o token no CAMINHO: JSON puro, sem header e sem
+     * query string. Reproduz exatamente o que o aparelho consegue enviar — ele
+     * descarta a query string e nao suporta header customizado (tcpdump 28/07).
+     */
+    public static MockHttpServletRequestBuilder jsonWebhookPathToken(String token, String json, String remoteAddr) {
+        return MockMvcRequestBuilders.post(webhookPathTokenUrl(token))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .with(remoteAddr(remoteAddr));
     }
 
     /** Ramo camera DeepinView: JSON puro, sem multipart. */

@@ -141,6 +141,19 @@ public final class TestFixtures {
         }
     }
 
+    /**
+     * Linhas de um CSV de importacao Pronote (src/test/resources/pronote/).
+     * Mesmo formato do export real: cabecalho + linhas separadas por ';'.
+     */
+    public static java.util.List<String> pronoteCsv(String fileName) {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                new ClassPathResource("pronote/" + fileName).getInputStream(), StandardCharsets.UTF_8))) {
+            return reader.lines().toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException("CSV Pronote nao encontrado: " + fileName, e);
+        }
+    }
+
     /** Troca o employeeNoString do payload, preservando o resto do formato real. */
     public static String withEmployeeNo(String json, String employeeNo) {
         return patchEvent(json, node -> node.put("employeeNoString", employeeNo));

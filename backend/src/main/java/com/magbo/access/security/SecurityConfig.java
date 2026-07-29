@@ -41,6 +41,9 @@ public class SecurityConfig {
                     "/api/health",
                     "/api/hikvision/webhook",
                     "/api/hikvision/webhook/capture",
+                    // Token no caminho, para a camera DeepinView que descarta a
+                    // query string. O guard do proprio controller valida o token.
+                    "/api/hikvision/webhook/t/**",
                     "/h2-console/**"
                 ).permitAll()
                 .anyRequest().authenticated()

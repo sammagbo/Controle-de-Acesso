@@ -25,27 +25,70 @@ public class HikvisionWebhookController {
         if (webhookToken != null) webhookToken = webhookToken.trim();
     }
 
+    /**
+     * Endpoint de producao dos MinMoe: token no header X-MAGBO-WEBHOOK-TOKEN OU
+     * na query string (?token=). O header, quando presente, tem precedencia —
+     * header errado NAO cai para a query.
+     */
     @PostMapping("/webhook")
     public ResponseEntity<String> receiveWebhook(
             @RequestHeader(value = "X-MAGBO-WEBHOOK-TOKEN", required = false) String incomingToken,
             jakarta.servlet.http.HttpServletRequest request) {
 
+        String provided = incomingToken != null ? incomingToken : queryToken(request);
+        return handleEvent(provided, request);
+    }
+
+    /**
+     * Mesma logica do /webhook, com o token como SEGMENTO DE CAMINHO.
+     *
+     * A camera DeepinView da portaria (canal "Serveur d'alarme") nao envia o
+     * token de jeito nenhum: descarta a query string da URL configurada e nao
+     * suporta header customizado. Comprovado com tcpdump em 28/07/2026 — o
+     * aparelho reenviava em loop (~1 req/s, milhares de 401) ate a entrada ser
+     * removida dele. Segmento de caminho e o unico formato que ela preserva.
+     *
+     * O "/t/" e obrigatorio: um mapping "/webhook/{token}" capturaria tambem
+     * /webhook/capture, com token="capture".
+     *
+     * OPERACIONAL: por esta rota o token precisa ser seguro em caminho de URL.
+     * '/' quebraria o segmento e '%' e barrado pelo StrictHttpFirewall do Spring
+     * Security (400, antes de chegar aqui). Token alfanumerico do .env funciona;
+     * se algum dia mudar para um com esses caracteres, use header ou ?token=.
+     */
+    @PostMapping("/webhook/t/{token}")
+    public ResponseEntity<String> receiveWebhookPathToken(
+            @PathVariable("token") String pathToken,
+            jakarta.servlet.http.HttpServletRequest request) {
+
+        return handleEvent(pathToken, request);
+    }
+
+    /** Extrai o token da query string (?token=...), ou null se ausente. */
+    private String queryToken(jakarta.servlet.http.HttpServletRequest request) {
+        String qs = request.getQueryString();
+        if (qs == null) return null;
+        for (String p : qs.split("&")) {
+            if (p.startsWith("token=")) {
+                return java.net.URLDecoder.decode(p.substring(6), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Valida o token ja resolvido e processa o evento. Unico caminho de
+     * autenticacao e persistencia do webhook — as variantes de URL apenas
+     * escolhem de onde o token vem.
+     */
+    private ResponseEntity<String> handleEvent(String incomingToken,
+                                               jakarta.servlet.http.HttpServletRequest request) {
+
         if (webhookToken == null || webhookToken.isBlank()) {
             log.error("Webhook rejected: token not configured (deny-by-default). Defina MAGBO_WEBHOOK_TOKEN.");
             return ResponseEntity.status(503).body("Webhook token not configured");
         }
-        String queryToken = null;
-        String qs = request.getQueryString();
-        if (qs != null) {
-            for (String p : qs.split("&")) {
-                if (p.startsWith("token=")) {
-                    queryToken = java.net.URLDecoder.decode(p.substring(6), java.nio.charset.StandardCharsets.UTF_8);
-                    break;
-                }
-            }
-        }
-        String trimmedIncoming = incomingToken != null ? incomingToken.trim()
-                : (queryToken != null ? queryToken.trim() : null);
+        String trimmedIncoming = incomingToken != null ? incomingToken.trim() : null;
         if (trimmedIncoming == null || !java.security.MessageDigest.isEqual(
                 webhookToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                 trimmedIncoming.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {

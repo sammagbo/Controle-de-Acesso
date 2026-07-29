@@ -176,6 +176,15 @@ public class PronoteSyncService {
         user.setNome(nome);
         user.setAtivo(true);
 
+        // Convencao do projeto: hikvision_employee_id == id (matricula Pronote).
+        // O AccessDecisionService procura o aluno por findByHikvisionEmployeeId —
+        // sem esta linha o importado existe no banco mas e invisivel ao motor de
+        // decisao (todo cartao vira UNKNOWN_USER). So preenche quando vazio, para
+        // preservar mapeamentos manuais feitos pelo HikvisionMappingController.
+        if (user.getHikvisionEmployeeId() == null || user.getHikvisionEmployeeId().isBlank()) {
+            user.setHikvisionEmployeeId(userId);
+        }
+
         try {
             user.setTipo(UserType.valueOf(tipoStr.toUpperCase()));
         } catch (IllegalArgumentException e) {

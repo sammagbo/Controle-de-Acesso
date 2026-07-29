@@ -1,0 +1,4 @@
+userId;nome;tipo;turma;responsavelId;responsavelNome;responsavelParentesco;responsavelTelefone
+0003614;Aluno Zero Padded;ALUNO;6A;R0001;Responsavel Um;MAE;21999990001
+0002336;Aluna Do Incidente;ALUNO;3B;R0002;Responsavel Dois;PAI;21999990002
+9999999;Aluno Sem Zeros;ALUNO;5C;R0003;Responsavel Tres;MAE;21999990003

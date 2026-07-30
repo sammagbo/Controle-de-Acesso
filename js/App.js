@@ -2,6 +2,18 @@
 // MAIN APP
 // =====================================================================
 
+/** Cadência da recarga periódica da visão de setor (mesma do CantineMonitor). */
+const SECTOR_POLL_MS = 3000;
+
+/**
+ * Pontos que renderizam <SectorView> — os únicos que consomem `accessLogs`.
+ * Os de category 'monitor' e o CDI têm telas próprias que buscam os próprios
+ * dados, então não devem gerar polling de /access/logs/{pointId}.
+ */
+function rendersSectorView(point) {
+      return !!point && point.category !== 'monitor' && point.id !== 'BIBLIO';
+}
+
 function App() {
       const [currentUser, setCurrentUser] = React.useState(null);
       const [authChecked, setAuthChecked] = React.useState(false);
@@ -42,18 +54,51 @@ function App() {
             return () => window.removeEventListener('open-admin-pin', openHandler);
       }, []);
 
+      // Logs registrados localmente pelo operador que o servidor ainda não devolveu,
+      // e logs que ele cancelou no PortariaModal (o cancelamento é só de tela — a
+      // linha continua no banco, logo a recarga precisa filtrá-la para não ressuscitar).
+      const pendingLogIdsRef = React.useRef(new Set());
+      const dismissedLogIdsRef = React.useRef(new Set());
+
+      // Recarga pausa enquanto um modal de acesso está aberto: o fluxo do modal
+      // depende de accessLogs estável (o onCancel remove o log otimista pelo id).
+      const accessModalRef = React.useRef(null);
+      React.useEffect(() => { accessModalRef.current = accessModal; }, [accessModal]);
+
       // Reconstruir logs globais e timers dinamicamente ao abrir um Setor (F5 / Reload proof)
+      // e a cada SECTOR_POLL_MS, para que eventos vindos do hardware apareçam ao vivo.
       React.useEffect(() => {
             if (!currentPoint) return;
-            const loadPointData = async () => {
-                  try {
-                        const logs = await fetchLogs(currentPoint.id);
-                        
-                        // Guard: ensure logs is always an array (fetchLogs already normalises)
-                        if (!Array.isArray(logs)) { setAccessLogs([]); return; }
-                        setAccessLogs(logs);
+            const pointId = currentPoint.id;
+            let cancelled = false; // resposta de um setor anterior nunca é aplicada ao atual
+            let inFlight = false;  // uma recarga em voo bloqueia a próxima (sem atropelo)
 
-                        if (isEspecial(currentPoint.id) || currentPoint.id.startsWith('REFEI')) {
+            pendingLogIdsRef.current = new Set();
+            dismissedLogIdsRef.current = new Set();
+
+            const loadPointData = async (isInitial) => {
+                  if (inFlight) return;
+                  inFlight = true;
+                  try {
+                        const logs = await fetchLogs(pointId);
+                        if (cancelled) return;
+
+                        // Guard: ensure logs is always an array (fetchLogs already normalises)
+                        if (!Array.isArray(logs)) { if (isInitial) setAccessLogs([]); return; }
+                        if (isInitial) {
+                              setAccessLogs(logs);
+                        } else {
+                              const serverIds = new Set(logs.map(l => l.id));
+                              pendingLogIdsRef.current = new Set(
+                                    [...pendingLogIdsRef.current].filter(id => !serverIds.has(id))
+                              );
+                              const pending = pendingLogIdsRef.current;
+                              const fresh = logs.filter(l => !dismissedLogIdsRef.current.has(l.id));
+                              // mantém o registro recém-processado até o servidor devolvê-lo (sem piscada)
+                              setAccessLogs(prev => fresh.concat(prev.filter(l => pending.has(l.id))));
+                        }
+
+                        if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
                               const latestByUser = {};
                               logs.forEach(l => {
                                     const lTime = safeDateParse(l.timestamp);
@@ -62,25 +107,56 @@ function App() {
                                           latestByUser[l.userId] = l;
                                     }
                               });
-                              
+
                               const newTimers = [];
                               for (const uId in latestByUser) {
                                     const log = latestByUser[uId];
                                     if (log.status === 'ENTRADA') {
-                                          newTimers.push({ 
-                                                userId: uId, 
-                                                pointId: currentPoint.id, 
-                                                startTime: safeDateParse(log.timestamp) 
+                                          newTimers.push({
+                                                userId: uId,
+                                                pointId: pointId,
+                                                startTime: safeDateParse(log.timestamp)
                                           });
                                     }
                               }
-                              setActiveTimers(newTimers);
+                              if (isInitial) {
+                                    setActiveTimers(newTimers);
+                              } else {
+                                    // preserva o startTime já em tela p/ o cronômetro não reiniciar a cada ciclo
+                                    setActiveTimers(prev => newTimers.map(t => {
+                                          const existing = prev.find(p => p.userId === t.userId && p.pointId === t.pointId);
+                                          return existing ? { ...t, startTime: existing.startTime } : t;
+                                    }));
+                              }
                         }
                   } catch (e) {
-                        setToast({ title: 'Erro de Comunicação com o Servidor', message: e.message, type: 'error' });
+                        if (cancelled) return;
+                        // Só a carga inicial avisa o operador: com recarga a cada poucos
+                        // segundos e servidor fora do ar, um toast por ciclo tornaria a
+                        // tela inutilizável.
+                        if (isInitial) {
+                              setToast({ title: 'Erro de Comunicação com o Servidor', message: e.message, type: 'error' });
+                        } else {
+                              console.warn('[App] falha na recarga periódica do setor', pointId, e.message);
+                        }
+                  } finally {
+                        inFlight = false;
                   }
             };
-            loadPointData();
+
+            loadPointData(true);
+
+            if (!rendersSectorView(currentPoint)) return () => { cancelled = true; };
+
+            const interval = setInterval(() => {
+                  if (accessModalRef.current) return;
+                  loadPointData(false);
+            }, SECTOR_POLL_MS);
+
+            return () => {
+                  cancelled = true;
+                  clearInterval(interval);
+            };
       }, [currentPoint]);
 
       // ─────────────────────────────────────────────────────────────
@@ -149,6 +225,7 @@ function App() {
                   }
 
                   if (!isRefeicaoDuplicada && !errorTempoMinimo) {
+                        pendingLogIdsRef.current.add(newLog.id); // protege da recarga até o servidor devolvê-lo
                         setAccessLogs(prev => [...prev, newLog]);
                   }
 
@@ -300,6 +377,8 @@ function App() {
                               alunos={accessModal.alunos}
                               onConfirm={() => setAccessModal(null)}
                               onCancel={() => {
+                                    pendingLogIdsRef.current.delete(accessModal.logId);
+                                    dismissedLogIdsRef.current.add(accessModal.logId);
                                     setAccessLogs(prev => prev.filter(l => l.id !== accessModal.logId));
                                     setAccessModal(null);
                               }}

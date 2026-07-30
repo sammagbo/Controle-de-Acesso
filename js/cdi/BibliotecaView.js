@@ -2,6 +2,9 @@
 // BibliotecaView — Main CDI Component (Local Version)
 // =====================================================================
 
+/** Cadência da recarga periódica do CDI (mesma do CantineMonitor). */
+const CDI_POLL_MS = 3000;
+
 function BibliotecaView({ onBack }) {
       const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
@@ -27,20 +30,7 @@ function BibliotecaView({ onBack }) {
                         const localStudents = await CdiBackend.getStudents();
                         const localLogs = await CdiBackend.getLogs();
 
-                        // Seed if empty (first run)
-                        if (localStudents.length === 0) {
-                              const seeds = [
-                                    { id: 'E001', firstName: 'Jean', lastName: 'Dupont', studentClass: '2nde A' },
-                                    { id: 'E002', firstName: 'Marie', lastName: 'Curie', studentClass: '1ere S' },
-                                    { id: 'E003', firstName: 'Albert', lastName: 'Einstein', studentClass: 'Terminale C' }
-                              ];
-                              await CdiBackend.importStudents(seeds);
-                              const seeded = await CdiBackend.getStudents();
-                              setStudents(seeded.map(mapToView));
-                        } else {
-                              setStudents(localStudents.map(mapToView));
-                        }
-
+                        setStudents(localStudents.map(mapToView));
                         setPresentStudents(new Set(localStudents.filter(s => s.present).map(s => s.id)));
                         setLogs(localLogs);
                   } catch (e) {
@@ -70,6 +60,79 @@ function BibliotecaView({ onBack }) {
       const inputRef = useRef(null);
       const scanBuffer = useRef('');
       const scanTimeout = useRef(null);
+
+      // Contador de mutações locais (scan, import, restauração). Uma recarga que
+      // partiu ANTES de uma mutação volta com dados anteriores a ela; comparar o
+      // contador na volta permite descartá-la, senão a resposta velha desfaz o
+      // que o operador acabou de fazer.
+      const mutationSeqRef = useRef(0);
+      const bumpMutation = useCallback(() => { mutationSeqRef.current += 1; }, []);
+
+      // Espelhos p/ o tick da recarga não precisar de `modal`/`emergency` nas
+      // dependências (senão abrir um modal reiniciaria o intervalo).
+      const modalRef = useRef(null);
+      const emergencyRef = useRef(false);
+      useEffect(() => { modalRef.current = modal; emergencyRef.current = emergency; }, [modal, emergency]);
+
+      // ── Recarga periódica ────────────────────────────────────────────
+      // Sem isto a tela do CDI carregava uma vez só, no mount: um aluno passando
+      // o cartão no terminal BIBLIO não aparecia até o operador sair da tela e
+      // voltar. A carga inicial (efeito acima) segue intacta — inclusive o toast
+      // de erro, que só ela dispara.
+      useEffect(() => {
+            if (loading) return; // só começa depois da carga inicial
+            let cancelled = false; // resposta que chega após desmontar é ignorada
+            let inFlight = false;  // uma recarga em voo bloqueia a próxima
+
+            const reload = async () => {
+                  if (inFlight) return;
+                  inFlight = true;
+                  const seenSeq = mutationSeqRef.current;
+                  try {
+                        const freshStudents = await CdiBackend.getStudents();
+                        const freshLogs = await CdiBackend.getLogs();
+                        if (cancelled) return;
+                        // Houve mutação local durante a requisição → dado já nasceu velho.
+                        if (mutationSeqRef.current !== seenSeq) return;
+                        // userCache ainda vazio (ou falhou) não pode zerar a tela.
+                        if (freshStudents.length === 0) return;
+
+                        setStudents(prev => {
+                              const before = new Map(prev.map(s => [s.id, s]));
+                              return freshStudents.map(s => {
+                                    const mapped = mapToView(s);
+                                    const old = before.get(mapped.id);
+                                    // quem já estava presente mantém o lastEntry de tela,
+                                    // p/ nenhuma contagem de permanência saltar a cada ciclo
+                                    return (old && old.present && mapped.present)
+                                          ? { ...mapped, lastEntry: old.lastEntry }
+                                          : mapped;
+                              });
+                        });
+                        setPresentStudents(new Set(freshStudents.filter(s => s.present).map(s => s.id)));
+                        setLogs(freshLogs);
+                  } catch (e) {
+                        // Falha em silêncio: a cada poucos segundos, um toast por ciclo
+                        // tornaria a tela inutilizável.
+                        if (!cancelled) console.warn('[CDI] falha na recarga periódica:', e.message);
+                  } finally {
+                        inFlight = false;
+                  }
+            };
+
+            const interval = setInterval(() => {
+                  // Modal aberto (o gestor de alunos edita a própria lista) ou modo
+                  // confinamento (conferência nominal, `verified` casado por id):
+                  // não mexer nos dados sob o dedo do operador.
+                  if (modalRef.current || emergencyRef.current) return;
+                  reload();
+            }, CDI_POLL_MS);
+
+            return () => {
+                  cancelled = true;
+                  clearInterval(interval);
+            };
+      }, [loading, mapToView]);
 
       // Persist settings
       useEffect(() => { localStorage.setItem(CDI_STORAGE.muted, muted); }, [muted]);
@@ -155,6 +218,7 @@ function BibliotecaView({ onBack }) {
                   const updated = await CdiBackend.scanStudent(id); // Throws if 404
                   const mapped = mapToView(updated);
 
+                  bumpMutation(); // recarga em voo agora está desatualizada
                   setStudents(prev => prev.map(s => s.id === updated.id ? mapped : s));
                   const isEntering = updated.present;
                   setPresentStudents(prev => { const next = new Set(prev); isEntering ? next.add(updated.id) : next.delete(updated.id); return next; });
@@ -217,6 +281,7 @@ function BibliotecaView({ onBack }) {
 
             await CdiBackend.importStudents(toImport);
             const refreshed = await CdiBackend.getStudents();
+            bumpMutation();
             setStudents(refreshed.map(mapToView)); // FIX: Map to view format
       };
 
@@ -418,11 +483,11 @@ function BibliotecaView({ onBack }) {
 
                   {/* Modals */}
                   <CdiSettingsModal open={modal === 'settings'} onClose={() => setModal(null)} onImport={handleImport}
-                        onReset={() => { setPresentStudents(new Set()); setLogs([]); CdiBackend.clearLogs(); }}
                         onRestore={async (data) => {
                               await CdiBackend.restore(data);
                               const restored = await CdiBackend.getStudents();
                               const logs = await CdiBackend.getLogs();
+                              bumpMutation();
                               setStudents(restored.map(mapToView)); // FIX: Map to view format
                               setPresentStudents(new Set(restored.filter(s => s.present).map(s => s.id)));
                               setLogs(logs);

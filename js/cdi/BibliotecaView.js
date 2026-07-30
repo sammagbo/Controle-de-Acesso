@@ -30,20 +30,7 @@ function BibliotecaView({ onBack }) {
                         const localStudents = await CdiBackend.getStudents();
                         const localLogs = await CdiBackend.getLogs();
 
-                        // Seed if empty (first run)
-                        if (localStudents.length === 0) {
-                              const seeds = [
-                                    { id: 'E001', firstName: 'Jean', lastName: 'Dupont', studentClass: '2nde A' },
-                                    { id: 'E002', firstName: 'Marie', lastName: 'Curie', studentClass: '1ere S' },
-                                    { id: 'E003', firstName: 'Albert', lastName: 'Einstein', studentClass: 'Terminale C' }
-                              ];
-                              await CdiBackend.importStudents(seeds);
-                              const seeded = await CdiBackend.getStudents();
-                              setStudents(seeded.map(mapToView));
-                        } else {
-                              setStudents(localStudents.map(mapToView));
-                        }
-
+                        setStudents(localStudents.map(mapToView));
                         setPresentStudents(new Set(localStudents.filter(s => s.present).map(s => s.id)));
                         setLogs(localLogs);
                   } catch (e) {
@@ -496,7 +483,6 @@ function BibliotecaView({ onBack }) {
 
                   {/* Modals */}
                   <CdiSettingsModal open={modal === 'settings'} onClose={() => setModal(null)} onImport={handleImport}
-                        onReset={() => { setPresentStudents(new Set()); setLogs([]); CdiBackend.clearLogs(); }}
                         onRestore={async (data) => {
                               await CdiBackend.restore(data);
                               const restored = await CdiBackend.getStudents();

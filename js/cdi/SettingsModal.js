@@ -2,7 +2,7 @@
 // CDI Settings Modal — Import, Backup, Config
 // =====================================================================
 
-function CdiSettingsModal({ open, onClose, onImport, onReset, onRestore, onExport, count, muted, setMuted, pin, setPin, encryptBackup, setEncryptBackup, backupTime, setBackupTime, students, presentStudents, logs }) {
+function CdiSettingsModal({ open, onClose, onImport, onRestore, onExport, count, muted, setMuted, pin, setPin, encryptBackup, setEncryptBackup, backupTime, setBackupTime, students, presentStudents, logs }) {
       const [text, setText] = React.useState('');
       const [newPin, setNewPin] = React.useState(pin);
       const fileInputRef = React.useRef(null);
@@ -125,8 +125,7 @@ function CdiSettingsModal({ open, onClose, onImport, onReset, onRestore, onExpor
                               </div>
                         </div>
                         <div className="pt-3">
-                              <p className="text-sm text-slate-500 mb-2">{count} élèves • {logs.length} mouvements</p>
-                              <button onClick={() => confirm('Réinitialiser toutes les présences?') && (onReset(), onClose())} className="w-full py-2 bg-red-50 text-red-600 rounded text-sm">Réinitialiser présences</button>
+                              <p className="text-sm text-slate-500">{count} élèves • {logs.length} mouvements</p>
                         </div>
                   </div>
             </div>

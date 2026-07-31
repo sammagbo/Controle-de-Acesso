@@ -1,0 +1,1 @@
+{"ipAddress":"172.20.40.10","dateTime":"2026-07-29T10:12:44+08:00","eventType":"LocalUserChange","LocalUserChange":{"serialNo":4471,"localUserChangeType":"userModify","employeeNo":9999999}}

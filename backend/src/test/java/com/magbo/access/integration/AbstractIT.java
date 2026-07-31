@@ -74,6 +74,20 @@ public abstract class AbstractIT {
     @Autowired
     protected DoorMappingRepository doorMappingRepository;
 
+    @Autowired
+    protected com.magbo.access.services.WebhookIngestionDedupService ingestionDedupService;
+
+    /**
+     * O cache de dedup de ingestao e um bean SINGLETON no contexto que os 17
+     * ITs compartilham — sem este clear, um payload reusado entre classes
+     * (mesmo IP sintetico + mesmo serialNo da fixture) seria descartado como
+     * reentrega e o teste seguinte falharia por ordem do surefire.
+     */
+    @BeforeEach
+    void limparCacheDeIngestao() {
+        ingestionDedupService.clear();
+    }
+
     @BeforeEach
     void limparTabelasMutaveis() {
         accessLogRepository.deleteAll();

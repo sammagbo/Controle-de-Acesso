@@ -44,5 +44,14 @@ public class HikvisionEventDto {
 
         @JsonProperty("readerNo")
         private Integer readerNo;
+
+        /**
+         * Numerador do log de eventos do aparelho (payload real: 123, 127...).
+         * Reentregas do MESMO evento repetem o serialNo — e a chave do dedup
+         * de ingestao junto com o IP de origem. Campo aditivo: antes era
+         * simplesmente ignorado pelo @JsonIgnoreProperties.
+         */
+        @JsonProperty("serialNo")
+        private Long serialNo;
     }
 }

@@ -170,6 +170,16 @@ public final class TestFixtures {
         return patchEvent(json, node -> node.put("subEventType", subEventType));
     }
 
+    /** Troca o serialNo do evento, preservando o resto do formato real. */
+    public static String withSerialNo(String json, long serialNo) {
+        return patchEvent(json, node -> node.put("serialNo", serialNo));
+    }
+
+    /** Remove o serialNo do evento — aparelho hipotetico sem numerador. */
+    public static String withoutSerialNo(String json) {
+        return patchEvent(json, node -> node.remove("serialNo"));
+    }
+
     /** Remove o ipAddress do ramo camera, para exercitar o fallback p/ remoteAddr. */
     public static String withoutIpAddress(String json) {
         try {
@@ -226,6 +236,27 @@ public final class TestFixtures {
                 MockMvcRequestBuilders.multipart(WEBHOOK_URL)
                         .part(eventPart)
                         .part(picturePart);
+        builder.header(TOKEN_HEADER, WEBHOOK_TOKEN);
+        builder.with(remoteAddr(remoteAddr));
+        return builder;
+    }
+
+    /**
+     * Part JSON com nome arbitrario — formato dos eventos de sync do proprio
+     * aparelho (ex.: part "LocalUserChange", vista em producao em 29/07).
+     */
+    public static MockPart jsonPart(String name, String json) {
+        MockPart part = new MockPart(name, null, json.getBytes(StandardCharsets.UTF_8));
+        part.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        return part;
+    }
+
+    /** Multipart com parts arbitrarias (token + remoteAddr ja aplicados). */
+    public static MockMultipartHttpServletRequestBuilder multipartWebhookParts(String remoteAddr, MockPart... parts) {
+        MockMultipartHttpServletRequestBuilder builder = MockMvcRequestBuilders.multipart(WEBHOOK_URL);
+        for (MockPart part : parts) {
+            builder.part(part);
+        }
         builder.header(TOKEN_HEADER, WEBHOOK_TOKEN);
         builder.with(remoteAddr(remoteAddr));
         return builder;

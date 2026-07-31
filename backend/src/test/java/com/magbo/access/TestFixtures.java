@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Helpers da suite de testes da Fase I.
@@ -175,6 +176,55 @@ public final class TestFixtures {
         return patchEvent(json, node -> node.put("serialNo", serialNo));
     }
 
+    /**
+     * Numerador do log de eventos, como num aparelho de verdade: cada evento
+     * gerado sai com um serialNo NOVO.
+     *
+     * Existe porque os arquivos de payloads/ sao capturas de UM evento real e
+     * portanto tem serialNo fixo (face-75 = 123). Reusar o mesmo arquivo para
+     * simular duas passagens distintas produzia dois eventos com serial
+     * identico — que e exatamente a assinatura de uma REENTREGA, e o dedup de
+     * ingestao os engolia. O aparelho real nunca faz isso: incrementa o
+     * numerador a cada evento e so repete o serial ao reenviar o mesmo pacote.
+     *
+     * Comeca alto (100_000) para nunca colidir com os seriais fixos das
+     * capturas (123..200), que alguns testes fixam de proposito.
+     */
+    private static final AtomicLong SERIAL_SEQ = new AtomicLong(100_000);
+
+    /** Proximo serialNo da sequencia — unico dentro da execucao da suite. */
+    public static long nextSerialNo() {
+        return SERIAL_SEQ.incrementAndGet();
+    }
+
+    /**
+     * Carimba um serialNo novo no evento, se houver evento onde carimbar.
+     *
+     * TOLERANTE de proposito (ao contrario de withSerialNo): os construtores de
+     * requisicao aplicam isto a QUALQUER corpo, inclusive os que nao tem
+     * AccessControllerEvent (LocalUserChange) e os que nem sao JSON (o teste de
+     * corpo invalido do WebhookJsonCameraIT). Nesses casos devolve o corpo
+     * intacto — carimbar la mudaria o proprio objeto do teste.
+     */
+    public static String withFreshSerialNo(String json) {
+        try {
+            JsonNode parsed = MAPPER.readTree(json);
+            if (!(parsed instanceof ObjectNode root)) {
+                return json;
+            }
+            JsonNode alert = root.get("EventNotificationAlert");
+            JsonNode container = (alert instanceof ObjectNode) ? alert : root;
+            JsonNode event = container.get("AccessControllerEvent");
+            if (!(event instanceof ObjectNode eventNode)) {
+                return json;
+            }
+            eventNode.put("serialNo", nextSerialNo());
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            return json;
+        }
+    }
+
     /** Remove o serialNo do evento — aparelho hipotetico sem numerador. */
     public static String withoutSerialNo(String json) {
         return patchEvent(json, node -> node.remove("serialNo"));
@@ -220,12 +270,21 @@ public final class TestFixtures {
      * Monta a requisicao multipart no formato REAL do terminal MinMoe:
      * part "AccessControllerEvent" (application/json) + part "Picture" (image/jpeg).
      *
+     * SERIAL NOVO A CADA CHAMADA (withFreshSerialNo): duas chamadas com o mesmo
+     * arquivo de payload representam dois eventos DISTINTOS — duas passagens da
+     * pessoa —, nao a reentrega do mesmo pacote. Para reentrega de verdade
+     * (serialNo repetido) use multipartWebhookSerialDoPayload.
+     *
      * ATENCAO: usa MockPart, nao MockMultipartFile. O controller le
      * request.getParts() cru (servlet API), e MockMultipartFile popula apenas
      * o mapa de multipartFiles do Spring — getParts() viria VAZIO, o payload
      * seria nulo e o teste passaria por engano com 200 sem processar nada.
      */
     public static MockMultipartHttpServletRequestBuilder multipartWebhook(String json, String remoteAddr) {
+        return multipartComFoto(withFreshSerialNo(json), remoteAddr);
+    }
+
+    private static MockMultipartHttpServletRequestBuilder multipartComFoto(String json, String remoteAddr) {
         MockPart eventPart = new MockPart("AccessControllerEvent", null, json.getBytes(StandardCharsets.UTF_8));
         eventPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
@@ -262,8 +321,29 @@ public final class TestFixtures {
         return builder;
     }
 
-    /** Variante sem a part Picture (alguns eventos nao trazem imagem). */
+    /**
+     * Variante sem a part Picture (alguns eventos nao trazem imagem).
+     * Tambem carimba serialNo novo — ver multipartWebhook.
+     */
     public static MockMultipartHttpServletRequestBuilder multipartWebhookSemFoto(String json, String remoteAddr) {
+        return multipartSemFoto(withFreshSerialNo(json), remoteAddr);
+    }
+
+    /**
+     * Envia o corpo com o serialNo EXATAMENTE como esta no JSON, sem carimbar
+     * um novo. E o construtor dos testes de dedup de INGESTAO, os unicos que
+     * precisam controlar a identidade do pacote: repetir o serial e justamente
+     * o que caracteriza a reentrega que o dedup tem que pegar.
+     *
+     * Em qualquer outro teste use multipartWebhookSemFoto — repetir o serial la
+     * seria acidente, e o evento sumiria no dedup.
+     */
+    public static MockMultipartHttpServletRequestBuilder multipartWebhookSerialDoPayload(String json,
+                                                                                         String remoteAddr) {
+        return multipartSemFoto(json, remoteAddr);
+    }
+
+    private static MockMultipartHttpServletRequestBuilder multipartSemFoto(String json, String remoteAddr) {
         MockPart eventPart = new MockPart("AccessControllerEvent", null, json.getBytes(StandardCharsets.UTF_8));
         eventPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
@@ -282,16 +362,16 @@ public final class TestFixtures {
     public static MockHttpServletRequestBuilder jsonWebhookPathToken(String token, String json, String remoteAddr) {
         return MockMvcRequestBuilders.post(webhookPathTokenUrl(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json)
+                .content(withFreshSerialNo(json))
                 .with(remoteAddr(remoteAddr));
     }
 
-    /** Ramo camera DeepinView: JSON puro, sem multipart. */
+    /** Ramo camera DeepinView: JSON puro, sem multipart. Serial novo a cada chamada. */
     public static MockHttpServletRequestBuilder jsonWebhook(String json, String remoteAddr) {
         return MockMvcRequestBuilders.post(WEBHOOK_URL)
                 .header(TOKEN_HEADER, WEBHOOK_TOKEN)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json)
+                .content(withFreshSerialNo(json))
                 .with(remoteAddr(remoteAddr));
     }
 

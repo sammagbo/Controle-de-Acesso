@@ -24,6 +24,21 @@ import java.util.concurrent.ConcurrentHashMap;
  * fosse fixa, a cada expiracao uma reentrega antiga voltaria a virar linha de
  * log e escrita no banco.
  *
+ * TAMANHO DA JANELA (magbo.ingestion-dedup.ttl-seconds, default 60s): dimensionada
+ * pelos dois lados do risco. Piso: o loop observado reenvia a ~1 req/s, entao 60s
+ * cobre a reentrega com folga de duas ordens de grandeza. Teto: 60s e curto o
+ * bastante para que a janela nunca alcance duas passagens REAIS da mesma pessoa
+ * — ninguem entra duas vezes em menos de um minuto. Janelas longas (a primeira
+ * versao usava 10 min) trocam esse teto por nada: o serialNo ja distingue evento
+ * novo de reentrega, e o unico efeito de esticar e ampliar o estrago se o
+ * numerador do aparelho reiniciar (reset/troca de firmware) e repetir um serial
+ * antigo — nesse caso a janela curta perde no maximo 60s de eventos, nao 10 min.
+ *
+ * O limitador de INFO de heartbeat tem janela PROPRIA
+ * (magbo.ingestion-dedup.heartbeat-log-seconds, default 600s): e higiene de log,
+ * nao dedup de evento, e nao deve encurtar junto — com heartbeat a cada ~30s,
+ * amarra-lo ao TTL de 60s devolveria ~1400 linhas/dia por aparelho.
+ *
  * Cache em memoria, limitado: estado perdido (restart, evicao) so custa uma
  * linha de log ou um reprocesso pontual — nunca perde evento.
  */
@@ -35,7 +50,9 @@ public class WebhookIngestionDedupService {
     private static final String SCOPE_HEARTBEAT = "hb:";
 
     private final boolean enabled;
+    private final long ttlSeconds;
     private final long ttlNanos;
+    private final long heartbeatLogNanos;
     private final int maxEntries;
 
     /** chave -> instante (nanoTime) em que a entrada expira. */
@@ -43,11 +60,19 @@ public class WebhookIngestionDedupService {
 
     public WebhookIngestionDedupService(
             @Value("${magbo.ingestion-dedup.enabled:true}") boolean enabled,
-            @Value("${magbo.ingestion-dedup.ttl-seconds:600}") long ttlSeconds,
+            @Value("${magbo.ingestion-dedup.ttl-seconds:60}") long ttlSeconds,
+            @Value("${magbo.ingestion-dedup.heartbeat-log-seconds:600}") long heartbeatLogSeconds,
             @Value("${magbo.ingestion-dedup.max-entries:10000}") int maxEntries) {
         this.enabled = enabled;
+        this.ttlSeconds = ttlSeconds;
         this.ttlNanos = ttlSeconds * 1_000_000_000L;
+        this.heartbeatLogNanos = heartbeatLogSeconds * 1_000_000_000L;
         this.maxEntries = maxEntries;
+    }
+
+    /** Janela de dedup em segundos — entra na linha de log do descarte. */
+    public long ttlSeconds() {
+        return ttlSeconds;
     }
 
     /**
@@ -73,9 +98,13 @@ public class WebhookIngestionDedupService {
     }
 
     /**
-     * true no maximo uma vez por aparelho por TTL — limita o INFO de
-     * heartbeat a um por aparelho a cada 10 min (janela FIXA: o proximo INFO
-     * sai quando a janela vence, mesmo com heartbeats continuos no meio).
+     * true no maximo uma vez por aparelho por janela de heartbeat — limita o
+     * INFO de heartbeat a um por aparelho a cada 10 min (janela FIXA: o proximo
+     * INFO sai quando a janela vence, mesmo com heartbeats continuos no meio).
+     *
+     * Usa heartbeatLogNanos, NAO o TTL do dedup: encurtar a janela de dedup
+     * para 60s e uma decisao sobre descarte de evento; o volume de log de
+     * heartbeat (um a cada ~30s por aparelho) nao pode vir de carona.
      *
      * NAO consulta o kill-switch `enabled` de proposito: ele governa descarte
      * de EVENTOS (dado); isto e higiene de LOG. Desligar o dedup nao pode
@@ -89,7 +118,7 @@ public class WebhookIngestionDedupService {
         if (prev != null && prev > now) {
             return false;
         }
-        seenUntil.put(key, now + ttlNanos);
+        seenUntil.put(key, now + heartbeatLogNanos);
         return true;
     }
 
@@ -113,8 +142,8 @@ public class WebhookIngestionDedupService {
 
     /**
      * Mantem o cache limitado: ao atingir maxEntries, primeiro descarta os
-     * expirados; se ainda estiver cheio (anomalia — 10k eventos vivos em 10
-     * min nao acontece com ~5 aparelhos), derruba a metade mais antiga.
+     * expirados; se ainda estiver cheio (anomalia — 10k eventos vivos dentro da
+     * janela nao acontece com ~5 aparelhos), derruba a metade mais antiga.
      */
     private void boundIfNeeded(long now) {
         if (seenUntil.size() < maxEntries) return;

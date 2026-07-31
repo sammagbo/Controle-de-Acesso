@@ -78,10 +78,17 @@ public abstract class AbstractIT {
     protected com.magbo.access.services.WebhookIngestionDedupService ingestionDedupService;
 
     /**
-     * O cache de dedup de ingestao e um bean SINGLETON no contexto que os 17
-     * ITs compartilham — sem este clear, um payload reusado entre classes
-     * (mesmo IP sintetico + mesmo serialNo da fixture) seria descartado como
-     * reentrega e o teste seguinte falharia por ordem do surefire.
+     * O cache de dedup de ingestao e um bean SINGLETON no contexto que os ITs
+     * compartilham — sem este clear, estado de um teste vazaria para o proximo
+     * e a falha dependeria da ordem do surefire.
+     *
+     * Continua sendo necessario mesmo depois de TestFixtures passar a carimbar
+     * serialNo novo por evento, porque nem toda chave do cache vem do serial:
+     * - a janela de INFO de heartbeat e por IP apenas (WebhookHeartbeatIT roda
+     *   varios testes no mesmo IP sintetico);
+     * - os eventos de tipo desconhecido usam o serialNo LITERAL do payload
+     *   (WebhookUnknownEventIT repete o 4471 em quatro testes);
+     * - WebhookIngestionDedupIT fixa seriais de proposito.
      */
     @BeforeEach
     void limparCacheDeIngestao() {

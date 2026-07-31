@@ -139,10 +139,25 @@ public class HikvisionWebhookController {
 
             // Dedup de ingestao ANTES de qualquer log por evento: os MinMoe
             // enfileiram e reenviam quando o destino falha, e a reentrega
-            // repete o serialNo. Duplicata: 200, DEBUG, nada no banco.
+            // repete o serialNo. Duplicata: 200, nada no banco — mas NUNCA em
+            // silencio.
+            //
+            // O descarte sai em INFO, nao em DEBUG: em producao o nivel do
+            // pacote e INFO, entao DEBUG some do arquivo e o evento de acesso
+            // desapareceria sem deixar rastro nenhum. Descartar acesso sem
+            // rastro e inaceitavel aqui — se um aluno jura ter passado e nao ha
+            // access_log, a linha abaixo e a unica prova de que o pacote chegou
+            // e por que foi descartado. A linha carrega o que identifica o
+            // pacote (IP de origem + serialNo do aparelho) e a janela aplicada.
+            //
+            // Custo aceito conscientemente: um aparelho preso em loop de ~1
+            // req/s gera ~1 linha INFO/s enquanto durar. E o preco de nao ter
+            // descarte invisivel — e a propria linha e o alarme que denuncia o
+            // loop.
             Long serialNo = event != null ? event.getSerialNo() : null;
             if (ingestionDedup.isDuplicateEvent(sourceIp, serialNo)) {
-                log.debug("Webhook duplicado descartado (ip={}, serialNo={})", sourceIp, serialNo);
+                log.info("Webhook duplicado descartado (ip={}, serialNo={}, janela={}s)",
+                        sourceIp, serialNo, ingestionDedup.ttlSeconds());
                 return ResponseEntity.ok("Success");
             }
 

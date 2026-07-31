@@ -18,9 +18,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * reentrega carrega o MESMO serialNo do mesmo aparelho — reprocessar duplica
  * access_logs e inunda o log da aplicacao.
  *
- * Contrato: duplicata por (IP de origem, serialNo) dentro do TTL responde 200,
- * loga DEBUG e NAO escreve no banco. Sem serialNo, dedup nunca se aplica
- * (nunca arriscar descartar evento legitimo).
+ * Contrato: duplicata por (IP de origem, serialNo) dentro da janela responde
+ * 200, NAO escreve no banco e deixa UMA linha INFO com ip + serialNo. Sem
+ * serialNo, dedup nunca se aplica (nunca arriscar descartar evento legitimo).
+ *
+ * Estes sao os UNICOS testes que usam multipartWebhookSerialDoPayload: repetir
+ * o serialNo e a assinatura da reentrega, e e disso que trata a classe. Os
+ * demais ITs usam multipartWebhookSemFoto/multipartWebhook, que carimbam serial
+ * novo a cada evento como um aparelho real.
  */
 class WebhookIngestionDedupIT extends AbstractIT {
 
@@ -35,9 +40,9 @@ class WebhookIngestionDedupIT extends AbstractIT {
         seedAlunoNaBiblio();
         String payload = TestFixtures.payload("face-75.txt");
 
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count())
@@ -52,9 +57,9 @@ class WebhookIngestionDedupIT extends AbstractIT {
         seedAlunoNaBiblio();
         String payload = TestFixtures.payload("face-75.txt");
 
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(
                         TestFixtures.withSerialNo(payload, 9124), TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
 
@@ -68,9 +73,9 @@ class WebhookIngestionDedupIT extends AbstractIT {
         seedMapping(TestFixtures.IP_CANTINA_SAIDA, "BIBLIO2", AccessAction.ENTRADA);
         String payload = TestFixtures.payload("face-75.txt");
 
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_CANTINA_SAIDA))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_CANTINA_SAIDA))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count()).isEqualTo(2);
@@ -82,35 +87,78 @@ class WebhookIngestionDedupIT extends AbstractIT {
         seedAlunoNaBiblio();
         String payload = TestFixtures.withoutSerialNo(TestFixtures.payload("face-75.txt"));
 
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count()).isEqualTo(2);
     }
 
+    /**
+     * Descarte NUNCA silencioso. Em producao o nivel do pacote e INFO: se a
+     * linha do descarte fosse DEBUG, um evento de acesso sumiria sem rastro
+     * nenhum no arquivo de log — e nao haveria como responder "o pacote chegou?"
+     * quando faltasse um access_log. A linha tem que trazer o que identifica o
+     * pacote: IP de origem + serialNo.
+     */
     @Test
-    @DisplayName("duplicata loga DEBUG, nao repete o INFO 'Received' — e o INFO traz o IP de origem")
-    void duplicataLogaDebugNaoInfo() throws Exception {
+    @DisplayName("descarte deixa UMA linha INFO com ip + serialNo, e nao repete o INFO 'Received'")
+    void duplicataDescartadaDeixaRastroEmInfo() throws Exception {
+        seedAlunoNaBiblio();
+        String payload = TestFixtures.withSerialNo(TestFixtures.payload("face-75.txt"), 7788);
+
+        try (LogCaptor logs = new LogCaptor(HikvisionWebhookController.class)) {
+            mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+                    .andExpect(status().isOk());
+            mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+                    .andExpect(status().isOk());
+
+            assertThat(logs.count(Level.INFO, "Received Hikvision Webhook"))
+                    .as("so a primeira entrega loga a recepcao do evento")
+                    .isEqualTo(1);
+            assertThat(logs.count(Level.INFO, "duplicado descartado"))
+                    .as("o descarte da reentrega deixa exatamente uma linha INFO")
+                    .isEqualTo(1);
+            assertThat(logs.events().stream()
+                    .filter(e -> e.getLevel() == Level.INFO)
+                    .map(e -> e.getFormattedMessage())
+                    .filter(m -> m.contains("duplicado descartado"))
+                    .toList())
+                    .singleElement()
+                    .as("a linha do descarte identifica o pacote: ip de origem + serialNo")
+                    .satisfies(msg -> assertThat(msg)
+                            .contains("ip=" + TestFixtures.IP_BIBLIO)
+                            .contains("serialNo=7788"));
+            assertThat(logs.count(Level.DEBUG, "duplicado descartado"))
+                    .as("o descarte NAO pode viver so em DEBUG: em producao DEBUG nao sai")
+                    .isZero();
+        }
+    }
+
+    /**
+     * Um aparelho preso em loop nao pode gerar descarte mudo: cada reentrega
+     * deixa a sua linha. Custo aceito conscientemente (ver o comentario no
+     * controller) — a propria linha e o alarme que denuncia o loop.
+     */
+    @Test
+    @DisplayName("loop de reentregas: uma linha INFO de descarte por reentrega, nenhuma escrita a mais")
+    void loopDeReentregasLogaCadaDescarte() throws Exception {
         seedAlunoNaBiblio();
         String payload = TestFixtures.payload("face-75.txt");
 
         try (LogCaptor logs = new LogCaptor(HikvisionWebhookController.class)) {
-            mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
-                    .andExpect(status().isOk());
-            mockMvc.perform(TestFixtures.multipartWebhookSemFoto(payload, TestFixtures.IP_BIBLIO))
-                    .andExpect(status().isOk());
+            for (int i = 0; i < 5; i++) {
+                mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+                        .andExpect(status().isOk());
+            }
 
-            assertThat(logs.count(Level.INFO, "Received Hikvision Webhook"))
-                    .as("so a primeira entrega loga a recepcao em INFO")
+            assertThat(accessLogRepository.count())
+                    .as("so a primeira entrega vira access_log")
                     .isEqualTo(1);
-            assertThat(logs.count(Level.INFO, "ip=" + TestFixtures.IP_BIBLIO))
-                    .as("a linha de recepcao atribui o evento ao IP de origem")
-                    .isEqualTo(1);
-            assertThat(logs.count(Level.DEBUG, "serialNo="))
-                    .as("a reentrega descartada e registrada em DEBUG")
-                    .isEqualTo(1);
+            assertThat(logs.count(Level.INFO, "duplicado descartado"))
+                    .as("as 4 reentregas deixam 4 linhas — nenhum descarte silencioso")
+                    .isEqualTo(4);
         }
     }
 }

@@ -12,8 +12,11 @@ class WebhookIngestionDedupServiceTest {
 
     private static final String IP = "172.20.40.10";
 
+    /** Janela de log de heartbeat — separada do TTL de dedup por design. */
+    private static final long HEARTBEAT_LOG_SECONDS = 600;
+
     private WebhookIngestionDedupService service(boolean enabled, long ttlSeconds, int maxEntries) {
-        return new WebhookIngestionDedupService(enabled, ttlSeconds, maxEntries);
+        return new WebhookIngestionDedupService(enabled, ttlSeconds, HEARTBEAT_LOG_SECONDS, maxEntries);
     }
 
     @Test
@@ -101,5 +104,32 @@ class WebhookIngestionDedupServiceTest {
         s.isDuplicateEvent(IP, 123L);
         s.clear();
         assertThat(s.isDuplicateEvent(IP, 123L)).isFalse();
+    }
+
+    /**
+     * A janela do heartbeat NAO pode encolher junto com o TTL de dedup. Sao
+     * decisoes diferentes: 60s de dedup e sobre descartar evento; a janela de
+     * heartbeat e so higiene de log (~1 batida a cada 30s por aparelho).
+     */
+    @Test
+    @DisplayName("janela de heartbeat e independente do TTL de dedup")
+    void janelaDeHeartbeatNaoSegueOTtl() {
+        WebhookIngestionDedupService s = new WebhookIngestionDedupService(true, 0, HEARTBEAT_LOG_SECONDS, 100);
+
+        assertThat(s.isDuplicateEvent(IP, 123L))
+                .as("TTL 0: evento nunca e duplicata")
+                .isFalse();
+        assertThat(s.isDuplicateEvent(IP, 123L)).isFalse();
+
+        assertThat(s.heartbeatInfoDue(IP)).isTrue();
+        assertThat(s.heartbeatInfoDue(IP))
+                .as("a janela de heartbeat continua valendo mesmo com TTL de dedup zerado")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("ttlSeconds() expoe a janela aplicada (vai na linha de log do descarte)")
+    void ttlSecondsEhVisivel() {
+        assertThat(service(true, 60, 100).ttlSeconds()).isEqualTo(60);
     }
 }

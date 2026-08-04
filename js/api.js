@@ -108,8 +108,10 @@ const api = {
     /**
      * Busca logs globais (todos os setores).
      * ALWAYS returns an array. Accepts optional filters object.
-     * @param {Object} filters - { pointId, action, dateFrom, dateTo, limit }
+     * @param {Object} filters - { pointId, action, dateFrom, dateTo, eleve, limit }
      *   limit defaults to 500 when not specified.
+     *   eleve = nome (parcial) OU matrícula; o backend casa os dois, sobre o
+     *   período inteiro (filtrar no cliente só alcançaria as linhas carregadas).
      */
     async fetchAllLogs(filters = {}) {
         try {
@@ -118,6 +120,7 @@ const api = {
             if (filters.action)   params.set('action',   filters.action);
             if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
             if (filters.dateTo)   params.set('dateTo',   filters.dateTo);
+            if (filters.eleve)    params.set('eleve',    filters.eleve);
             const res = await fetch(`${API_BASE_URL}/access/logs/all?${params}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];

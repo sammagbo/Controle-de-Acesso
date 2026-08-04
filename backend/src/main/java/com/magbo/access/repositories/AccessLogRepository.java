@@ -27,12 +27,34 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     List<AccessLog> findByUserIdAndPointIdAndActionAndTimestampAfter(
             String userId, String pointId, AccessAction action, LocalDateTime after);
 
+    /**
+     * Consulta do Journal (Rapport General).
+     *
+     * O filtro de ELEVE roda AQUI, no banco, e nao sobre as linhas ja
+     * carregadas na tela: com o teto de 500 linhas por carga, um aluno que
+     * passou cedo num dia cheio simplesmente nao estaria entre as linhas
+     * filtraveis no cliente, e a busca devolveria zero sem explicar por que.
+     *
+     * Casa por MATRICULA (o proprio user_id do log, que e o id do Pronote com
+     * zeros a esquerda) OU por NOME do aluno em app_users. Os dois porque o
+     * operador usa os dois: o nome quando conhece o aluno, a matricula quando
+     * esta lendo de uma lista. O EXISTS, e nao um JOIN: movimento de matricula
+     * sem cadastro em app_users (aluno removido, id fora do Pronote) nao pode
+     * sumir do Journal — some do JOIN, sobrevive ao EXISTS.
+     *
+     * @param eleve termo JA em minusculas e JA entre '%' (o controller monta);
+     *              null quando o filtro esta vazio
+     */
     @Query("""
         SELECT a FROM AccessLog a
         WHERE (:#{#dateFrom == null} = true OR a.timestamp >= :dateFrom)
           AND (:#{#dateTo == null} = true OR a.timestamp <= :dateTo)
           AND (:#{#pointId == null} = true OR a.pointId = :pointId)
           AND (:#{#action == null} = true OR a.action = :action)
+          AND (:#{#eleve == null} = true
+               OR LOWER(a.userId) LIKE :eleve
+               OR EXISTS (SELECT 1 FROM User u
+                          WHERE u.id = a.userId AND LOWER(u.nome) LIKE :eleve))
         ORDER BY a.timestamp DESC
     """)
     List<AccessLog> findFilteredLogs(
@@ -40,6 +62,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
         @Param("dateTo") LocalDateTime dateTo,
         @Param("pointId") String pointId,
         @Param("action") com.magbo.access.models.AccessAction action,
+        @Param("eleve") String eleve,
         Pageable pageable
     );
 

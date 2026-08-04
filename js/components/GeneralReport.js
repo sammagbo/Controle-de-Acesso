@@ -4,54 +4,87 @@
 // =====================================================================
 
 // ── Journal Tab ──────────────────────────────────────────────────────
-function JournalTab() {
+// `active` = esta aba está visível. O Rapport monta as TRÊS abas de uma vez
+// (as inativas ficam escondidas por CSS), então sem esse sinal o Journal não
+// tem como saber que voltou a ser olhado.
+function JournalTab({ active = true }) {
     const todayStr = () => new Date().toISOString().slice(0, 10);
     const [dateFrom, setDateFrom] = React.useState(todayStr());
     const [dateTo, setDateTo] = React.useState(todayStr());
     const [pointId, setPointId] = React.useState('');
     const [action, setAction] = React.useState('');
     const [aluno, setAluno] = React.useState('');
+    const [alunoQuery, setAlunoQuery] = React.useState('');
     const [logs, setLogs] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState(null);
     const [classe, setClasse] = React.useState('');
     const [sortDir, setSortDir] = React.useState('desc');
     const [page, setPage] = React.useState(1);
+    const [cacheVersion, setCacheVersion] = React.useState(0);
     const PAGE_SIZE = 50;
+    const REFRESH_MS = 30000;
 
-    const load = React.useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    // Debounce de 250 ms no campo Élève — mesma convenção da busca de pessoas.
+    React.useEffect(() => {
+        const tid = setTimeout(() => setAlunoQuery(aluno.trim()), 250);
+        return () => clearTimeout(tid);
+    }, [aluno]);
+
+    // O userCache carrega de forma assíncrona no startup. Sem escutar o evento,
+    // uma tela aberta antes de ele chegar mostra matrícula crua na coluna Élève
+    // e o filtro de Classe não acha nada — sem nenhum sinal de que falta dado.
+    React.useEffect(() => {
+        const onCache = () => setCacheVersion(v => v + 1);
+        window.addEventListener('user-cache-updated', onCache);
+        return () => window.removeEventListener('user-cache-updated', onCache);
+    }, []);
+
+    const load = React.useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
         try {
-            const data = await window.api.fetchAllLogs({ dateFrom, dateTo, pointId, action, limit: 500 });
+            const data = await window.api.fetchAllLogs({
+                dateFrom, dateTo, pointId, action, eleve: alunoQuery, limit: 500
+            });
             setLogs(Array.isArray(data) ? data : []);
+            setError(null);
         } catch (e) {
-            setLogs([]);
+            // Numa atualização silenciosa, mantém as linhas que já estavam na
+            // tela: apagar tudo por causa de uma falha de rede passageira é
+            // trocar dado velho por dado nenhum.
+            if (!silent) setLogs([]);
             setError('Impossible de charger le journal. Vérifiez la connexion au serveur.');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
-    }, [dateFrom, dateTo, pointId, action]);
+    }, [dateFrom, dateTo, pointId, action, alunoQuery]);
 
-    React.useEffect(() => { load(); }, [load]);
+    // ⚠️ REGRESSÃO DE 03/08/2026 — não voltar a carregar só na montagem.
+    // O Journal buscava UMA vez, quando a tela do Rapport era aberta, e nunca
+    // mais: nem ao trocar de aba, nem com o tempo. A tela foi aberta logo
+    // depois do primeiro movimento do dia e às 13:02 ainda mostrava aquele
+    // único movimento, com a "Vue d'ensemble" ao lado contando os 5 certos.
+    // Sub-reportar é pior que falhar: a tela parece funcionar.
+    // Recarrega ao ficar visível e vai se atualizando enquanto for olhada;
+    // parado quando escondida, para as três abas não martelarem o backend.
+    React.useEffect(() => {
+        if (!active) return undefined;
+        load();
+        const id = setInterval(() => load({ silent: true }), REFRESH_MS);
+        return () => clearInterval(id);
+    }, [active, load]);
 
-    // filtro client-side por nome/ID do aluno
+    // O filtro de ÉLÈVE é do SERVIDOR (nome OU matrícula, sobre o período
+    // inteiro). Refiltrar aqui apagaria justamente as linhas que o servidor
+    // casou pelo nome de um aluno ausente do cache local.
     const filtered = React.useMemo(() => {
-        const qA = aluno.trim().toLowerCase();
         const qC = classe.trim().toLowerCase();
+        if (!qC) return logs;
         return logs.filter(l => {
-            const u = window.userCache?.byId(l.userId);
-            if (qA) {
-                const nome = (u?.nome || '').toLowerCase();
-                if (!nome.includes(qA) && !String(l.userId).includes(aluno.trim())) return false;
-            }
-            if (qC) {
-                const turma = (u?.turma || '').toLowerCase();
-                if (!turma.includes(qC)) return false;
-            }
-            return true;
+            const turma = (window.userCache?.byId(l.userId)?.turma || '').toLowerCase();
+            return turma.includes(qC);
         });
-    }, [logs, aluno, classe]);
+    }, [logs, classe, cacheVersion]);
 
     const sorted = React.useMemo(() => {
         const arr = [...filtered];
@@ -65,7 +98,16 @@ function JournalTab() {
         () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
         [sorted, page]
     );
-    React.useEffect(() => { setPage(1); }, [filtered]);
+    // Volta à página 1 quando o OPERADOR mexe num filtro — e não a cada
+    // atualização automática, o que arrancaria o leitor da página em que está
+    // a cada 30 s (`filtered` é um array novo a cada carga).
+    React.useEffect(() => {
+        setPage(1);
+    }, [dateFrom, dateTo, pointId, action, alunoQuery, classe, sortDir]);
+    // Uma atualização pode encurtar a lista com o leitor numa página alta.
+    React.useEffect(() => {
+        if (page > totalPages) setPage(totalPages);
+    }, [page, totalPages]);
 
     const pointName = (id) => {
         const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === id);
@@ -145,7 +187,7 @@ function JournalTab() {
                         type="text"
                         value={aluno}
                         onChange={e => setAluno(e.target.value)}
-                        placeholder="Nom ou ID..."
+                        placeholder="Nom ou matricule..."
                         className={inputCls + ' w-full'}
                     />
                 </div>
@@ -161,7 +203,7 @@ function JournalTab() {
                 <div className="mb-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-xl px-4 py-2.5">
                     <LucideIcon name="wifi-off" size={16} />
                     <span className="flex-1">{error}</span>
-                    <button onClick={load} className="font-bold underline hover:no-underline">Réessayer</button>
+                    <button onClick={() => load()} className="font-bold underline hover:no-underline">Réessayer</button>
                 </div>
             )}
 
@@ -1244,7 +1286,7 @@ function GeneralReport({ onBack }) {
             <div className="bg-white rounded-2xl border border-soft-200 p-6 shadow-sm min-h-[400px]">
                 <div className={tab === 'overview' ? '' : 'hidden'}><OverviewTab /></div>
                 <div className={tab === 'student' ? '' : 'hidden'}><ParEleveTab /></div>
-                <div className={tab === 'journal' ? '' : 'hidden'}><JournalTab /></div>
+                <div className={tab === 'journal' ? '' : 'hidden'}><JournalTab active={tab === 'journal'} /></div>
             </div>
         </div>
     );

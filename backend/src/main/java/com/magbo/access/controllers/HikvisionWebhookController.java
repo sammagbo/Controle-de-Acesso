@@ -16,6 +16,7 @@ public class HikvisionWebhookController {
 
     private final AccessDecisionService accessDecisionService;
     private final com.magbo.access.services.WebhookIngestionDedupService ingestionDedup;
+    private final com.magbo.access.services.EventTimeResolver eventTimeResolver;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${magbo.webhook.token:}")
@@ -184,12 +185,32 @@ public class HikvisionWebhookController {
                 return ResponseEntity.ok("Success");
             }
 
-            accessDecisionService.process(event, terminalIp);
+            // Hora do EVENTO, nao da recepcao: os MinMoe enfileiram e reenviam,
+            // e uma fila esvaziada entrega passagens de horas atras (incidente
+            // de 03/08/2026). Resolvido aqui, depois dos descartes, para que
+            // pacote descartado nunca gere linha de fallback de hora.
+            java.time.LocalDateTime eventTime =
+                    eventTimeResolver.resolve(rawEventTime(payload), sourceIp, java.time.LocalDateTime.now());
+
+            accessDecisionService.process(event, terminalIp, eventTime);
             return ResponseEntity.ok("Success");
         } catch (Exception e) {
             log.error("Error processing webhook (ip={})", sourceIp, e);
             return ResponseEntity.status(500).body("Error");
         }
+    }
+
+    /**
+     * dateTime do ENVELOPE do payload. Fica na raiz (MinMoe) ou dentro do
+     * EventNotificationAlert (camera) — nunca dentro do AccessControllerEvent.
+     * O do alerta tem precedencia quando existe; o da raiz cobre o resto.
+     */
+    private String rawEventTime(HikvisionEventDto payload) {
+        HikvisionEventDto.EventNotificationAlert alert = payload.getEventNotificationAlert();
+        if (alert != null && alert.getDateTime() != null && !alert.getDateTime().isBlank()) {
+            return alert.getDateTime();
+        }
+        return payload.getDateTime();
     }
 
     /** JSON bruto + nome da part de onde veio + DTO ja desserializado. */
@@ -271,6 +292,24 @@ public class HikvisionWebhookController {
             log.debug("Evento desconhecido sem metadados legiveis (ip={}): {}", sourceIp, e.getMessage());
         }
 
+        // Keep-alive do aparelho (eventType "heartBeat", ~30s por aparelho):
+        // chega SEM AccessControllerEvent, entao entra por aqui, e sem serialNo
+        // — o dedup de desconhecido nao tem chave e deixa passar tudo. Sem este
+        // desvio sai uma linha INFO por batida por aparelho (~2900/dia com 1
+        // terminal), afogando no log exatamente os eventos que importam.
+        // Roteado para o limitador que ja existe para heartbeat: no maximo um
+        // INFO por aparelho por janela, o resto em DEBUG. O tratamento de
+        // evento desconhecido abaixo segue inalterado para todo o resto.
+        if (ehHeartbeat(eventType)) {
+            if (ingestionDedup.heartbeatInfoDue(sourceIp)) {
+                log.info("Heartbeat do terminal ip={} (proximos heartbeats em DEBUG ate a janela vencer)",
+                        sourceIp);
+            } else {
+                log.debug("Heartbeat (ip={}, serialNo={})", sourceIp, serialNo);
+            }
+            return;
+        }
+
         String partLabel = body.partName() != null ? body.partName() : "(json)";
         if (ingestionDedup.isDuplicateUnknown(sourceIp, serialNo)) {
             log.debug("Evento desconhecido reentregue (ip={}, part={}, serialNo={})",
@@ -279,6 +318,21 @@ public class HikvisionWebhookController {
         }
         log.info("Evento nao tratado, descartado: ip={}, part={}, eventType={}, serialNo={}",
                 sourceIp, partLabel, eventType, serialNo);
+    }
+
+    /**
+     * Keep-alive pelo eventType do envelope. Comparacao case-insensitive de
+     * proposito: o campo aparece como "heartBeat" nos MinMoe, e nao vale
+     * arriscar que uma familia de firmware escreva "heartbeat" e o limitador
+     * pare de valer justamente onde o volume aparece.
+     *
+     * Nao confundir com o heartbeat major 5 / sub 9 tratado em handleEvent:
+     * aquele vem COM AccessControllerEvent e ja e limitado la. Sao dois
+     * formatos do mesmo ruido, e os dois passam pelo mesmo limitador.
+     */
+    private boolean ehHeartbeat(String eventType) {
+        return eventType != null
+                && eventType.trim().toLowerCase(java.util.Locale.ROOT).contains("heartbeat");
     }
 
     /** serialNo na raiz ou um nivel abaixo (ex.: LocalUserChange.serialNo). */

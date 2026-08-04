@@ -26,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -137,7 +140,10 @@ public final class TestFixtures {
     /**
      * Carrega um payload real capturado do hardware
      * (src/test/resources/payloads/). O dateTime vem em +08:00 — fuso de
-     * fabrica do aparelho, que o backend ignora em favor da hora do servidor.
+     * fabrica do aparelho. O backend converte esse INSTANTE para
+     * America/Sao_Paulo e o grava como timestamp (ver EventTimeResolver), entao
+     * a hora da captura importa: os construtores de requisicao a substituem
+     * pela hora corrente, exceto nas variantes ...Verbatim.
      */
     public static String payload(String fileName) {
         try {
@@ -230,6 +236,71 @@ public final class TestFixtures {
         return patchEvent(json, node -> node.remove("serialNo"));
     }
 
+    /**
+     * Troca o dateTime do ENVELOPE — a hora do evento segundo o aparelho.
+     *
+     * Fica na raiz (MinMoe) ou dentro do EventNotificationAlert (camera), nunca
+     * dentro do AccessControllerEvent: por isso nao usa patchEvent.
+     */
+    public static String withDateTime(String json, String dateTime) {
+        return patchEnvelope(json, node -> node.put("dateTime", dateTime));
+    }
+
+    /** Remove o dateTime do envelope — aparelho que nao informa a hora do evento. */
+    public static String withoutDateTime(String json) {
+        return patchEnvelope(json, node -> node.remove("dateTime"));
+    }
+
+    /**
+     * Carimba no envelope o instante ATUAL expresso no fuso do aparelho
+     * (+08:00, fuso de fabrica dos MinMoe da escola).
+     *
+     * Mesma razao de existir do withFreshSerialNo: os arquivos de payloads/ sao
+     * capturas de UM evento real e trazem a hora daquele dia (14/07/2026). Desde
+     * que o backend passou a gravar a hora do EVENTO, reusar a captura verbatim
+     * significaria "um evento de julho" — e todo teste com semantica de hoje
+     * (countPresentToday, totalToday) passaria a contar zero. Pior: o payload
+     * envelheceria sozinho e um dia cruzaria a guarda de 30 dias, quebrando a
+     * suite por passagem do tempo. Um aparelho de verdade manda a hora corrente.
+     *
+     * TOLERANTE como o withFreshSerialNo: corpo que nao e objeto JSON volta
+     * intacto (o teste de corpo invalido depende disso).
+     */
+    public static String withFreshDateTime(String json) {
+        try {
+            JsonNode parsed = MAPPER.readTree(json);
+            if (!(parsed instanceof ObjectNode root)) {
+                return json;
+            }
+            JsonNode alert = root.get("EventNotificationAlert");
+            ObjectNode envelope = (alert instanceof ObjectNode alertNode) ? alertNode : root;
+            envelope.put("dateTime", agoraNoFusoDoAparelho());
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            return json;
+        }
+    }
+
+    /** Instante atual em +08:00, formatado como o aparelho formata. */
+    public static String agoraNoFusoDoAparelho() {
+        return noFusoDoAparelho(LocalDateTime.now());
+    }
+
+    /**
+     * O MESMO instante que `local` (hora local do servidor), reescrito no fuso
+     * de fabrica do aparelho. E assim que o payload real chega: hora deslocada,
+     * offset explicito — o backend tem que reconstruir o instante, nao ler os
+     * digitos.
+     */
+    public static String noFusoDoAparelho(LocalDateTime local) {
+        return local.atZone(ZoneId.systemDefault())
+                .withZoneSameInstant(FUSO_DO_APARELHO)
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    }
+
+    /** Fuso de fabrica dos terminais da escola (CLAUDE.md, gotcha do GMT+8). */
+    public static final ZoneOffset FUSO_DO_APARELHO = ZoneOffset.ofHours(8);
+
     /** Remove o ipAddress do ramo camera, para exercitar o fallback p/ remoteAddr. */
     public static String withoutIpAddress(String json) {
         try {
@@ -257,6 +328,18 @@ public final class TestFixtures {
         }
     }
 
+    /** Igual ao patchEvent, mas no ENVELOPE (onde vive o dateTime). */
+    private static String patchEnvelope(String json, java.util.function.Consumer<ObjectNode> patch) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            JsonNode alert = root.get("EventNotificationAlert");
+            patch.accept((alert != null) ? (ObjectNode) alert : root);
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** O AccessControllerEvent fica na raiz (MinMoe) ou dentro de EventNotificationAlert (camera). */
     private static ObjectNode locateEvent(ObjectNode root) {
         JsonNode alert = root.get("EventNotificationAlert");
@@ -275,13 +358,18 @@ public final class TestFixtures {
      * pessoa —, nao a reentrega do mesmo pacote. Para reentrega de verdade
      * (serialNo repetido) use multipartWebhookSerialDoPayload.
      *
+     * HORA DO EVENTO NOVA A CADA CHAMADA (withFreshDateTime), pela mesma razao
+     * do serial: o backend grava a hora do EVENTO, e a captura traz a hora do
+     * dia em que foi capturada. Testes que precisam controlar a hora do evento
+     * usam multipartWebhookVerbatim.
+     *
      * ATENCAO: usa MockPart, nao MockMultipartFile. O controller le
      * request.getParts() cru (servlet API), e MockMultipartFile popula apenas
      * o mapa de multipartFiles do Spring — getParts() viria VAZIO, o payload
      * seria nulo e o teste passaria por engano com 200 sem processar nada.
      */
     public static MockMultipartHttpServletRequestBuilder multipartWebhook(String json, String remoteAddr) {
-        return multipartComFoto(withFreshSerialNo(json), remoteAddr);
+        return multipartComFoto(withFreshDateTime(withFreshSerialNo(json)), remoteAddr);
     }
 
     private static MockMultipartHttpServletRequestBuilder multipartComFoto(String json, String remoteAddr) {
@@ -323,24 +411,32 @@ public final class TestFixtures {
 
     /**
      * Variante sem a part Picture (alguns eventos nao trazem imagem).
-     * Tambem carimba serialNo novo — ver multipartWebhook.
+     * Tambem carimba serialNo e dateTime novos — ver multipartWebhook.
      */
     public static MockMultipartHttpServletRequestBuilder multipartWebhookSemFoto(String json, String remoteAddr) {
-        return multipartSemFoto(withFreshSerialNo(json), remoteAddr);
+        return multipartSemFoto(withFreshDateTime(withFreshSerialNo(json)), remoteAddr);
     }
 
     /**
-     * Envia o corpo com o serialNo EXATAMENTE como esta no JSON, sem carimbar
-     * um novo. E o construtor dos testes de dedup de INGESTAO, os unicos que
-     * precisam controlar a identidade do pacote: repetir o serial e justamente
-     * o que caracteriza a reentrega que o dedup tem que pegar.
-     *
-     * Em qualquer outro teste use multipartWebhookSemFoto — repetir o serial la
-     * seria acidente, e o evento sumiria no dedup.
+     * Envia o corpo EXATAMENTE como esta no JSON — nem serialNo nem dateTime
+     * sao carimbados. E o construtor de quem precisa controlar a identidade do
+     * pacote ou a hora do evento; em qualquer outro teste use
+     * multipartWebhookSemFoto, onde repetir o serial seria acidente (o evento
+     * sumiria no dedup) e a hora seria a do dia da captura.
+     */
+    public static MockMultipartHttpServletRequestBuilder multipartWebhookVerbatim(String json,
+                                                                                  String remoteAddr) {
+        return multipartSemFoto(json, remoteAddr);
+    }
+
+    /**
+     * Nome historico do multipartWebhookVerbatim, usado pelos testes de dedup de
+     * INGESTAO: repetir o serial e justamente o que caracteriza a reentrega que
+     * o dedup tem que pegar.
      */
     public static MockMultipartHttpServletRequestBuilder multipartWebhookSerialDoPayload(String json,
                                                                                          String remoteAddr) {
-        return multipartSemFoto(json, remoteAddr);
+        return multipartWebhookVerbatim(json, remoteAddr);
     }
 
     private static MockMultipartHttpServletRequestBuilder multipartSemFoto(String json, String remoteAddr) {
@@ -362,16 +458,21 @@ public final class TestFixtures {
     public static MockHttpServletRequestBuilder jsonWebhookPathToken(String token, String json, String remoteAddr) {
         return MockMvcRequestBuilders.post(webhookPathTokenUrl(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(withFreshSerialNo(json))
+                .content(withFreshDateTime(withFreshSerialNo(json)))
                 .with(remoteAddr(remoteAddr));
     }
 
-    /** Ramo camera DeepinView: JSON puro, sem multipart. Serial novo a cada chamada. */
+    /** Ramo camera DeepinView: JSON puro, sem multipart. Serial e hora novos a cada chamada. */
     public static MockHttpServletRequestBuilder jsonWebhook(String json, String remoteAddr) {
+        return jsonWebhookVerbatim(withFreshDateTime(withFreshSerialNo(json)), remoteAddr);
+    }
+
+    /** Ramo camera com o corpo intacto — ver multipartWebhookVerbatim. */
+    public static MockHttpServletRequestBuilder jsonWebhookVerbatim(String json, String remoteAddr) {
         return MockMvcRequestBuilders.post(WEBHOOK_URL)
                 .header(TOKEN_HEADER, WEBHOOK_TOKEN)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(withFreshSerialNo(json))
+                .content(json)
                 .with(remoteAddr(remoteAddr));
     }
 

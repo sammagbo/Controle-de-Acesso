@@ -58,8 +58,23 @@ public class AccessDecisionService {
     private static final Duration MAX_CANTINA_TIME = Duration.ofHours(1);
     private static final Duration LUNCH_WINDOW = Duration.ofHours(1);
 
+    /**
+     * @param eventTime hora em que o evento ACONTECEU (dateTime do payload, ja
+     *                  convertido para America/Sao_Paulo pelo
+     *                  EventTimeResolver; a hora de recepcao entra como
+     *                  fallback la). E o que vai para access_logs.timestamp e
+     *                  access_attempts.timestamp.
+     *
+     *                  ESCOPO DELIBERADO: eventTime e a hora do REGISTRO. As
+     *                  regras (janela da cantina, dedup de refeicao, permissao
+     *                  de saida, tempo dentro da cantina) continuam avaliadas
+     *                  contra `now`, a hora em que o MAGBO decide — mudar o
+     *                  relogio das regras alteraria decisoes DENY/ALLOW em
+     *                  producao e e uma decisao a parte, do Sam.
+     */
     @Transactional
-    public void process(HikvisionEventDto.AccessControllerEvent event, String terminalIp) {
+    public void process(HikvisionEventDto.AccessControllerEvent event, String terminalIp,
+                        LocalDateTime eventTime) {
         Integer subType = event.getSubEventType();
         EventClassification classification = classifier.classify(subType);
 
@@ -75,7 +90,7 @@ public class AccessDecisionService {
                     resolved.pointId(), resolved.action(), terminalIp,
                     classification.method(), classification.result(),
                     AuthorizationResult.DENIED, DenialReason.MISSING_DOOR_MAPPING,
-                    subType, true
+                    subType, true, eventTime
             );
             return;
         }
@@ -88,7 +103,7 @@ public class AccessDecisionService {
                     resolved.pointId(), resolved.action(), terminalIp,
                     classification.method(), AuthResult.DENIED,
                     AuthorizationResult.DENIED, DenialReason.DEVICE_DENIED,
-                    subType, resolved.isFallback()
+                    subType, resolved.isFallback(), eventTime
             );
             return;
         }
@@ -99,7 +114,7 @@ public class AccessDecisionService {
                     resolved.pointId(), resolved.action(), terminalIp,
                     classification.method(), AuthResult.UNKNOWN,
                     AuthorizationResult.NOT_APPLICABLE, DenialReason.DEVICE_DENIED,
-                    subType, resolved.isFallback()
+                    subType, resolved.isFallback(), eventTime
             );
             return;
         }
@@ -111,7 +126,7 @@ public class AccessDecisionService {
                     resolved.pointId(), resolved.action(), terminalIp,
                     classification.method(), classification.result(),
                     AuthorizationResult.DENIED, DenialReason.UNKNOWN_USER,
-                    subType, resolved.isFallback()
+                    subType, resolved.isFallback(), eventTime
             );
             return;
         }
@@ -127,7 +142,7 @@ public class AccessDecisionService {
                         resolved.pointId(), resolved.action(), terminalIp,
                         classification.method(), classification.result(),
                         AuthorizationResult.DENIED, DenialReason.USER_INACTIVE,
-                        subType, resolved.isFallback()
+                        subType, resolved.isFallback(), eventTime
                 );
                 return;
             } else if (mode == PolicyMode.OBSERVATION) {
@@ -136,11 +151,15 @@ public class AccessDecisionService {
                         resolved.pointId(), resolved.action(), terminalIp,
                         classification.method(), classification.result(),
                         AuthorizationResult.OBSERVATION, DenialReason.USER_INACTIVE,
-                        subType, resolved.isFallback()
+                        subType, resolved.isFallback(), eventTime
                 );
             }
         }
 
+        // Relogio das REGRAS — deliberadamente separado de eventTime, que e o
+        // relogio do REGISTRO (ver o javadoc de process). Trocar este `now`
+        // por eventTime mudaria decisoes DENY/ALLOW e nao e mudanca de
+        // timestamp: e mudanca de politica.
         LocalDateTime now = LocalDateTime.now();
         String pid = resolved.pointId() == null ? "" : resolved.pointId().toUpperCase();
         boolean isRefectory = pid.startsWith("REFEI") || pid.startsWith("CANTINA");
@@ -156,7 +175,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.DENIED, DenialReason.DUPLICATE_MEAL,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                         return;
                     } else if (mode == PolicyMode.OBSERVATION) {
@@ -165,7 +184,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.OBSERVATION, DenialReason.DUPLICATE_MEAL,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                     }
                 }
@@ -182,7 +201,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.DENIED, DenialReason.MEAL_NOT_ENTITLED,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                         return;
                     } else if (mode == PolicyMode.OBSERVATION) {
@@ -191,7 +210,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.OBSERVATION, DenialReason.MEAL_NOT_ENTITLED,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                     }
                 } else if (decision.effectiveStatus() == EntitlementStatus.PENDING) {
@@ -202,7 +221,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.DENIED, DenialReason.MEAL_NOT_ENTITLED,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                         return;
                     } else if (mode == PolicyMode.OBSERVATION) {
@@ -211,7 +230,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.OBSERVATION, DenialReason.MEAL_NOT_ENTITLED,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                     }
                 }
@@ -224,7 +243,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.DENIED, DenialReason.OUTSIDE_MEAL_TIME,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                         return;
                     } else if (mode == PolicyMode.OBSERVATION) {
@@ -233,7 +252,7 @@ public class AccessDecisionService {
                                 resolved.pointId(), resolved.action(), terminalIp,
                                 classification.method(), classification.result(),
                                 AuthorizationResult.OBSERVATION, DenialReason.OUTSIDE_MEAL_TIME,
-                                subType, resolved.isFallback()
+                                subType, resolved.isFallback(), eventTime
                         );
                     }
                 }
@@ -256,7 +275,7 @@ public class AccessDecisionService {
                             resolved.pointId(), resolved.action(), terminalIp,
                             classification.method(), classification.result(),
                             AuthorizationResult.DENIED, exitDecision.reason(),
-                            subType, resolved.isFallback()
+                            subType, resolved.isFallback(), eventTime
                     );
                     return;
                 } else if (mode == PolicyMode.OBSERVATION) {
@@ -265,7 +284,7 @@ public class AccessDecisionService {
                             resolved.pointId(), resolved.action(), terminalIp,
                             classification.method(), classification.result(),
                             AuthorizationResult.OBSERVATION, exitDecision.reason(),
-                            subType, resolved.isFallback()
+                            subType, resolved.isFallback(), eventTime
                     );
                 }
             } else {
@@ -277,7 +296,10 @@ public class AccessDecisionService {
                 .userId(userId)
                 .pointId(resolved.pointId())
                 .action(resolved.action())
-                .timestamp(now)
+                // Hora do EVENTO, nao a da recepcao: e daqui que saem os
+                // relatorios de horario e duracao (incidente da fila offline
+                // de 03/08/2026).
+                .timestamp(eventTime)
                 .flag(flag)
                 .authMethod(classification.method())
                 .hikvisionSubEventType(subType)

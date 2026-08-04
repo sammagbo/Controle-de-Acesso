@@ -20,6 +20,14 @@ public class AccessAttemptService {
 
     private final AccessAttemptRepository accessAttemptRepository;
 
+    /**
+     * @param timestamp hora do EVENTO (dateTime do payload, ja resolvido pelo
+     *                  EventTimeResolver), nao a hora em que o pacote chegou.
+     *                  Uma fila offline esvaziada entrega tentativas de horas
+     *                  atras, e uma tentativa negada carimbada com a hora da
+     *                  recepcao mente na auditoria do mesmo jeito que um
+     *                  access_log mentiria.
+     */
     public AccessAttempt record(
         String userId,
         String employeeNoRaw,
@@ -32,7 +40,8 @@ public class AccessAttemptService {
         AuthorizationResult authorizationResult,
         DenialReason denialReason,
         Integer hikvisionSubEventType,
-        Boolean doorMappingFallback
+        Boolean doorMappingFallback,
+        LocalDateTime timestamp
     ) {
         if (employeeNoRaw == null || employeeNoRaw.isBlank()) {
             throw new IllegalArgumentException("employeeNoRaw must not be null or blank");
@@ -54,7 +63,7 @@ public class AccessAttemptService {
                 .denialReason(denialReason)
                 .hikvisionSubEventType(hikvisionSubEventType)
                 .doorMappingFallback(doorMappingFallback)
-                .timestamp(LocalDateTime.now())
+                .timestamp(timestamp != null ? timestamp : LocalDateTime.now())
                 .build();
 
         accessAttemptRepository.save(attempt);

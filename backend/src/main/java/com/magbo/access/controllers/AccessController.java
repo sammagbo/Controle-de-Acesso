@@ -194,12 +194,20 @@ public class AccessController {
         return ResponseEntity.ok(logs);
     }
 
+    /**
+     * Fonte da aba "Journal" do Rapport General.
+     *
+     * @param eleve nome (parcial) OU matricula do aluno. Filtra no banco, sobre
+     *              o periodo inteiro — filtrar no cliente so alcancaria as
+     *              linhas ja carregadas (teto de 500).
+     */
     @GetMapping("/logs/all")
     public ResponseEntity<List<AccessLog>> getAllRecentLogs(
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(required = false) String pointId,
             @RequestParam(required = false) String action,
+            @RequestParam(required = false) String eleve,
             @RequestParam(defaultValue = "50") Integer limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         Pageable pageable = PageRequest.of(0, safeLimit);
@@ -210,7 +218,10 @@ public class AccessController {
             start = java.time.LocalDate.parse(dateFrom).atStartOfDay();
         }
         if (dateTo != null && !dateTo.isBlank()) {
-            end = java.time.LocalDate.parse(dateTo).atTime(23, 59, 59);
+            // Fim do DIA, nao o comeco do ultimo segundo: com atTime(23,59,59)
+            // uma passagem as 23:59:59.7 existia no banco, era contada pela
+            // "Vue d'ensemble" (BETWEEN nativo) e sumia do Journal.
+            end = java.time.LocalDate.parse(dateTo).atTime(java.time.LocalTime.MAX);
         }
 
         com.magbo.access.models.AccessAction actionEnum = null;
@@ -220,7 +231,16 @@ public class AccessController {
             } catch (Exception ignored) {}
         }
 
-        List<AccessLog> logs = accessLogRepository.findFilteredLogs(start, end, pointId, actionEnum, pageable);
+        // Termo pronto para o LIKE: minusculas + '%' nas pontas. Em branco vira
+        // null, que a consulta le como "sem filtro" — filtro vazio nunca pode
+        // virar uma busca por string vazia.
+        String elevePattern = null;
+        if (eleve != null && !eleve.isBlank()) {
+            elevePattern = "%" + eleve.trim().toLowerCase() + "%";
+        }
+
+        List<AccessLog> logs = accessLogRepository.findFilteredLogs(
+                start, end, pointId, actionEnum, elevePattern, pageable);
         return ResponseEntity.ok(logs);
     }
 

@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 public class AccessAttemptService {
 
     private final AccessAttemptRepository accessAttemptRepository;
+    private final SamePassageService samePassageService;
 
     /**
      * @param timestamp hora do EVENTO (dateTime do payload, ja resolvido pelo
@@ -27,6 +28,10 @@ public class AccessAttemptService {
      *                  atras, e uma tentativa negada carimbada com a hora da
      *                  recepcao mente na auditoria do mesmo jeito que um
      *                  access_log mentiria.
+     * @return a tentativa gravada, ou <b>null</b> quando ela foi suprimida por
+     *         ser repeticao da mesma passagem dentro da janela. Os chamadores
+     *         atuais descartam o retorno; quem passar a usa-lo precisa tratar
+     *         o null.
      */
     public AccessAttempt record(
         String userId,
@@ -50,6 +55,19 @@ public class AccessAttemptService {
             throw new IllegalArgumentException("denialReason must not be null");
         }
 
+        // MESMA PASSAGEM (lado das negadas): leitura repetida da mesma face
+        // repete a mesma negativa, e a segunda linha nao acrescenta nada a
+        // auditoria — so infla `negadasHoje` e o feed do operador.
+        // Aqui, e nao em cada um dos ~16 pontos de chamada do orquestrador:
+        // este e o unico caminho por onde tentativa vira linha no banco.
+        LocalDateTime quando = timestamp != null ? timestamp : LocalDateTime.now();
+        if (samePassageService.alreadyAttempted(employeeNoRaw, pointId, action,
+                authorizationResult, denialReason, quando)) {
+            log.debug("Mesma passagem negada ignorada (raw={}, point={}, action={}, reason={}, janela={}s)",
+                    employeeNoRaw, pointId, action, denialReason, samePassageService.windowSeconds());
+            return null;
+        }
+
         AccessAttempt attempt = AccessAttempt.builder()
                 .userId(userId)
                 .employeeNoRaw(employeeNoRaw)
@@ -63,7 +81,7 @@ public class AccessAttemptService {
                 .denialReason(denialReason)
                 .hikvisionSubEventType(hikvisionSubEventType)
                 .doorMappingFallback(doorMappingFallback)
-                .timestamp(timestamp != null ? timestamp : LocalDateTime.now())
+                .timestamp(quando)
                 .build();
 
         accessAttemptRepository.save(attempt);

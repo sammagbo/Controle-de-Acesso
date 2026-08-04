@@ -56,6 +56,7 @@ class EntryWindowRegressionTest {
     @Mock private AccessAttemptService attemptService;
     @Mock private MealEntitlementService mealEntitlementService;
     @Mock private ExitPermissionService exitPermissionService;
+    @Mock private SamePassageService samePassageService;
 
     private AccessDecisionService service;
 
@@ -68,7 +69,7 @@ class EntryWindowRegressionTest {
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,
                 new HikvisionEventClassifier(), dedupService, attemptService, new PolicyProperties(),
-                mealEntitlementService, exitPermissionService);
+                mealEntitlementService, exitPermissionService, samePassageService);
     }
 
     private String validar(User user, LocalTime hora) {

@@ -33,6 +33,35 @@ import java.util.Map;
 public class StaffController {
 
     private final StaffRegistrationService staffRegistrationService;
+    private final com.magbo.access.services.HikCentralImportService hikCentralImportService;
+
+    /**
+     * SIMULACAO do import do HikCentral: nao grava nada, devolve o que
+     * aconteceria linha a linha.
+     *
+     * Existe porque o arquivo real tem 1198 linhas e mistura 996 alunos que ja
+     * existem com ~100 servidores que nao existem. Aplicar as cegas um arquivo
+     * desse tamanho sobre a base de producao — e depois descobrir o que ele fez
+     * — nao e uma opcao.
+     */
+    @PostMapping("/import/preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.magbo.access.services.HikCentralImportService.ImportPlan> importPreview(
+            @RequestBody List<com.magbo.access.dto.HikCentralRowDto> linhas) {
+        return ResponseEntity.ok(hikCentralImportService.plan(linhas));
+    }
+
+    /**
+     * Aplica o import. O plano e REFEITO aqui contra o estado atual do banco —
+     * o que a tela mostrou foi uma simulacao, e entre a conferencia e a
+     * confirmacao o banco pode ter mudado.
+     */
+    @PostMapping("/import")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.magbo.access.services.HikCentralImportService.ImportPlan> importApply(
+            @RequestBody List<com.magbo.access.dto.HikCentralRowDto> linhas) {
+        return ResponseEntity.ok(hikCentralImportService.apply(linhas));
+    }
 
     /** Matricula que o formulario mostra antes de salvar (campo em branco). */
     @GetMapping("/next-matricula")

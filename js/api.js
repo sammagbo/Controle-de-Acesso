@@ -280,6 +280,25 @@ const api = {
         }
     },
 
+    /**
+     * SIMULAÇÃO do import do HikCentral — não grava nada.
+     * @param {Array} rows - [{ linha, id, prenom, nom, service }]
+     */
+    async previewHikCentralImport(rows) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/import/preview`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(rows)
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Aplica o import do HikCentral. O plano é refeito no servidor. */
+    async applyHikCentralImport(rows) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/import`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(rows)
+        });
+        return await this.handleResponse(res);
+    },
+
     /** Importação em lote de servidores. Devolve o relatório por linha. */
     async createStaffBulk(staffArray) {
         try {

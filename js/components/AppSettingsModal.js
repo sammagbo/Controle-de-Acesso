@@ -40,6 +40,10 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const [submitting, setSubmitting] = React.useState(false);
     const [proximaMatricula, setProximaMatricula] = React.useState('');
     const [staffImportErrors, setStaffImportErrors] = React.useState([]);
+    // Import do HikCentral: linhas lidas, plano simulado e trava do "gravando".
+    const [hikRows, setHikRows] = React.useState([]);
+    const [hikPlan, setHikPlan] = React.useState(null);
+    const [hikApplying, setHikApplying] = React.useState(false);
 
     const ehServidor = TIPOS_DE_SERVIDOR.includes(manualForm.tipo);
 
@@ -214,6 +218,251 @@ function AppSettingsModal({ onClose, onShowToast }) {
         nome: '', tipo, turma: '', horario_saida: '', parentesco: '', telefone: '',
         responsavel_id: '', matricula: '', hikvision_employee_id: '', departamento: ''
     });
+
+    /**
+     * Lê o export "Renseignements personnels" do HikCentral.
+     *
+     * ⚠️ O CABEÇALHO ESTÁ NA LINHA 9 — as 8 primeiras são instruções do próprio
+     * HCP. `range: 8` (0-indexado) manda o xlsx começar a ler dali; sem isso as
+     * colunas viriam com nomes como "__EMPTY_3" e o arquivo inteiro seria lido
+     * como lixo.
+     *
+     * Colunas casadas pelo NOME e não pela posição: o HCP reordena/acrescenta
+     * coluna entre versões, e posição fixa quebra em silêncio.
+     *
+     * Tudo lido como TEXTO (`raw: false`): a matrícula do aluno tem zeros à
+     * esquerda (0004486) e o xlsx a converteria em número, comendo o zero —
+     * e aí nenhuma linha casaria com app_users.
+     *
+     * A interpretação (prefixo do Service, tipo, regra do ID) fica no BACKEND,
+     * onde há teste. Aqui só se localiza o cabeçalho e se copiam os campos.
+     */
+    const lerPlanilhaHikCentral = (evt) => {
+        const workbook = window.XLSX.read(evt.target.result, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const HEADER_ROW_INDEX = 8;   // 0-indexado -> linha 9 da planilha
+        const json = window.XLSX.utils.sheet_to_json(sheet, {
+            range: HEADER_ROW_INDEX, defval: '', raw: false
+        });
+
+        // Casa o cabeçalho ignorando acento, caixa e espaço — "Prénom",
+        // "PRENOM" e "Prenom " são a mesma coluna.
+        const chave = (s) => String(s || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
+            .toLowerCase().replace(/[^a-z]/g, '');
+        const col = (row, ...candidatos) => {
+            const alvos = candidatos.map(chave);
+            for (const k of Object.keys(row)) {
+                if (alvos.includes(chave(k))) {
+                    const v = String(row[k] ?? '').trim();
+                    if (v !== '') return v;
+                }
+            }
+            return '';
+        };
+
+        return json
+            .map((row, i) => ({
+                // +2: o cabeçalho é a linha 9, logo o primeiro dado é a 10.
+                linha: HEADER_ROW_INDEX + 2 + i,
+                id: col(row, 'ID'),
+                prenom: col(row, 'Prénom', 'Prenom'),
+                nom: col(row, 'Nom de famille', 'Nom'),
+                service: col(row, 'Service')
+            }))
+            // Linha sem ID é rodapé/separador do próprio export, não é registro.
+            .filter(r => r.id !== '');
+    };
+
+    const handleHikCentralFile = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const rows = lerPlanilhaHikCentral(evt);
+                if (rows.length === 0) {
+                    onShowToast({
+                        title: 'Planilha não reconhecida',
+                        message: 'Nenhuma linha com ID a partir do cabeçalho (linha 9). '
+                            + 'Confirme que é o export "Renseignements personnels".',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                setHikRows(rows);
+                setHikPlan(null);
+                onShowToast({
+                    title: 'Conferindo...',
+                    message: `${rows.length} linhas lidas. Simulando antes de gravar.`,
+                    type: 'info'
+                });
+                setHikPlan(await window.api.previewHikCentralImport(rows));
+            } catch (err) {
+                console.error('Erro ao ler o export do HikCentral:', err);
+                onShowToast({ title: 'Erro', message: err.message || 'Falha ao ler a planilha.', type: 'error' });
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const confirmarImportHikCentral = async () => {
+        if (!hikRows.length || hikApplying) return;
+        setHikApplying(true);
+        try {
+            const relatorio = await window.api.applyHikCentralImport(hikRows);
+            setHikPlan(relatorio);
+            if (window.userCache?.reload) await window.userCache.reload();
+            const t = relatorio.totais || {};
+            onShowToast({
+                title: 'Importação aplicada',
+                message: `${t.CRIAR || 0} criados · ${t.ATUALIZAR || 0} atualizados · `
+                    + `${t.PULAR || 0} ignorados · ${t.CONFLITO || 0} conflitos · `
+                    + `${t.REVISAO_MANUAL || 0} para conferência manual`,
+                type: (t.CONFLITO || t.REVISAO_MANUAL) ? 'warning' : 'success'
+            });
+        } catch (err) {
+            console.error(err);
+            onShowToast({ title: 'Importação não aplicada', message: err.message, type: 'error' });
+        } finally {
+            setHikApplying(false);
+        }
+    };
+
+    const ACOES_HIK = {
+        CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
+        ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
+        PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
+        CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
+        REVISAO_MANUAL: { label: 'Conferir', cor: 'text-amber-700 bg-amber-100' }
+    };
+
+    const renderHikCentralImport = () => {
+        const totais = hikPlan?.totais || {};
+        const revisao = hikPlan?.revisaoManual || [];
+        const problemas = (hikPlan?.linhas || [])
+            .filter(l => l.acao === 'CONFLITO' || l.acao === 'PULAR');
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
+                    <h3 className="text-lg font-bold text-navy-500 mb-2">Importar do HikCentral</h3>
+                    <p className="text-sm text-slate-500 mb-4">
+                        Export <strong>Renseignements personnels</strong> (.xlsx), com o cabeçalho na
+                        linha 9. As colunas são lidas pelo nome:
+                        <code className="text-xs bg-soft-100 px-2 py-1 rounded ml-1">ID, Prénom, Nom de famille, Service</code>
+                    </p>
+                    <ul className="text-xs text-slate-500 space-y-1 mb-6 list-disc pl-5">
+                        <li><strong>Alunos já cadastrados</strong> apenas recebem o identificador
+                            Hikvision e o departamento — nome e turma continuam vindo do Pronote.</li>
+                        <li><strong>Servidores</strong> são criados com matrícula FUNC-###.</li>
+                        <li>Nada é gravado antes de você conferir e confirmar.</li>
+                    </ul>
+
+                    <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
+                        <input
+                            type="file"
+                            accept=".xlsx, .xls"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={handleHikCentralFile}
+                        />
+                        <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
+                            <LucideIcon name="scan-face" size={32} />
+                        </div>
+                        <p className="font-bold text-navy-500">Clique ou arraste o export do HikCentral</p>
+                        <p className="text-sm text-slate-400 mt-1">{hikRows.length > 0 ? `${hikRows.length} linhas carregadas` : 'Formatos: .xlsx, .xls'}</p>
+                    </div>
+                </div>
+
+                {hikPlan && (
+                    <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <p className="font-bold text-navy-500 text-sm">
+                                {hikPlan.aplicado ? 'Resultado da importação' : 'Simulação — nada foi gravado ainda'}
+                            </p>
+                            <span className="text-xs text-slate-400">{totais.TOTAL || 0} linhas</span>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2">
+                            {Object.keys(ACOES_HIK).map(k => (
+                                <div key={k} className="rounded-xl border border-soft-200 p-3 text-center">
+                                    <p className="text-xl font-bold text-navy-500">{totais[k] || 0}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{ACOES_HIK[k].label}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {!hikPlan.aplicado && (
+                            <button
+                                onClick={confirmarImportHikCentral}
+                                disabled={hikApplying}
+                                className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {hikApplying
+                                    ? 'GRAVANDO...'
+                                    : `CONFIRMAR — ${totais.CRIAR || 0} criar, ${totais.ATUALIZAR || 0} atualizar`}
+                            </button>
+                        )}
+
+                        {revisao.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                <p className="font-bold text-amber-800 text-sm mb-1">
+                                    {revisao.length} aluno(s) precisam de conferência manual
+                                </p>
+                                <p className="text-[11px] text-amber-700 mb-2">
+                                    O ID do HikCentral não é a matrícula, então a face não casa com o
+                                    cadastro e a pessoa é negada em toda passagem. Só o nome liga de
+                                    volta — casar automaticamente trocaria a face de um aluno pela de outro.
+                                </p>
+                                <table className="w-full text-xs">
+                                    <tbody>
+                                        {revisao.map((r, i) => (
+                                            <tr key={i} className="border-t border-amber-100">
+                                                <td className="py-1 pr-3 font-mono text-amber-800">L{r.linha}</td>
+                                                <td className="py-1 pr-3 font-bold text-navy-500">{r.nome}</td>
+                                                <td className="py-1 font-mono text-slate-600">{r.idHikvision}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {problemas.length > 0 && (
+                            <details className="text-xs">
+                                <summary className="cursor-pointer font-bold text-slate-600">
+                                    {problemas.length} linha(s) ignorada(s) ou em conflito
+                                </summary>
+                                <div className="max-h-52 overflow-y-auto mt-2">
+                                    <table className="w-full">
+                                        <tbody>
+                                            {problemas.map((l, i) => (
+                                                <tr key={i} className="border-t border-soft-100 align-top">
+                                                    <td className="py-1 pr-2 font-mono text-slate-400">L{l.linha}</td>
+                                                    <td className="py-1 pr-2">
+                                                        <span className={`px-1.5 py-0.5 rounded font-bold ${ACOES_HIK[l.acao].cor}`}>
+                                                            {ACOES_HIK[l.acao].label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-1 pr-2 text-navy-500">{l.nome}</td>
+                                                    <td className="py-1 text-slate-600">{l.detalhe}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const renderStaffImport = () => (
         <div className="space-y-6 animate-fade-in">
@@ -634,6 +883,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             Importar Excel
                         </button>
                         <button
+                            onClick={() => setActiveTab('hikcentral')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'hikcentral' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="scan-face" size={18} className={activeTab === 'hikcentral' ? 'text-accent-500' : 'text-slate-400'} />
+                            HikCentral
+                        </button>
+                        <button
                             onClick={() => setActiveTab('staff-import')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
@@ -659,6 +915,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     {/* Content Area */}
                     <div className="flex-1 p-6 bg-white min-h-[400px]">
                         {activeTab === 'import' && renderImportSettings()}
+                        {activeTab === 'hikcentral' && renderHikCentralImport()}
                         {activeTab === 'staff-import' && renderStaffImport()}
                         {activeTab === 'manual' && renderManualRegistration()}
                         {activeTab === 'general' && renderGeneralSettings()}

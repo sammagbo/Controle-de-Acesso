@@ -51,16 +51,24 @@ class WebhookIngestionDedupIT extends AbstractIT {
         assertThat(accessAttemptRepository.count()).isZero();
     }
 
+    /**
+     * As duas passagens sao afastadas no tempo (passagemSeparada) porque a
+     * regra de MESMA PASSAGEM descartaria a segunda se as duas caissem no mesmo
+     * instante — e ai o teste estaria verde pelo motivo errado, sem provar nada
+     * sobre o dedup de ingestao, que e o assunto desta classe.
+     */
     @Test
     @DisplayName("serialNos diferentes do mesmo IP -> ambos processam (dedup nao pode comer evento novo)")
     void serialsDiferentesProcessamAmbos() throws Exception {
         seedAlunoNaBiblio();
         String payload = TestFixtures.payload("face-75.txt");
 
-        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(
+                        TestFixtures.passagemSeparada(payload, 300), TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
         mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(
-                        TestFixtures.withSerialNo(payload, 9124), TestFixtures.IP_BIBLIO))
+                        TestFixtures.passagemSeparada(TestFixtures.withSerialNo(payload, 9124), 0),
+                        TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count()).isEqualTo(2);
@@ -87,9 +95,13 @@ class WebhookIngestionDedupIT extends AbstractIT {
         seedAlunoNaBiblio();
         String payload = TestFixtures.withoutSerialNo(TestFixtures.payload("face-75.txt"));
 
-        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+        // Duas passagens distintas, afastadas no tempo — ver
+        // serialsDiferentesProcessamAmbos.
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(
+                        TestFixtures.passagemSeparada(payload, 300), TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(payload, TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookSerialDoPayload(
+                        TestFixtures.passagemSeparada(payload, 0), TestFixtures.IP_BIBLIO))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count()).isEqualTo(2);

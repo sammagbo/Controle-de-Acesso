@@ -10,6 +10,9 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByHikvisionEmployeeId(String hikvisionEmployeeId);
+
+    /** Matriculas ja emitidas com um prefixo (FUNC-) — base do proximo numero. */
+    java.util.List<User> findByIdStartingWith(String prefix);
     java.util.List<User> findByResponsavelId(String responsavelId);
     java.util.List<User> findByAtivoTrue();
     java.util.List<User> findByAtivoFalse();

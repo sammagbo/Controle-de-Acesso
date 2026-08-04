@@ -138,11 +138,15 @@ class MealEntitlementFlowIT extends AbstractIT {
                 TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED));
         seedMapping(TestFixtures.IP_CANTINA_ENTRADA, "REFEI1", AccessAction.ENTRADA);
 
-        mockMvc.perform(TestFixtures.multipartWebhook(
-                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_CANTINA_ENTRADA))
+        // 40s de intervalo: FORA da janela de mesma passagem (30s), portanto
+        // duas passagens de verdade, e DENTRO da janela de refeicao duplicada
+        // (90s), que e a regra sob teste. Voltar para a fila do refeitorio leva
+        // pelo menos isso; um segundo de intervalo seria leitura repetida.
+        mockMvc.perform(TestFixtures.multipartWebhookHaSegundos(
+                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_CANTINA_ENTRADA, 40))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhook(
-                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_CANTINA_ENTRADA))
+        mockMvc.perform(TestFixtures.multipartWebhookHaSegundos(
+                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_CANTINA_ENTRADA, 0))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.count())

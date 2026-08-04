@@ -17,6 +17,10 @@
                   nome: raw.nome,
                   tipo: raw.tipo,
                   turma: raw.turma,
+                  // Servidores não têm turma; têm departamento (Vie Scolaire,
+                  // Serviços Gerais, Direção...). As telas que mostram "Classe"
+                  // caem para o departamento quando a turma é nula.
+                  departamento: raw.departamento,
                   foto_url: raw.fotoUrl || raw.foto_url,
                   responsavel_id: raw.responsavelId || raw.responsavel_id,
                   meal_count: raw.mealCount ?? raw.meal_count ?? 0,

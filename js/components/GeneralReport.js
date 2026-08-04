@@ -126,7 +126,7 @@ function JournalTab({ active = true }) {
             const u = window.userCache?.byId(l.userId);
             return [
                 esc(fmtDateTime(l.timestamp)), esc(l.userId), esc(u?.nome || ''),
-                esc(u?.turma || ''), esc(pointName(l.pointId)), esc(l.action)
+                esc(u?.turma || u?.departamento || ''), esc(pointName(l.pointId)), esc(l.action)
             ].join(',');
         }).join('\n');
         const csv = '\uFEFF' + header + rows;
@@ -245,7 +245,10 @@ function JournalTab({ active = true }) {
                                     <tr key={l.id || i} className="border-b border-soft-50 hover:bg-soft-50/50 transition-colors">
                                         <td className="px-4 py-2 text-slate-500 font-mono text-xs">{fmtDateTime(l.timestamp)}</td>
                                         <td className="px-4 py-2 font-bold text-navy-500">{u?.nome || l.userId}</td>
-                                        <td className="px-4 py-2 text-slate-500">{u?.turma || '—'}</td>
+                                        {/* Servidor não tem turma: cai para o
+                                            departamento, que é o equivalente
+                                            útil na coluna "Classe". */}
+                                        <td className="px-4 py-2 text-slate-500">{u?.turma || u?.departamento || '—'}</td>
                                         <td className="px-4 py-2 text-slate-600">{pointName(l.pointId)}</td>
                                         <td className="px-4 py-2">
                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${isEntrada

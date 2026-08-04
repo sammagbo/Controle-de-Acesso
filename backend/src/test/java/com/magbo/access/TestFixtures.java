@@ -301,6 +301,23 @@ public final class TestFixtures {
     /** Fuso de fabrica dos terminais da escola (CLAUDE.md, gotcha do GMT+8). */
     public static final ZoneOffset FUSO_DO_APARELHO = ZoneOffset.ofHours(8);
 
+    /**
+     * Carimba a hora do evento `segundosAtras` no passado — uma passagem
+     * SEPARADA, nao uma leitura repetida.
+     *
+     * Existe por causa da regra de MESMA PASSAGEM (30s): dois eventos do mesmo
+     * usuario, ponto e acao a segundos de distancia sao UMA passagem fisica, e
+     * o segundo e descartado de proposito. Teste que precisa de duas passagens
+     * de verdade tem que afasta-las no tempo — como acontece na vida real, onde
+     * ninguem entra duas vezes no mesmo minuto.
+     *
+     * NAO mexe no serialNo: quem controla a identidade do pacote (os testes de
+     * dedup de ingestao) continua no comando dela.
+     */
+    public static String passagemSeparada(String json, long segundosAtras) {
+        return withDateTime(json, noFusoDoAparelho(LocalDateTime.now().minusSeconds(segundosAtras)));
+    }
+
     /** Remove o ipAddress do ramo camera, para exercitar o fallback p/ remoteAddr. */
     public static String withoutIpAddress(String json) {
         try {
@@ -415,6 +432,19 @@ public final class TestFixtures {
      */
     public static MockMultipartHttpServletRequestBuilder multipartWebhookSemFoto(String json, String remoteAddr) {
         return multipartSemFoto(withFreshDateTime(withFreshSerialNo(json)), remoteAddr);
+    }
+
+    /**
+     * Como multipartWebhookSemFoto, mas a passagem aconteceu `segundosAtras`
+     * atras — evento novo E separado no tempo.
+     *
+     * Use quando o teste precisa de DUAS passagens do mesmo usuario no mesmo
+     * ponto e acao: a regra de mesma passagem (30s) descarta a segunda se as
+     * duas cairem no mesmo instante. Ver TestFixtures#passagemSeparada.
+     */
+    public static MockMultipartHttpServletRequestBuilder multipartWebhookHaSegundos(
+            String json, String remoteAddr, long segundosAtras) {
+        return multipartSemFoto(passagemSeparada(withFreshSerialNo(json), segundosAtras), remoteAddr);
     }
 
     /**

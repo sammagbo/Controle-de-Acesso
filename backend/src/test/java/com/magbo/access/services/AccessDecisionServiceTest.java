@@ -70,6 +70,15 @@ class AccessDecisionServiceTest {
     private static final String TURMA_SEM_REFEICAO = "6A";
     private static final String IP = "10.10.0.1";
 
+    /**
+     * Hora do EVENTO que o controller resolveu do payload — deliberadamente
+     * uma hora que NAO e "agora": e assim que se prova que o registro usa o
+     * parametro e nao o relogio da maquina. Uma fila offline de 3h e a ordem
+     * de grandeza do incidente de 03/08/2026.
+     */
+    private static final java.time.LocalDateTime HORA_DO_EVENTO =
+            java.time.LocalDateTime.now().minusHours(3).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+
     @BeforeEach
     void setUp() {
         policy = new PolicyProperties();
@@ -100,11 +109,11 @@ class AccessDecisionServiceTest {
         policy.getPolicy().setMealNotEntitled(PolicyMode.DENY);
         naoAutorizado();
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         ArgumentCaptor<DenialReason> motivo = ArgumentCaptor.forClass(DenialReason.class);
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), motivo.capture(), any(), any());
+                any(), motivo.capture(), any(), any(), any());
 
         assertThat(motivo.getValue()).isEqualTo(DenialReason.MEAL_NOT_ENTITLED);
         assertThat(motivo.getAllValues())
@@ -121,11 +130,11 @@ class AccessDecisionServiceTest {
         policy.getPolicy().setMealNotEntitled(PolicyMode.DENY);
         naoAutorizado();
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                eq(AuthorizationResult.DENIED), eq(DenialReason.MEAL_NOT_ENTITLED), any(), any());
+                eq(AuthorizationResult.DENIED), eq(DenialReason.MEAL_NOT_ENTITLED), any(), any(), any());
     }
 
     @Test
@@ -135,11 +144,11 @@ class AccessDecisionServiceTest {
         policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
         naoAutorizado();
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository).save(any(AccessLog.class));
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.MEAL_NOT_ENTITLED), any(), any());
+                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.MEAL_NOT_ENTITLED), any(), any(), any());
     }
 
     @Test
@@ -150,18 +159,18 @@ class AccessDecisionServiceTest {
         autorizado();
 
         policy.getPolicy().setUserInactive(PolicyMode.DENY);
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                eq(AuthorizationResult.DENIED), eq(DenialReason.USER_INACTIVE), any(), any());
+                eq(AuthorizationResult.DENIED), eq(DenialReason.USER_INACTIVE), any(), any(), any());
 
         org.mockito.Mockito.reset(accessLogRepository, attemptService);
 
         policy.getPolicy().setUserInactive(PolicyMode.OBSERVATION);
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
         verify(accessLogRepository).save(any(AccessLog.class));
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.USER_INACTIVE), any(), any());
+                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.USER_INACTIVE), any(), any(), any());
     }
 
     // ───────────────── Escopo das regras por ponto ─────────────────
@@ -174,7 +183,7 @@ class AccessDecisionServiceTest {
         when(accessLogRepository.findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(
                 anyString(), anyString(), any())).thenReturn(Optional.empty());
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(mealEntitlementService, never()).evaluate(anyString(), any());
         verify(accessLogRepository).save(any(AccessLog.class));
@@ -186,12 +195,12 @@ class AccessDecisionServiceTest {
         when(doorMappingService.resolve(any(), any(), eq(IP)))
                 .thenReturn(new DoorMappingService.ResolvedMapping("BIBLIO", AccessAction.ENTRADA, false));
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(mealEntitlementService, never()).evaluate(anyString(), any());
         verify(exitPermissionService, never()).evaluate(anyString(), any());
         verify(attemptService, never()).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any(), any(), any());
+                any(), any(), any(), any(), any());
 
         ArgumentCaptor<AccessLog> log = ArgumentCaptor.forClass(AccessLog.class);
         verify(accessLogRepository).save(log.capture());
@@ -205,7 +214,7 @@ class AccessDecisionServiceTest {
         when(doorMappingService.resolve(any(), any(), eq(IP)))
                 .thenReturn(new DoorMappingService.ResolvedMapping("ENFERM", AccessAction.ENTRADA, false));
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(mealEntitlementService, never()).evaluate(anyString(), any());
         verify(accessLogRepository).save(any(AccessLog.class));
@@ -220,11 +229,11 @@ class AccessDecisionServiceTest {
         when(exitPermissionService.evaluate(anyString(), any()))
                 .thenReturn(new ExitDecision(false, DenialReason.EXIT_NOT_AUTHORIZED, null, null));
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
-                eq(AuthorizationResult.DENIED), eq(DenialReason.EXIT_NOT_AUTHORIZED), any(), any());
+                eq(AuthorizationResult.DENIED), eq(DenialReason.EXIT_NOT_AUTHORIZED), any(), any(), any());
         verify(exitPermissionService, never()).consumeIfSingle(any());
     }
 
@@ -244,7 +253,7 @@ class AccessDecisionServiceTest {
         policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
         autorizado();
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
         verify(accessLogRepository).save(captor.capture());
@@ -258,20 +267,69 @@ class AccessDecisionServiceTest {
         assertThat(salvo.getHikvisionSubEventType()).isEqualTo(75);
     }
 
+    /**
+     * INVERTIDO em 04/08/2026. Ate entao este teste congelava o comportamento
+     * oposto ("usa a hora do SERVIDOR, ignorando o dateTime do payload") — que
+     * era justamente o defeito: na fila offline de 03/08, 33 passagens de horas
+     * antes foram gravadas com a hora em que o pacote chegou.
+     */
     @Test
-    @DisplayName("o AccessLog usa a hora do SERVIDOR, ignorando o dateTime GMT+8 do payload")
-    void usaHoraDoServidorNaoDoPayload() {
+    @DisplayName("o AccessLog usa a hora do EVENTO recebida, nao o relogio do servidor")
+    void usaHoraDoEventoNaoDoRelogioDoServidor() {
         autorizado();
-        java.time.LocalDateTime antes = java.time.LocalDateTime.now();
 
-        service.process(faceEvent(), IP);
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
         ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
         verify(accessLogRepository).save(captor.capture());
 
         assertThat(captor.getValue().getTimestamp())
-                .as("o payload traz dateTime em +08:00 (fuso de fabrica); o backend ignora")
-                .isBetween(antes.minusSeconds(5), java.time.LocalDateTime.now().plusSeconds(5));
+                .as("a hora resolvida do payload e a que vai para o banco")
+                .isEqualTo(HORA_DO_EVENTO);
+    }
+
+    /**
+     * access_attempts tem a mesma exigencia de access_logs: uma tentativa
+     * negada carimbada com a hora da recepcao mente na auditoria igual.
+     */
+    @Test
+    @DisplayName("o access_attempt tambem recebe a hora do EVENTO")
+    void attemptTambemUsaAHoraDoEvento() {
+        policy.getPolicy().setMealNotEntitled(PolicyMode.DENY);
+        naoAutorizado();
+
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
+
+        verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), eq(HORA_DO_EVENTO));
+    }
+
+    /**
+     * FRONTEIRA DE ESCOPO, congelada de proposito.
+     *
+     * eventTime e o relogio do REGISTRO. As regras (janela da cantina, dedup de
+     * refeicao, permissao de saida, tempo dentro da cantina) continuam sendo
+     * avaliadas contra a hora em que o MAGBO decide. Com a turma 'N' em todos
+     * os dias, o flag FORA_HORARIO sai a qualquer hora — e continua saindo
+     * mesmo com a hora do evento vindo de 3h atras, o que prova que a decisao
+     * nao passou a depender do dateTime do aparelho.
+     *
+     * Mudar isto altera DENY/ALLOW em producao: e decisao do Sam, nao efeito
+     * colateral de corrigir timestamp.
+     */
+    @Test
+    @DisplayName("ESCOPO: a hora do evento NAO desloca a avaliacao das regras")
+    void horaDoEventoNaoMudaAvaliacaoDasRegras() {
+        policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
+        autorizado();
+
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
+
+        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
+        verify(accessLogRepository).save(captor.capture());
+        assertThat(captor.getValue().getFlag())
+                .as("a regra de janela continua rodando contra o relogio da decisao")
+                .isEqualTo("FORA_HORARIO");
     }
 
     // ───────────────── Congelamento de comportamento sabidamente errado ─────────────────
@@ -299,14 +357,14 @@ class AccessDecisionServiceTest {
         HikvisionEventDto.AccessControllerEvent evento = faceEvent();
         evento.setSubEventType(21); // porta abriu
 
-        service.process(evento, IP);
+        service.process(evento, IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(any(), eq(EMPLOYEE), any(), any(), any(), any(),
                 eq(AuthMethod.UNKNOWN), eq(AuthResult.UNKNOWN),
                 eq(AuthorizationResult.NOT_APPLICABLE),
                 eq(DenialReason.DEVICE_DENIED), // <-- o achado: nao houve negacao do dispositivo
-                eq(21), any());
+                eq(21), any(), any());
     }
 
     @Test
@@ -315,12 +373,12 @@ class AccessDecisionServiceTest {
         HikvisionEventDto.AccessControllerEvent evento = faceEvent();
         evento.setSubEventType(8);
 
-        service.process(evento, IP);
+        service.process(evento, IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(eq(EMPLOYEE), eq(EMPLOYEE), any(), any(), any(), any(),
                 any(), eq(AuthResult.DENIED),
-                eq(AuthorizationResult.DENIED), eq(DenialReason.DEVICE_DENIED), eq(8), any());
+                eq(AuthorizationResult.DENIED), eq(DenialReason.DEVICE_DENIED), eq(8), any(), any());
     }
 
     @Test
@@ -330,11 +388,11 @@ class AccessDecisionServiceTest {
         HikvisionEventDto.AccessControllerEvent evento = faceEvent();
         evento.setEmployeeNoString("8888888");
 
-        service.process(evento, IP);
+        service.process(evento, IP, HORA_DO_EVENTO);
 
         verify(accessLogRepository, never()).save(any());
         verify(attemptService).record(eq(null), eq("8888888"), any(), any(), any(), any(),
-                any(), any(), eq(AuthorizationResult.DENIED), eq(DenialReason.UNKNOWN_USER), any(), any());
+                any(), any(), eq(AuthorizationResult.DENIED), eq(DenialReason.UNKNOWN_USER), any(), any(), any());
     }
 
     // ───────────────── Helpers ─────────────────

@@ -44,12 +44,18 @@ class WebhookFaceIT extends AbstractIT {
     }
 
     /**
-     * O payload real traz dateTime "2026-07-14T11:33:19+08:00" — fuso de
-     * fabrica do aparelho. O backend deve IGNORAR e usar a hora do servidor.
+     * Passagem ao vivo: o aparelho manda o evento na hora em que ele acontece,
+     * no fuso dele (+08:00 de fabrica). Convertido, tem que cair em "agora".
+     *
+     * INVERTIDO em 04/08/2026: ate entao este teste afirmava o oposto — que o
+     * backend IGNORAVA o dateTime e usava a hora do servidor —, que era o
+     * defeito por tras do incidente da fila offline de 03/08. O caso da fila
+     * (evento antigo entregue tarde), que e onde as duas horas divergem, vive
+     * em WebhookEventTimeIT.
      */
     @Test
-    @DisplayName("o timestamp gravado e a hora do SERVIDOR, nao o dateTime GMT+8 do payload")
-    void timestampEhDoServidorNaoDoPayload() throws Exception {
+    @DisplayName("passagem ao vivo: o dateTime do payload equivale a hora corrente")
+    void passagemAoVivoGravaAHoraCorrente() throws Exception {
         userRepository.save(TestFixtures.aluno(TestFixtures.EMPLOYEE_PILOTO, null));
         mealEntitlementRepository.save(TestFixtures.entitlement(
                 TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED));
@@ -65,7 +71,7 @@ class WebhookFaceIT extends AbstractIT {
         AccessLog log = accessLogRepository.findAll().get(0);
 
         assertThat(log.getTimestamp())
-                .as("payload diz 14/07/2026 11:33 +08:00; o servidor manda a hora real")
+                .as("+08:00 e so o fuso do aparelho: o instante e o de agora")
                 .isBetween(antes, depois);
     }
 

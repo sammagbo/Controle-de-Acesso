@@ -1,0 +1,22 @@
+-- MAGBO Access Control — V007: departamento em app_users
+-- Cadastro de servidores da escola. Adiciona a coluna 'departamento'
+-- (especificacao: Vie Scolaire, Servicos Gerais, Administracao, Direcao...)
+-- a uma tabela EXISTENTE. Idempotente: pode ser executado mais de uma vez.
+--
+-- Fonte da verdade: backend/src/main/java/com/magbo/access/models/User.java
+--   @Column(name = "departamento", length = 64)  -> VARCHAR(64), nullable.
+--
+-- ATENCAO: NULLABLE, obrigatoriamente. Os 923 alunos ja cadastrados nao tem
+-- departamento nenhum — um NOT NULL aqui invalidaria a tabela inteira.
+-- null = pessoa sem departamento (todo aluno, e servidor ainda nao classificado).
+--
+-- Sem CHECK: no Java e String livre, sem enum — o Hibernate nao gera CHECK aqui,
+-- e de proposito. A lista de setores da escola muda por decisao administrativa;
+-- um CHECK obrigaria migracao a cada setor novo.
+--
+-- ADITIVA e nao destrutiva: nao toca em 'tipo' nem no CHECK
+-- app_users_tipo_check (ALUNO/PROFESSOR/FUNCIONARIO), que continua valendo.
+-- 'departamento' NAO substitui 'tipo': Direcao e Servicos Gerais sao ambos
+-- tipo=FUNCIONARIO, com departamento diferente.
+
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS departamento VARCHAR(64);

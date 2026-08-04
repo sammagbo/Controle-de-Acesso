@@ -59,6 +59,7 @@ class AccessDecisionServiceTest {
     @Mock private AccessAttemptService attemptService;
     @Mock private MealEntitlementService mealEntitlementService;
     @Mock private ExitPermissionService exitPermissionService;
+    @Mock private SamePassageService samePassageService;
 
     /** Classificador real: e puro e sem dependencias — mockar so afastaria do comportamento real. */
     private final HikvisionEventClassifier classifier = new HikvisionEventClassifier();
@@ -85,7 +86,7 @@ class AccessDecisionServiceTest {
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,
                 classifier, dedupService, attemptService, policy,
-                mealEntitlementService, exitPermissionService);
+                mealEntitlementService, exitPermissionService, samePassageService);
 
         when(userRepository.findByHikvisionEmployeeId(EMPLOYEE))
                 .thenReturn(Optional.of(aluno(TURMA_SEM_REFEICAO)));

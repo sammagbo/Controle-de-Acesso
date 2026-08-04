@@ -2,8 +2,26 @@
 // APP SETTINGS & REGISTRATION MODAL
 // =====================================================================
 
+// Especificações de servidor sugeridas. É datalist e não select: o backend
+// guarda `departamento` como texto livre justamente porque a lista de setores
+// muda por decisão administrativa, não por deploy.
+const DEPARTAMENTOS_SUGERIDOS = [
+    'Professor',
+    'Vie Scolaire',
+    'Serviços Gerais',
+    'Administração',
+    'Direção',
+    'Manutenção',
+    'Cantina',
+    'Portaria',
+    'Biblioteca / CDI'
+];
+
+/** Tipos que são servidor da escola — o resto segue o fluxo antigo. */
+const TIPOS_DE_SERVIDOR = ['PROFESSOR', 'FUNCIONARIO'];
+
 function AppSettingsModal({ onClose, onShowToast }) {
-    const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'manual'
+    const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'staff-import', 'manual'
 
     // --- Manual Registration State ---
     const [manualForm, setManualForm] = React.useState({
@@ -13,8 +31,32 @@ function AppSettingsModal({ onClose, onShowToast }) {
         horario_saida: '',
         parentesco: '',
         telefone: '',
-        responsavel_id: ''
+        responsavel_id: '',
+        // Servidores
+        matricula: '',
+        hikvision_employee_id: '',
+        departamento: ''
     });
+    const [submitting, setSubmitting] = React.useState(false);
+    const [proximaMatricula, setProximaMatricula] = React.useState('');
+    const [staffImportErrors, setStaffImportErrors] = React.useState([]);
+    // Import do HikCentral: linhas lidas, plano simulado e trava do "gravando".
+    const [hikRows, setHikRows] = React.useState([]);
+    const [hikPlan, setHikPlan] = React.useState(null);
+    const [hikApplying, setHikApplying] = React.useState(false);
+
+    const ehServidor = TIPOS_DE_SERVIDOR.includes(manualForm.tipo);
+
+    // Mostra qual matrícula será emitida se o campo ficar em branco — sem isso
+    // o operador não tem como saber o que o sistema vai gravar.
+    React.useEffect(() => {
+        if (!ehServidor) return;
+        let vivo = true;
+        window.api.fetchNextStaffMatricula()
+            .then(m => { if (vivo) setProximaMatricula(m); })
+            .catch(() => { if (vivo) setProximaMatricula(''); });
+        return () => { vivo = false; };
+    }, [ehServidor]);
 
     const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
 
@@ -172,44 +214,490 @@ function AppSettingsModal({ onClose, onShowToast }) {
         </div>
     );
 
-    const handleManualSubmit = async (e) => {
-        e.preventDefault();
+    const limparFormulario = (tipo) => setManualForm({
+        nome: '', tipo, turma: '', horario_saida: '', parentesco: '', telefone: '',
+        responsavel_id: '', matricula: '', hikvision_employee_id: '', departamento: ''
+    });
 
-        const newId = `USR${Date.now()}`;
-        const payload = {
-            id: newId,
-            nome: manualForm.nome,
-            tipo: manualForm.tipo,
-            turma: manualForm.turma,
-            horarioSaida: manualForm.horario_saida,
-            // F7c: sem fotoUrl — o data-URI do localAvatar não cabe em foto_url varchar(255);
-            // a exibição usa o fallback local (normaliseUser/handleImgError) com o mesmo visual.
+    /**
+     * Lê o export "Renseignements personnels" do HikCentral.
+     *
+     * ⚠️ O CABEÇALHO ESTÁ NA LINHA 9 — as 8 primeiras são instruções do próprio
+     * HCP. `range: 8` (0-indexado) manda o xlsx começar a ler dali; sem isso as
+     * colunas viriam com nomes como "__EMPTY_3" e o arquivo inteiro seria lido
+     * como lixo.
+     *
+     * Colunas casadas pelo NOME e não pela posição: o HCP reordena/acrescenta
+     * coluna entre versões, e posição fixa quebra em silêncio.
+     *
+     * Tudo lido como TEXTO (`raw: false`): a matrícula do aluno tem zeros à
+     * esquerda (0004486) e o xlsx a converteria em número, comendo o zero —
+     * e aí nenhuma linha casaria com app_users.
+     *
+     * A interpretação (prefixo do Service, tipo, regra do ID) fica no BACKEND,
+     * onde há teste. Aqui só se localiza o cabeçalho e se copiam os campos.
+     */
+    const lerPlanilhaHikCentral = (evt) => {
+        const workbook = window.XLSX.read(evt.target.result, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const HEADER_ROW_INDEX = 8;   // 0-indexado -> linha 9 da planilha
+        const json = window.XLSX.utils.sheet_to_json(sheet, {
+            range: HEADER_ROW_INDEX, defval: '', raw: false
+        });
+
+        // Casa o cabeçalho ignorando acento, caixa e espaço — "Prénom",
+        // "PRENOM" e "Prenom " são a mesma coluna.
+        const chave = (s) => String(s || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
+            .toLowerCase().replace(/[^a-z]/g, '');
+        const col = (row, ...candidatos) => {
+            const alvos = candidatos.map(chave);
+            for (const k of Object.keys(row)) {
+                if (alvos.includes(chave(k))) {
+                    const v = String(row[k] ?? '').trim();
+                    if (v !== '') return v;
+                }
+            }
+            return '';
         };
 
-        if (manualForm.tipo === 'RESPONSAVEL') {
-            payload.telefone = manualForm.telefone;
-            payload.parentesco = manualForm.parentesco;
-        } else if (manualForm.tipo === 'ALUNO') {
-            payload.responsavelId = manualForm.responsavel_id;
+        return json
+            .map((row, i) => ({
+                // +2: o cabeçalho é a linha 9, logo o primeiro dado é a 10.
+                linha: HEADER_ROW_INDEX + 2 + i,
+                id: col(row, 'ID'),
+                prenom: col(row, 'Prénom', 'Prenom'),
+                nom: col(row, 'Nom de famille', 'Nom'),
+                service: col(row, 'Service')
+            }))
+            // Linha sem ID é rodapé/separador do próprio export, não é registro.
+            .filter(r => r.id !== '');
+    };
+
+    const handleHikCentralFile = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const rows = lerPlanilhaHikCentral(evt);
+                if (rows.length === 0) {
+                    onShowToast({
+                        title: 'Planilha não reconhecida',
+                        message: 'Nenhuma linha com ID a partir do cabeçalho (linha 9). '
+                            + 'Confirme que é o export "Renseignements personnels".',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                setHikRows(rows);
+                setHikPlan(null);
+                onShowToast({
+                    title: 'Conferindo...',
+                    message: `${rows.length} linhas lidas. Simulando antes de gravar.`,
+                    type: 'info'
+                });
+                setHikPlan(await window.api.previewHikCentralImport(rows));
+            } catch (err) {
+                console.error('Erro ao ler o export do HikCentral:', err);
+                onShowToast({ title: 'Erro', message: err.message || 'Falha ao ler a planilha.', type: 'error' });
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const confirmarImportHikCentral = async () => {
+        if (!hikRows.length || hikApplying) return;
+        setHikApplying(true);
+        try {
+            const relatorio = await window.api.applyHikCentralImport(hikRows);
+            setHikPlan(relatorio);
+            if (window.userCache?.reload) await window.userCache.reload();
+            const t = relatorio.totais || {};
+            onShowToast({
+                title: 'Importação aplicada',
+                message: `${t.CRIAR || 0} criados · ${t.ATUALIZAR || 0} atualizados · `
+                    + `${t.PULAR || 0} ignorados · ${t.CONFLITO || 0} conflitos · `
+                    + `${t.REVISAO_MANUAL || 0} para conferência manual`,
+                type: (t.CONFLITO || t.REVISAO_MANUAL) ? 'warning' : 'success'
+            });
+        } catch (err) {
+            console.error(err);
+            onShowToast({ title: 'Importação não aplicada', message: err.message, type: 'error' });
+        } finally {
+            setHikApplying(false);
         }
+    };
+
+    const ACOES_HIK = {
+        CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
+        ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
+        PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
+        CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
+        REVISAO_MANUAL: { label: 'Conferir', cor: 'text-amber-700 bg-amber-100' }
+    };
+
+    const renderHikCentralImport = () => {
+        const totais = hikPlan?.totais || {};
+        const revisao = hikPlan?.revisaoManual || [];
+        const problemas = (hikPlan?.linhas || [])
+            .filter(l => l.acao === 'CONFLITO' || l.acao === 'PULAR');
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
+                    <h3 className="text-lg font-bold text-navy-500 mb-2">Importar do HikCentral</h3>
+                    <p className="text-sm text-slate-500 mb-4">
+                        Export <strong>Renseignements personnels</strong> (.xlsx), com o cabeçalho na
+                        linha 9. As colunas são lidas pelo nome:
+                        <code className="text-xs bg-soft-100 px-2 py-1 rounded ml-1">ID, Prénom, Nom de famille, Service</code>
+                    </p>
+                    <ul className="text-xs text-slate-500 space-y-1 mb-6 list-disc pl-5">
+                        <li><strong>Alunos já cadastrados</strong> apenas recebem o identificador
+                            Hikvision e o departamento — nome e turma continuam vindo do Pronote.</li>
+                        <li><strong>Servidores</strong> são criados com matrícula FUNC-###.</li>
+                        <li>Nada é gravado antes de você conferir e confirmar.</li>
+                    </ul>
+
+                    <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
+                        <input
+                            type="file"
+                            accept=".xlsx, .xls"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={handleHikCentralFile}
+                        />
+                        <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
+                            <LucideIcon name="scan-face" size={32} />
+                        </div>
+                        <p className="font-bold text-navy-500">Clique ou arraste o export do HikCentral</p>
+                        <p className="text-sm text-slate-400 mt-1">{hikRows.length > 0 ? `${hikRows.length} linhas carregadas` : 'Formatos: .xlsx, .xls'}</p>
+                    </div>
+                </div>
+
+                {hikPlan && (
+                    <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <p className="font-bold text-navy-500 text-sm">
+                                {hikPlan.aplicado ? 'Resultado da importação' : 'Simulação — nada foi gravado ainda'}
+                            </p>
+                            <span className="text-xs text-slate-400">{totais.TOTAL || 0} linhas</span>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2">
+                            {Object.keys(ACOES_HIK).map(k => (
+                                <div key={k} className="rounded-xl border border-soft-200 p-3 text-center">
+                                    <p className="text-xl font-bold text-navy-500">{totais[k] || 0}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{ACOES_HIK[k].label}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {!hikPlan.aplicado && (
+                            <button
+                                onClick={confirmarImportHikCentral}
+                                disabled={hikApplying}
+                                className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {hikApplying
+                                    ? 'GRAVANDO...'
+                                    : `CONFIRMAR — ${totais.CRIAR || 0} criar, ${totais.ATUALIZAR || 0} atualizar`}
+                            </button>
+                        )}
+
+                        {revisao.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                <p className="font-bold text-amber-800 text-sm mb-1">
+                                    {revisao.length} aluno(s) precisam de conferência manual
+                                </p>
+                                <p className="text-[11px] text-amber-700 mb-2">
+                                    O ID do HikCentral não é a matrícula, então a face não casa com o
+                                    cadastro e a pessoa é negada em toda passagem. Só o nome liga de
+                                    volta — casar automaticamente trocaria a face de um aluno pela de outro.
+                                </p>
+                                <table className="w-full text-xs">
+                                    <tbody>
+                                        {revisao.map((r, i) => (
+                                            <tr key={i} className="border-t border-amber-100">
+                                                <td className="py-1 pr-3 font-mono text-amber-800">L{r.linha}</td>
+                                                <td className="py-1 pr-3 font-bold text-navy-500">{r.nome}</td>
+                                                <td className="py-1 font-mono text-slate-600">{r.idHikvision}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {problemas.length > 0 && (
+                            <details className="text-xs">
+                                <summary className="cursor-pointer font-bold text-slate-600">
+                                    {problemas.length} linha(s) ignorada(s) ou em conflito
+                                </summary>
+                                <div className="max-h-52 overflow-y-auto mt-2">
+                                    <table className="w-full">
+                                        <tbody>
+                                            {problemas.map((l, i) => (
+                                                <tr key={i} className="border-t border-soft-100 align-top">
+                                                    <td className="py-1 pr-2 font-mono text-slate-400">L{l.linha}</td>
+                                                    <td className="py-1 pr-2">
+                                                        <span className={`px-1.5 py-0.5 rounded font-bold ${ACOES_HIK[l.acao].cor}`}>
+                                                            {ACOES_HIK[l.acao].label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-1 pr-2 text-navy-500">{l.nome}</td>
+                                                    <td className="py-1 text-slate-600">{l.detalhe}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderStaffImport = () => (
+        <div className="space-y-6 animate-fade-in">
+            <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
+                <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Servidores via Excel</h3>
+                <p className="text-sm text-slate-500 mb-6">
+                    Planilha <strong>.xlsx</strong> com as colunas:
+                    <br />
+                    <code className="text-xs bg-soft-100 px-2 py-1 rounded">nome, hikvision_employee_id, tipo, departamento, matricula</code>
+                    <br />
+                    <span className="text-xs">
+                        <strong>nome</strong> é obrigatório · <strong>matricula</strong> em branco recebe a próxima
+                        FUNC-### · <strong>tipo</strong> aceita PROFESSOR ou FUNCIONARIO (em branco assume
+                        FUNCIONARIO) · <strong>departamento</strong> é texto livre (Vie Scolaire, Serviços Gerais,
+                        Administração, Direção…).
+                    </span>
+                    <br />
+                    <span className="text-xs text-slate-400">
+                        Alunos não entram por aqui — continuam vindo da importação Pronote.
+                    </span>
+                </p>
+
+                <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
+                    <input
+                        type="file"
+                        accept=".xlsx, .xls"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onChange={handleStaffFileUpload}
+                    />
+                    <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
+                        <LucideIcon name="users" size={32} />
+                    </div>
+                    <p className="font-bold text-navy-500">Clique ou arraste a planilha de servidores</p>
+                    <p className="text-sm text-slate-400 mt-1">Formatos suportados: .xlsx, .xls</p>
+                </div>
+            </div>
+
+            {staffImportErrors.length > 0 && (
+                <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="font-bold text-danger-700 text-sm">
+                            {staffImportErrors.length} linha(s) recusada(s)
+                        </p>
+                        <button
+                            onClick={() => setStaffImportErrors([])}
+                            className="text-xs font-bold text-danger-700 underline hover:no-underline"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="text-left text-danger-700/70 uppercase font-bold">
+                                    <th className="py-1 pr-3">Linha</th>
+                                    <th className="py-1 pr-3">Nome</th>
+                                    <th className="py-1">Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {staffImportErrors.map((e, i) => (
+                                    <tr key={i} className="border-t border-danger-100 align-top">
+                                        <td className="py-1 pr-3 font-mono text-danger-700">{e.linha}</td>
+                                        <td className="py-1 pr-3 text-navy-500">{e.nome}</td>
+                                        <td className="py-1 text-slate-600">{e.erro}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    const handleManualSubmit = async (e) => {
+        e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
 
         try {
-            await window.api.createUser(payload);
-            
-            if (window.userCache && window.userCache.reload) {
-                  window.userCache.reload();
+            if (ehServidor) {
+                // Caminho dos SERVIDORES. Matrícula em branco = o backend emite
+                // a próxima FUNC-###; app_users.id é NOT NULL e era exatamente
+                // isso que fazia o formulário antigo não gravar nada.
+                const resultado = await window.api.createStaff({
+                    matricula: manualForm.matricula.trim(),
+                    nome: manualForm.nome.trim(),
+                    hikvisionEmployeeId: manualForm.hikvision_employee_id.trim(),
+                    tipo: manualForm.tipo,
+                    departamento: manualForm.departamento.trim()
+                });
+
+                if (window.userCache?.reload) await window.userCache.reload();
+
+                // A confirmação diz a matrícula EMITIDA: é o número que o
+                // operador precisa levar para o HikCentral.
+                onShowToast({
+                    title: 'Servidor cadastrado',
+                    message: `${resultado.nome} — matrícula ${resultado.matricula}`
+                        + (resultado.hikvisionEmployeeId
+                            ? ` · ID Hikvision ${resultado.hikvisionEmployeeId}`
+                            : ' · SEM identificador Hikvision: a face não será reconhecida'),
+                    type: resultado.hikvisionEmployeeId ? 'success' : 'warning'
+                });
+                limparFormulario(manualForm.tipo);
+                setProximaMatricula(await window.api.fetchNextStaffMatricula().catch(() => ''));
+                return;
             }
 
-            onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
+            // Caminho ANTIGO, intocado: aluno e responsável.
+            const payload = {
+                id: `USR${Date.now()}`,
+                nome: manualForm.nome,
+                tipo: manualForm.tipo,
+                turma: manualForm.turma,
+                horarioSaida: manualForm.horario_saida,
+                // F7c: sem fotoUrl — o data-URI do localAvatar não cabe em foto_url varchar(255);
+                // a exibição usa o fallback local (normaliseUser/handleImgError) com o mesmo visual.
+            };
+            if (manualForm.tipo === 'RESPONSAVEL') {
+                payload.telefone = manualForm.telefone;
+                payload.parentesco = manualForm.parentesco;
+            } else if (manualForm.tipo === 'ALUNO') {
+                payload.responsavelId = manualForm.responsavel_id;
+            }
 
-            // Reset form
-            setManualForm({
-                nome: '', tipo: 'ALUNO', turma: '', horario_saida: '', parentesco: '', telefone: '', responsavel_id: ''
-            });
+            const resposta = await window.api.createUser(payload);
+            // O backend pode responder 200 com status=error; sem esta checagem
+            // a tela dizia "sucesso" para uma recusa.
+            if (resposta && resposta.status === 'error') {
+                throw new Error(resposta.message || 'Falha ao cadastrar usuário');
+            }
+
+            if (window.userCache?.reload) await window.userCache.reload();
+            onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
+            limparFormulario('ALUNO');
         } catch (error) {
             console.error(error);
-            onShowToast({ title: 'Erro', message: error.message || 'Falha ao cadastrar usuário', type: 'error' });
+            onShowToast({
+                title: 'Cadastro não realizado',
+                message: error.message || 'Falha ao cadastrar',
+                type: 'error'
+            });
+        } finally {
+            setSubmitting(false);
         }
+    };
+
+    /**
+     * Importação da planilha de SERVIDORES. Reaproveita o mesmo caminho de
+     * leitura do xlsx do import de alunos, com colunas e endpoint próprios.
+     *
+     * ⚠️ Tudo lido como TEXTO (raw:false / String(...)): matrícula e
+     * identificador Hikvision têm zeros à esquerda, e o xlsx tende a convertê-los
+     * em número, comendo o zero — o mesmo cuidado da importação de entitlements.
+     */
+    const handleStaffFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const workbook = window.XLSX.read(evt.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames.includes('Servidores')
+                    ? 'Servidores'
+                    : workbook.SheetNames[0];
+                const json = window.XLSX.utils.sheet_to_json(
+                    workbook.Sheets[sheetName], { defval: '', raw: false });
+
+                const col = (row, ...nomes) => {
+                    for (const n of nomes) {
+                        if (row[n] !== undefined && String(row[n]).trim() !== '') {
+                            return String(row[n]).trim();
+                        }
+                    }
+                    return '';
+                };
+
+                const payload = json
+                    .filter(row => col(row, 'nome', 'Nome', 'NOME') !== '')
+                    .map(row => ({
+                        nome: col(row, 'nome', 'Nome', 'NOME'),
+                        hikvisionEmployeeId: col(row, 'hikvision_employee_id', 'Hikvision', 'hikvisionEmployeeId', 'ID Hikvision'),
+                        tipo: col(row, 'tipo', 'Tipo', 'TIPO').toUpperCase(),
+                        departamento: col(row, 'departamento', 'Departamento', 'Setor'),
+                        matricula: col(row, 'matricula', 'Matricula', 'Matrícula')
+                    }));
+
+                if (payload.length === 0) {
+                    onShowToast({
+                        title: 'Planilha vazia',
+                        message: 'Nenhuma linha com a coluna "nome" preenchida.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                onShowToast({
+                    title: 'Importando servidores...',
+                    message: `Enviando ${payload.length} registros.`, type: 'info'
+                });
+
+                const result = await window.api.createStaffBulk(payload);
+                if (window.userCache?.reload) await window.userCache.reload();
+
+                if (result.falhas === 0) {
+                    onShowToast({
+                        title: 'Importação concluída',
+                        message: `${result.sucesso} servidores cadastrados.`,
+                        type: 'success'
+                    });
+                } else {
+                    // Erro POR LINHA na própria tela, não só no console: quem
+                    // importa a planilha precisa saber qual linha corrigir.
+                    setStaffImportErrors(result.detalheErros || []);
+                    onShowToast({
+                        title: `Importação parcial: ${result.sucesso}/${result.totalRecebido}`,
+                        message: `${result.falhas} linha(s) recusada(s) — veja a lista abaixo.`,
+                        type: 'warning'
+                    });
+                }
+            } catch (err) {
+                console.error('Erro na importação de servidores:', err);
+                onShowToast({
+                    title: 'Erro',
+                    message: err.message || 'Falha ao processar a planilha.',
+                    type: 'error'
+                });
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
     };
 
     const renderManualRegistration = () => (
@@ -274,6 +762,56 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         </>
                     )}
 
+                    {ehServidor && (
+                        <>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Matrícula</label>
+                                <input
+                                    type="text"
+                                    placeholder={proximaMatricula ? `Automático: ${proximaMatricula}` : 'Automático'}
+                                    className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    value={manualForm.matricula}
+                                    onChange={e => setManualForm({ ...manualForm, matricula: e.target.value })}
+                                />
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    Em branco, o sistema emite a próxima da sequência.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    Identificador Hikvision
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Ex: 1234567890"
+                                    className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    value={manualForm.hikvision_employee_id}
+                                    onChange={e => setManualForm({ ...manualForm, hikvision_employee_id: e.target.value })}
+                                />
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    employeeNo do HikCentral (10 dígitos) — é ele que liga a face ao cadastro.
+                                </p>
+                            </div>
+
+                            <div className="col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Departamento</label>
+                                <input
+                                    type="text"
+                                    list="magbo-departamentos"
+                                    placeholder="Ex: Vie Scolaire, Serviços Gerais, Direção"
+                                    className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                                    value={manualForm.departamento}
+                                    onChange={e => setManualForm({ ...manualForm, departamento: e.target.value })}
+                                />
+                                <datalist id="magbo-departamentos">
+                                    {DEPARTAMENTOS_SUGERIDOS.map(d => <option key={d} value={d} />)}
+                                </datalist>
+                            </div>
+                        </>
+                    )}
+
                     {manualForm.tipo === 'RESPONSAVEL' && (
                         <>
                             <div>
@@ -300,8 +838,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 </div>
 
                 <div className="pt-4 mt-6 border-t border-soft-200">
-                    <button type="submit" className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors shadow-lg shadow-accent-500/30">
-                        CADASTRAR NOVO USUÁRIO
+                    <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors shadow-lg shadow-accent-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {submitting
+                            ? 'CADASTRANDO...'
+                            : (ehServidor ? 'CADASTRAR SERVIDOR' : 'CADASTRAR NOVO USUÁRIO')}
                     </button>
                 </div>
             </form>
@@ -339,6 +883,20 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             Importar Excel
                         </button>
                         <button
+                            onClick={() => setActiveTab('hikcentral')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'hikcentral' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="scan-face" size={18} className={activeTab === 'hikcentral' ? 'text-accent-500' : 'text-slate-400'} />
+                            HikCentral
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('staff-import')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="users" size={18} className={activeTab === 'staff-import' ? 'text-accent-500' : 'text-slate-400'} />
+                            Importar Servidores
+                        </button>
+                        <button
                             onClick={() => setActiveTab('manual')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'manual' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
@@ -357,6 +915,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     {/* Content Area */}
                     <div className="flex-1 p-6 bg-white min-h-[400px]">
                         {activeTab === 'import' && renderImportSettings()}
+                        {activeTab === 'hikcentral' && renderHikCentralImport()}
+                        {activeTab === 'staff-import' && renderStaffImport()}
                         {activeTab === 'manual' && renderManualRegistration()}
                         {activeTab === 'general' && renderGeneralSettings()}
                     </div>

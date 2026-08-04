@@ -72,9 +72,14 @@ class ExitSinglePermissionIT extends AbstractIT {
         exitPermissionRepository.save(TestFixtures.permission(TestFixtures.EMPLOYEE_PILOTO,
                 ExitPermissionType.SINGLE, ExitPermissionStatus.ACTIVE));
 
-        for (int i = 0; i < 3; i++) {
-            mockMvc.perform(TestFixtures.multipartWebhook(
-                            TestFixtures.payload("face-75.txt"), TestFixtures.IP_PORTAO_SAIDA))
+        // Tres tentativas SEPARADAS no tempo (2 min de intervalo). A regra de
+        // mesma passagem (30s) trata leituras a segundos de distancia como uma
+        // so — inclusive do lado das negadas —, e o assunto aqui e a permissao
+        // consumida, nao a janela: o aluno volta ao portao e tenta de novo.
+        for (long segundosAtras : new long[]{240, 120, 0}) {
+            mockMvc.perform(TestFixtures.multipartWebhookHaSegundos(
+                            TestFixtures.payload("face-75.txt"), TestFixtures.IP_PORTAO_SAIDA,
+                            segundosAtras))
                     .andExpect(status().isOk());
         }
 

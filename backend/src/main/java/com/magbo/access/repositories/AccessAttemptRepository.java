@@ -19,6 +19,25 @@ public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Lo
 
     List<AccessAttempt> findTop200ByUserIdOrderByTimestampDesc(String userId);
 
+    /**
+     * MESMA PASSAGEM, lado das negadas: mesma pessoa, ponto, acao e MESMO
+     * resultado dentro da janela.
+     *
+     * A chave e o employeeNoRaw, nao o userId: tentativa de matricula
+     * desconhecida tem userId null, e null nunca casaria — justo o caso em que
+     * a leitura repetida mais aparece (rosto que o terminal aprova e o MAGBO
+     * nao reconhece).
+     *
+     * Inclui o denialReason: dois eventos com o mesmo resultado mas MOTIVOS
+     * diferentes sao fatos diferentes, e engolir o segundo apagaria informacao
+     * de auditoria.
+     */
+    boolean existsByEmployeeNoRawAndPointIdAndActionAndAuthorizationResultAndDenialReasonAndTimestampBetween(
+            String employeeNoRaw, String pointId, com.magbo.access.models.AccessAction action,
+            com.magbo.access.models.AuthorizationResult authorizationResult,
+            DenialReason denialReason,
+            LocalDateTime from, LocalDateTime to);
+
     @org.springframework.data.jpa.repository.Query("""
         SELECT a FROM AccessAttempt a
         WHERE (:#{#from == null} = true OR a.timestamp >= :from)

@@ -39,6 +39,12 @@ class WebhookCardIT extends AbstractIT {
         assertThat(log.getUserId()).isEqualTo(TestFixtures.EMPLOYEE_PILOTO);
     }
 
+    /**
+     * As duas passagens sao afastadas no tempo: cartao de manha, face a tarde.
+     * A regra de MESMA PASSAGEM (30s) descartaria a segunda leitura se as duas
+     * caissem no mesmo instante — e o que se quer provar aqui e a identidade
+     * compartilhada, nao a janela.
+     */
     @Test
     @DisplayName("cartao e face do mesmo aluno resolvem pelo MESMO employeeNoString")
     void cartaoEFaceCompartilhamIdentidade() throws Exception {
@@ -47,11 +53,11 @@ class WebhookCardIT extends AbstractIT {
                 TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED));
         seedMapping(TestFixtures.IP_BIBLIO, "BIBLIO", AccessAction.ENTRADA);
 
-        mockMvc.perform(TestFixtures.multipartWebhook(
-                        TestFixtures.payload("card-1.txt"), TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookHaSegundos(
+                        TestFixtures.payload("card-1.txt"), TestFixtures.IP_BIBLIO, 3600))
                 .andExpect(status().isOk());
-        mockMvc.perform(TestFixtures.multipartWebhook(
-                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_BIBLIO))
+        mockMvc.perform(TestFixtures.multipartWebhookHaSegundos(
+                        TestFixtures.payload("face-75.txt"), TestFixtures.IP_BIBLIO, 0))
                 .andExpect(status().isOk());
 
         assertThat(accessLogRepository.findAll())

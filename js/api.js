@@ -250,10 +250,76 @@ const api = {
         }
     },
 
+    // ── Servidores da escola (professores, Vie Scolaire, serviços gerais,
+    //    administração, direção) ────────────────────────────────────────────
+    // Endpoints próprios: o cadastro de ALUNO vem do Pronote e tem regras
+    // diferentes. Todas as recusas chegam como erro com mensagem pronta para a
+    // tela — o formulário antigo dizia "sucesso" mesmo quando nada era gravado.
+
+    /** Próxima matrícula FUNC-### livre, para mostrar no formulário. */
+    async fetchNextStaffMatricula() {
+        const res = await fetch(`${API_BASE_URL}/users/staff/next-matricula`, { headers: authHeaders() });
+        const data = await this.handleResponse(res);
+        return data?.matricula || '';
+    },
+
+    /** @param {Object} staff - { matricula?, nome, hikvisionEmployeeId?, tipo, departamento? } */
+    async createStaff(staff) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/staff`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(staff)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao cadastrar servidor.');
+            }
+            throw err;
+        }
+    },
+
+    /**
+     * SIMULAÇÃO do import do HikCentral — não grava nada.
+     * @param {Array} rows - [{ linha, id, prenom, nom, service }]
+     */
+    async previewHikCentralImport(rows) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/import/preview`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(rows)
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Aplica o import do HikCentral. O plano é refeito no servidor. */
+    async applyHikCentralImport(rows) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/import`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(rows)
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Importação em lote de servidores. Devolve o relatório por linha. */
+    async createStaffBulk(staffArray) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/staff/bulk`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(staffArray)
+            });
+            return await this.handleResponse(res);
+        } catch (err) {
+            if (err.name === 'TypeError') {
+                throw new Error('Servidor indisponível ao importar planilha de servidores.');
+            }
+            throw err;
+        }
+    },
+
     /**
      * Atualiza um usuário ou responsável existente
-     * @param {string} id 
-     * @param {Object} userData 
+     * @param {string} id
+     * @param {Object} userData
      */
     async updateUser(id, userData) {
         try {

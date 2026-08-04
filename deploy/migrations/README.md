@@ -27,8 +27,9 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V006. As migrations V001..V004 devem estar aplicadas **antes** de
-subir o backend com as fases correspondentes (B/C/D). Comando por arquivo:
+Aplicar **na ordem** V001 → V007. As migrations V001..V004 devem estar aplicadas **antes** de
+subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
+cadastro de servidores. Comando por arquivo:
 
 ```bash
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V001__access_attempts.sql
@@ -37,6 +38,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V003_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V004__student_exit_permissions.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V005__system_users_permissoes.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V006__indexes.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V007__app_users_departamento.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -47,6 +49,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V006_
 | `V004__student_exit_permissions.sql` | tabela `student_exit_permissions` + CHECKs | D |
 | `V005__system_users_permissoes.sql` | `ALTER TABLE system_users ADD COLUMN permissoes` (nullable) | F |
 | `V006__indexes.sql` | índices das tabelas acima (nenhum em `access_logs`) | — |
+| `V007__app_users_departamento.sql` | `ALTER TABLE app_users ADD COLUMN departamento` (nullable) | Servidores |
 
 ## 4. Procedimento completo na VM
 

@@ -27,6 +27,23 @@ public class User {
 
     private String turma;
 
+    /**
+     * Especificacao do servidor da escola: Vie Scolaire, Servicos Gerais,
+     * Administracao, Direcao, Professor...
+     *
+     * String livre e NULLABLE de proposito. Livre porque a lista de setores da
+     * escola muda por decisao administrativa, nao por deploy — virar enum
+     * exigiria recompilar (e mexer no CHECK do banco) a cada setor novo.
+     * Nullable porque os 923 alunos ja cadastrados nao tem departamento nenhum,
+     * e a coluna precisa nascer sem invalidar uma linha sequer.
+     *
+     * Nao confundir com `tipo`: `tipo` e o vinculo (ALUNO/PROFESSOR/
+     * FUNCIONARIO, com CHECK no banco) e `departamento` e onde a pessoa
+     * trabalha. Direcao e Servicos Gerais sao ambos tipo=FUNCIONARIO.
+     */
+    @Column(name = "departamento", length = 64)
+    private String departamento;
+
     @Column(name = "foto_url")
     private String fotoUrl;
 

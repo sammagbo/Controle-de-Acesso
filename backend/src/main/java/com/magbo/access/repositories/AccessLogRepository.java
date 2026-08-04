@@ -28,6 +28,23 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
             String userId, String pointId, AccessAction action, LocalDateTime after);
 
     /**
+     * MESMA PASSAGEM: ja existe acesso aceito desta pessoa, neste ponto, nesta
+     * acao, dentro da janela? Intervalo fechado dos dois lados de proposito —
+     * a fila offline entrega evento fora de ordem, e o repetido pode chegar com
+     * hora ANTERIOR a do que ja esta gravado.
+     */
+    boolean existsByUserIdAndPointIdAndActionAndTimestampBetween(
+            String userId, String pointId, AccessAction action,
+            LocalDateTime from, LocalDateTime to);
+
+    /**
+     * FECHAMENTO AUTOMATICO: ultimo evento do usuario naquele ponto dentro do
+     * dia. Se for ENTRADA, a pessoa ficou "dentro" e precisa da SAIDA sintetica.
+     */
+    List<AccessLog> findByPointIdAndTimestampBetweenOrderByTimestampAsc(
+            String pointId, LocalDateTime from, LocalDateTime to);
+
+    /**
      * Consulta do Journal (Rapport General).
      *
      * O filtro de ELEVE roda AQUI, no banco, e nao sobre as linhas ja

@@ -45,6 +45,7 @@ public class AccessDecisionService {
     private final PolicyProperties policyProperties;
     private final MealEntitlementService mealEntitlementService;
     private final ExitPermissionService exitPermissionService;
+    private final SamePassageService samePassageService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -290,6 +291,18 @@ public class AccessDecisionService {
             } else {
                 consumedPermissionId = exitDecision.permissionId();
             }
+        }
+
+        // MESMA PASSAGEM: o terminal leu a mesma face duas vezes em segundos
+        // (evento novo, serialNo novo — o dedup de ingestao deixa passar e faz
+        // certo). Nada e gravado e o webhook responde 200: para o aparelho a
+        // passagem foi aceita, que e a verdade — ela ja foi, uma vez.
+        // Antes do save E antes do consumeIfSingle: uma leitura repetida nao
+        // pode consumir uma permissao de saida SINGLE pela segunda vez.
+        if (samePassageService.alreadyRegistered(userId, resolved.pointId(), resolved.action(), eventTime)) {
+            log.debug("Mesma passagem ignorada (user={}, point={}, action={}, janela={}s)",
+                    userId, resolved.pointId(), resolved.action(), samePassageService.windowSeconds());
+            return;
         }
 
         AccessLog accessLog = AccessLog.builder()

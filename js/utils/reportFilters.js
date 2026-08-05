@@ -18,12 +18,39 @@
     /**
      * Piso de duração de uma visita, em segundos.
      *
-     * ⚠️ ESPELHA magbo.report.min-visit-seconds do backend (mesmo default 60,
-     * nos quatro perfis). Os dois lados existem porque o Rapport CDI é
-     * calculado no cliente e o "Vue d'ensemble" no servidor — mudar um sem o
-     * outro faz a mesma tela mostrar dois números para o mesmo dia.
+     * FONTE ÚNICA: a property magbo.report.min-visit-seconds do backend,
+     * buscada uma vez em GET /api/access/report-config e entregue aqui por
+     * `configure()`. Não existe mais constante espelhando o valor — enquanto
+     * existia, mudar a property sem mudar o JS fazia a MESMA tela mostrar dois
+     * números para o mesmo dia, e nada acusava a divergência.
+     *
+     * O valor abaixo é FALLBACK, não configuração: só entra em cena se o
+     * backend não responder, e serve para a tela não passar a contar visita de
+     * 1 segundo quando a rede pisca. Mexer nele não muda o sistema — mexa na
+     * property.
      */
-    const MIN_VISIT_SECONDS = 60;
+    const FALLBACK_MIN_VISIT_SECONDS = 60;
+
+    let minVisitSecondsDoBackend = null;
+
+    /** Recebe os parâmetros vindos de GET /api/access/report-config. */
+    function configure(config) {
+        const n = config && Number(config.minVisitSeconds);
+        minVisitSecondsDoBackend = (typeof n === 'number' && isFinite(n) && n >= 0) ? n : null;
+        return effectiveMinVisitSeconds();
+    }
+
+    /** Piso em vigor: o do backend quando já chegou, o fallback enquanto não. */
+    function effectiveMinVisitSeconds() {
+        return minVisitSecondsDoBackend == null
+            ? FALLBACK_MIN_VISIT_SECONDS
+            : minVisitSecondsDoBackend;
+    }
+
+    /** true quando o valor em uso veio mesmo do servidor. */
+    function isConfigured() {
+        return minVisitSecondsDoBackend != null;
+    }
 
     /** Marca da saída sintética das 17:00 (PresenceAutoCloseService.FLAG_FECHAMENTO). */
     const FLAG_FECHAMENTO = 'FECHAMENTO_AUTO';
@@ -159,7 +186,7 @@
      *   duração, e o fechamento das 17:00 não é hora de saída de ninguém.
      */
     function summariseVisits(visits, minVisitSeconds) {
-        const piso = typeof minVisitSeconds === 'number' ? minVisitSeconds : MIN_VISIT_SECONDS;
+        const piso = typeof minVisitSeconds === 'number' ? minVisitSeconds : effectiveMinVisitSeconds();
         const lista = Array.isArray(visits) ? visits : [];
 
         const curtas = lista.filter(function (v) {
@@ -190,7 +217,10 @@
     }
 
     return {
-        MIN_VISIT_SECONDS: MIN_VISIT_SECONDS,
+        FALLBACK_MIN_VISIT_SECONDS: FALLBACK_MIN_VISIT_SECONDS,
+        configure: configure,
+        effectiveMinVisitSeconds: effectiveMinVisitSeconds,
+        isConfigured: isConfigured,
         FLAG_FECHAMENTO: FLAG_FECHAMENTO,
         ehServidor: ehServidor,
         ehAluno: ehAluno,

@@ -196,6 +196,28 @@ Cabeçalho → engrenagem. **Tela cheia**, com navegação à esquerda.
 | 5.4.9 | Reativar | Volta ao normal |
 | 5.4.10 | ★ Após inativar, conferir `access_logs` | **Nenhuma passagem apagada** |
 
+### 5.4-bis "É um aluno" — reclassificar um FUNC-### criado por engano (★ novo)
+
+> Caso real: 74 alunos estavam fora do departamento ALUNOS no HikCentral com ID
+> de 10 dígitos, então a importação criou FUNC-### segurando a face deles e as
+> passagens entravam nos relatórios como de servidor. A correção em massa foi
+> feita em SQL; esta é a ferramenta para o próximo caso.
+
+| # | Ação | Esperado |
+|---|---|---|
+| 5.4b.1 | Numa linha **ativa**, clicar **"É um aluno"** | Abre o painel com o nome já na busca; mostra a face e o nº de passagens do registro |
+| 5.4b.2 | Registro **inativo** | O botão **não aparece** (não haveria o que mudar) |
+| 5.4b.3 | Digitar o nome do aluno | Candidatos — **só ALUNO** |
+| 5.4b.4 | Escolher um aluno | ★ **Os dois lados**: quem recebe a face (com "nome, turma e tipo não são alterados") e o servidor que será inativado (com "as passagens ficam neste registro") |
+| 5.4b.5 | ★ Antes de confirmar, checar o banco | **Nada mudou** |
+| 5.4b.6 | Confirmar | Toast dizendo o identificador transferido e o registro inativado |
+| 5.4b.7 | ★ Conferir no banco | Aluno com o `hikvision_employee_id`; FUNC-### com o campo **NULO** e `ativo=false`; **passagens dele intactas** |
+| 5.4b.8 | ★ Buscar um aluno que **não existe** no MAGBO | Mensagem exata: *"Este aluno não está no MAGBO; ele deve entrar primeiro pela importação do Pronote"* — e **nenhum aluno é criado** |
+| 5.4b.9 | ★ Escolher um aluno que **já tem outra face** | Aparece a caixa de substituição consciente mostrando os **dois** identificadores; o botão fica **desabilitado** até marcar |
+| 5.4b.10 | Marcar a caixa e confirmar | Troca acontece; a face antiga deixa de reconhecer o aluno |
+| 5.4b.11 | Depois de reclassificar | A linha volta na lista como **inativa**, sem ID Hikvision |
+| 5.4b.12 | Passar o rosto desse aluno no terminal (se houver hardware) | ★ Reconhecido como **aluno**; a passagem entra nos relatórios do CDI |
+
 ### 5.5 Importar Servidores (planilha própria)
 
 | # | Ação | Esperado |
@@ -253,9 +275,21 @@ Cabeçalho → engrenagem. **Tela cheia**, com navegação à esquerda.
 ## Encerramento
 
 ```
-mvn test    →  esperado: Tests run: 334, Failures: 0, Errors: 0, Skipped: 2
-npm test    →  esperado: Test Files 3 passed, Tests 52 passed
+mvn test    →  esperado: Tests run: 350, Failures: 0, Errors: 0, Skipped: 2
+npm test    →  esperado: Test Files 3 passed, Tests 58 passed
 ```
+
+### Piso de visita curta — fonte única
+
+O número (60 s) vive **só** em `magbo.report.min-visit-seconds`. A tela o busca
+uma vez em `GET /api/access/report-config`. Para conferir que a fonte é única:
+
+1. mudar a property para `120` e reiniciar o backend;
+2. reabrir o app e o **Rapport CDI**: visitas entre 1 e 2 minutos **deixam de
+   contar**, e o card do CDI no **Vue d'ensemble** mostra o mesmo critério;
+3. devolver a property para `60`.
+
+Se as duas telas discordarem, a fonte voltou a estar duplicada.
 
 Registrar em `docs/testing/evidencias/<data>/`: capturas dos pontos ★, o SQL de
 antes/depois do 5.2 e do 5.3, e qualquer passo que falhou com o que apareceu.

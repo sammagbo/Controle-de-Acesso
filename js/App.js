@@ -42,6 +42,24 @@ function App() {
             if (enabled) setCurrentPoint(null); // clear sector when entering admin
       }, []);
 
+      /**
+       * Parâmetros de relatório, buscados UMA vez depois do login.
+       *
+       * O piso de visita curta vive em magbo.report.min-visit-seconds, no
+       * backend, mas o Rapport CDI é calculado no cliente. Sem esta busca o JS
+       * usaria o próprio número e, mudada a property, a mesma tela mostraria
+       * dois valores para o mesmo dia. Se falhar, o reportFilters segue com o
+       * fallback dele — a tela nunca fica sem piso.
+       */
+      React.useEffect(() => {
+            if (!currentUser) return;
+            let vivo = true;
+            window.api.fetchReportConfig()
+                  .then(cfg => { if (vivo && window.MagboReport) window.MagboReport.configure(cfg); })
+                  .catch(e => console.warn('[report-config] mantendo o fallback local:', e.message));
+            return () => { vivo = false; };
+      }, [currentUser]);
+
       React.useEffect(() => {
             const handleOpenSettings = () => setShowSettings(true);
             window.addEventListener('open-settings', handleOpenSettings);

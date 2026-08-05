@@ -239,13 +239,115 @@ public class StaffAdminService {
         return u;
     }
 
+    /**
+     * Mensagem para quando o aluno não está cadastrado.
+     *
+     * Diz o que fazer, não só o que faltou: criar o aluno aqui produziria um
+     * registro sem turma e sem responsável, fora do Pronote — que é exatamente
+     * o duplicado que este fluxo existe para desfazer.
+     */
+    public static final String ALUNO_AUSENTE =
+            "Este aluno não está no MAGBO; ele deve entrar primeiro pela importação do Pronote";
+
     private User carregarAluno(String id) {
         User u = userRepository.findById(id)
-                .orElseThrow(() -> new StaffAdminException("Aluno não encontrado: " + id));
+                .orElseThrow(() -> new StaffAdminException(ALUNO_AUSENTE));
         if (u.getTipo() != UserType.ALUNO) {
             throw new StaffAdminException("Registro " + id + " não é um aluno (tipo " + u.getTipo() + ")");
         }
         return u;
+    }
+
+    // ───────────────── "Este servidor é na verdade um aluno" ─────────────────
+
+    /** O que a reclassificação vai fazer, para a tela mostrar ANTES de confirmar. */
+    public record ReclassPreview(String servidorId, String servidorNome, String servidorTipo,
+                                 String servidorDepartamento, String servidorHikvisionId,
+                                 long servidorPassagens,
+                                 String alunoId, String alunoNome, String alunoTurma,
+                                 String alunoHikvisionAtual,
+                                 boolean substituiIdentificadorDoAluno) {
+    }
+
+    /** Simula a reclassificação. Não escreve nada. */
+    public ReclassPreview previewReclassify(String servidorId, String alunoId) {
+        User servidor = carregarServidor(servidorId);
+        User aluno = carregarAluno(alunoId);
+        String hik = servidor.getHikvisionEmployeeId();
+        boolean substitui = hik != null
+                && aluno.getHikvisionEmployeeId() != null
+                && !aluno.getHikvisionEmployeeId().equals(hik);
+
+        return new ReclassPreview(
+                servidor.getId(), servidor.getNome(), servidor.getTipo().name(),
+                servidor.getDepartamento(), hik,
+                accessLogRepository.countByUserId(servidor.getId()),
+                aluno.getId(), aluno.getNome(), aluno.getTurma(),
+                aluno.getHikvisionEmployeeId(), substitui);
+    }
+
+    /**
+     * Reclassifica um FUNC-### criado por engano: o identificador do HikCentral
+     * volta para o ALUNO a que pertence e o registro de servidor sai de
+     * circulação.
+     *
+     * Caso real de 04-05/08: 74 alunos estavam fora do departamento ALUNOS no
+     * HikCentral, com id de 10 dígitos. A importação não achou matrícula para
+     * eles e criou FUNC-### segurando a face — as passagens desses alunos
+     * entravam nos relatórios como passagens de servidor. A correção em massa
+     * foi feita em SQL; esta é a ferramenta para o caso seguinte, que volta a
+     * acontecer a cada aluno mal arquivado no HCP.
+     *
+     * UMA transação. A coluna é UNIQUE: o aluno só pode receber o identificador
+     * depois que o servidor o solta. Em dois passos haveria uma janela em que a
+     * face não é de ninguém e, se o segundo passo falhasse, ficariam um aluno
+     * sem face e um registro fantasma ainda ativo.
+     *
+     * O que NÃO se toca, nunca: nome, turma e tipo do aluno — são do Pronote.
+     * E as passagens do servidor ficam onde estão: elas aconteceram, e o
+     * registro inativo já sai dos relatórios (decisão registrada: histórico
+     * honesto em vez de história reescrita).
+     *
+     * @param confirmarSubstituicao obrigatório quando o aluno JÁ tem outro
+     *                              identificador — trocar a face de um aluno é
+     *                              decisão consciente, não efeito colateral
+     */
+    @Transactional
+    public ReclassPreview reclassifyStaffAsStudent(String servidorId, String alunoId,
+                                                   boolean confirmarSubstituicao) {
+        User servidor = carregarServidor(servidorId);
+        User aluno = carregarAluno(alunoId);
+        String hik = servidor.getHikvisionEmployeeId();
+
+        if (hik != null) {
+            String doAluno = aluno.getHikvisionEmployeeId();
+            if (doAluno != null && !doAluno.equals(hik) && !confirmarSubstituicao) {
+                throw new StaffAdminException(
+                        "O aluno " + aluno.getNome() + " já tem o identificador " + doAluno
+                                + " e este registro carrega o " + hik
+                                + ". Confirme a substituição para trocar.");
+            }
+            // Solta primeiro e força o flush: sem isto o UNIQUE recusa o
+            // segundo INSERT/UPDATE dentro da mesma transação.
+            servidor.setHikvisionEmployeeId(null);
+            userRepository.saveAndFlush(servidor);
+            aluno.setHikvisionEmployeeId(hik);
+            userRepository.save(aluno);
+        }
+
+        servidor.setAtivo(false);
+        userRepository.save(servidor);
+
+        log.info("Reclassificação: servidor {} ({}) inativado; identificador {} -> aluno {} ({})",
+                servidor.getId(), servidor.getNome(),
+                hik == null ? "(nenhum)" : hik, aluno.getId(), aluno.getNome());
+
+        return new ReclassPreview(
+                servidor.getId(), servidor.getNome(), servidor.getTipo().name(),
+                servidor.getDepartamento(), hik,
+                accessLogRepository.countByUserId(servidor.getId()),
+                aluno.getId(), aluno.getNome(), aluno.getTurma(),
+                aluno.getHikvisionEmployeeId(), false);
     }
 
     private static String normalizar(String s) {

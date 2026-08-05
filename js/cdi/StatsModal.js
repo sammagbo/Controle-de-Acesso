@@ -65,7 +65,9 @@ function CdiStatsModal({ open, onClose, logs, students }) {
        * pilha, em js/utils/reportFilters.js, com teste (`npm test`).
        *
        * Aplica de uma vez as duas regras de leitura:
-       *  • visita mais curta que MIN_VISIT_SECONDS não é permanência;
+       *  • visita mais curta que o piso vindo do backend
+       *    (magbo.report.min-visit-seconds, buscado uma vez em
+       *    /api/access/report-config) não é permanência;
        *  • a SAIDA das 17:00 (FECHAMENTO_AUTO) não é hora real de saída e fica
        *    fora da média.
        */

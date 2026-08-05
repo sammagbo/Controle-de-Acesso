@@ -284,6 +284,24 @@ public class AccessController {
         return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
     }
 
+    /**
+     * Parâmetros de RELATÓRIO que o frontend precisa conhecer.
+     *
+     * Existe para acabar com uma fonte dupla: o piso de visita curta é uma
+     * property do backend (magbo.report.min-visit-seconds), mas o Rapport CDI é
+     * calculado no cliente. Enquanto o número vivia repetido como constante no
+     * JS, mudar a property sem mudar o JS fazia a MESMA tela mostrar dois
+     * números para o mesmo dia — e nada acusava a divergência.
+     *
+     * Autenticado, não admin: quem opera o CDI precisa do valor e não é admin.
+     */
+    @GetMapping("/report-config")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> reportConfig() {
+        return ResponseEntity.ok(Map.of(
+                "minVisitSeconds", visitStatsService.minVisitSeconds()));
+    }
+
     private static final int INFIRMARY_LONG_STAY_MIN = 30;
 
     @PreAuthorize("@areaSecurity.can('infirmerie')")

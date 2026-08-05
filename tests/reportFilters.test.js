@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import R from '../js/utils/reportFilters.js';
 
 /**
@@ -211,11 +211,14 @@ describe('reportFilters — passagem rápida', () => {
         expect(s.uniquePeople).toBe(2);
     });
 
-    it('usa o piso padrão de 60s quando nenhum é informado', () => {
-        expect(R.MIN_VISIT_SECONDS).toBe(60);
+    it('sem piso informado usa o valor em vigor (fallback enquanto o backend não respondeu)', () => {
+        R.configure(null);   // simula "ainda não chegou"
+        expect(R.isConfigured()).toBe(false);
+        expect(R.effectiveMinVisitSeconds()).toBe(R.FALLBACK_MIN_VISIT_SECONDS);
+
         const v = R.pairVisits([
             { studentId: 'a', action: 'IN', timestamp: BASE },
-            { studentId: 'a', action: 'OUT', timestamp: BASE + 30000 },
+            { studentId: 'a', action: 'OUT', timestamp: BASE + 30000 },   // 30s
         ]);
         expect(R.summariseVisits(v).visits).toBe(0);
     });
@@ -223,6 +226,69 @@ describe('reportFilters — passagem rápida', () => {
     it('período sem nada devolve zeros e média nula', () => {
         const s = R.summariseVisits([], 60);
         expect(s).toMatchObject({ visits: 0, uniquePeople: 0, avgDurationMin: null, shortVisitsIgnored: 0 });
+    });
+});
+
+/**
+ * FONTE ÚNICA DO PISO.
+ *
+ * O número vive em magbo.report.min-visit-seconds e chega por
+ * GET /api/access/report-config. Não há mais constante espelhando o valor:
+ * enquanto havia, mudar a property sem mudar o JS fazia a MESMA tela mostrar
+ * dois números para o mesmo dia, e nada acusava a divergência.
+ */
+describe('reportFilters — piso vindo do backend', () => {
+
+    afterEach(() => { R.configure(null); });   // não vaza entre testes
+
+    it('★ não existe mais constante exportada com o piso', () => {
+        expect(R.MIN_VISIT_SECONDS).toBeUndefined();
+    });
+
+    it('configure() adota o valor do servidor', () => {
+        expect(R.configure({ minVisitSeconds: 120 })).toBe(120);
+        expect(R.isConfigured()).toBe(true);
+        expect(R.effectiveMinVisitSeconds()).toBe(120);
+    });
+
+    it('★ o piso do servidor manda no resumo — uma visita de 90s deixa de contar a 120s', () => {
+        const v = R.pairVisits([
+            { studentId: 'a', action: 'IN', timestamp: BASE },
+            { studentId: 'a', action: 'OUT', timestamp: BASE + 90000 },
+        ]);
+        R.configure({ minVisitSeconds: 60 });
+        expect(R.summariseVisits(v).visits).toBe(1);
+
+        R.configure({ minVisitSeconds: 120 });
+        expect(R.summariseVisits(v).visits).toBe(0);
+    });
+
+    it('piso 0 desliga a regra sem virar fallback', () => {
+        expect(R.configure({ minVisitSeconds: 0 })).toBe(0);
+        expect(R.isConfigured()).toBe(true);
+        const v = R.pairVisits([
+            { studentId: 'a', action: 'IN', timestamp: BASE },
+            { studentId: 'a', action: 'OUT', timestamp: BASE + 5000 },
+        ]);
+        expect(R.summariseVisits(v).visits).toBe(1);
+    });
+
+    it('resposta inválida cai no fallback em vez de aceitar lixo', () => {
+        R.configure({ minVisitSeconds: 'abc' });
+        expect(R.isConfigured()).toBe(false);
+        expect(R.effectiveMinVisitSeconds()).toBe(R.FALLBACK_MIN_VISIT_SECONDS);
+
+        R.configure({ minVisitSeconds: -10 });
+        expect(R.isConfigured()).toBe(false);
+    });
+
+    it('o argumento explícito continua vencendo o valor configurado', () => {
+        R.configure({ minVisitSeconds: 600 });
+        const v = R.pairVisits([
+            { studentId: 'a', action: 'IN', timestamp: BASE },
+            { studentId: 'a', action: 'OUT', timestamp: BASE + 90000 },
+        ]);
+        expect(R.summariseVisits(v, 60).visits).toBe(1);
     });
 });
 

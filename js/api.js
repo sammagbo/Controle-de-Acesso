@@ -304,6 +304,17 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    /**
+     * Parâmetros de relatório do servidor (hoje: o piso de visita curta).
+     *
+     * FONTE ÚNICA: o número vive em magbo.report.min-visit-seconds e é buscado
+     * daqui. O `reportFilters` tem só um fallback para o caso de a rede piscar.
+     */
+    async fetchReportConfig() {
+        const res = await fetch(`${API_BASE_URL}/access/report-config`, { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
     // ── Manutenção do cadastro de servidores ──────────────────────────────
     // A importação do HikCentral cria FUNC-### para toda linha fora do
     // departamento ALUNOS; parte dessas pessoas são alunos cujo id no HCP não
@@ -342,6 +353,33 @@ const api = {
         const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}`, {
             method: 'DELETE', headers: authHeaders()
         });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * "Este servidor é na verdade um aluno" — prévia. Não grava nada.
+     * Parte do servidor (que segura a face) e não do identificador, porque o
+     * registro pode nem ter identificador e ainda assim precisar sair de cena.
+     */
+    async previewReclassify(servidorId, alunoId) {
+        const params = new URLSearchParams({ alunoId });
+        const res = await fetch(
+            `${API_BASE_URL}/users/staff/${encodeURIComponent(servidorId)}/reclassify/preview?${params}`,
+            { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * Confirma a reclassificação: numa transação, o identificador volta ao
+     * aluno e o registro de servidor é inativado (as passagens dele ficam).
+     * `confirmarSubstituicao` é exigido quando o aluno já tem outro.
+     */
+    async reclassifyStaffAsStudent(servidorId, alunoId, confirmarSubstituicao) {
+        const res = await fetch(
+            `${API_BASE_URL}/users/staff/${encodeURIComponent(servidorId)}/reclassify`, {
+                method: 'POST', headers: authHeaders(),
+                body: JSON.stringify({ alunoId, confirmarSubstituicao: !!confirmarSubstituicao })
+            });
         return await this.handleResponse(res);
     },
 

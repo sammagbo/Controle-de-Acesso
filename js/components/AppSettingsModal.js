@@ -111,6 +111,16 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const [staffLoading, setStaffLoading] = React.useState(false);
     const [staffQuery, setStaffQuery] = React.useState('');
     const [staffEdit, setStaffEdit] = React.useState(null);   // { id, tipo, departamento }
+    // "É na verdade um aluno": reaproveita a busca e a prévia lado a lado do
+    // CONFERIR, partindo do registro de SERVIDOR em vez do identificador.
+    const [reclassRow, setReclassRow] = React.useState(null);
+    const [reclassQuery, setReclassQuery] = React.useState('');
+    const [reclassResults, setReclassResults] = React.useState([]);
+    const [reclassChoice, setReclassChoice] = React.useState(null);
+    const [reclassPreview, setReclassPreview] = React.useState(null);
+    const [reclassSubstituir, setReclassSubstituir] = React.useState(false);
+    const [reclassSaving, setReclassSaving] = React.useState(false);
+    const [reclassErro, setReclassErro] = React.useState(null);
     // Casamento manual (aba HikCentral, lista CONFERIR)
     const [matchRow, setMatchRow] = React.useState(null);     // linha do CONFERIR
     const [matchQuery, setMatchQuery] = React.useState('');
@@ -524,6 +534,187 @@ function AppSettingsModal({ onClose, onShowToast }) {
             || String(r.hikvisionEmployeeId || '').includes(q));
     }, [staffRows, staffQuery]);
 
+    // ── "Este servidor é na verdade um aluno" ────────────────────────────
+    // 74 alunos estavam fora do departamento ALUNOS no HikCentral com id de 10
+    // dígitos: a importação criou FUNC-### segurando a face deles e as
+    // passagens entravam como de servidor. A correção em massa foi por SQL;
+    // isto é a ferramenta para o próximo caso.
+
+    const abrirReclass = (row) => {
+        setReclassRow(row);
+        setReclassQuery(row.nome || '');   // o nome é o único elo com o cadastro
+        setReclassResults([]);
+        setReclassChoice(null);
+        setReclassPreview(null);
+        setReclassSubstituir(false);
+        setReclassErro(null);
+    };
+
+    React.useEffect(() => {
+        if (!reclassRow) return;
+        const q = reclassQuery.trim();
+        if (q.length < 2) { setReclassResults([]); return; }
+        let vivo = true;
+        const tid = setTimeout(async () => {
+            try {
+                const achados = await window.userCache.search(q, 20);
+                if (vivo) setReclassResults((achados || []).filter(u => u.tipo === 'ALUNO'));
+            } catch (e) { if (vivo) setReclassResults([]); }
+        }, 250);
+        return () => { vivo = false; clearTimeout(tid); };
+    }, [reclassQuery, reclassRow]);
+
+    const escolherAlunoReclass = async (aluno) => {
+        setReclassChoice(aluno);
+        setReclassPreview(null);
+        setReclassSubstituir(false);
+        setReclassErro(null);
+        try {
+            const r = await window.api.previewReclassify(reclassRow.id, aluno.id);
+            setReclassPreview(r.preview);
+        } catch (e) {
+            // Inclui o caso "aluno não está no MAGBO", que precisa aparecer
+            // dentro do painel — um toast some antes de o operador ler o que
+            // fazer a respeito.
+            setReclassErro(e.message);
+        }
+    };
+
+    const confirmarReclass = async () => {
+        if (!reclassChoice || !reclassRow || reclassSaving) return;
+        setReclassSaving(true);
+        try {
+            const r = await window.api.reclassifyStaffAsStudent(
+                reclassRow.id, reclassChoice.id, reclassSubstituir);
+            onShowToast({ title: 'Reclassificado', message: r.message, type: 'success' });
+            setReclassRow(null);
+            await carregarServidores();
+            if (window.userCache?.reload) await window.userCache.reload();
+        } catch (e) {
+            setReclassErro(e.message);
+        } finally {
+            setReclassSaving(false);
+        }
+    };
+
+    const renderReclass = () => {
+        if (!reclassRow) return null;
+        const p = reclassPreview;
+        return (
+            <div className="border-2 border-accent-300 bg-white rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="font-bold text-navy-500 text-sm">
+                            "{reclassRow.nome}" é na verdade um aluno
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                            {reclassRow.id}
+                            {reclassRow.hikvisionEmployeeId
+                                ? <> · face <span className="font-mono">{reclassRow.hikvisionEmployeeId}</span></>
+                                : ' · sem identificador Hikvision'}
+                            {' · '}{reclassRow.passagens} passagem(ns)
+                        </p>
+                    </div>
+                    <button onClick={() => setReclassRow(null)}
+                        className="text-xs font-bold text-slate-500 underline hover:no-underline">Fechar</button>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                        Procurar o aluno no MAGBO (pelo nome)
+                    </label>
+                    <input type="text" value={reclassQuery} onChange={e => setReclassQuery(e.target.value)}
+                        className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500" />
+                </div>
+
+                {reclassResults.length > 0 && !reclassChoice && (
+                    <div className="max-h-40 overflow-y-auto border border-soft-200 rounded-xl">
+                        {reclassResults.map(a => (
+                            <button key={a.id} onClick={() => escolherAlunoReclass(a)}
+                                className="w-full text-left px-3 py-2 text-xs border-b border-soft-100 last:border-0 hover:bg-accent-50">
+                                <span className="font-bold text-navy-500">{a.nome}</span>
+                                <span className="text-slate-400 ml-2 font-mono">{a.id}</span>
+                                <span className="text-slate-400 ml-2">{a.turma || '—'}</span>
+                                {a.hikvision_employee_id && (
+                                    <span className="ml-2 text-amber-700">já tem face {a.hikvision_employee_id}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {reclassQuery.trim().length >= 2 && reclassResults.length === 0 && !reclassChoice && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                        Nenhum aluno com esse nome. Se ele realmente não está no MAGBO, precisa entrar
+                        primeiro pela importação do Pronote — não se cadastra aluno por aqui.
+                    </p>
+                )}
+
+                {reclassErro && (
+                    <p className="text-[11px] text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2">
+                        {reclassErro}
+                    </p>
+                )}
+
+                {/* Os dois lados ANTES de gravar: é uma face trocando de dono. */}
+                {p && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="border border-success-200 bg-success-50 rounded-xl p-3">
+                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">Aluno (recebe a face)</p>
+                            <p className="font-bold text-navy-500 text-sm">{p.alunoNome}</p>
+                            <p className="text-[11px] text-slate-600 font-mono">{p.alunoId}</p>
+                            <p className="text-[11px] text-slate-600">Turma: {p.alunoTurma || '—'}</p>
+                            <p className="text-[11px] text-slate-600">
+                                ID atual: {p.alunoHikvisionAtual || 'nenhum'}
+                                {p.servidorHikvisionId && <> → <span className="font-mono font-bold">{p.servidorHikvisionId}</span></>}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">Nome, turma e tipo não são alterados.</p>
+                        </div>
+                        <div className="border border-danger-200 bg-danger-50 rounded-xl p-3">
+                            <p className="text-[11px] font-bold text-danger-700 uppercase mb-1">Servidor (será inativado)</p>
+                            <p className="font-bold text-navy-500 text-sm">{p.servidorNome}</p>
+                            <p className="text-[11px] text-slate-600 font-mono">{p.servidorId}</p>
+                            <p className="text-[11px] text-slate-600">Departamento: {p.servidorDepartamento || '—'}</p>
+                            <p className="text-[11px] text-slate-600">
+                                {p.servidorPassagens} passagem(ns) — <strong>ficam neste registro</strong>
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">Inativo sai dos relatórios.</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Substituição consciente: o aluno já tem outra face ligada. */}
+                {p && p.substituiIdentificadorDoAluno && (
+                    <label className="flex items-start gap-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 cursor-pointer">
+                        <input type="checkbox" checked={reclassSubstituir}
+                            onChange={e => setReclassSubstituir(e.target.checked)}
+                            className="mt-0.5 w-3.5 h-3.5 accent-amber-600" />
+                        <span>
+                            Este aluno já tem o identificador <span className="font-mono">{p.alunoHikvisionAtual}</span>.
+                            Confirmo a substituição por <span className="font-mono">{p.servidorHikvisionId}</span> —
+                            a face antiga deixa de reconhecê-lo.
+                        </span>
+                    </label>
+                )}
+
+                {reclassChoice && (
+                    <div className="flex gap-2">
+                        <button
+                            onClick={confirmarReclass}
+                            disabled={reclassSaving || !p || (p.substituiIdentificadorDoAluno && !reclassSubstituir)}
+                            className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {reclassSaving ? 'GRAVANDO...' : 'CONFIRMAR — é um aluno'}
+                        </button>
+                        <button onClick={() => { setReclassChoice(null); setReclassPreview(null); setReclassErro(null); }}
+                            className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                            Escolher outro
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const renderStaffList = () => (
         <div className="space-y-4 animate-fade-in">
             <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
@@ -587,6 +778,15 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                             className="px-2 py-1 rounded bg-soft-100 text-navy-500 font-bold hover:bg-soft-200">
                                             Editar
                                         </button>
+                                        {/* Só em registro ATIVO: reclassificar um
+                                            já inativo não muda nada. */}
+                                        {r.ativo && (
+                                            <button onClick={() => abrirReclass(r)}
+                                                title="Transferir a face para o aluno certo e tirar este registro de circulação"
+                                                className="ml-1 px-2 py-1 rounded bg-accent-100 text-accent-700 font-bold hover:bg-accent-200">
+                                                É um aluno
+                                            </button>
+                                        )}
                                         {r.ativo ? (
                                             <button onClick={() => acaoServidor(r, 'deactivate')}
                                                 className="ml-1 px-2 py-1 rounded bg-amber-100 text-amber-800 font-bold hover:bg-amber-200">
@@ -613,6 +813,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     </table>
                 )}
             </ListaLimitada>
+
+            {renderReclass()}
 
             {staffEdit && (
                 <div className="border border-accent-200 bg-accent-50 rounded-2xl p-4 space-y-3">

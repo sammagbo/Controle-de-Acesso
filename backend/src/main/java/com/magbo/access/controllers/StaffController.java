@@ -102,6 +102,47 @@ public class StaffController {
         }
     }
 
+    // ── "Este servidor é na verdade um aluno" ────────────────────────────
+    // 74 alunos estavam fora do departamento ALUNOS no HikCentral com id de 10
+    // dígitos: a importação criou FUNC-### segurando a face deles, e as
+    // passagens entravam nos relatórios como de servidor. A correção em massa
+    // foi feita em SQL; isto aqui é a ferramenta para o próximo caso.
+
+    @GetMapping("/{id}/reclassify/preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> previewReclassify(
+            @PathVariable String id, @RequestParam String alunoId) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "preview", staffAdminService.previewReclassify(id, alunoId)));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/reclassify")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> reclassify(
+            @PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            var r = staffAdminService.reclassifyStaffAsStudent(
+                    id,
+                    body.get("alunoId") == null ? null : String.valueOf(body.get("alunoId")),
+                    Boolean.TRUE.equals(body.get("confirmarSubstituicao")));
+            String face = r.servidorHikvisionId();
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "resultado", r,
+                    "message", face == null
+                            ? r.servidorNome() + " inativado; " + r.alunoNome() + " não recebeu identificador (o registro não tinha)"
+                            : "Identificador " + face + " transferido para " + r.alunoNome()
+                                    + "; " + r.servidorNome() + " inativado"));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
     // ── Casamento manual: face do HCP -> aluno certo ─────────────────────
 
     @GetMapping("/match/preview")

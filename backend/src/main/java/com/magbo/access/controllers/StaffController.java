@@ -34,6 +34,106 @@ public class StaffController {
 
     private final StaffRegistrationService staffRegistrationService;
     private final com.magbo.access.services.HikCentralImportService hikCentralImportService;
+    private final com.magbo.access.services.StaffAdminService staffAdminService;
+
+    // ── Manutenção do cadastro de servidores ─────────────────────────────
+    // A importação do HikCentral cria FUNC-### para toda linha fora do
+    // departamento ALUNOS. Parte dessas pessoas são alunos cujo id no HCP não é
+    // a matrícula — daí a necessidade de corrigir tipo/departamento, tirar de
+    // circulação o que foi criado por engano, e casar a face com o aluno certo.
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<com.magbo.access.services.StaffAdminService.StaffRow>> listStaff() {
+        return ResponseEntity.ok(staffAdminService.listStaff());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> updateStaff(
+            @PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            com.magbo.access.models.User salvo = staffAdminService.updateStaff(
+                    id, body.get("tipo"), body.get("departamento"));
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "id", salvo.getId(),
+                    "tipo", salvo.getTipo().name(),
+                    "departamento", salvo.getDepartamento() == null ? "" : salvo.getDepartamento(),
+                    "message", "Servidor atualizado: " + salvo.getNome()));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> deactivateStaff(@PathVariable String id) {
+        try {
+            com.magbo.access.models.User u = staffAdminService.deactivateStaff(id);
+            return ResponseEntity.ok(Map.of("status", "success",
+                    "message", u.getNome() + " inativado"));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> reactivateStaff(@PathVariable String id) {
+        try {
+            com.magbo.access.models.User u = staffAdminService.reactivateStaff(id);
+            return ResponseEntity.ok(Map.of("status", "success",
+                    "message", u.getNome() + " reativado"));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    /** Remoção definitiva — recusada com explicação quando há histórico. */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> deleteStaff(@PathVariable String id) {
+        try {
+            staffAdminService.deleteStaff(id);
+            return ResponseEntity.ok(Map.of("status", "success", "message", "Registro removido"));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    // ── Casamento manual: face do HCP -> aluno certo ─────────────────────
+
+    @GetMapping("/match/preview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> previewMatch(
+            @RequestParam String alunoId, @RequestParam String hikvisionId) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "preview", staffAdminService.previewReassign(alunoId, hikvisionId)));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/match")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> confirmMatch(@RequestBody Map<String, String> body) {
+        try {
+            com.magbo.access.models.User aluno = staffAdminService.reassignHikvisionId(
+                    body.get("alunoId"), body.get("hikvisionId"));
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "alunoId", aluno.getId(),
+                    "nome", aluno.getNome(),
+                    "hikvisionEmployeeId", aluno.getHikvisionEmployeeId(),
+                    "message", "Identificador " + aluno.getHikvisionEmployeeId()
+                            + " ligado a " + aluno.getNome()));
+        } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
 
     /**
      * SIMULACAO do import do HikCentral: nao grava nada, devolve o que

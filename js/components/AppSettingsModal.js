@@ -106,6 +106,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const [hikRows, setHikRows] = React.useState([]);
     const [hikPlan, setHikPlan] = React.useState(null);
     const [hikApplying, setHikApplying] = React.useState(false);
+    // Lista de servidores (aba "Servidores")
+    const [staffRows, setStaffRows] = React.useState([]);
+    const [staffLoading, setStaffLoading] = React.useState(false);
+    const [staffQuery, setStaffQuery] = React.useState('');
+    const [staffEdit, setStaffEdit] = React.useState(null);   // { id, tipo, departamento }
+    // Casamento manual (aba HikCentral, lista CONFERIR)
+    const [matchRow, setMatchRow] = React.useState(null);     // linha do CONFERIR
+    const [matchQuery, setMatchQuery] = React.useState('');
+    const [matchResults, setMatchResults] = React.useState([]);
+    const [matchChoice, setMatchChoice] = React.useState(null);
+    const [matchPreview, setMatchPreview] = React.useState(null);
+    const [matchSaving, setMatchSaving] = React.useState(false);
+    const [matchDone, setMatchDone] = React.useState({});     // idHikvision -> matrícula casada
 
     const ehServidor = TIPOS_DE_SERVIDOR.includes(manualForm.tipo);
 
@@ -374,39 +387,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const lerPlanilhaHikCentral = (evt) => {
         const workbook = window.XLSX.read(evt.target.result, { type: 'binary' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        const HEADER_ROW_INDEX = 8;   // 0-indexado -> linha 9 da planilha
-        const json = window.XLSX.utils.sheet_to_json(sheet, {
-            range: HEADER_ROW_INDEX, defval: '', raw: false
-        });
-
-        // Casa o cabeçalho ignorando acento, caixa e espaço — "Prénom",
-        // "PRENOM" e "Prenom " são a mesma coluna.
-        const chave = (s) => String(s || '')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
-            .toLowerCase().replace(/[^a-z]/g, '');
-        const col = (row, ...candidatos) => {
-            const alvos = candidatos.map(chave);
-            for (const k of Object.keys(row)) {
-                if (alvos.includes(chave(k))) {
-                    const v = String(row[k] ?? '').trim();
-                    if (v !== '') return v;
-                }
-            }
-            return '';
-        };
-
-        return json
-            .map((row, i) => ({
-                // +2: o cabeçalho é a linha 9, logo o primeiro dado é a 10.
-                linha: HEADER_ROW_INDEX + 2 + i,
-                id: col(row, 'ID'),
-                prenom: col(row, 'Prénom', 'Prenom'),
-                nom: col(row, 'Nom de famille', 'Nom'),
-                service: col(row, 'Service')
-            }))
-            // Linha sem ID é rodapé/separador do próprio export, não é registro.
-            .filter(r => r.id !== '');
+        // Opções de leitura e mapeamento das colunas vivem em
+        // js/utils/hikcentralSheet.js: é a parte que erra em SILÊNCIO se o HCP
+        // mudar o arquivo (coluna trocada de lugar, acento diferente, matrícula
+        // lida como número), então mora num módulo com teste (`npm test`) em
+        // vez de escondida dentro do componente.
+        const json = window.XLSX.utils.sheet_to_json(sheet, window.MagboHikSheet.sheetOptions());
+        return window.MagboHikSheet.mapRows(json);
     };
 
     const handleHikCentralFile = async (e) => {
@@ -474,6 +461,338 @@ function AppSettingsModal({ onClose, onShowToast }) {
         PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
         CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
         REVISAO_MANUAL: { label: 'Conferir', cor: 'text-amber-700 bg-amber-100' }
+    };
+
+    // ── Aba "Servidores": manutenção do cadastro ─────────────────────────
+
+    const carregarServidores = React.useCallback(async () => {
+        setStaffLoading(true);
+        try {
+            setStaffRows(await window.api.listStaff());
+        } catch (e) {
+            onShowToast({ title: 'Erro', message: e.message, type: 'error' });
+        } finally {
+            setStaffLoading(false);
+        }
+    }, [onShowToast]);
+
+    React.useEffect(() => {
+        if (activeTab === 'staff-list') carregarServidores();
+    }, [activeTab, carregarServidores]);
+
+    const salvarServidor = async () => {
+        if (!staffEdit) return;
+        try {
+            const r = await window.api.updateStaff(staffEdit.id, {
+                tipo: staffEdit.tipo, departamento: staffEdit.departamento
+            });
+            onShowToast({ title: 'Servidor atualizado', message: r.message, type: 'success' });
+            setStaffEdit(null);
+            await carregarServidores();
+            if (window.userCache?.reload) await window.userCache.reload();
+        } catch (e) {
+            onShowToast({ title: 'Não salvo', message: e.message, type: 'error' });
+        }
+    };
+
+    const acaoServidor = async (row, acao) => {
+        // Remoção é irreversível; inativar não. Só a primeira pede confirmação.
+        if (acao === 'delete' && !window.confirm(
+            `Remover definitivamente ${row.nome} (${row.id})?\n\n`
+            + 'Só é possível porque este registro não tem nenhuma passagem. '
+            + 'A ação não pode ser desfeita.')) return;
+        try {
+            const r = acao === 'delete' ? await window.api.deleteStaff(row.id)
+                : acao === 'deactivate' ? await window.api.deactivateStaff(row.id)
+                : await window.api.reactivateStaff(row.id);
+            onShowToast({ title: 'Feito', message: r.message, type: 'success' });
+            await carregarServidores();
+            if (window.userCache?.reload) await window.userCache.reload();
+        } catch (e) {
+            // O backend recusa a remoção com histórico e explica o porquê.
+            onShowToast({ title: 'Ação não realizada', message: e.message, type: 'error' });
+        }
+    };
+
+    const servidoresFiltrados = React.useMemo(() => {
+        const q = staffQuery.trim().toLowerCase();
+        if (!q) return staffRows;
+        return staffRows.filter(r =>
+            String(r.nome || '').toLowerCase().includes(q)
+            || String(r.id || '').toLowerCase().includes(q)
+            || String(r.departamento || '').toLowerCase().includes(q)
+            || String(r.hikvisionEmployeeId || '').includes(q));
+    }, [staffRows, staffQuery]);
+
+    const renderStaffList = () => (
+        <div className="space-y-4 animate-fade-in">
+            <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
+                <h3 className="text-lg font-bold text-navy-500 mb-1">Servidores cadastrados</h3>
+                <p className="text-xs text-slate-500">
+                    Professores e funcionários. <strong>Alunos não aparecem aqui</strong> — o cadastro
+                    deles é do Pronote. Se um destes registros for na verdade um aluno, use
+                    <strong> Conferir</strong> na aba HikCentral: lá a face é transferida para o aluno
+                    certo e este registro sai de circulação.
+                </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    placeholder="Buscar por nome, matrícula, departamento ou ID Hikvision..."
+                    className="flex-1 bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+                    value={staffQuery}
+                    onChange={e => setStaffQuery(e.target.value)}
+                />
+                <button onClick={carregarServidores}
+                    className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                    {staffLoading ? '...' : 'Atualizar'}
+                </button>
+            </div>
+
+            <ListaLimitada
+                titulo={`${servidoresFiltrados.length} servidor(es)`}
+                total={servidoresFiltrados.length}
+                alturaMax="max-h-[52vh]"
+            >
+                {(visiveis) => (
+                    <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-white shadow-sm">
+                            <tr className="text-left text-slate-400 uppercase font-bold">
+                                <th className="py-2 px-2">Matrícula</th>
+                                <th className="py-2 px-2">Nome</th>
+                                <th className="py-2 px-2">Tipo</th>
+                                <th className="py-2 px-2">Departamento</th>
+                                <th className="py-2 px-2">ID Hikvision</th>
+                                <th className="py-2 px-2">Passagens</th>
+                                <th className="py-2 px-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {servidoresFiltrados.slice(0, visiveis).map(r => (
+                                <tr key={r.id} className={`border-t border-soft-100 ${r.ativo ? '' : 'opacity-50'}`}>
+                                    <td className="py-1.5 px-2 font-mono text-slate-500">{r.id}</td>
+                                    <td className="py-1.5 px-2 font-bold text-navy-500">
+                                        {r.nome}{!r.ativo && <span className="ml-1 text-[10px] text-slate-400">(inativo)</span>}
+                                    </td>
+                                    <td className="py-1.5 px-2 text-slate-600">{r.tipo}</td>
+                                    <td className="py-1.5 px-2 text-slate-600">{r.departamento || '—'}</td>
+                                    <td className="py-1.5 px-2 font-mono text-slate-500">{r.hikvisionEmployeeId || '—'}</td>
+                                    <td className="py-1.5 px-2 tabular-nums text-slate-500">{r.passagens}</td>
+                                    <td className="py-1.5 px-2 text-right whitespace-nowrap">
+                                        <button onClick={() => setStaffEdit({
+                                            id: r.id, nome: r.nome, tipo: r.tipo,
+                                            departamento: r.departamento || ''
+                                        })}
+                                            className="px-2 py-1 rounded bg-soft-100 text-navy-500 font-bold hover:bg-soft-200">
+                                            Editar
+                                        </button>
+                                        {r.ativo ? (
+                                            <button onClick={() => acaoServidor(r, 'deactivate')}
+                                                className="ml-1 px-2 py-1 rounded bg-amber-100 text-amber-800 font-bold hover:bg-amber-200">
+                                                Inativar
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => acaoServidor(r, 'reactivate')}
+                                                className="ml-1 px-2 py-1 rounded bg-success-100 text-success-700 font-bold hover:bg-success-200">
+                                                Reativar
+                                            </button>
+                                        )}
+                                        {/* Só aparece quando é seguro: com histórico,
+                                            apagar deixaria as passagens órfãs. */}
+                                        {r.podeRemover && (
+                                            <button onClick={() => acaoServidor(r, 'delete')}
+                                                className="ml-1 px-2 py-1 rounded bg-danger-100 text-danger-700 font-bold hover:bg-danger-200">
+                                                Remover
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </ListaLimitada>
+
+            {staffEdit && (
+                <div className="border border-accent-200 bg-accent-50 rounded-2xl p-4 space-y-3">
+                    <p className="font-bold text-navy-500 text-sm">Editar {staffEdit.nome} ({staffEdit.id})</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Tipo</label>
+                            <select value={staffEdit.tipo}
+                                onChange={e => setStaffEdit({ ...staffEdit, tipo: e.target.value })}
+                                className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm">
+                                <option value="FUNCIONARIO">Funcionário</option>
+                                <option value="PROFESSOR">Professor</option>
+                            </select>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                                Aluno não é opção aqui — use Conferir na aba HikCentral.
+                            </p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Departamento</label>
+                            <input type="text" list="magbo-departamentos" value={staffEdit.departamento}
+                                onChange={e => setStaffEdit({ ...staffEdit, departamento: e.target.value })}
+                                className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm" />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={salvarServidor}
+                            className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600">
+                            Salvar
+                        </button>
+                        <button onClick={() => setStaffEdit(null)}
+                            className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    // ── Casamento manual: face do HCP -> aluno certo ─────────────────────
+
+    const abrirCasamento = (row) => {
+        setMatchRow(row);
+        // Pré-preenche com o nome do HCP: é o único elo com o cadastro.
+        setMatchQuery(row.nome || '');
+        setMatchResults([]);
+        setMatchChoice(null);
+        setMatchPreview(null);
+    };
+
+    React.useEffect(() => {
+        if (!matchRow) return;
+        const q = matchQuery.trim();
+        if (q.length < 2) { setMatchResults([]); return; }
+        let vivo = true;
+        const tid = setTimeout(async () => {
+            try {
+                const achados = await window.userCache.search(q, 20);
+                if (vivo) setMatchResults((achados || []).filter(u => u.tipo === 'ALUNO'));
+            } catch (e) { if (vivo) setMatchResults([]); }
+        }, 250);
+        return () => { vivo = false; clearTimeout(tid); };
+    }, [matchQuery, matchRow]);
+
+    const escolherAluno = async (aluno) => {
+        setMatchChoice(aluno);
+        setMatchPreview(null);
+        try {
+            const r = await window.api.previewStudentMatch(aluno.id, matchRow.idHikvision);
+            setMatchPreview(r.preview);
+        } catch (e) {
+            onShowToast({ title: 'Não foi possível conferir', message: e.message, type: 'error' });
+        }
+    };
+
+    const confirmarCasamento = async () => {
+        if (!matchChoice || !matchRow || matchSaving) return;
+        setMatchSaving(true);
+        try {
+            const r = await window.api.confirmStudentMatch(matchChoice.id, matchRow.idHikvision);
+            setMatchDone(prev => ({ ...prev, [matchRow.idHikvision]: matchChoice.id }));
+            onShowToast({ title: 'Casamento concluído', message: r.message, type: 'success' });
+            if (window.userCache?.reload) await window.userCache.reload();
+            setMatchRow(null);
+        } catch (e) {
+            onShowToast({ title: 'Casamento não realizado', message: e.message, type: 'error' });
+        } finally {
+            setMatchSaving(false);
+        }
+    };
+
+    const renderCasamento = () => {
+        if (!matchRow) return null;
+        return (
+            <div className="border-2 border-amber-300 bg-white rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="font-bold text-navy-500 text-sm">Conferir: {matchRow.nome}</p>
+                        <p className="text-[11px] text-slate-500">
+                            ID do HikCentral <span className="font-mono">{matchRow.idHikvision}</span> ·
+                            linha {matchRow.linha} da planilha
+                        </p>
+                    </div>
+                    <button onClick={() => setMatchRow(null)}
+                        className="text-xs font-bold text-slate-500 underline hover:no-underline">Fechar</button>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Procurar o aluno pelo nome</label>
+                    <input type="text" value={matchQuery} onChange={e => setMatchQuery(e.target.value)}
+                        className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500" />
+                </div>
+
+                {matchResults.length > 0 && !matchChoice && (
+                    <div className="max-h-40 overflow-y-auto border border-soft-200 rounded-xl">
+                        {matchResults.map(a => (
+                            <button key={a.id} onClick={() => escolherAluno(a)}
+                                className="w-full text-left px-3 py-2 text-xs border-b border-soft-100 last:border-0 hover:bg-accent-50">
+                                <span className="font-bold text-navy-500">{a.nome}</span>
+                                <span className="text-slate-400 ml-2 font-mono">{a.id}</span>
+                                <span className="text-slate-400 ml-2">{a.turma || '—'}</span>
+                                {a.hikvision_employee_id && (
+                                    <span className="ml-2 text-amber-700">já tem face {a.hikvision_employee_id}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Os dois lados, lado a lado, ANTES de gravar: é uma face
+                    trocando de dono, e o erro aqui é dar a face de um aluno a
+                    outro. */}
+                {matchPreview && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="border border-success-200 bg-success-50 rounded-xl p-3">
+                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">Recebe a face</p>
+                            <p className="font-bold text-navy-500 text-sm">{matchPreview.alunoNome}</p>
+                            <p className="text-[11px] text-slate-600 font-mono">{matchPreview.alunoId}</p>
+                            <p className="text-[11px] text-slate-600">Turma: {matchPreview.alunoTurma || '—'}</p>
+                            <p className="text-[11px] text-slate-600">
+                                ID Hikvision atual: {matchPreview.alunoHikvisionAtual || 'nenhum'} →
+                                <span className="font-mono font-bold"> {matchPreview.hikvisionId}</span>
+                            </p>
+                        </div>
+                        <div className={`border rounded-xl p-3 ${matchPreview.servidorId ? 'border-danger-200 bg-danger-50' : 'border-soft-200 bg-soft-50'}`}>
+                            <p className="text-[11px] font-bold text-danger-700 uppercase mb-1">
+                                {matchPreview.servidorId ? 'Será inativado' : 'Nenhum registro a desfazer'}
+                            </p>
+                            {matchPreview.servidorId ? (
+                                <>
+                                    <p className="font-bold text-navy-500 text-sm">{matchPreview.servidorNome}</p>
+                                    <p className="text-[11px] text-slate-600 font-mono">{matchPreview.servidorId}</p>
+                                    <p className="text-[11px] text-slate-600">Departamento: {matchPreview.servidorDepartamento || '—'}</p>
+                                    <p className="text-[11px] text-slate-600">
+                                        {matchPreview.servidorPassagens} passagem(ns) — preservadas
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="text-[11px] text-slate-500">
+                                    Este identificador não está ligado a nenhum servidor.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {matchChoice && (
+                    <div className="flex gap-2">
+                        <button onClick={confirmarCasamento} disabled={matchSaving || !matchPreview}
+                            className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-50">
+                            {matchSaving ? 'GRAVANDO...' : 'CONFIRMAR CASAMENTO'}
+                        </button>
+                        <button onClick={() => { setMatchChoice(null); setMatchPreview(null); }}
+                            className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                            Escolher outro
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const renderHikCentralImport = () => {
@@ -551,17 +870,33 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                     {(visiveis) => (
                                         <table className="w-full text-xs">
                                             <tbody>
-                                                {revisao.slice(0, visiveis).map((r, i) => (
-                                                    <tr key={i} className="border-b border-amber-100 last:border-0">
-                                                        <td className="py-1 px-2 font-mono text-amber-800">L{r.linha}</td>
-                                                        <td className="py-1 px-2 font-bold text-navy-500">{r.nome}</td>
-                                                        <td className="py-1 px-2 font-mono text-slate-600">{r.idHikvision}</td>
-                                                    </tr>
-                                                ))}
+                                                {/* key pelo idHikvision e não pelo índice: as linhas
+                                                    ganham estado (casada/não) e índice desalinharia. */}
+                                                {revisao.slice(0, visiveis).map((r) => {
+                                                    const casadaCom = matchDone[r.idHikvision];
+                                                    return (
+                                                        <tr key={r.idHikvision} className="border-b border-amber-100 last:border-0">
+                                                            <td className="py-1 px-2 font-mono text-amber-800">L{r.linha}</td>
+                                                            <td className="py-1 px-2 font-bold text-navy-500">{r.nome}</td>
+                                                            <td className="py-1 px-2 font-mono text-slate-600">{r.idHikvision}</td>
+                                                            <td className="py-1 px-2 text-right">
+                                                                {casadaCom ? (
+                                                                    <span className="text-success-700 font-bold">✓ {casadaCom}</span>
+                                                                ) : (
+                                                                    <button onClick={() => abrirCasamento(r)}
+                                                                        className="px-2 py-1 rounded bg-amber-200 text-amber-900 font-bold hover:bg-amber-300">
+                                                                        Conferir
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     )}
                                 </ListaLimitada>
+                                {renderCasamento()}
                             </div>
                         )}
 
@@ -1099,6 +1434,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             HikCentral
                         </button>
                         <button
+                            onClick={() => setActiveTab('staff-list')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-list' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="id-card" size={18} className={activeTab === 'staff-list' ? 'text-accent-500' : 'text-slate-400'} />
+                            Servidores
+                        </button>
+                        <button
                             onClick={() => setActiveTab('staff-import')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
@@ -1126,6 +1468,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <div ref={conteudoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
                             {activeTab === 'import' && renderImportSettings()}
                             {activeTab === 'hikcentral' && renderHikCentralImport()}
+                            {activeTab === 'staff-list' && renderStaffList()}
                             {activeTab === 'staff-import' && renderStaffImport()}
                             {activeTab === 'manual' && renderManualRegistration()}
                             {activeTab === 'general' && renderGeneralSettings()}

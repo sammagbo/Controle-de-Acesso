@@ -8,7 +8,8 @@
     "start:prod": "set NODE_ENV=production && electron .",
     "build:win": "electron-builder --win nsis",
     "build:portable": "electron-builder --win portable",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "build": {
     "appId": "com.magbo.access",
@@ -51,7 +52,9 @@
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "jimp": "^1.6.1",
-    "png-to-ico": "^3.0.1"
+    "jsdom": "^25.0.1",
+    "png-to-ico": "^3.0.1",
+    "vitest": "^2.1.9"
   },
   "repository": {
     "type": "git",

@@ -86,6 +86,9 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     // Conta TODOS os eventos de acesso a partir de um instante (use start = hoje 00:00)
     long countByTimestampGreaterThanEqual(LocalDateTime start);
 
+    /** Histórico de uma pessoa — decide se um cadastro pode ser apagado ou só inativado. */
+    long countByUserId(String userId);
+
     // Conta acessos barrados hoje (com flag definida)
     @Query("SELECT COUNT(a) FROM AccessLog a WHERE a.timestamp >= :start AND a.flag IS NOT NULL AND a.flag <> ''")
     long countBlockedSince(@Param("start") LocalDateTime start);

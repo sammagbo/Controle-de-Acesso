@@ -7,6 +7,7 @@ import com.magbo.access.repositories.AccessLogRepository;
 import com.magbo.access.models.User;
 import com.magbo.access.repositories.SystemUserRepository;
 import com.magbo.access.repositories.UserRepository;
+import com.magbo.access.services.VisitStatsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class AccessController {
     private final AccessLogRepository accessLogRepository;
     private final SystemUserRepository systemUserRepository;
     private final UserRepository userRepository;
+    private final com.magbo.access.services.VisitStatsService visitStatsService;
 
     @PostMapping
     public ResponseEntity<?> registerAccess(@Valid @RequestBody AccessRequest request) {
@@ -187,11 +189,45 @@ public class AccessController {
             accessLogRepository.findTop500ByUserIdAndTimestampBetweenOrderByTimestampDesc(userId, from, to));
     }
 
+    /**
+     * Logs das últimas 24h de um ponto — alimenta TODAS as telas de setor
+     * (portaria, enfermaria, cantina) e o CDI.
+     *
+     * @param tipo opcional. Quando informado (o CDI manda ALUNO), devolve só as
+     *             passagens de pessoas daquele tipo. É PARÂMETRO e não regra
+     *             fixa exatamente porque o endpoint é compartilhado: filtrar
+     *             aqui sem opção mudaria portaria e enfermaria junto.
+     */
     @GetMapping("/logs/{pointId}")
-    public ResponseEntity<List<AccessLog>> getLogsByPoint(@PathVariable String pointId) {
+    public ResponseEntity<List<AccessLog>> getLogsByPoint(
+            @PathVariable String pointId,
+            @RequestParam(required = false) String tipo) {
         LocalDateTime start = LocalDateTime.now().minusHours(24);
         List<AccessLog> logs = accessLogRepository.findTop500ByPointIdAndTimestampGreaterThanEqualOrderByTimestampDesc(pointId, start);
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
+    }
+
+    /**
+     * Mantém só as passagens de pessoas do tipo pedido. Id sem cadastro em
+     * app_users é DESCARTADO quando há filtro: não dá para afirmar o tipo de
+     * quem não está cadastrado, e deixar passar contrabandearia servidor para
+     * dentro de um número que se pediu para ser de aluno.
+     */
+    private List<AccessLog> filtrarPorTipo(List<AccessLog> logs, String tipo) {
+        if (tipo == null || tipo.isBlank() || logs.isEmpty()) return logs;
+        final com.magbo.access.models.UserType alvo;
+        try {
+            alvo = com.magbo.access.models.UserType.valueOf(tipo.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return logs; // tipo desconhecido não estreita nada
+        }
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        logs.forEach(l -> { if (l.getUserId() != null) ids.add(l.getUserId()); });
+        java.util.Set<String> doTipo = new java.util.HashSet<>();
+        userRepository.findAllById(ids).forEach(u -> {
+            if (u.getTipo() == alvo) doTipo.add(u.getId());
+        });
+        return logs.stream().filter(l -> l.getUserId() != null && doTipo.contains(l.getUserId())).toList();
     }
 
     /**
@@ -208,6 +244,7 @@ public class AccessController {
             @RequestParam(required = false) String pointId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String eleve,
+            @RequestParam(required = false) String tipo,
             @RequestParam(defaultValue = "50") Integer limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         Pageable pageable = PageRequest.of(0, safeLimit);
@@ -241,7 +278,10 @@ public class AccessController {
 
         List<AccessLog> logs = accessLogRepository.findFilteredLogs(
                 start, end, pointId, actionEnum, elevePattern, pageable);
-        return ResponseEntity.ok(logs);
+        // O Journal é a visão de AUDITORIA: sem filtro ele mostra tudo, e é
+        // assim que continua por padrão. O tipo é uma lente que o operador
+        // escolhe, nunca um recorte silencioso.
+        return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
     }
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;
@@ -329,7 +369,8 @@ public class AccessController {
     @PreAuthorize("hasRole('ADMIN')")
     public com.magbo.access.dto.OverviewStats overview(
             @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(defaultValue = "false") boolean incluirFuncionarios) {
 
         java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
                 ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
@@ -401,6 +442,27 @@ public class AccessController {
         java.util.List<com.magbo.access.dto.OverviewStats.AreaStat> areas = new java.util.ArrayList<>();
         for (var e : areaAgg.entrySet()) {
             java.util.List<String> pts = pointsOfArea.getOrDefault(e.getKey(), java.util.List.of());
+
+            // ── CDI: números de VISITA, não de linha bruta ──
+            // Só o CDI muda aqui, e de propósito. O pedido é sobre as telas do
+            // CDI; cantina e enfermaria seguem exatamente com as agregações SQL
+            // que já foram validadas em produção. Misturar as duas coisas na
+            // mesma entrega seria trocar o número de três áreas para consertar
+            // o de uma.
+            if ("cdi".equals(e.getKey()) && !pts.isEmpty()) {
+                VisitStatsService.VisitStats cdi =
+                        visitStatsService.stats(pts, from, to, incluirFuncionarios);
+                areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
+                        .area(e.getKey())
+                        .movements(e.getValue()[0])
+                        .entries(cdi.visits())
+                        .uniqueStudents(cdi.uniquePeople())
+                        .currentOccupancy(occByArea.getOrDefault(e.getKey(), 0L))
+                        .avgDurationMin(cdi.avgDurationMin())
+                        .build());
+                continue;
+            }
+
             long areaUniques = pts.isEmpty() ? 0 : accessLogRepository.countUniqueStudentsByPoints(from, to, pts);
             Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(from, to, pts);
             areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()

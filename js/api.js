@@ -121,6 +121,8 @@ const api = {
             if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
             if (filters.dateTo)   params.set('dateTo',   filters.dateTo);
             if (filters.eleve)    params.set('eleve',    filters.eleve);
+            // O Journal é a visão de AUDITORIA: sem tipo, mostra tudo.
+            if (filters.tipo)     params.set('tipo',     filters.tipo);
             const res = await fetch(`${API_BASE_URL}/access/logs/all?${params}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];
@@ -155,6 +157,9 @@ const api = {
         const params = new URLSearchParams();
         if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
         if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        // Só os números do CDI reagem a isto (ver AccessController.overview):
+        // cantina e enfermaria seguem com as agregações já validadas.
+        if (filters.incluirFuncionarios) params.set('incluirFuncionarios', 'true');
         try {
             const res = await fetch(`${API_BASE_URL}/access/overview?${params.toString()}`, {
                 headers: authHeaders()
@@ -295,6 +300,68 @@ const api = {
     async applyHikCentralImport(rows) {
         const res = await fetch(`${API_BASE_URL}/users/staff/import`, {
             method: 'POST', headers: authHeaders(), body: JSON.stringify(rows)
+        });
+        return await this.handleResponse(res);
+    },
+
+    // ── Manutenção do cadastro de servidores ──────────────────────────────
+    // A importação do HikCentral cria FUNC-### para toda linha fora do
+    // departamento ALUNOS; parte dessas pessoas são alunos cujo id no HCP não
+    // é a matrícula. Daí corrigir tipo/departamento, tirar de circulação o que
+    // foi criado por engano, e casar a face com o aluno certo.
+
+    async listStaff() {
+        const res = await fetch(`${API_BASE_URL}/users/staff`, { headers: authHeaders() });
+        const data = await this.handleResponse(res);
+        return Array.isArray(data) ? data : [];
+    },
+
+    async updateStaff(id, { tipo, departamento }) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}`, {
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify({ tipo, departamento })
+        });
+        return await this.handleResponse(res);
+    },
+
+    async deactivateStaff(id) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}/deactivate`, {
+            method: 'POST', headers: authHeaders()
+        });
+        return await this.handleResponse(res);
+    },
+
+    async reactivateStaff(id) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}/reactivate`, {
+            method: 'POST', headers: authHeaders()
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Remoção definitiva — o backend recusa quando há histórico. */
+    async deleteStaff(id) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}`, {
+            method: 'DELETE', headers: authHeaders()
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Prévia do casamento: mostra os dois lados antes de gravar. */
+    async previewStudentMatch(alunoId, hikvisionId) {
+        const params = new URLSearchParams({ alunoId, hikvisionId });
+        const res = await fetch(`${API_BASE_URL}/users/staff/match/preview?${params}`, {
+            headers: authHeaders()
+        });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * Liga o identificador ao aluno certo e, se ele estava preso a um FUNC-###,
+     * inativa esse registro na MESMA transação (a coluna é UNIQUE).
+     */
+    async confirmStudentMatch(alunoId, hikvisionId) {
+        const res = await fetch(`${API_BASE_URL}/users/staff/match`, {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ alunoId, hikvisionId })
         });
         return await this.handleResponse(res);
     },

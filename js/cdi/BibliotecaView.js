@@ -23,23 +23,49 @@ function BibliotecaView({ onBack }) {
       const [logs, setLogs] = useState([]);
       const [loading, setLoading] = useState(true);
 
+      /**
+       * Contar o PESSOAL junto com os alunos.
+       *
+       * Padrão false — o CDI é sobre alunos. Os servidores entram por segundos,
+       * quase nunca passam o rosto na saída, e o fechamento das 17:00
+       * transforma isso em permanência de um dia inteiro. A preferência fica no
+       * localStorage porque é uma escolha de quem opera a tela, não do sistema.
+       */
+      const [incluirFuncionarios, setIncluirFuncionarios] = useState(() => {
+            const salvo = localStorage.getItem('magbo.cdi.incluirFuncionarios') === 'true';
+            CdiBackend.setIncluirFuncionarios(salvo);
+            return salvo;
+      });
+
+      const recarregar = React.useCallback(async () => {
+            const localStudents = await CdiBackend.getStudents();
+            const localLogs = await CdiBackend.getLogs();
+            setStudents(localStudents.map(mapToView));
+            setPresentStudents(new Set(localStudents.filter(s => s.present).map(s => s.id)));
+            setLogs(localLogs);
+      }, [mapToView]);
+
+      const aplicarIncluirFuncionarios = React.useCallback((valor) => {
+            setIncluirFuncionarios(valor);
+            CdiBackend.setIncluirFuncionarios(valor);
+            localStorage.setItem('magbo.cdi.incluirFuncionarios', valor ? 'true' : 'false');
+            // Recarrega já: o filtro é aplicado na origem dos dados, então sem
+            // isto a tela só mudaria no próximo ciclo de 3s.
+            recarregar().catch(e => console.error('Recarga após troca de filtro:', e));
+      }, [recarregar]);
+
       // Load Data locally
       useEffect(() => {
             const init = async () => {
                   try {
-                        const localStudents = await CdiBackend.getStudents();
-                        const localLogs = await CdiBackend.getLogs();
-
-                        setStudents(localStudents.map(mapToView));
-                        setPresentStudents(new Set(localStudents.filter(s => s.present).map(s => s.id)));
-                        setLogs(localLogs);
+                        await recarregar();
                   } catch (e) {
                         console.error("Init Error:", e);
                         setToast({ message: "Erreur chargement données", type: "error" });
                   } finally { setLoading(false); }
             };
             init();
-      }, [mapToView]);
+      }, [recarregar]);
 
       const [muted, setMuted] = useState(() => localStorage.getItem(CDI_STORAGE.muted) === 'true');
       const [pin, setPin] = useState(() => localStorage.getItem(CDI_STORAGE.pin) || CDI_DEFAULT_PIN);
@@ -451,6 +477,19 @@ function BibliotecaView({ onBack }) {
                                     {isFull && <p className="text-red-600 text-sm font-semibold mb-1">⚠️ CAPACITÉ MAX</p>}
                                     <div className={`text-5xl font-bold ${isFull ? 'text-red-600' : 'text-blue-600'}`}>{count}</div>
                                     <div className="text-slate-400 text-sm">/ {CDI_CAPACITY}</div>
+                                    {/* O que o número conta, dito na tela. Sem
+                                        isto o contador excluiria pessoas em
+                                        silêncio — e um número que esconde gente
+                                        sem avisar é pior que um número errado. */}
+                                    <label className="mt-2 inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none">
+                                          <input
+                                                type="checkbox"
+                                                checked={incluirFuncionarios}
+                                                onChange={e => aplicarIncluirFuncionarios(e.target.checked)}
+                                                className="w-3.5 h-3.5 accent-blue-600"
+                                          />
+                                          Inclure le personnel
+                                    </label>
                               </div>
                               <div className="flex-1 overflow-y-auto space-y-1">
                                     {!presentList.length ? (

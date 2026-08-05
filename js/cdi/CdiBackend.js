@@ -7,9 +7,33 @@ const CdiBackend = {
       _get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
       _set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
 
+      /**
+       * Incluir SERVIDORES nas telas e nos números do CDI.
+       *
+       * Padrão false: com 152 FUNCIONARIO + 49 PROFESSOR cadastrados, os
+       * servidores entram por segundos, quase nunca passam o rosto na saída, e
+       * o fechamento das 17:00 transforma isso em "permanência" de um dia
+       * inteiro — ontem ~15 FUNC-### foram fechados assim. O CDI é sobre
+       * alunos; ver o resto é uma escolha explícita de quem está olhando.
+       *
+       * Só afeta EXIBIÇÃO. access_logs continua recebendo tudo, e o Journal
+       * continua mostrando tudo.
+       */
+      incluirFuncionarios: false,
+
+      setIncluirFuncionarios(valor) {
+            CdiBackend.incluirFuncionarios = !!valor;
+      },
+
       // Students
       getStudents: async () => {
-            const globalUsers = (window.userCache?.all()) || [];
+            const todos = (window.userCache?.all()) || [];
+            // Um único ponto de filtro: tira o servidor da lista, da contagem
+            // de presentes, da chamada de emergência, da tela de bloqueio e do
+            // exportador de backup de uma vez só.
+            const globalUsers = window.MagboReport
+                  ? window.MagboReport.filterPeopleByTipo(todos, CdiBackend.incluirFuncionarios)
+                  : todos;
             
             let activeLogMap = {};
             try {
@@ -84,10 +108,18 @@ const CdiBackend = {
             try {
                 if (window.api && window.api.fetchLogs) {
                     const logs = await window.api.fetchLogs('BIBLIO');
-                    return logs.map(l => ({
-                        studentId: l.userId, 
-                        action: (l.action || l.status) === 'ENTRADA' ? 'IN' : 'OUT', 
-                        timestamp: new Date(l.timestamp).getTime()
+                    const visiveis = window.MagboReport
+                        ? window.MagboReport.filterLogsByTipo(
+                              logs, (id) => window.userCache?.byId(id), CdiBackend.incluirFuncionarios)
+                        : logs;
+                    return visiveis.map(l => ({
+                        studentId: l.userId,
+                        action: (l.action || l.status) === 'ENTRADA' ? 'IN' : 'OUT',
+                        timestamp: new Date(l.timestamp).getTime(),
+                        // A flag TEM de viajar: é ela que distingue a saída real
+                        // da SAIDA sintética das 17:00, que não pode entrar em
+                        // média de permanência.
+                        flag: l.flag || null
                     }));
                 }
             } catch (e) { console.error(e); }

@@ -40,7 +40,12 @@ function CdiStatsModal({ open, onClose, logs, students }) {
             filteredLogs.filter(l => l.action === 'IN').forEach(l => {
                   const s = students.find(st => st.id === l.studentId);
                   if (s) {
-                        const level = (s.class && typeof s.class === 'string') ? s.class.split(' ')[0] : 'Inconnu';
+                        // `studentClass` e não `class`: CdiBackend.getStudents
+                        // devolve studentClass, então o campo antigo era sempre
+                        // undefined e TODA entrada caía em "Inconnu" — o card
+                        // "Top classe" nunca mostrou uma turma de verdade.
+                        const turma = s.studentClass || s.class;
+                        const level = (turma && typeof turma === 'string') ? turma.split(' ')[0] : 'Inconnu';
                         counts[level] = (counts[level] || 0) + 1;
                   }
             });
@@ -50,26 +55,32 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                   .sort((a, b) => b.count - a.count);
       }, [filteredLogs, students]);
 
-      const uniqueVisits = new Set(filteredLogs.map(l => l.studentId)).size;
-      const totalVisits = filteredLogs.filter(l => l.action === 'IN').length;
-
-      const avgDuration = React.useMemo(() => {
-            const visits = {};
-            filteredLogs.forEach(l => {
-                  if (!visits[l.studentId]) visits[l.studentId] = [];
-                  visits[l.studentId].push(l);
-            });
-            let totalDur = 0, count = 0;
-            Object.values(visits).forEach(v => {
-                  for (let i = 0; i < v.length - 1; i += 2) {
-                        if (v[i].action === 'IN' && v[i + 1]?.action === 'OUT') {
-                              totalDur += v[i + 1].timestamp - v[i].timestamp;
-                              count++;
-                        }
-                  }
-            });
-            return count > 0 ? Math.round(totalDur / count / 60000) : 0;
+      /**
+       * VISITAS — não linhas de log.
+       *
+       * Substituiu um pareamento posicional (de dois em dois) que assumia
+       * alternância perfeita IN/OUT sobre uma lista que chega do servidor em
+       * ordem DECRESCENTE: ele casava a saída de uma visita com a entrada de
+       * outra e produzia durações negativas. O emparelhamento agora é por
+       * pilha, em js/utils/reportFilters.js, com teste (`npm test`).
+       *
+       * Aplica de uma vez as duas regras de leitura:
+       *  • visita mais curta que MIN_VISIT_SECONDS não é permanência;
+       *  • a SAIDA das 17:00 (FECHAMENTO_AUTO) não é hora real de saída e fica
+       *    fora da média.
+       */
+      const resumo = React.useMemo(() => {
+            if (!window.MagboReport) {
+                  return { visits: 0, uniquePeople: 0, avgDurationMin: null, shortVisitsIgnored: 0 };
+            }
+            const visitas = window.MagboReport.pairVisits(filteredLogs);
+            return window.MagboReport.summariseVisits(visitas);
       }, [filteredLogs]);
+
+      const uniqueVisits = resumo.uniquePeople;
+      const totalVisits = resumo.visits;
+      const avgDuration = resumo.avgDurationMin == null ? 0 : resumo.avgDurationMin;
+      const visitasCurtasIgnoradas = resumo.shortVisitsIgnored;
 
       const topClass = classDistribution[0]?.name || '-';
       const peakDayIndex = Object.keys(dayCounts).reduce((a, b) => dayCounts[a] > dayCounts[b] ? a : b, 1);
@@ -165,8 +176,19 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                               </div>
                         ) : (
                               <React.Fragment>
+                                    {/* O que está sendo contado, dito na tela:
+                                        um número de "visitas" que silenciosamente
+                                        exclui gente é pior que um número errado. */}
+                                    <div className="text-[11px] text-slate-500 mb-2 flex flex-wrap gap-x-3">
+                                          <span>{CdiBackend.incluirFuncionarios ? 'Élèves + personnel' : 'Élèves seulement'}</span>
+                                          {visitasCurtasIgnoradas > 0 && (
+                                                <span title="Entrée suivie d'une sortie en moins d'une minute — pas une permanence">
+                                                      {visitasCurtasIgnoradas} passage(s) éclair ignoré(s)
+                                                </span>
+                                          )}
+                                    </div>
                                     <div className="grid grid-cols-4 gap-3 mb-6">
-                                          <div className="bg-blue-50 rounded-xl p-3 text-center"><div className="text-2xl font-bold text-blue-600">{totalVisits}</div><div className="text-xs text-slate-500">Entrées</div></div>
+                                          <div className="bg-blue-50 rounded-xl p-3 text-center"><div className="text-2xl font-bold text-blue-600">{totalVisits}</div><div className="text-xs text-slate-500">Visites</div></div>
                                           <div className="bg-indigo-50 rounded-xl p-3 text-center"><div className="text-2xl font-bold text-indigo-600">{uniqueVisits}</div><div className="text-xs text-slate-500">Uniques</div></div>
                                           <div className="bg-green-50 rounded-xl p-3 text-center"><div className="text-2xl font-bold text-green-600">{avgDuration}m</div><div className="text-xs text-slate-500">Durée moy.</div></div>
                                           <div className="bg-purple-50 rounded-xl p-3 text-center"><div className="text-lg font-bold text-purple-600">{topClass}</div><div className="text-xs text-slate-500">Top classe</div></div>

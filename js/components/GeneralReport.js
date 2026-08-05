@@ -13,6 +13,9 @@ function JournalTab({ active = true }) {
     const [dateTo, setDateTo] = React.useState(todayStr());
     const [pointId, setPointId] = React.useState('');
     const [action, setAction] = React.useState('');
+    // Vazio = TUDO. O Journal é a visão de auditoria: o tipo é uma lente que o
+    // operador escolhe, nunca um recorte silencioso.
+    const [tipo, setTipo] = React.useState('');
     const [aluno, setAluno] = React.useState('');
     const [alunoQuery, setAlunoQuery] = React.useState('');
     const [logs, setLogs] = React.useState([]);
@@ -44,7 +47,7 @@ function JournalTab({ active = true }) {
         if (!silent) setLoading(true);
         try {
             const data = await window.api.fetchAllLogs({
-                dateFrom, dateTo, pointId, action, eleve: alunoQuery, limit: 500
+                dateFrom, dateTo, pointId, action, tipo, eleve: alunoQuery, limit: 500
             });
             setLogs(Array.isArray(data) ? data : []);
             setError(null);
@@ -57,7 +60,7 @@ function JournalTab({ active = true }) {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [dateFrom, dateTo, pointId, action, alunoQuery]);
+    }, [dateFrom, dateTo, pointId, action, tipo, alunoQuery]);
 
     // ⚠️ REGRESSÃO DE 03/08/2026 — não voltar a carregar só na montagem.
     // O Journal buscava UMA vez, quando a tela do Rapport era aberta, e nunca
@@ -103,7 +106,7 @@ function JournalTab({ active = true }) {
     // a cada 30 s (`filtered` é um array novo a cada carga).
     React.useEffect(() => {
         setPage(1);
-    }, [dateFrom, dateTo, pointId, action, alunoQuery, classe, sortDir]);
+    }, [dateFrom, dateTo, pointId, action, tipo, alunoQuery, classe, sortDir]);
     // Uma atualização pode encurtar a lista com o leitor numa página alta.
     React.useEffect(() => {
         if (page > totalPages) setPage(totalPages);
@@ -169,6 +172,15 @@ function JournalTab({ active = true }) {
                         <option value="">Toutes</option>
                         <option value="ENTRADA">Entrée</option>
                         <option value="SAIDA">Sortie</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Type</label>
+                    <select value={tipo} onChange={e => setTipo(e.target.value)} className={inputCls}>
+                        <option value="">Tous</option>
+                        <option value="ALUNO">Élèves</option>
+                        <option value="PROFESSOR">Professeurs</option>
+                        <option value="FUNCIONARIO">Personnel</option>
                     </select>
                 </div>
                 <div>
@@ -649,6 +661,12 @@ function OverviewTab() {
     const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
     const [updatedAt, setUpdatedAt] = React.useState(null);  // HH:mm:ss string
     const [todayAlerts, setTodayAlerts] = React.useState([]);    // alertas de hoje
+    /**
+     * Contar o pessoal nos números do CDI. Padrão false — servidor entra por
+     * segundos, sai sem passar o rosto, e o fechamento das 17:00 vira
+     * permanência de um dia. Só o card do CDI reage a isto.
+     */
+    const [incluirFuncionarios, setIncluirFuncionarios] = React.useState(false);
 
     const { dateFrom, dateTo } = React.useMemo(() => {
         const fmt = d => d.toISOString().slice(0, 10);
@@ -672,7 +690,7 @@ function OverviewTab() {
         const today = new Date().toISOString().slice(0, 10);
         try {
             const [d, lastLogArr, visits, meals] = await Promise.all([
-                window.api.fetchOverview({ dateFrom, dateTo }),
+                window.api.fetchOverview({ dateFrom, dateTo, incluirFuncionarios }),
                 window.api.fetchAllLogs({ limit: 1 }).catch(() => []),
                 (typeof fetchInfirmaryVisits === 'function'
                     ? fetchInfirmaryVisits({ dateFrom: today, dateTo: today })
@@ -750,7 +768,7 @@ function OverviewTab() {
             setUpdatedAt(fmtHHmmss(new Date()));
             setLoading(false);
         }
-    }, [dateFrom, dateTo]);
+    }, [dateFrom, dateTo, incluirFuncionarios]);
 
     React.useEffect(() => { load(); }, [load]);
 
@@ -829,6 +847,19 @@ function OverviewTab() {
                             className="px-3 py-1.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300" />
                     </span>
                 )}
+                {/* Escopo dos números do CDI, dito na tela. Só o card do CDI
+                    reage — cantina e enfermaria seguem com as agregações já
+                    validadas em produção. */}
+                <label className="ml-auto flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none"
+                       title="Le personnel entre quelques secondes, sort sans badger, et la clôture de 17h transforme ça en journée entière">
+                    <input
+                        type="checkbox"
+                        checked={incluirFuncionarios}
+                        onChange={e => setIncluirFuncionarios(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-accent-500"
+                    />
+                    Inclure le personnel (CDI)
+                </label>
                 {loading && (
                     <span className="self-center text-xs text-slate-400 flex items-center gap-1 ml-2">
                         <LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...

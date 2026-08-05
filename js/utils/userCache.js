@@ -21,6 +21,9 @@
                   // Serviços Gerais, Direção...). As telas que mostram "Classe"
                   // caem para o departamento quando a turma é nula.
                   departamento: raw.departamento,
+                  // Necessário no casamento manual: sem isto a tela não tem
+                  // como avisar que o aluno escolhido JÁ tem uma face ligada.
+                  hikvision_employee_id: raw.hikvisionEmployeeId || raw.hikvision_employee_id,
                   foto_url: raw.fotoUrl || raw.foto_url,
                   responsavel_id: raw.responsavelId || raw.responsavel_id,
                   meal_count: raw.mealCount ?? raw.meal_count ?? 0,

@@ -20,6 +20,68 @@ const DEPARTAMENTOS_SUGERIDOS = [
 /** Tipos que são servidor da escola — o resto segue o fluxo antigo. */
 const TIPOS_DE_SERVIDOR = ['PROFESSOR', 'FUNCIONARIO'];
 
+/**
+ * Teto de linhas RENDERIZADAS de uma vez. O relatório do HikCentral chega a
+ * 1197 linhas (numa reimportação, todas elas caem em "ignorar"), e montar isso
+ * de uma vez trava a janela do Electron por segundos. O restante fica a um
+ * clique de distância — cortar o dado seria mentir sobre o tamanho do problema.
+ */
+const LINHAS_POR_PAGINA = 200;
+
+/** id do formulário de cadastro manual — o botão vive na barra de ação, fora dele. */
+const FORM_CADASTRO_MANUAL = 'magbo-form-cadastro-manual';
+
+/**
+ * Lista longa com rolagem PRÓPRIA, contagem visível e teto de renderização.
+ *
+ * Por que existe: uma lista sem limite empurra o botão de confirmar para fora
+ * da tela e, com mil linhas, deixa a janela intransitável — foi assim que a
+ * tela de Configurações ficou impossível de fechar em produção.
+ *
+ * A altura é em `vh` e não em pixels de propósito: sob Ctrl+Menos/Ctrl+Mais do
+ * Electron o viewport muda de tamanho em px CSS, e uma altura fixa em px
+ * ocuparia uma fatia diferente da tela a cada nível de zoom.
+ */
+function ListaLimitada({ titulo, total, children, alturaMax = 'max-h-[38vh]', classeTitulo = 'text-slate-600' }) {
+    const [mostrando, setMostrando] = React.useState(LINHAS_POR_PAGINA);
+    // Arquivo novo (total diferente) volta a mostrar do começo.
+    React.useEffect(() => { setMostrando(LINHAS_POR_PAGINA); }, [total]);
+
+    const visiveis = Math.min(mostrando, total);
+    const restantes = total - visiveis;
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-1">
+                {/* Classe inteira vinda por prop: o Tailwind do projeto é o Play
+                    CDN, e nome de classe montado em runtime é frágil demais
+                    para depender dele numa tela crítica. */}
+                <p className={`text-xs font-bold ${classeTitulo}`}>{titulo}</p>
+                <span className="text-[11px] text-slate-400 tabular-nums">
+                    {restantes > 0 ? `${visiveis} de ${total}` : `${total}`}
+                </span>
+            </div>
+            {/* SEM `overscroll-contain` aqui de propósito: numa lista curta,
+                ele impede a rolagem de continuar para a área de conteúdo ao
+                chegar no fim, e a tela parece travada — a sensação exata que
+                se está corrigindo. A rolagem do documento já está bloqueada no
+                nível da tela, então não há para onde vazar. */}
+            <div className={`${alturaMax} overflow-y-auto rounded-xl border border-soft-200 bg-white`}>
+                {typeof children === 'function' ? children(visiveis) : children}
+            </div>
+            {restantes > 0 && (
+                <button
+                    type="button"
+                    onClick={() => setMostrando(m => m + LINHAS_POR_PAGINA)}
+                    className="mt-2 w-full py-2 rounded-xl bg-soft-100 text-navy-500 text-xs font-bold hover:bg-soft-200 transition-colors"
+                >
+                    Mostrar mais {Math.min(LINHAS_POR_PAGINA, restantes)} (faltam {restantes})
+                </button>
+            )}
+        </div>
+    );
+}
+
 function AppSettingsModal({ onClose, onShowToast }) {
     const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'staff-import', 'manual'
 
@@ -57,6 +119,78 @@ function AppSettingsModal({ onClose, onShowToast }) {
             .catch(() => { if (vivo) setProximaMatricula(''); });
         return () => { vivo = false; };
     }, [ehServidor]);
+
+    // ── Comportamento de tela cheia sobreposta ────────────────────────────
+    // A tela cobre o app inteiro; enquanto está aberta ela é o único alvo de
+    // teclado e de rolagem. Sem isto o operador rolava a tela DE TRÁS achando
+    // que rolava o conteúdo — e ficava preso do mesmo jeito.
+    const containerRef = React.useRef(null);
+    const fecharRef = React.useRef(null);
+    const conteudoRef = React.useRef(null);
+
+    // Trocar de aba volta ao topo. Sem isto, quem estava no fim do relatório do
+    // HikCentral clicava em "Cadastro Manual" e caía no meio do formulário, com
+    // o campo Nome fora de vista.
+    React.useEffect(() => {
+        if (conteudoRef.current) conteudoRef.current.scrollTop = 0;
+    }, [activeTab]);
+
+    // Trava a rolagem do documento e devolve exatamente como estava.
+    React.useEffect(() => {
+        const anterior = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = anterior; };
+    }, []);
+
+    // Foco inicial no botão de fechar: a saída fica a um Enter de distância,
+    // que é o oposto do que acontecia (só Ctrl+R saía).
+    React.useEffect(() => {
+        fecharRef.current?.focus();
+    }, []);
+
+    /**
+     * Esc fecha; Tab circula DENTRO da tela.
+     *
+     * O foco preso não é enfeite de acessibilidade aqui: sem ele o Tab desce
+     * para os botões do app de trás, que estão visualmente cobertos — o
+     * operador digita às cegas em outra tela.
+     */
+    React.useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                onClose();
+                return;
+            }
+            if (e.key !== 'Tab') return;
+
+            const foco = containerRef.current?.querySelectorAll(
+                'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]),'
+                + ' textarea:not([disabled]), details, summary, [tabindex]:not([tabindex="-1"])'
+            );
+            if (!foco || foco.length === 0) return;
+            // offsetParent null = elemento escondido (aba inativa): não pode
+            // receber foco, senão o Tab "some" dentro de uma aba que ninguém vê.
+            const visiveis = Array.from(foco).filter(el => el.offsetParent !== null);
+            if (visiveis.length === 0) return;
+
+            const primeiro = visiveis[0];
+            const ultimo = visiveis[visiveis.length - 1];
+            if (!e.shiftKey && document.activeElement === ultimo) {
+                e.preventDefault();
+                primeiro.focus();
+            } else if (e.shiftKey && document.activeElement === primeiro) {
+                e.preventDefault();
+                ultimo.focus();
+            } else if (!containerRef.current.contains(document.activeElement)) {
+                // Foco escapou (clique fora, aba trocada): traz de volta.
+                e.preventDefault();
+                primeiro.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown, true);
+        return () => document.removeEventListener('keydown', onKeyDown, true);
+    }, [onClose]);
 
     const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
 
@@ -388,75 +522,73 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <span className="text-xs text-slate-400">{totais.TOTAL || 0} linhas</span>
                         </div>
 
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                             {Object.keys(ACOES_HIK).map(k => (
                                 <div key={k} className="rounded-xl border border-soft-200 p-3 text-center">
-                                    <p className="text-xl font-bold text-navy-500">{totais[k] || 0}</p>
+                                    <p className="text-xl font-bold text-navy-500 tabular-nums">{totais[k] || 0}</p>
                                     <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{ACOES_HIK[k].label}</p>
                                 </div>
                             ))}
                         </div>
 
-                        {!hikPlan.aplicado && (
-                            <button
-                                onClick={confirmarImportHikCentral}
-                                disabled={hikApplying}
-                                className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {hikApplying
-                                    ? 'GRAVANDO...'
-                                    : `CONFIRMAR — ${totais.CRIAR || 0} criar, ${totais.ATUALIZAR || 0} atualizar`}
-                            </button>
-                        )}
+                        {/* O botão de confirmar mora na barra de ação fixa, no
+                            rodapé — daqui ele seria empurrado para fora da tela
+                            pelas listas abaixo, que é o defeito que se corrige. */}
 
                         {revisao.length > 0 && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                                <p className="font-bold text-amber-800 text-sm mb-1">
-                                    {revisao.length} aluno(s) precisam de conferência manual
-                                </p>
                                 <p className="text-[11px] text-amber-700 mb-2">
                                     O ID do HikCentral não é a matrícula, então a face não casa com o
                                     cadastro e a pessoa é negada em toda passagem. Só o nome liga de
                                     volta — casar automaticamente trocaria a face de um aluno pela de outro.
                                 </p>
-                                <table className="w-full text-xs">
-                                    <tbody>
-                                        {revisao.map((r, i) => (
-                                            <tr key={i} className="border-t border-amber-100">
-                                                <td className="py-1 pr-3 font-mono text-amber-800">L{r.linha}</td>
-                                                <td className="py-1 pr-3 font-bold text-navy-500">{r.nome}</td>
-                                                <td className="py-1 font-mono text-slate-600">{r.idHikvision}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <ListaLimitada
+                                    titulo={`${revisao.length} aluno(s) precisam de conferência manual`}
+                                    total={revisao.length}
+                                    alturaMax="max-h-[30vh]"
+                                    classeTitulo="text-amber-800"
+                                >
+                                    {(visiveis) => (
+                                        <table className="w-full text-xs">
+                                            <tbody>
+                                                {revisao.slice(0, visiveis).map((r, i) => (
+                                                    <tr key={i} className="border-b border-amber-100 last:border-0">
+                                                        <td className="py-1 px-2 font-mono text-amber-800">L{r.linha}</td>
+                                                        <td className="py-1 px-2 font-bold text-navy-500">{r.nome}</td>
+                                                        <td className="py-1 px-2 font-mono text-slate-600">{r.idHikvision}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </ListaLimitada>
                             </div>
                         )}
 
                         {problemas.length > 0 && (
-                            <details className="text-xs">
-                                <summary className="cursor-pointer font-bold text-slate-600">
-                                    {problemas.length} linha(s) ignorada(s) ou em conflito
-                                </summary>
-                                <div className="max-h-52 overflow-y-auto mt-2">
-                                    <table className="w-full">
+                            <ListaLimitada
+                                titulo={`${problemas.length} linha(s) ignorada(s) ou em conflito`}
+                                total={problemas.length}
+                            >
+                                {(visiveis) => (
+                                    <table className="w-full text-xs">
                                         <tbody>
-                                            {problemas.map((l, i) => (
-                                                <tr key={i} className="border-t border-soft-100 align-top">
-                                                    <td className="py-1 pr-2 font-mono text-slate-400">L{l.linha}</td>
-                                                    <td className="py-1 pr-2">
+                                            {problemas.slice(0, visiveis).map((l, i) => (
+                                                <tr key={i} className="border-b border-soft-100 last:border-0 align-top">
+                                                    <td className="py-1 px-2 font-mono text-slate-400 whitespace-nowrap">L{l.linha}</td>
+                                                    <td className="py-1 px-2 whitespace-nowrap">
                                                         <span className={`px-1.5 py-0.5 rounded font-bold ${ACOES_HIK[l.acao].cor}`}>
                                                             {ACOES_HIK[l.acao].label}
                                                         </span>
                                                     </td>
-                                                    <td className="py-1 pr-2 text-navy-500">{l.nome}</td>
-                                                    <td className="py-1 text-slate-600">{l.detalhe}</td>
+                                                    <td className="py-1 px-2 text-navy-500">{l.nome}</td>
+                                                    <td className="py-1 px-2 text-slate-600">{l.detalhe}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
-                                </div>
-                            </details>
+                                )}
+                            </ListaLimitada>
                         )}
                     </div>
                 )}
@@ -502,10 +634,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
             {staffImportErrors.length > 0 && (
                 <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="font-bold text-danger-700 text-sm">
-                            {staffImportErrors.length} linha(s) recusada(s)
-                        </p>
+                    <div className="flex items-center justify-end mb-2">
                         <button
                             onClick={() => setStaffImportErrors([])}
                             className="text-xs font-bold text-danger-700 underline hover:no-underline"
@@ -513,26 +642,32 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             Fechar
                         </button>
                     </div>
-                    <div className="max-h-52 overflow-y-auto">
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="text-left text-danger-700/70 uppercase font-bold">
-                                    <th className="py-1 pr-3">Linha</th>
-                                    <th className="py-1 pr-3">Nome</th>
-                                    <th className="py-1">Motivo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {staffImportErrors.map((e, i) => (
-                                    <tr key={i} className="border-t border-danger-100 align-top">
-                                        <td className="py-1 pr-3 font-mono text-danger-700">{e.linha}</td>
-                                        <td className="py-1 pr-3 text-navy-500">{e.nome}</td>
-                                        <td className="py-1 text-slate-600">{e.erro}</td>
+                    <ListaLimitada
+                        titulo={`${staffImportErrors.length} linha(s) recusada(s)`}
+                        total={staffImportErrors.length}
+                        classeTitulo="text-danger-700"
+                    >
+                        {(visiveis) => (
+                            <table className="w-full text-xs">
+                                <thead className="sticky top-0 bg-white">
+                                    <tr className="text-left text-danger-700/70 uppercase font-bold">
+                                        <th className="py-1 px-2">Linha</th>
+                                        <th className="py-1 px-2">Nome</th>
+                                        <th className="py-1 px-2">Motivo</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {staffImportErrors.slice(0, visiveis).map((e, i) => (
+                                        <tr key={i} className="border-t border-danger-100 align-top">
+                                            <td className="py-1 px-2 font-mono text-danger-700">{e.linha}</td>
+                                            <td className="py-1 px-2 text-navy-500">{e.nome}</td>
+                                            <td className="py-1 px-2 text-slate-600">{e.erro}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </ListaLimitada>
                 </div>
             )}
         </div>
@@ -702,9 +837,15 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
     const renderManualRegistration = () => (
         <div className="animate-fade-in">
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+            {/* O botão de submeter vive na barra de ação, ligado por `form=`. */}
+            <form id={FORM_CADASTRO_MANUAL} onSubmit={handleManualSubmit} className="space-y-4">
+                {/* `sm:col-span-2` e não `col-span-2`: numa grade de UMA coluna,
+                    um item que ocupa duas cria uma segunda coluna IMPLÍCITA
+                    (dimensionada como `auto`), e os campos de span simples
+                    ficam espremidos contra ela. O span só vale quando a grade
+                    realmente tem duas colunas. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nome Completo *</label>
                         <input
                             required
@@ -795,7 +936,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 </p>
                             </div>
 
-                            <div className="col-span-2">
+                            <div className="sm:col-span-2">
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Departamento</label>
                                 <input
                                     type="text"
@@ -836,45 +977,113 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         </>
                     )}
                 </div>
-
-                <div className="pt-4 mt-6 border-t border-soft-200">
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors shadow-lg shadow-accent-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {submitting
-                            ? 'CADASTRANDO...'
-                            : (ehServidor ? 'CADASTRAR SERVIDOR' : 'CADASTRAR NOVO USUÁRIO')}
-                    </button>
-                </div>
             </form>
         </div>
     );
 
-    return (
-        <div className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-[24px] w-full max-w-2xl shadow-2xl overflow-hidden animate-zoom-in">
+    /**
+     * Barra de ação da aba ativa. Fica FORA da área rolável, então o botão
+     * principal está sempre visível — antes ele era a última coisa de uma
+     * página que não rolava, ou seja, inalcançável.
+     *
+     * O botão do cadastro manual usa `form=`: ele submete o formulário sem
+     * estar dentro dele, o que permite tirá-lo do fluxo rolável sem perder o
+     * submit nativo (Enter no campo, validação de `required`).
+     */
+    const barraDeAcao = (() => {
+        if (activeTab === 'hikcentral' && hikPlan && !hikPlan.aplicado) {
+            const t = hikPlan.totais || {};
+            return (
+                /* Empilha em tela estreita. Numa linha só, o rótulo longo
+                   ("CONFIRMAR — 1197 criar, 996 atualizar") empurrava o botão
+                   para fora do cartão, que é `overflow-hidden` — ou seja,
+                   cortado de novo, exatamente o defeito em correção. */
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <p className="text-xs text-slate-500 sm:flex-1 sm:min-w-0">
+                        Simulação conferida — nada foi gravado ainda.
+                    </p>
+                    <button
+                        onClick={confirmarImportHikCentral}
+                        disabled={hikApplying}
+                        className="w-full sm:w-auto sm:max-w-[60%] px-6 py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed truncate"
+                    >
+                        {hikApplying
+                            ? 'GRAVANDO...'
+                            : `CONFIRMAR — ${t.CRIAR || 0} criar, ${t.ATUALIZAR || 0} atualizar`}
+                    </button>
+                </div>
+            );
+        }
+        if (activeTab === 'manual') {
+            return (
+                <button
+                    type="submit"
+                    form={FORM_CADASTRO_MANUAL}
+                    disabled={submitting}
+                    className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors shadow-lg shadow-accent-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {submitting
+                        ? 'CADASTRANDO...'
+                        : (ehServidor ? 'CADASTRAR SERVIDOR' : 'CADASTRAR NOVO USUÁRIO')}
+                </button>
+            );
+        }
+        return null;
+    })();
 
-                {/* Header */}
-                <div className="bg-navy-500 p-6 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+    return (
+        /*
+         * TELA CHEIA, não um cartão centralizado.
+         *
+         * O que quebrou em produção: o cartão tinha `overflow-hidden` e nenhum
+         * limite de altura, dentro de um flex `items-center`. Conteúdo mais
+         * alto que a janela era CORTADO (overflow-hidden não rola), e a
+         * centralização empurrava o cabeçalho — com o botão de fechar — para
+         * fora da tela por cima. Não havia saída pelo mouse.
+         *
+         * A estrutura agora é uma coluna flex do tamanho do viewport:
+         *   cabeçalho (shrink-0)  ·  corpo (flex-1 min-h-0)  ·  barra (shrink-0)
+         *
+         * `min-h-0` em TODO filho flex que precisa rolar é o que faz a coisa
+         * funcionar: sem ele o filho tem min-height auto (= tamanho do
+         * conteúdo), se recusa a encolher e transborda em vez de rolar. É
+         * exatamente a peça que faltava aqui.
+         */
+        <div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Configurações e Cadastros"
+            className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex flex-col p-0 sm:p-4"
+        >
+            <div className="bg-white sm:rounded-[24px] w-full max-w-[1600px] mx-auto shadow-2xl flex flex-col flex-1 min-h-0 overflow-hidden animate-zoom-in">
+
+                {/* Header — shrink-0: nunca é espremido nem sai da tela */}
+                <div className="shrink-0 bg-navy-500 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 shrink-0 bg-white/10 rounded-xl flex items-center justify-center">
                             <LucideIcon name="settings" size={20} className="text-white" />
                         </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-white">Configurações e Cadastros</h2>
-                            <p className="text-xs text-white/50">Gerencie o sistema e importe usuários</p>
+                        <div className="min-w-0">
+                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">Configurações e Cadastros</h2>
+                            <p className="text-xs text-white/50 truncate">Gerencie o sistema e importe usuários</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                    <button
+                        ref={fecharRef}
+                        onClick={onClose}
+                        title="Fechar (Esc)"
+                        aria-label="Fechar"
+                        className="w-10 h-10 shrink-0 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60 transition-colors"
+                    >
                         <LucideIcon name="x" size={20} />
                     </button>
                 </div>
 
-                <div className="flex">
-                    {/* Sidebar Tabs */}
-                    <div className="w-64 bg-slate-50 border-r border-soft-200 p-4 space-y-2">
+                {/* Corpo: navegação + conteúdo, cada um com a sua rolagem */}
+                <div className="flex flex-1 min-h-0">
+                    {/* Sidebar Tabs — rola sozinha se não couber */}
+                    <div className="w-52 sm:w-60 lg:w-64 shrink-0 bg-slate-50 border-r border-soft-200 p-4 space-y-2 overflow-y-auto overscroll-contain">
                         <button
                             onClick={() => setActiveTab('import')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
@@ -912,13 +1121,29 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         </button>
                     </div>
 
-                    {/* Content Area */}
-                    <div className="flex-1 p-6 bg-white min-h-[400px]">
-                        {activeTab === 'import' && renderImportSettings()}
-                        {activeTab === 'hikcentral' && renderHikCentralImport()}
-                        {activeTab === 'staff-import' && renderStaffImport()}
-                        {activeTab === 'manual' && renderManualRegistration()}
-                        {activeTab === 'general' && renderGeneralSettings()}
+                    {/* Coluna do conteúdo: área rolável + barra de ação fixa */}
+                    <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-white">
+                        <div ref={conteudoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+                            {activeTab === 'import' && renderImportSettings()}
+                            {activeTab === 'hikcentral' && renderHikCentralImport()}
+                            {activeTab === 'staff-import' && renderStaffImport()}
+                            {activeTab === 'manual' && renderManualRegistration()}
+                            {activeTab === 'general' && renderGeneralSettings()}
+                        </div>
+
+                        {/*
+                         * Barra de ação: IRMÃ da área rolável, não filha.
+                         * `position: sticky` dentro do scroll ainda pode ser
+                         * empurrada por conteúdo largo ou por um contêiner que
+                         * cresce; como linha própria do flex com shrink-0, o
+                         * botão de confirmar simplesmente não tem como sair da
+                         * tela — que é o requisito.
+                         */}
+                        {barraDeAcao && (
+                            <div className="shrink-0 border-t border-soft-200 bg-white px-4 sm:px-6 py-3">
+                                {barraDeAcao}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -60,18 +60,20 @@ function MealEntitlementManagement() {
             return () => clearTimeout(delay);
       }, [searchTerm, filterTurma, filterStatus]);
 
-      const handleToggleStatus = async (userId, currentStatus) => {
+      const handleToggleStatus = async (userId, currentEntitlement) => {
             if (!canEdit) {
                   alert("Vous n'avez pas l'autorisation de modifier ce droit.");
                   return;
             }
-            
-            const newStatus = currentStatus === 'AUTHORIZED' ? 'NOT_AUTHORIZED' : 'AUTHORIZED';
-            const payload = {
-                  status: newStatus,
-                  validUntil: null, // Pode ser adicionado futuramente
-                  note: 'Modifié via interface cantine'
-            };
+
+            // O PUT substitui a linha INTEIRA (o upsert grava os 4 campos sem
+            // condição). Antes daqui saía `validUntil: null` fixo e nenhum
+            // validFrom, então cada clique no badge apagava a vigência do aluno
+            // em silêncio: quem estava autorizado só até o fim do semestre
+            // passava a valer para sempre. A montagem vive em
+            // js/utils/mealEntitlement.js, com teste.
+            const payload = window.MagboMealEntitlement.buildTogglePayload(
+                  currentEntitlement, 'Modifié via interface cantine');
 
             try {
                   const updated = await window.api.putMealEntitlement(userId, payload);
@@ -298,7 +300,7 @@ function MealEntitlementManagement() {
                                                                   </td>
                                                                   <td className="px-6 py-3">
                                                                         <button 
-                                                                              onClick={() => handleToggleStatus(item.userId, status)}
+                                                                              onClick={() => handleToggleStatus(item.userId, ent)}
                                                                               disabled={!canEdit}
                                                                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
                                                                                     isAuth

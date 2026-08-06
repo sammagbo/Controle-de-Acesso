@@ -130,6 +130,95 @@ class MealEntitlementFlowIT extends AbstractIT {
                 .andExpect(jsonPath("$.pending").value(1));
     }
 
+    /**
+     * CONTRATO DO PUT, fixado de proposito.
+     *
+     * O upsert grava status/validFrom/validUntil/note SEM CONDICAO: campo
+     * ausente do corpo chega null e APAGA o que estava no banco. Isso e o
+     * comportamento correto de um PUT — e e por isso que a correcao do
+     * "toggle apagava a vigencia" foi feita em quem CHAMA (a tela reenvia a
+     * vigencia atual), e nao aqui.
+     *
+     * Fazer o upsert ignorar nulls pareceria mais seguro e seria pior: viraria
+     * um PATCH disfarcado, tornaria IMPOSSIVEL limpar uma vigencia pela API, e
+     * mudaria o significado do import em lote — que chama este mesmo metodo e
+     * foi provado em producao com XLSX real (D5). Uma linha do lote sem datas
+     * passaria a PRESERVAR datas antigas em vez de limpa-las, em silencio.
+     *
+     * Este teste existe para que ninguem "conserte" o upsert por engano: se
+     * ele comecar a preservar, este teste falha e a conversa acontece antes do
+     * deploy, nao depois.
+     */
+    @Test
+    @DisplayName("PUT substitui a linha INTEIRA — corpo sem datas apaga a vigencia (contrato)")
+    void putSubstituiLinhaInteira() throws Exception {
+        userRepository.save(TestFixtures.aluno(TestFixtures.EMPLOYEE_PILOTO, null));
+        mealEntitlementRepository.save(TestFixtures.entitlement(
+                TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED,
+                java.time.LocalDate.of(2026, 2, 1), java.time.LocalDate.of(2026, 6, 30)));
+
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+
+        // Corpo SEM validFrom/validUntil — exatamente o que a tela mandava.
+        mockMvc.perform(MockMvcRequestBuilders.put(
+                                "/api/admin/meal-entitlements/" + TestFixtures.EMPLOYEE_PILOTO)
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"NOT_AUTHORIZED\",\"note\":\"sem datas\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(mealEntitlementRepository.findById(TestFixtures.EMPLOYEE_PILOTO))
+                .get()
+                .satisfies(e -> {
+                    assertThat(e.getStatus()).isEqualTo(EntitlementStatus.NOT_AUTHORIZED);
+                    assertThat(e.getValidFrom())
+                            .as("PUT sem validFrom APAGA — a tela precisa reenviar")
+                            .isNull();
+                    assertThat(e.getValidUntil())
+                            .as("PUT sem validUntil APAGA — a tela precisa reenviar")
+                            .isNull();
+                });
+    }
+
+    /**
+     * O outro lado do mesmo contrato: reenviando a vigencia, ela sobrevive.
+     * E o que a tela passou a fazer (js/utils/mealEntitlement.js).
+     */
+    @Test
+    @DisplayName("PUT reenviando a vigencia -> status muda e as datas ficam de pe")
+    void putComVigenciaPreservaAsDatas() throws Exception {
+        userRepository.save(TestFixtures.aluno(TestFixtures.EMPLOYEE_PILOTO, null));
+        mealEntitlementRepository.save(TestFixtures.entitlement(
+                TestFixtures.EMPLOYEE_PILOTO, EntitlementStatus.AUTHORIZED,
+                java.time.LocalDate.of(2026, 2, 1), java.time.LocalDate.of(2026, 6, 30)));
+
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+        String corpo = "{\"status\":\"%s\",\"validFrom\":\"2026-02-01\","
+                + "\"validUntil\":\"2026-06-30\",\"note\":\"Modifie via interface cantine\"}";
+
+        // Dois cliques seguidos, como o operador faria.
+        for (String novoStatus : new String[]{"NOT_AUTHORIZED", "AUTHORIZED"}) {
+            mockMvc.perform(MockMvcRequestBuilders.put(
+                                    "/api/admin/meal-entitlements/" + TestFixtures.EMPLOYEE_PILOTO)
+                            .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content(String.format(corpo, novoStatus)))
+                    .andExpect(status().isOk());
+        }
+
+        assertThat(mealEntitlementRepository.findById(TestFixtures.EMPLOYEE_PILOTO))
+                .get()
+                .satisfies(e -> {
+                    assertThat(e.getStatus())
+                            .as("dois toggles voltam ao estado inicial")
+                            .isEqualTo(EntitlementStatus.AUTHORIZED);
+                    assertThat(e.getValidFrom()).isEqualTo(java.time.LocalDate.of(2026, 2, 1));
+                    assertThat(e.getValidUntil())
+                            .as("★ a vigencia sobreviveu aos dois cliques")
+                            .isEqualTo(java.time.LocalDate.of(2026, 6, 30));
+                });
+    }
+
     @Test
     @DisplayName("2a face em <90s -> dedup OBSERVATION: 2 logs + attempt DUPLICATE_MEAL")
     void refeicaoDuplicadaGeraAuditoria() throws Exception {

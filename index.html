@@ -75,12 +75,18 @@
       <script type="text/babel" src="js/utils/listPaging.js?v=1"></script>
       <script type="text/babel" src="js/utils/permissions.js?v=1"></script>
       <script type="text/babel" src="js/utils/mealEntitlement.js?v=1"></script>
+      <!-- mealSheet REUSA os helpers de cabeçalho do hikcentralSheet: carrega depois dele. -->
+      <script type="text/babel" src="js/utils/mealSheet.js?v=1"></script>
+      <script type="text/babel" src="js/utils/exitPermission.js?v=1"></script>
       <script type="text/babel" src="js/utils/helpers.js?v=10"></script>
       <script type="text/babel" src="js/utils/api.js?v=10"></script>
       <script type="text/babel" src="js/utils/userCache.js?v=2"></script>
       <script type="text/babel" src="js/utils/audio.js?v=1"></script>
       <script type="text/babel" src="js/utils/connectionMonitor.js?v=1"></script>
       <!-- Components -->
+      <!-- ListaLimitada é usada pela aba HikCentral E pela importação de direitos
+           de refeição: carrega antes das duas. -->
+      <script type="text/babel" src="js/components/ListaLimitada.js?v=1"></script>
       <script type="text/babel" src="js/components/ConnectionStatus.js?v=1"></script>
       <script type="text/babel" src="js/components/Toast.js?v=10"></script>
       <script type="text/babel" src="js/components/ActiveTimers.js?v=8"></script>

@@ -70,6 +70,33 @@
             }
       }
 
+      /**
+       * Busca só de ALUNO, insensível a ACENTO (GET /users/students/search).
+       *
+       * Separada de `search`: aquela é `LOWER(...) LIKE`, insensível a caixa
+       * mas não a acento, e devolve qualquer tipo. Numa tela onde se escolhe
+       * UMA criança para autorizar a sair, quem digita "Goncalves" tem de
+       * encontrar "Gonçalves" — e um funcionário nunca pode aparecer na lista.
+       *
+       * Vai ao servidor sobre a base INTEIRA; nunca filtra uma página
+       * pré-carregada.
+       */
+      async function searchStudentsRemote(query, limit = 20) {
+            try {
+                  const q = encodeURIComponent(query || '');
+                  const token = window.auth && window.auth.getToken && window.auth.getToken();
+                  const res = await fetch(`${API_BASE}/users/students/search?q=${q}&limit=${limit}`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                  });
+                  if (!res.ok) throw new Error('HTTP ' + res.status);
+                  const data = await res.json();
+                  return (data.users || []).map(normalise).filter(Boolean);
+            } catch (e) {
+                  console.warn('searchStudentsRemote failed:', e);
+                  return [];
+            }
+      }
+
       function getCachedUsers() { return cache; }
       function getCachedUserById(id) { return cache.find(u => u.id === id) || null; }
       function getCacheLoadedAt() { return loadedAt; }
@@ -78,6 +105,7 @@
       window.userCache = {
             reload: reloadUserCache,
             search: searchUsersRemote,
+            searchStudents: searchStudentsRemote,
             all: getCachedUsers,
             byId: getCachedUserById,
             loadedAt: getCacheLoadedAt

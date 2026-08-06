@@ -24,6 +24,28 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final ResponsavelRepository responsavelRepository;
+    private final com.magbo.access.services.StudentSearchService studentSearchService;
+
+    /**
+     * Busca de ALUNO para telas que escolhem UMA pessoa (autorizacao de saida).
+     *
+     * Separada de /search porque e insensivel a ACENTO e devolve so aluno — ver
+     * o javadoc do StudentSearchService. Caminho de dois segmentos, entao nao
+     * colide com /users/{id}.
+     */
+    @GetMapping("/students/search")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserListResponse> searchStudents(
+            @RequestParam(name = "q", defaultValue = "") String q,
+            @RequestParam(name = "limit", required = false) Integer limit) {
+        List<User> alunos = studentSearchService.buscar(q, limit);
+        return ResponseEntity.ok(
+            UserListResponse.builder()
+                .users(alunos)
+                .total(alunos.size())
+                .build()
+        );
+    }
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")

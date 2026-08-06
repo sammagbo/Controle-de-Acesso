@@ -173,9 +173,55 @@ function ExitPermissionManagement() {
 
 function NewExitPermissionModal({ onClose, onSaved }) {
       const [type, setType] = React.useState('SINGLE');
-      const [userId, setUserId] = React.useState('');
       const [authorizedBy, setAuthorizedBy] = React.useState('');
       const [notes, setNotes] = React.useState('');
+
+      // ── Escolha do aluno pelo NOME ────────────────────────────────────
+      // Havia aqui um campo de matrícula em branco. A Vie Scolaire conhece os
+      // alunos pelo nome, e um dígito trocado autorizava a saída da criança
+      // errada — sem erro nenhum na tela. A matrícula agora vem de uma
+      // ESCOLHA; o payload continua o mesmo (userId = matrícula).
+      const [aluno, setAluno] = React.useState(null);
+      const [busca, setBusca] = React.useState('');
+      const [resultados, setResultados] = React.useState([]);
+      const [buscando, setBuscando] = React.useState(false);
+      const [erroForm, setErroForm] = React.useState('');
+
+      // Busca remota com debounce de 250ms — padrão do projeto, sobre a base
+      // INTEIRA (nunca sobre uma página pré-carregada).
+      React.useEffect(() => {
+            if (aluno) return;                       // já escolheu: não busca mais
+            if (!window.MagboExitPermission.buscaValida(busca)) {
+                  setResultados([]);
+                  return;
+            }
+            let vivo = true;
+            setBuscando(true);
+            const tid = setTimeout(async () => {
+                  try {
+                        const achados = await window.userCache.searchStudents(busca.trim(), 20);
+                        if (vivo) setResultados(window.MagboExitPermission.apenasAlunos(achados));
+                  } catch (e) {
+                        if (vivo) setResultados([]);
+                  } finally {
+                        if (vivo) setBuscando(false);
+                  }
+            }, 250);
+            return () => { vivo = false; clearTimeout(tid); };
+      }, [busca, aluno]);
+
+      const escolher = (a) => {
+            setAluno(a);
+            setResultados([]);
+            setBusca('');
+            setErroForm('');
+      };
+
+      const trocarAluno = () => {
+            setAluno(null);
+            setBusca('');
+            setResultados([]);
+      };
       
       // Single
       const [validFrom, setValidFrom] = React.useState('');
@@ -190,35 +236,29 @@ function NewExitPermissionModal({ onClose, onSaved }) {
 
       const handleSubmit = async (e) => {
             e.preventDefault();
-            if (!userId) return alert('Informe a matrícula do aluno.');
-            setSaving(true);
 
-            // Espelha o ExitPermissionRequest do backend EXATAMENTE:
-            // permissionType / reason / note / validFrom-validUntil como LocalDate
-            // (YYYY-MM-DD) / startTime-endTime como LocalTime / daysOfWeek CSV.
-            const payload = {
-                  userId,
-                  permissionType: type,
-                  reason: authorizedBy,
-                  note: notes || null,
+            // Montagem e validação vivem em js/utils/exitPermission.js, com
+            // teste. O payload é o MESMO ExitPermissionRequest de sempre — o
+            // que mudou é de onde vem o userId.
+            const form = {
+                  aluno, autorizadoPor: authorizedBy, tipo: type,
+                  validFrom, validUntil, startTime, endTime, dias: days,
+                  observacoes: notes
             };
 
-            if (type === 'SINGLE') {
-                  payload.validFrom = validFrom.slice(0, 10);   // datetime-local -> YYYY-MM-DD
-                  payload.validUntil = validUntil.slice(0, 10);
-                  payload.startTime = validFrom.slice(11, 16) || null; // hora da saída
-                  payload.endTime = validUntil.slice(11, 16) || null;  // retorno máx
-            } else {
-                  payload.startTime = startTime;
-                  payload.endTime = endTime;
-                  // Backend valida daysOfWeek como números ISO 1-7 (provado por curl 17/07)
-                  const DAY_NUM = { MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5 };
-                  payload.daysOfWeek = Object.keys(days).filter(k => days[k]).map(k => DAY_NUM[k]).join(',');
-                  // Recorrente vale do dia atual até o fim do ano letivo civil
-                  const now = new Date();
-                  payload.validFrom = now.toISOString().slice(0, 10);
-                  payload.validUntil = `${now.getFullYear()}-12-31`;
+            const check = window.MagboExitPermission.validar(form);
+            if (!check.ok) {
+                  setErroForm(check.motivo);
+                  return;
             }
+            const payload = window.MagboExitPermission.montarPayload(form);
+            if (!payload) {
+                  setErroForm('Selecione o aluno pelo nome antes de salvar.');
+                  return;
+            }
+
+            setErroForm('');
+            setSaving(true);
 
             try {
                   await window.api.postExitPermission(payload);
@@ -242,9 +282,69 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                              {/* ── Aluno: escolhido pelo NOME, nunca digitado ── */}
                               <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Matrícula do Aluno</label>
-                                    <input required type="text" value={userId} onChange={e => setUserId(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" placeholder="Ex: 0001764" />
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Aluno</label>
+
+                                    {aluno ? (
+                                          <div className="flex items-center gap-3 bg-success-50 border border-success-200 rounded-xl px-4 py-3">
+                                                <img src={aluno.foto_url || window.localAvatar(aluno.nome || aluno.id)}
+                                                      className="w-9 h-9 rounded-full border border-success-200" alt="" />
+                                                <div className="flex-1 min-w-0">
+                                                      <div className="text-sm font-bold text-navy-800 truncate">{aluno.nome}</div>
+                                                      <div className="text-[11px] text-slate-600">
+                                                            {aluno.turma || '—'} · <span className="font-mono">{aluno.id}</span>
+                                                      </div>
+                                                </div>
+                                                <button type="button" onClick={trocarAluno}
+                                                      className="text-xs font-bold text-accent-700 underline hover:no-underline shrink-0">
+                                                      Trocar
+                                                </button>
+                                          </div>
+                                    ) : (
+                                          <>
+                                                <div className="relative">
+                                                      <LucideIcon name="search" size={16}
+                                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                      <input
+                                                            type="text"
+                                                            autoFocus
+                                                            value={busca}
+                                                            onChange={e => setBusca(e.target.value)}
+                                                            className="w-full pl-9 pr-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium"
+                                                            placeholder="Buscar pelo nome (ou matrícula)..."
+                                                      />
+                                                </div>
+
+                                                {resultados.length > 0 && (
+                                                      <div className="max-h-48 overflow-y-auto border border-soft-200 rounded-xl mt-1">
+                                                            {resultados.map(a => (
+                                                                  <button key={a.id} type="button" onClick={() => escolher(a)}
+                                                                        className="w-full text-left px-3 py-2 text-xs border-b border-soft-100 last:border-0 hover:bg-accent-50 flex items-center gap-2">
+                                                                        <span className="font-bold text-navy-500 flex-1 truncate">{a.nome}</span>
+                                                                        <span className="text-slate-500">{a.turma || '—'}</span>
+                                                                        <span className="text-slate-400 font-mono">{a.id}</span>
+                                                                  </button>
+                                                            ))}
+                                                      </div>
+                                                )}
+
+                                                {buscando && resultados.length === 0 && (
+                                                      <p className="text-[11px] text-slate-400 mt-1">Buscando...</p>
+                                                )}
+                                                {!buscando && window.MagboExitPermission.buscaValida(busca) && resultados.length === 0 && (
+                                                      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-1">
+                                                            Nenhum aluno com esse nome. Confira a grafia — a busca ignora
+                                                            acentos e maiúsculas.
+                                                      </p>
+                                                )}
+                                                {!window.MagboExitPermission.buscaValida(busca) && (
+                                                      <p className="text-[11px] text-slate-400 mt-1">
+                                                            Digite ao menos {window.MagboExitPermission.MINIMO_BUSCA} letras do nome.
+                                                      </p>
+                                                )}
+                                          </>
+                                    )}
                               </div>
 
                               <div className="space-y-1">
@@ -302,6 +402,16 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                     <textarea value={notes} onChange={e => setNotes(e.target.value)} rows="2" className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium resize-none"></textarea>
                               </div>
                         </form>
+
+                        {/* O motivo da recusa fica ao lado do botão, não num alert
+                            que some: sem ele o operador clica e nada acontece. */}
+                        {erroForm && (
+                              <div className="px-6 pb-2">
+                                    <p className="text-xs font-semibold text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2">
+                                          {erroForm}
+                                    </p>
+                              </div>
+                        )}
 
                         <div className="bg-soft-50 p-4 border-t border-soft-200 flex justify-end gap-2">
                               <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-soft-100 rounded-xl transition-colors">Cancelar</button>

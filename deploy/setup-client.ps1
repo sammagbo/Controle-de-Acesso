@@ -21,7 +21,7 @@ param(
 
     [string]$KioskPin = "1234",
 
-    [string]$InstallerPath = ".\MAGBO-Access-Control-Setup-1.0.0.exe"
+    [string]$InstallerPath = ".\MAGBO-Access-Control-Setup-2.1.0.exe"
 )
 
 $ErrorActionPreference = "Stop"

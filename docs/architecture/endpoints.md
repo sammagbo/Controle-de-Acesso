@@ -1,4 +1,4 @@
-# Endpoints reais (main @ 0f655b4)
+# Endpoints reais (main @ 2902e74 · 2026-08-05)
 
 | Método/rota | Auth | Função |
 |---|---|---|
@@ -17,13 +17,28 @@
 | GET /api/access/overview | ADMIN | Rapport Général |
 | GET /api/access/attempts | ADMIN ou `ATTEMPTS_READ` | tentativas negadas (filtros from/to/pointId/userId/reason/method/page/size≤200) |
 | GET /api/access/attempts/stats | ADMIN ou `ATTEMPTS_READ` | agregados: total, byReason, byPoint, byTurma, byMethod, divergence |
+| GET /api/access/report-config | JWT (**não** ADMIN) | `{minVisitSeconds}` — fonte única do piso de visita curta; quem opera o CDI precisa e não é admin |
+
+## Servidores e HikCentral (04–05/08) — todos `hasRole('ADMIN')`
+
+| Método/rota | Função |
+|---|---|
+| GET /api/users/staff | lista servidores (com `passagens` e `podeRemover`) |
+| POST /api/users/staff · POST /bulk | cadastro manual · importação em lote |
+| GET /api/users/staff/next-matricula | próxima `FUNC-###` que será emitida |
+| PUT /api/users/staff/{id} | edita tipo e departamento |
+| POST /api/users/staff/{id}/deactivate · /reactivate | inativação **soft** e reativação |
+| DELETE /api/users/staff/{id} | remoção definitiva — **recusada se houver passagens** |
+| GET /api/users/staff/{id}/reclassify/preview · POST /reclassify | "é na verdade um aluno": prévia dos dois lados · aplica (transfere a face, inativa o servidor, **preserva as passagens**) |
+| GET /api/users/staff/match/preview · POST /match | casamento manual da linha CONFERIR do import |
+| POST /api/users/staff/import/preview · POST /import | export do HikCentral: simula (não grava) · aplica |
 | GET /api/access/attempts/refectory | can('cantine') | feed de negadas REFEI1/REFEI2/CANTINA1 (últimas 200) |
 | GET /api/access/attempts/gate | can('portail') | feed de negadas PORT1/2/3 (últimas 200) |
 | GET /api/stats/global | ADMIN | KPIs — totalToday, blockedToday* (=alertasHoje), alertasHoje, negadasHoje, divergenciaHoje, authorizedToday, activeUsers, totalUsers |
 | POST /api/admin/verify | ADMIN | PIN (lockout 5→60s) |
 | GET/POST /api/admin/door-mappings · GET/PUT/DELETE /{id} | ADMIN | mapeamentos (DELETE=soft) |
 | GET /api/admin/meal-entitlements (+ /{userId}, /{userId}/history) | can('cantine') | direito à refeição (lista LEFT JOIN inclui sem-linha = PENDING; filtros q/turma/status) |
-| GET /api/admin/meal-entitlements/summary | can('cantine') | ⚠️ **responde 500** hoje (bug de tipo `summary()` — dívida congelada) |
+| GET /api/admin/meal-entitlements/summary | can('cantine') | `{authorized, notAuthorized, pending, totalStudents}` — corrigido na B.1 (`e450cd3`); a linha anterior dizia "responde 500" e estava desatualizada desde 16/07 |
 | PUT /api/admin/meal-entitlements/{userId} · POST /bulk | ADMIN ou `MEAL_ENTITLEMENT_WRITE` | upsert (grava histórico, source=UI) · lote (source=BULK, overwrite opcional, máx 2000) |
 | GET /api/admin/exit-permissions (+ /active, /user/{userId}) | can('portail') | autorizações de saída (filtros userId/status/type/from/to) |
 | POST /api/admin/exit-permissions · POST /{id}/revoke | ADMIN ou `EXIT_PERMISSION_WRITE` | criar (createdBy do JWT) · revogar **soft** (sem DELETE) |

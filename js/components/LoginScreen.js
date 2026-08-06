@@ -11,10 +11,21 @@ function LoginScreen({ onLoginSuccess }) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
 
+  // ÚNICA tela migrada para o i18n (js/utils/i18n.js). As outras continuam
+  // com os literais de sempre de propósito: migrar é revisão de texto com
+  // quem opera, não busca-e-substitui.
+  const [lang, setLang] = React.useState(() => window.MagboI18n.getLang());
+  const t = React.useCallback((k, p) => window.MagboI18n.t(k, p), [lang]);
+
+  const trocarIdioma = (code) => {
+    // Persiste na MÁQUINA: o posto é fixo, quem senta nele muda.
+    setLang(window.MagboI18n.setLang(code));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password) {
-      setError('Veuillez remplir tous les champs.');
+      setError(t('login.erro.campos'));
       return;
     }
     setLoading(true);
@@ -24,7 +35,7 @@ function LoginScreen({ onLoginSuccess }) {
       await window.userCache?.reload();
       onLoginSuccess(data);
     } catch (err) {
-      setError(err.message || 'Erreur de connexion.');
+      setError(err.message || t('login.erro.conexao'));
     } finally {
       setLoading(false);
     }
@@ -41,7 +52,7 @@ function LoginScreen({ onLoginSuccess }) {
         <div>
           <div className="h-0.5 w-16 mb-3" style={{ background: '#48C3D2' }}></div>
           <span className="font-serif text-xs tracking-[0.3em]" style={{ color: '#48C3D2' }}>
-            CONTRÔLE D'ACCÈS
+            {t('login.tag')}
           </span>
         </div>
 
@@ -71,8 +82,8 @@ function LoginScreen({ onLoginSuccess }) {
           </p>
           <div className="h-px w-32 mb-4" style={{ background: '#48C3D2' }}></div>
           <p className="font-serif italic text-sm text-white/85 leading-relaxed">
-            Système institutionnel de contrôle<br/>
-            d'accès multi-secteurs
+            {t('login.marca.subtitulo')}<br/>
+            {t('login.marca.subtitulo2')}
           </p>
         </div>
 
@@ -106,20 +117,39 @@ function LoginScreen({ onLoginSuccess }) {
            style={{ background: '#F7F4ED' }}>
         <div className="w-full max-w-md">
 
-          {/* Tag superior direita (visível apenas no desktop) */}
-          <div className="hidden md:flex justify-end items-center gap-2 mb-12">
-            <span className="font-serif italic text-xs tracking-widest" style={{ color: '#0C1B3A' }}>
-              Identification
+          {/* Seletor de idioma + tag superior direita.
+              Fica na tela de LOGIN de propósito: é o único ponto por onde todo
+              mundo passa, e trocar a língua do posto não pode exigir estar
+              autenticado. */}
+          <div className="flex justify-end items-center gap-3 mb-12">
+            <div className="flex items-center gap-1" role="group" aria-label={t('idioma.rotulo')}>
+              {window.MagboI18n.languages().map(l => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => trocarIdioma(l.code)}
+                  aria-pressed={lang === l.code}
+                  className="font-serif text-[11px] tracking-widest px-2 py-1 transition-opacity"
+                  style={lang === l.code
+                    ? { color: '#0C1B3A', fontWeight: 700, borderBottom: '1px solid #48C3D2' }
+                    : { color: '#1F2D52', opacity: 0.5 }}
+                >
+                  {l.code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <span className="hidden md:inline font-serif italic text-xs tracking-widest" style={{ color: '#0C1B3A' }}>
+              {t('login.identificacao')}
             </span>
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#48C3D2' }}></div>
           </div>
 
           {/* Título do formulário */}
           <h2 className="font-serif text-3xl lg:text-4xl font-medium mb-2" style={{ color: '#0C1B3A' }}>
-            Bienvenue
+            {t('login.titulo')}
           </h2>
           <p className="font-serif italic text-sm mb-2" style={{ color: '#1F2D52' }}>
-            Veuillez vous identifier pour accéder
+            {t('login.subtitulo')}
           </p>
           <div className="h-0.5 w-8 mb-10" style={{ background: '#48C3D2' }}></div>
 
@@ -129,7 +159,7 @@ function LoginScreen({ onLoginSuccess }) {
             <div>
               <label className="block font-serif italic text-xs tracking-[0.2em] mb-2"
                      style={{ color: '#0C1B3A' }}>
-                IDENTIFIANT
+                {t('login.usuario')}
               </label>
               <input
                 type="text"
@@ -147,7 +177,7 @@ function LoginScreen({ onLoginSuccess }) {
             <div>
               <label className="block font-serif italic text-xs tracking-[0.2em] mb-2"
                      style={{ color: '#0C1B3A' }}>
-                MOT DE PASSE
+                {t('login.senha')}
               </label>
               <input
                 type="password"
@@ -174,9 +204,9 @@ function LoginScreen({ onLoginSuccess }) {
               className="w-full py-4 font-serif italic tracking-[0.4em] text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-3 group"
               style={{ background: '#0C1B3A', color: '#F7F4ED' }}
             >
-              {loading ? 'CONNEXION...' : (
+              {loading ? t('login.entrando') : (
                 <>
-                  ACCÉDER
+                  {t('login.entrar')}
                   <svg width="14" height="12" viewBox="0 0 14 12" fill="none"
                        className="transition-transform group-hover:translate-x-1">
                     <path d="M 1 6 L 12 6 M 8 2 L 12 6 L 8 10"
@@ -192,7 +222,7 @@ function LoginScreen({ onLoginSuccess }) {
           <div className="mt-12">
             <div className="h-0.5 w-8 mb-2" style={{ background: '#0C1B3A' }}></div>
             <p className="font-serif text-[10px] tracking-widest mb-1" style={{ color: '#1F2D52', fontWeight: 600 }}>
-              SYSTÈME SÉCURISÉ · CONNEXION CHIFFRÉE
+              {t('login.rodape.seguranca')}
             </p>
             <a
   href="https://sammagbo.com"

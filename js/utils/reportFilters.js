@@ -216,8 +216,30 @@
         };
     }
 
+    /**
+     * O que está sendo contado, em texto, para a tela dizer em voz alta.
+     *
+     * Um número de "visitas" que exclui gente em silêncio é pior que um número
+     * errado: o errado alguém contesta, o silencioso vira verdade. Esta linha é
+     * a que faz duas pessoas olhando o mesmo dia perceberem que estão vendo
+     * escopos diferentes.
+     *
+     * @returns {{escopo: string, curtas: string|null, partes: string[]}}
+     */
+    function describeScope(incluirFuncionarios, curtasIgnoradas) {
+        const escopo = incluirFuncionarios ? 'Élèves + personnel' : 'Élèves seulement';
+        const n = (typeof curtasIgnoradas === 'number' && curtasIgnoradas > 0) ? curtasIgnoradas : 0;
+        const curtas = n > 0 ? (n + ' passage(s) éclair ignoré(s)') : null;
+        return {
+            escopo: escopo,
+            curtas: curtas,
+            partes: curtas ? [escopo, curtas] : [escopo]
+        };
+    }
+
     return {
         FALLBACK_MIN_VISIT_SECONDS: FALLBACK_MIN_VISIT_SECONDS,
+        describeScope: describeScope,
         configure: configure,
         effectiveMinVisitSeconds: effectiveMinVisitSeconds,
         isConfigured: isConfigured,

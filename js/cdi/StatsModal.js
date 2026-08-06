@@ -182,12 +182,16 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                                         um número de "visitas" que silenciosamente
                                         exclui gente é pior que um número errado. */}
                                     <div className="text-[11px] text-slate-500 mb-2 flex flex-wrap gap-x-3">
-                                          <span>{CdiBackend.incluirFuncionarios ? 'Élèves + personnel' : 'Élèves seulement'}</span>
-                                          {visitasCurtasIgnoradas > 0 && (
-                                                <span title="Entrée suivie d'une sortie en moins d'une minute — pas une permanence">
-                                                      {visitasCurtasIgnoradas} passage(s) éclair ignoré(s)
-                                                </span>
-                                          )}
+                                          {/* Texto derivado em js/utils/reportFilters.js (describeScope),
+                                              com teste: é a linha que faz duas pessoas olhando o mesmo
+                                              dia perceberem que estão vendo escopos diferentes. */}
+                                          {window.MagboReport.describeScope(
+                                                CdiBackend.incluirFuncionarios, visitasCurtasIgnoradas
+                                          ).partes.map((texto, i) => (
+                                                <span key={i} title={i === 1
+                                                      ? "Entrée suivie d'une sortie en moins d'une minute — pas une permanence"
+                                                      : undefined}>{texto}</span>
+                                          ))}
                                     </div>
                                     <div className="grid grid-cols-4 gap-3 mb-6">
                                           <div className="bg-blue-50 rounded-xl p-3 text-center"><div className="text-2xl font-bold text-blue-600">{totalVisits}</div><div className="text-xs text-slate-500">Visites</div></div>

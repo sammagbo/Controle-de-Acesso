@@ -54,9 +54,12 @@ function App() {
       React.useEffect(() => {
             if (!currentUser) return;
             let vivo = true;
-            window.api.fetchReportConfig()
-                  .then(cfg => { if (vivo && window.MagboReport) window.MagboReport.configure(cfg); })
-                  .catch(e => console.warn('[report-config] mantendo o fallback local:', e.message));
+            // A busca e o comportamento em falha vivem em
+            // js/utils/reportConfig.js, com teste — inclusive o caso que
+            // importa, que é o servidor não responder e a tela seguir com o
+            // fallback em vez de ficar sem piso.
+            window.MagboReportConfig.carregar(window.api, window.MagboReport, console)
+                  .then(r => { if (vivo && !r.ok) console.warn('[report-config]', r.motivo); });
             return () => { vivo = false; };
       }, [currentUser]);
 

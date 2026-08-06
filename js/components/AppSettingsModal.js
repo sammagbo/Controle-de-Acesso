@@ -626,6 +626,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const renderReclass = () => {
         if (!reclassRow) return null;
         const p = reclassPreview;
+        // Máquina de estados em js/utils/importPlan.js, com teste: uma face vai
+        // trocar de dono, e o botão habilitado cedo demais grava sem que o
+        // operador tenha visto os dois lados.
+        const st = window.MagboImportPlan.reclassState({
+            query: reclassQuery, resultados: reclassResults, escolhido: reclassChoice,
+            previa: p, substituir: reclassSubstituir, salvando: reclassSaving, erro: reclassErro
+        });
         return (
             <div className="border-2 border-accent-300 bg-white rounded-2xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -653,7 +660,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500" />
                 </div>
 
-                {reclassResults.length > 0 && !reclassChoice && (
+                {st.mostrarLista && (
                     <div className="max-h-40 overflow-y-auto border border-soft-200 rounded-xl">
                         {reclassResults.map(a => (
                             <button key={a.id} onClick={() => escolherAlunoReclass(a)}
@@ -669,21 +676,21 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     </div>
                 )}
 
-                {reclassQuery.trim().length >= 2 && reclassResults.length === 0 && !reclassChoice && (
+                {st.mostrarAusente && (
                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                         Nenhum aluno com esse nome. Se ele realmente não está no MAGBO, precisa entrar
                         primeiro pela importação do Pronote — não se cadastra aluno por aqui.
                     </p>
                 )}
 
-                {reclassErro && (
+                {st.mostrarErro && (
                     <p className="text-[11px] text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2">
                         {reclassErro}
                     </p>
                 )}
 
                 {/* Os dois lados ANTES de gravar: é uma face trocando de dono. */}
-                {p && (
+                {st.mostrarPrevia && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="border border-success-200 bg-success-50 rounded-xl p-3">
                             <p className="text-[11px] font-bold text-success-700 uppercase mb-1">Aluno (recebe a face)</p>
@@ -710,7 +717,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 )}
 
                 {/* Substituição consciente: o aluno já tem outra face ligada. */}
-                {p && p.substituiIdentificadorDoAluno && (
+                {st.exigeSubstituicao && (
                     <label className="flex items-start gap-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 cursor-pointer">
                         <input type="checkbox" checked={reclassSubstituir}
                             onChange={e => setReclassSubstituir(e.target.checked)}
@@ -723,13 +730,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     </label>
                 )}
 
-                {reclassChoice && (
+                {st.mostrarBotoes && (
                     <div className="flex gap-2">
                         <button
                             onClick={confirmarReclass}
-                            disabled={reclassSaving || !p || (p.substituiIdentificadorDoAluno && !reclassSubstituir)}
+                            disabled={!st.podeConfirmar}
                             className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {reclassSaving ? 'GRAVANDO...' : 'CONFIRMAR — é um aluno'}
+                            {st.rotuloConfirmar}
                         </button>
                         <button onClick={() => { setReclassChoice(null); setReclassPreview(null); setReclassErro(null); }}
                             className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
@@ -1024,10 +1031,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
     };
 
     const renderHikCentralImport = () => {
-        const totais = hikPlan?.totais || {};
-        const revisao = hikPlan?.revisaoManual || [];
-        const problemas = (hikPlan?.linhas || [])
-            .filter(l => l.acao === 'CONFLITO' || l.acao === 'PULAR');
+        // Quais listas aparecem, o que o título promete e se dá para confirmar:
+        // tudo em js/utils/importPlan.js, com teste. Esta é a tela que
+        // transfere FACES entre pessoas — o painel mostrar a coisa errada aqui
+        // custa uma face no dono errado.
+        const plano = window.MagboImportPlan.planState(hikPlan);
+        const totais = plano.totais;
+        const revisao = plano.revisao;
+        const problemas = plano.problemas;
 
         return (
             <div className="space-y-6 animate-fade-in">
@@ -1103,10 +1114,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 {hikPlan && (
                     <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <p className="font-bold text-navy-500 text-sm">
-                                {hikPlan.aplicado ? 'Resultado da importação' : 'Simulação — nada foi gravado ainda'}
-                            </p>
-                            <span className="text-xs text-slate-400">{totais.TOTAL || 0} linhas</span>
+                            <p className="font-bold text-navy-500 text-sm">{plano.titulo}</p>
+                            <span className="text-xs text-slate-400">{plano.total} linhas</span>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
@@ -1594,8 +1603,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
      * submit nativo (Enter no campo, validação de `required`).
      */
     const barraDeAcao = (() => {
-        if (activeTab === 'hikcentral' && hikPlan && !hikPlan.aplicado) {
-            const t = hikPlan.totais || {};
+        const planoBarra = window.MagboImportPlan.planState(hikPlan);
+        if (activeTab === 'hikcentral' && planoBarra.podeConfirmar) {
             return (
                 /* Empilha em tela estreita. Numa linha só, o rótulo longo
                    ("CONFIRMAR — 1197 criar, 996 atualizar") empurrava o botão
@@ -1610,9 +1619,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         disabled={hikApplying}
                         className="w-full sm:w-auto sm:max-w-[60%] px-6 py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed truncate"
                     >
-                        {hikApplying
-                            ? 'GRAVANDO...'
-                            : `CONFIRMAR — ${t.CRIAR || 0} criar, ${t.ATUALIZAR || 0} atualizar`}
+                        {hikApplying ? 'GRAVANDO...' : planoBarra.rotuloConfirmar}
                     </button>
                 </div>
             );

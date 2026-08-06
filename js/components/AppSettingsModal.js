@@ -465,6 +465,32 @@ function AppSettingsModal({ onClose, onShowToast }) {
         }
     };
 
+    // ── F7b: gerar o CSV que a TI importa no HikCentral ──────────────────
+    // Caminho INVERSO do import desta mesma aba. O aluno sem identificador
+    // Hikvision é reconhecido pelo terminal e negado pelo MAGBO em toda
+    // passagem; este arquivo é o que faz a TI cadastrá-lo no HCP.
+    const [exportando, setExportando] = React.useState(false);
+
+    const exportarCsvHikCentral = async (escopo) => {
+        if (exportando) return;
+        setExportando(true);
+        try {
+            const r = await window.api.exportHikCentralCsv(escopo);
+            onShowToast({
+                title: r.linhas === 0 ? 'Nada a exportar' : 'CSV gerado',
+                message: r.linhas === 0
+                    ? 'Nenhum aluno ativo sem identificador Hikvision.'
+                    : `${r.linhas} aluno(s) em ${r.nomeArquivo}. NÃO abrir no Excel: `
+                        + 'ele come os zeros à esquerda da matrícula.',
+                type: r.linhas === 0 ? 'info' : 'success'
+            });
+        } catch (e) {
+            onShowToast({ title: 'CSV não gerado', message: e.message, type: 'error' });
+        } finally {
+            setExportando(false);
+        }
+    };
+
     const ACOES_HIK = {
         CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
         ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
@@ -1032,6 +1058,46 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <p className="font-bold text-navy-500">Clique ou arraste o export do HikCentral</p>
                         <p className="text-sm text-slate-400 mt-1">{hikRows.length > 0 ? `${hikRows.length} linhas carregadas` : 'Formatos: .xlsx, .xls'}</p>
                     </div>
+                </div>
+
+                {/* Caminho INVERSO: o MAGBO diz ao HCP quem falta cadastrar. */}
+                <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
+                    <h3 className="text-lg font-bold text-navy-500 mb-2">Gerar CSV para o HikCentral</h3>
+                    <p className="text-sm text-slate-500 mb-4">
+                        Lista de alunos para a TI importar no HCP e depois aplicar aos terminais
+                        (<em>Apply to Device</em>). Aluno sem identificador Hikvision é reconhecido
+                        pelo terminal mas <strong>negado pelo MAGBO em toda passagem</strong> — é
+                        exatamente quem entra neste arquivo.
+                    </p>
+                    <p className="text-xs text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2 mb-4">
+                        ⚠️ <strong>Não abrir no Excel.</strong> Ele transforma a matrícula
+                        <span className="font-mono"> 0001764</span> em
+                        <span className="font-mono"> 1764</span>, e o HikCentral cadastraria a pessoa
+                        com o identificador errado. Se precisar conferir, use um editor de texto.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                            type="button"
+                            onClick={() => exportarCsvHikCentral('missing-face')}
+                            disabled={exportando}
+                            className="flex-1 px-4 py-3 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 transition-colors disabled:opacity-50"
+                        >
+                            {exportando ? 'GERANDO...' : 'Baixar — só quem falta cadastrar'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => exportarCsvHikCentral('all')}
+                            disabled={exportando}
+                            className="px-4 py-3 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200 transition-colors disabled:opacity-50"
+                        >
+                            Todos os alunos
+                        </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-2">
+                        O template exato de importação do HCP ainda é pendência com o Fabiano
+                        (pendência 3 do procedimento). Este arquivo usa as mesmas colunas do export
+                        que o MAGBO já lê — confira uma vez com a TI antes do uso em massa.
+                    </p>
                 </div>
 
                 {hikPlan && (

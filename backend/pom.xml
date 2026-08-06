@@ -19,6 +19,18 @@
 
     <properties>
         <java.version>17</java.version>
+        <!--
+          Sem isto o Maven compila com a codificacao da PLATAFORMA, que varia por
+          maquina e por versao de JDK. Enquanto os literais acentuados so viviam
+          em log e comentario, uma trocada nao machucava ninguem. Agora o
+          HikCentralCsvService escreve "Prénom" e "Nom de famille" DENTRO de um
+          arquivo que vai para o HikCentral: um build noutra maquina com outra
+          codificacao produziria um CSV com o cabecalho corrompido, e o HCP
+          rejeitaria (ou pior, importaria a coluna errada) sem que nada aqui
+          acusasse. Declarado explicitamente para o build ser reproduzivel.
+        -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>

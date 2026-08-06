@@ -27,6 +27,39 @@ import java.util.stream.Collectors;
 public class HikvisionMappingController {
 
     private final UserRepository userRepository;
+    private final com.magbo.access.services.HikCentralCsvService hikCentralCsvService;
+
+    /**
+     * F7b — CSV para o HCP importar (ciclo de pessoas do procedimento-hikcentral §1).
+     *
+     * `scope=missing-face` (padrao) = so os alunos ativos sem identificador
+     * Hikvision, que sao exatamente os que o terminal nao reconhece hoje.
+     * `scope=all` = todos os alunos ativos, para recriar o cadastro do zero.
+     *
+     * text/csv + charset UTF-8 explicito, com nome de arquivo datado. SEM BOM:
+     * o destinatario e o HCP, e um BOM faria a primeira coluna chegar la como
+     * "﻿ID". Isso significa que abrir este arquivo no Excel mostraria
+     * acentos errados — o que e aceitavel, porque este arquivo NAO PODE passar
+     * pelo Excel de qualquer forma (ele come os zeros a esquerda).
+     */
+    @GetMapping(value = "/export-csv", produces = "text/csv; charset=UTF-8")
+    public ResponseEntity<String> exportCsv(
+            @RequestParam(defaultValue = "missing-face") String scope) {
+
+        com.magbo.access.services.HikCentralCsvService.Scope escopo =
+                "all".equalsIgnoreCase(scope)
+                        ? com.magbo.access.services.HikCentralCsvService.Scope.ALL
+                        : com.magbo.access.services.HikCentralCsvService.Scope.MISSING_FACE;
+
+        String csv = hikCentralCsvService.gerar(escopo);
+        String nomeArquivo = "magbo-hikcentral-" + escopo.name().toLowerCase()
+                + "-" + java.time.LocalDate.now() + ".csv";
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + nomeArquivo + "\"")
+                .header("X-MAGBO-Export-Scope", escopo.name())
+                .body(csv);
+    }
 
     @GetMapping
     public List<MappingDto> list() {

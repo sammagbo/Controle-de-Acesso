@@ -29,9 +29,16 @@ class PresenceAutoCloseIT extends AbstractIT {
     @Autowired
     private PresenceAutoCloseService autoCloseService;
 
+    @Autowired
+    private com.magbo.access.config.PresenceAutoCloseProperties autoCloseProperties;
+
     private static final String CDI = "BIBLIO";
     private static final LocalTime FECHAMENTO = LocalTime.of(17, 0);
     private static final LocalDate ONTEM = LocalDate.now().minusDays(1);
+
+    /** Cantina — preparada, inerte enquanto REFEI1 nao tiver movimento. */
+    private static final String CANTINA = "REFEI1";
+    private static final LocalTime FECHAMENTO_CANTINA = LocalTime.of(15, 0);
 
     @Test
     @DisplayName("presenca aberta -> SAIDA sintetica as 17:00, marcada e atribuida ao sistema")
@@ -191,6 +198,72 @@ class PresenceAutoCloseIT extends AbstractIT {
     void pontoVazioNaoGravaNada() {
         assertThat(autoCloseService.closePoint(CDI, ONTEM, FECHAMENTO)).isZero();
         assertThat(accessLogRepository.count()).isZero();
+    }
+
+    // ───────────────── Cantina (preparado, inerte ate o piloto) ─────────────────
+
+    /**
+     * A cantina tem exatamente o mesmo problema do CDI — presenca derivada do
+     * ULTIMO evento —, so que ainda nao esta no ar. A entrada no mapa de
+     * fechamento e uma preparacao: enquanto REFEI1 nao tiver movimento, o job
+     * nao encontra candidato e nao grava nada.
+     *
+     * Estes testes existem para que a preparacao nao chegue ao dia 1 sem nunca
+     * ter sido exercitada. O mecanismo e o mesmo do CDI; o que se prova aqui e
+     * que a CONFIGURACAO esta de pe e que o ponto certo e fechado na hora certa.
+     */
+    @Test
+    @DisplayName("REFEI1 esta no mapa de fechamento, as 15:00")
+    void cantinaEstaConfigurada() {
+        assertThat(autoCloseProperties.parsedTimes())
+                .as("sem esta chave, o dia 1 do piloto abre com gente de ontem 'dentro' da cantina")
+                .containsEntry(CANTINA, FECHAMENTO_CANTINA)
+                .containsEntry(CDI, FECHAMENTO);
+    }
+
+    @Test
+    @DisplayName("cantina: presenca aberta -> SAIDA sintetica as 15:00, marcada")
+    void cantinaFechaPresencaAberta() {
+        accessLogRepository.save(AccessLog.builder()
+                .userId("0004048").pointId(CANTINA).action(AccessAction.ENTRADA)
+                .timestamp(ONTEM.atTime(LocalTime.of(12, 10))).build());
+
+        int fechadas = autoCloseService.closePoint(CANTINA, ONTEM, FECHAMENTO_CANTINA);
+
+        assertThat(fechadas).isEqualTo(1);
+        AccessLog saida = ultimoDe("0004048");
+        assertThat(saida.getPointId()).isEqualTo(CANTINA);
+        assertThat(saida.getAction()).isEqualTo(AccessAction.SAIDA);
+        assertThat(saida.getTimestamp()).isEqualTo(ONTEM.atTime(FECHAMENTO_CANTINA));
+        assertThat(saida.getFlag()).isEqualTo(PresenceAutoCloseService.FLAG_FECHAMENTO);
+        assertThat(saida.getCreatedByUser()).isEqualTo(PresenceAutoCloseService.AUTOR_SISTEMA);
+    }
+
+    @Test
+    @DisplayName("cantina sem movimento -> nada gravado (o estado de hoje)")
+    void cantinaSemMovimentoNaoGravaNada() {
+        assertThat(autoCloseService.closePoint(CANTINA, ONTEM, FECHAMENTO_CANTINA)).isZero();
+        assertThat(accessLogRepository.count()).isZero();
+    }
+
+    /** Fechar a cantina nao pode encerrar quem esta no CDI, e vice-versa. */
+    @Test
+    @DisplayName("cantina e CDI fecham em horas diferentes, sem se atrapalhar")
+    void cantinaECdiSaoIndependentes() {
+        accessLogRepository.save(AccessLog.builder()
+                .userId("0001764").pointId(CANTINA).action(AccessAction.ENTRADA)
+                .timestamp(ONTEM.atTime(LocalTime.of(12, 10))).build());
+        entrada("0004048", LocalTime.of(9, 30));   // CDI
+
+        autoCloseService.closePoint(CANTINA, ONTEM, FECHAMENTO_CANTINA);
+
+        assertThat(ultimoDe("0001764").getTimestamp()).isEqualTo(ONTEM.atTime(FECHAMENTO_CANTINA));
+        assertThat(ultimoDe("0004048").getAction())
+                .as("quem esta no CDI so fecha as 17:00")
+                .isEqualTo(AccessAction.ENTRADA);
+
+        autoCloseService.closePoint(CDI, ONTEM, FECHAMENTO);
+        assertThat(ultimoDe("0004048").getTimestamp()).isEqualTo(ONTEM.atTime(FECHAMENTO));
     }
 
     // ───────────────── Helpers ─────────────────

@@ -305,6 +305,53 @@ const api = {
     },
 
     /**
+     * F7b — CSV que a TI importa no HikCentral (caminho inverso do import).
+     *
+     * Baixa via blob e não por link direto: o endpoint exige o JWT no header, e
+     * um `<a href>` não carrega header nenhum.
+     *
+     * ⚠️ NÃO abrir o arquivo no Excel. Ele come os zeros à esquerda das
+     * matrículas (0001764 → 1764) e o HikCentral importaria pessoas com o
+     * identificador errado. Editar só em editor de texto.
+     *
+     * @param {'missing-face'|'all'} scope
+     * @returns {Promise<{linhas: number, nomeArquivo: string}>}
+     */
+    async exportHikCentralCsv(scope) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/hikvision-mapping/export-csv?scope=${encodeURIComponent(scope || 'missing-face')}`,
+            { headers: authHeaders() });
+        if (!res.ok) {
+            throw new Error(`Falha ao gerar o CSV (HTTP ${res.status}).`);
+        }
+
+        const texto = await res.text();
+
+        // Nome vindo do servidor (já datado); o header pode não chegar em
+        // algumas configurações de CORS, daí o fallback.
+        const disposicao = res.headers.get('Content-Disposition') || '';
+        const casado = disposicao.match(/filename="?([^"]+)"?/);
+        const nomeArquivo = casado ? casado[1]
+            : `magbo-hikcentral-${new Date().toISOString().slice(0, 10)}.csv`;
+
+        // text/csv e não text/csv;charset=... : o Blob não deve reescrever nada,
+        // e BOM nenhum pode ser acrescentado aqui — o destino é o HCP.
+        const blob = new Blob([texto], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nomeArquivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Menos o cabeçalho, e sem contar a linha vazia final.
+        const linhas = texto.split('\r\n').filter(l => l !== '').length - 1;
+        return { linhas: Math.max(0, linhas), nomeArquivo };
+    },
+
+    /**
      * Parâmetros de relatório do servidor (hoje: o piso de visita curta).
      *
      * FONTE ÚNICA: o número vive em magbo.report.min-visit-seconds e é buscado

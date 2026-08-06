@@ -25,8 +25,26 @@ const CdiBackend = {
             CdiBackend.incluirFuncionarios = !!valor;
       },
 
-      // Students
-      getStudents: async () => {
+      /**
+       * Lê UMA vez os eventos do ponto BIBLIO.
+       *
+       * Devolve [] em qualquer falha: a tela do CDI não pode quebrar porque o
+       * servidor piscou — sem eventos, todo mundo aparece como ausente, que é
+       * o mesmo comportamento de antes.
+       */
+      _fetchBiblioLogs: async () => {
+            try {
+                  if (window.api && window.api.fetchLogs) {
+                        return await window.api.fetchLogs('BIBLIO');
+                  }
+            } catch (e) {
+                  console.error("Failed to fetch logs for Biblioteca presence", e);
+            }
+            return [];
+      },
+
+      /** Presença derivada do ÚLTIMO evento de cada pessoa no ponto. */
+      _studentsFrom: (logs) => {
             const todos = (window.userCache?.all()) || [];
             // Um único ponto de filtro: tira o servidor da lista, da contagem
             // de presentes, da chamada de emergência, da tela de bloqueio e do
@@ -34,28 +52,20 @@ const CdiBackend = {
             const globalUsers = window.MagboReport
                   ? window.MagboReport.filterPeopleByTipo(todos, CdiBackend.incluirFuncionarios)
                   : todos;
-            
-            let activeLogMap = {};
-            try {
-                // Sincroniza presenças em tempo real com o backend Java!
-                if (window.api && window.api.fetchLogs) {
-                    const logs = await window.api.fetchLogs('BIBLIO');
-                    const latest = {};
-                    logs.forEach(l => {
-                        const lTime = new Date(l.timestamp).getTime();
-                        if (!latest[l.userId] || lTime > latest[l.userId].time) {
-                            latest[l.userId] = { action: l.action || l.status, time: lTime };
-                        }
-                    });
-                    
-                    for (const uId in latest) {
-                        if (latest[uId].action === 'ENTRADA') {
-                            activeLogMap[uId] = latest[uId].time;
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to fetch logs for Biblioteca presence", e);
+
+            const latest = {};
+            (logs || []).forEach(l => {
+                  const lTime = new Date(l.timestamp).getTime();
+                  if (!latest[l.userId] || lTime > latest[l.userId].time) {
+                        latest[l.userId] = { action: l.action || l.status, time: lTime };
+                  }
+            });
+
+            const activeLogMap = {};
+            for (const uId in latest) {
+                  if (latest[uId].action === 'ENTRADA') {
+                        activeLogMap[uId] = latest[uId].time;
+                  }
             }
 
             return globalUsers.map(u => {
@@ -71,6 +81,44 @@ const CdiBackend = {
                 };
             });
       },
+
+      /** Os mesmos eventos no formato que as telas do CDI consomem. */
+      _logsFrom: (logs) => {
+            const visiveis = window.MagboReport
+                  ? window.MagboReport.filterLogsByTipo(
+                        logs || [], (id) => window.userCache?.byId(id), CdiBackend.incluirFuncionarios)
+                  : (logs || []);
+            return visiveis.map(l => ({
+                  studentId: l.userId,
+                  action: (l.action || l.status) === 'ENTRADA' ? 'IN' : 'OUT',
+                  timestamp: new Date(l.timestamp).getTime(),
+                  // A flag TEM de viajar: é ela que distingue a saída real
+                  // da SAIDA sintética das 17:00, que não pode entrar em
+                  // média de permanência.
+                  flag: l.flag || null
+            }));
+      },
+
+      /**
+       * As DUAS visões da tela a partir de UMA leitura.
+       *
+       * `getStudents()` e `getLogs()` liam o mesmo `/access/logs/BIBLIO` cada
+       * uma por sua conta. A tela chamava as duas em sequência, e o polling de
+       * 3s multiplicava isso: duas requisições idênticas de até 500 linhas a
+       * cada ciclo, uma delas inteiramente desperdiçada. Elas continuam
+       * existindo para quem precisa de uma coisa só (`scanStudent`); quem
+       * precisa das duas usa isto.
+       */
+      getSnapshot: async () => {
+            const brutos = await CdiBackend._fetchBiblioLogs();
+            return {
+                  students: CdiBackend._studentsFrom(brutos),
+                  logs: CdiBackend._logsFrom(brutos)
+            };
+      },
+
+      // Students
+      getStudents: async () => CdiBackend._studentsFrom(await CdiBackend._fetchBiblioLogs()),
 
       addStudent: async (student) => { throw new Error('Utilize o painel principal de configurações do App para cadastrar usuários.'); },
       updateStudent: async (id, updates) => { throw new Error('Somente leitura no CDI.'); },
@@ -102,31 +150,8 @@ const CdiBackend = {
             return studentState;
       },
 
-      // Logs
       // Logs mapped from Java API
-      getLogs: async () => {
-            try {
-                if (window.api && window.api.fetchLogs) {
-                    const logs = await window.api.fetchLogs('BIBLIO');
-                    const visiveis = window.MagboReport
-                        ? window.MagboReport.filterLogsByTipo(
-                              logs, (id) => window.userCache?.byId(id), CdiBackend.incluirFuncionarios)
-                        : logs;
-                    return visiveis.map(l => ({
-                        studentId: l.userId,
-                        action: (l.action || l.status) === 'ENTRADA' ? 'IN' : 'OUT',
-                        timestamp: new Date(l.timestamp).getTime(),
-                        // A flag TEM de viajar: é ela que distingue a saída real
-                        // da SAIDA sintética das 17:00, que não pode entrar em
-                        // média de permanência.
-                        flag: l.flag || null
-                    }));
-                }
-            } catch (e) { console.error(e); }
-            return [];
-      },
-
-      clearLogs: async () => { throw new Error('Não suportado. Backups são lidos do servidor Java Central.'); },
+      getLogs: async () => CdiBackend._logsFrom(await CdiBackend._fetchBiblioLogs()),
 
       // Bulk Import
       // Bulk Import (Disabled natively, handled by Master App)

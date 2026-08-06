@@ -20,67 +20,12 @@ const DEPARTAMENTOS_SUGERIDOS = [
 /** Tipos que são servidor da escola — o resto segue o fluxo antigo. */
 const TIPOS_DE_SERVIDOR = ['PROFESSOR', 'FUNCIONARIO'];
 
-/**
- * Teto de linhas RENDERIZADAS de uma vez. O relatório do HikCentral chega a
- * 1197 linhas (numa reimportação, todas elas caem em "ignorar"), e montar isso
- * de uma vez trava a janela do Electron por segundos. O restante fica a um
- * clique de distância — cortar o dado seria mentir sobre o tamanho do problema.
- */
-const LINHAS_POR_PAGINA = 200;
-
 /** id do formulário de cadastro manual — o botão vive na barra de ação, fora dele. */
 const FORM_CADASTRO_MANUAL = 'magbo-form-cadastro-manual';
 
-/**
- * Lista longa com rolagem PRÓPRIA, contagem visível e teto de renderização.
- *
- * Por que existe: uma lista sem limite empurra o botão de confirmar para fora
- * da tela e, com mil linhas, deixa a janela intransitável — foi assim que a
- * tela de Configurações ficou impossível de fechar em produção.
- *
- * A altura é em `vh` e não em pixels de propósito: sob Ctrl+Menos/Ctrl+Mais do
- * Electron o viewport muda de tamanho em px CSS, e uma altura fixa em px
- * ocuparia uma fatia diferente da tela a cada nível de zoom.
- */
-function ListaLimitada({ titulo, total, children, alturaMax = 'max-h-[38vh]', classeTitulo = 'text-slate-600' }) {
-    const [mostrando, setMostrando] = React.useState(LINHAS_POR_PAGINA);
-    // Arquivo novo (total diferente) volta a mostrar do começo.
-    React.useEffect(() => { setMostrando(LINHAS_POR_PAGINA); }, [total]);
-
-    const visiveis = Math.min(mostrando, total);
-    const restantes = total - visiveis;
-
-    return (
-        <div>
-            <div className="flex items-center justify-between mb-1">
-                {/* Classe inteira vinda por prop: o Tailwind do projeto é o Play
-                    CDN, e nome de classe montado em runtime é frágil demais
-                    para depender dele numa tela crítica. */}
-                <p className={`text-xs font-bold ${classeTitulo}`}>{titulo}</p>
-                <span className="text-[11px] text-slate-400 tabular-nums">
-                    {restantes > 0 ? `${visiveis} de ${total}` : `${total}`}
-                </span>
-            </div>
-            {/* SEM `overscroll-contain` aqui de propósito: numa lista curta,
-                ele impede a rolagem de continuar para a área de conteúdo ao
-                chegar no fim, e a tela parece travada — a sensação exata que
-                se está corrigindo. A rolagem do documento já está bloqueada no
-                nível da tela, então não há para onde vazar. */}
-            <div className={`${alturaMax} overflow-y-auto rounded-xl border border-soft-200 bg-white`}>
-                {typeof children === 'function' ? children(visiveis) : children}
-            </div>
-            {restantes > 0 && (
-                <button
-                    type="button"
-                    onClick={() => setMostrando(m => m + LINHAS_POR_PAGINA)}
-                    className="mt-2 w-full py-2 rounded-xl bg-soft-100 text-navy-500 text-xs font-bold hover:bg-soft-200 transition-colors"
-                >
-                    Mostrar mais {Math.min(LINHAS_POR_PAGINA, restantes)} (faltam {restantes})
-                </button>
-            )}
-        </div>
-    );
-}
+// ListaLimitada mora agora em js/components/ListaLimitada.js — a importação de
+// direitos de refeição precisa do mesmo teto de renderização, e ela carrega
+// ANTES deste arquivo no index.html.
 
 function AppSettingsModal({ onClose, onShowToast }) {
     const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'staff-import', 'manual'

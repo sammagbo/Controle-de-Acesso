@@ -22,6 +22,7 @@ import java.util.Map;
 public class MealEntitlementController {
 
     private final MealEntitlementService mealEntitlementService;
+    private final com.magbo.access.services.MealEntitlementImportService mealEntitlementImportService;
 
     @GetMapping
     @PreAuthorize("@areaSecurity.can('cantine')")
@@ -91,5 +92,46 @@ public class MealEntitlementController {
         String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
         com.magbo.access.dto.BulkResultDto result = mealEntitlementService.importBulk(items, overwrite, changedBy);
         return ResponseEntity.ok(result);
+    }
+
+    // ── Importacao em DUAS PASSADAS (molde do import do HikCentral) ──────────
+    // /bulk acima grava direto e continua no ar: e o caminho provado em
+    // producao com XLSX real (D5) e tem IT proprio. A tela passou a usar os
+    // dois endpoints abaixo; aposentar o /bulk e decisao do Sam, nao efeito
+    // colateral desta entrega.
+
+    /** Simulacao: devolve o plano linha a linha e NAO grava nada. */
+    @PostMapping("/import/preview")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('MEAL_ENTITLEMENT_WRITE')")
+    public ResponseEntity<?> previewImport(
+            @RequestBody List<com.magbo.access.dto.MealEntitlementBulkItem> items) {
+        ResponseEntity<?> recusa = validarLote(items);
+        if (recusa != null) return recusa;
+        return ResponseEntity.ok(mealEntitlementImportService.plan(items));
+    }
+
+    /**
+     * Aplica. O plano e REFEITO aqui contra o estado atual — o que a tela
+     * mostrou foi uma conferencia, nao uma ordem de servico.
+     */
+    @PostMapping("/import")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('MEAL_ENTITLEMENT_WRITE')")
+    public ResponseEntity<?> applyImport(
+            @RequestBody List<com.magbo.access.dto.MealEntitlementBulkItem> items) {
+        ResponseEntity<?> recusa = validarLote(items);
+        if (recusa != null) return recusa;
+        String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(mealEntitlementImportService.apply(items, changedBy));
+    }
+
+    /** Mesmos limites do /bulk, para os tres caminhos recusarem igual. */
+    private ResponseEntity<?> validarLote(List<com.magbo.access.dto.MealEntitlementBulkItem> items) {
+        if (items == null || items.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lote vazio ou nulo"));
+        }
+        if (items.size() > 2000) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lote muito grande (máx 2000)"));
+        }
+        return null;
     }
 }

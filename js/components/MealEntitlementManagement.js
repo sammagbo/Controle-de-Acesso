@@ -92,62 +92,100 @@ function MealEntitlementManagement() {
       };
 
       // ─────────────────────────────────────────────────────────────
-      // IMPORTAÇÃO EXCEL (BULK)
+      // IMPORTAÇÃO EXCEL — DUAS PASSADAS (molde do import do HikCentral)
       // ─────────────────────────────────────────────────────────────
+      // O import antigo gravava DIRETO, sem conferência: lia a planilha,
+      // mandava e avisava depois. Este arquivo decide quem almoça, e com
+      // meal-pending=DENY em produção a ausência de linha já é recusa —
+      // escrever sem mostrar antes o que muda é apostar o serviço do dia numa
+      // planilha que ninguém leu.
       const fileInputRef = React.useRef(null);
-      const [importing, setImporting] = React.useState(false);
+      const [importRows, setImportRows] = React.useState([]);
+      const [importPlan, setImportPlan] = React.useState(null);
+      const [importando, setImportando] = React.useState(false);
 
       const handleImportClick = () => {
             if (fileInputRef.current) fileInputRef.current.click();
+      };
+
+      const limparImport = () => {
+            setImportRows([]);
+            setImportPlan(null);
       };
 
       const handleFileChange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            setImporting(true);
+            setImportando(true);
             try {
                   if (!window.XLSX) throw new Error("La bibliothèque XLSX n'est pas chargée.");
 
                   const data = await file.arrayBuffer();
                   const workbook = window.XLSX.read(data, { type: 'array' });
-                  const firstSheetName = workbook.SheetNames[0];
-                  const worksheet = workbook.Sheets[firstSheetName];
-                  
-                  // raw: false força tudo a ser lido como string formatada no excel (preserva 000 à esquerda)
-                  const rows = window.XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: null });
-                  
-                  if (rows.length === 0) throw new Error("Le fichier est vide.");
+                  const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-                  // Mapear para DTO do backend
-                  const items = rows.map(r => {
-                        // O excel pode ter colunas variadas, vamos tentar encontrar a matrícula ou id
-                        const matricula = r['Matricule'] || r['Matricula'] || r['ID'] || r['employeeNo'] || Object.values(r)[0];
-                        // Default AUTHORIZED é INTENCIONAL (D5): o bulk É a lista de autorizados da direção.
-                        const statusStr = (r['Statut'] || r['Status'] || 'AUTHORIZED').toUpperCase();
-                        let status = 'AUTHORIZED';
-                        if (statusStr.includes('NOT') || statusStr.includes('NON') || statusStr.includes('N')) status = 'NOT_AUTHORIZED';
-                        
-                        return {
-                              userId: matricula ? matricula.toString().trim() : null,
-                              status: status,
-                              note: "Import en masse"
-                        };
-                  }).filter(i => i.userId);
+                  // Opções de leitura e mapeamento das colunas vivem em
+                  // js/utils/mealSheet.js (que reusa os helpers de cabeçalho do
+                  // hikcentralSheet): é a parte que erra em SILÊNCIO se a
+                  // planilha mudar — coluna renomeada, acento diferente,
+                  // matrícula lida como número.
+                  const json = window.XLSX.utils.sheet_to_json(sheet, window.MagboMealSheet.sheetOptions());
+                  const rows = window.MagboMealSheet.mapRows(json);
 
-                  if (items.length === 0) throw new Error("Aucune donnée valide trouvée.");
+                  if (rows.length === 0) {
+                        throw new Error(
+                              "Nenhuma linha reconhecida. Confira se a planilha tem as colunas "
+                              + "Matrícula e Status, com o cabeçalho na primeira linha.");
+                  }
 
-                  const result = await window.api.postMealEntitlementBulk(items, true); // true = overwrite
-                  alert(`Import terminé!\nReçus: ${result.totalRecebido}\nCréés: ${result.totalCriado}\nMis à jour: ${result.totalAtualizado}\nIgnorés: ${result.totalIgnorado}\nErreurs: ${result.totalFalhas}`);
-                  loadData();
-
+                  setImportRows(rows);
+                  setImportPlan(null);
+                  // Simula ANTES de gravar. Nada é escrito aqui.
+                  setImportPlan(await window.api.previewMealEntitlementImport(rows));
             } catch (err) {
+                  limparImport();
                   alert("Erreur d'importation: " + err.message);
             } finally {
-                  setImporting(false);
+                  setImportando(false);
                   if (fileInputRef.current) fileInputRef.current.value = '';
             }
       };
+
+      const confirmarImport = async () => {
+            if (!importRows.length || importando) return;
+            setImportando(true);
+            try {
+                  // O plano é REFEITO no servidor. O que está na tela foi uma
+                  // conferência, não uma ordem de serviço: entre olhar e
+                  // confirmar alguém pode ter mexido num direito pela tela.
+                  const relatorio = await window.api.applyMealEntitlementImport(importRows);
+                  setImportPlan(relatorio);
+                  const t = relatorio.totais || {};
+                  alert(
+                        `Importação aplicada\n\n`
+                        + `Criados: ${t.CRIAR || 0}\n`
+                        + `Atualizados: ${t.ATUALIZAR || 0}\n`
+                        + `Ignorados: ${t.PULAR || 0}\n`
+                        + `Conflitos: ${t.CONFLITO || 0}`);
+                  loadData();
+            } catch (err) {
+                  alert("Importação não aplicada: " + err.message);
+            } finally {
+                  setImportando(false);
+            }
+      };
+
+      /** Rótulos das quatro ações — mesmos nomes da aba HikCentral. */
+      const ACOES_REFEICAO = {
+            CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
+            ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
+            PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
+            CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' }
+      };
+
+      // Mesma máquina de estados da aba HikCentral (js/utils/importPlan.js).
+      const plano = window.MagboImportPlan.planState(importPlan);
 
       // Se API já retornou algo, usamos as chaves da API para ter a página correta,
       // ou misturamos com cache local para mostrar usuários que ainda não tem registro de entitlement (fallback para default).
@@ -180,13 +218,132 @@ function MealEntitlementManagement() {
                         {canEdit && (
                               <div className="flex gap-2">
                                     <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                                    <button onClick={handleImportClick} disabled={importing} className="btn bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
-                                          <LucideIcon name={importing ? "loader-2" : "upload"} size={18} className={importing ? "animate-spin" : ""} />
-                                          {importing ? "Importation..." : "Importer Liste (XLSX)"}
+                                    <button onClick={handleImportClick} disabled={importando} className="btn bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
+                                          <LucideIcon name={importando ? "loader-2" : "upload"} size={18} className={importando ? "animate-spin" : ""} />
+                                          {importando ? "Lecture..." : "Importer Liste (XLSX)"}
                                     </button>
                               </div>
                         )}
                   </div>
+
+                  {/* ── Importação: colunas esperadas + simulação ──────────── */}
+                  {canEdit && (
+                        <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200 space-y-4">
+                              <div>
+                                    <h3 className="text-lg font-bold text-navy-500 mb-2">Importar lista de direitos (.xlsx)</h3>
+                                    <p className="text-sm text-slate-500 mb-3">
+                                          Cabeçalho na <strong>primeira linha</strong>. As colunas são lidas pelo
+                                          <strong> nome</strong> — acento, maiúscula e espaço não importam.
+                                    </p>
+                                    <div className="overflow-x-auto">
+                                          <table className="w-full text-xs">
+                                                <thead>
+                                                      <tr className="text-left text-slate-400 uppercase font-bold">
+                                                            <th className="py-1 pr-3">Coluna</th>
+                                                            <th className="py-1 pr-3">Obrigatória</th>
+                                                            <th className="py-1">Nomes aceitos</th>
+                                                      </tr>
+                                                </thead>
+                                                <tbody>
+                                                      {window.MagboMealSheet.documentacaoDeColunas().map(c => (
+                                                            <tr key={c.campo} className="border-t border-soft-200">
+                                                                  <td className="py-1.5 pr-3 font-bold text-navy-500 whitespace-nowrap">{c.campo}</td>
+                                                                  <td className="py-1.5 pr-3">
+                                                                        {c.obrigatorio
+                                                                              ? <span className="text-danger-700 font-bold">sim</span>
+                                                                              : <span className="text-slate-400">não</span>}
+                                                                  </td>
+                                                                  <td className="py-1.5 text-slate-600">
+                                                                        <code className="bg-soft-100 px-1.5 py-0.5 rounded">{c.aceitos.join(' · ')}</code>
+                                                                  </td>
+                                                            </tr>
+                                                      ))}
+                                                </tbody>
+                                          </table>
+                                    </div>
+                                    <ul className="text-xs text-slate-500 space-y-1 mt-3 list-disc pl-5">
+                                          <li><strong>Status</strong> aceita português, francês ou o nome do sistema:
+                                                <em> Autorizado · Não autorizado · Autorisé · Non autorisé · AUTHORIZED · NOT_AUTHORIZED</em>.</li>
+                                          <li><strong>Aluno que não está no MAGBO é ignorado</strong>, nunca criado —
+                                                o cadastro de aluno vem da importação Pronote.</li>
+                                          <li>Linha que não mudaria nada aparece como <em>ignorar</em>.</li>
+                                          <li><strong>Nada é gravado antes de você conferir e confirmar.</strong></li>
+                                    </ul>
+                                    <p className="text-xs text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2 mt-3">
+                                          ⚠️ A matrícula tem <strong>zeros à esquerda</strong> (0001764). Formate a coluna
+                                          como <strong>Texto</strong> antes de salvar — o Excel a transforma em número,
+                                          come o zero, e aí nenhuma linha casa com o cadastro.
+                                    </p>
+                              </div>
+
+                              {plano.estado !== 'sem-arquivo' && (
+                                    <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
+                                          <div className="flex items-center justify-between">
+                                                <p className="font-bold text-navy-500 text-sm">{plano.titulo}</p>
+                                                <span className="text-xs text-slate-400">{plano.total} linhas</span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                {Object.keys(ACOES_REFEICAO).map(k => (
+                                                      <div key={k} className="rounded-xl border border-soft-200 p-3 text-center">
+                                                            <p className="text-xl font-bold text-navy-500 tabular-nums">{plano.totais[k] || 0}</p>
+                                                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{ACOES_REFEICAO[k].label}</p>
+                                                      </div>
+                                                ))}
+                                          </div>
+
+                                          {plano.problemas.length > 0 && (
+                                                <ListaLimitada
+                                                      titulo={`${plano.problemas.length} linha(s) ignorada(s) ou em conflito`}
+                                                      total={plano.problemas.length}
+                                                >
+                                                      {(visiveis) => (
+                                                            <table className="w-full text-xs">
+                                                                  <tbody>
+                                                                        {plano.problemas.slice(0, visiveis).map((l, i) => (
+                                                                              <tr key={i} className="border-b border-soft-100 last:border-0 align-top">
+                                                                                    <td className="py-1 px-2 font-mono text-slate-400 whitespace-nowrap">L{l.linha}</td>
+                                                                                    <td className="py-1 px-2 whitespace-nowrap">
+                                                                                          <span className={`px-1.5 py-0.5 rounded font-bold ${ACOES_REFEICAO[l.acao].cor}`}>
+                                                                                                {ACOES_REFEICAO[l.acao].label}
+                                                                                          </span>
+                                                                                    </td>
+                                                                                    <td className="py-1 px-2 font-mono text-slate-500 whitespace-nowrap">{l.userId || '—'}</td>
+                                                                                    <td className="py-1 px-2 text-navy-500">{l.nome || '—'}</td>
+                                                                                    <td className="py-1 px-2 text-slate-600">{l.detalhe}</td>
+                                                                              </tr>
+                                                                        ))}
+                                                                  </tbody>
+                                                            </table>
+                                                      )}
+                                                </ListaLimitada>
+                                          )}
+
+                                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 border-t border-soft-200 pt-3">
+                                                <p className="text-xs text-slate-500 sm:flex-1">
+                                                      {plano.podeConfirmar
+                                                            ? 'Simulação conferida — nada foi gravado ainda.'
+                                                            : 'Importação aplicada.'}
+                                                </p>
+                                                <button type="button" onClick={limparImport}
+                                                      className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                                                      Descartar
+                                                </button>
+                                                {plano.podeConfirmar && (
+                                                      <button
+                                                            type="button"
+                                                            onClick={confirmarImport}
+                                                            disabled={importando}
+                                                            className="px-6 py-2 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 truncate"
+                                                      >
+                                                            {importando ? 'GRAVANDO...' : plano.rotuloConfirmar}
+                                                      </button>
+                                                )}
+                                          </div>
+                                    </div>
+                              )}
+                        </div>
+                  )}
 
                   {/* Estatísticas — o DTO do backend usa authorized/notAuthorized/pending/totalStudents */}
                   {summary && (

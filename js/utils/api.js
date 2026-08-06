@@ -262,6 +262,37 @@ async function getMealEntitlementHistory(userId) {
       return await res.json();
 }
 
+/**
+ * Importação de direitos em DUAS PASSADAS (molde do import do HikCentral).
+ *
+ * `preview` simula e não grava; `apply` refaz o plano no servidor e executa.
+ * O plano NÃO viaja de volta de propósito: entre a conferência e a confirmação
+ * alguém pode ter mexido num direito pela tela, e aplicar o plano velho seria
+ * escrever com base em algo que já não é verdade.
+ */
+async function previewMealEntitlementImport(items) {
+      return await postImportDeRefeicao('/admin/meal-entitlements/import/preview', items);
+}
+
+async function applyMealEntitlementImport(items) {
+      return await postImportDeRefeicao('/admin/meal-entitlements/import', items);
+}
+
+async function postImportDeRefeicao(caminho, items) {
+      const res = await fetch(`${API_BASE}${caminho}`, {
+            method: 'POST',
+            headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items)
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'importer des données.");
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || "Erreur lors de l'importation.");
+      }
+      return await res.json();
+}
+
 async function postMealEntitlementBulk(items, overwrite = false) {
       const res = await fetch(`${API_BASE}/admin/meal-entitlements/bulk?overwrite=${overwrite}`, {
             method: 'POST',
@@ -449,6 +480,8 @@ if (window.api) {
       window.api.getMealEntitlementSummary = getMealEntitlementSummary;
       window.api.putMealEntitlement = putMealEntitlement;
       window.api.postMealEntitlementBulk = postMealEntitlementBulk;
+      window.api.previewMealEntitlementImport = previewMealEntitlementImport;
+      window.api.applyMealEntitlementImport = applyMealEntitlementImport;
       window.api.getMealEntitlementHistory = getMealEntitlementHistory;
       window.api.getActiveExitPermissions = getActiveExitPermissions;
       window.api.postExitPermission = postExitPermission;

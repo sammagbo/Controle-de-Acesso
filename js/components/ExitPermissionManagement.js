@@ -8,7 +8,11 @@ function ExitPermissionManagement() {
       const [error, setError] = React.useState('');
       const [showModal, setShowModal] = React.useState(false);
       
-      const canEdit = window.auth?.isAdmin() || window.auth?.isOperator();
+      // Mesmo gate do backend no POST e no revoke: ADMIN OU EXIT_PERMISSION_WRITE.
+      // Antes era isAdmin() || isOperator(), o que errava dos dois lados: um
+      // OPERATOR sem o direito via os botões ativos e levava 403, e quem tinha
+      // o direito em outro papel ficava com a tela travada sem motivo.
+      const canEdit = window.MagboPermissions.canWriteExitPermissions(window.auth);
 
       const loadPermissions = async () => {
             setLoading(true);

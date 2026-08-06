@@ -38,8 +38,10 @@ function BibliotecaView({ onBack }) {
       });
 
       const recarregar = React.useCallback(async () => {
-            const localStudents = await CdiBackend.getStudents();
-            const localLogs = await CdiBackend.getLogs();
+            // UMA leitura de /access/logs/BIBLIO alimenta as duas visões.
+            // getStudents()+getLogs() em sequência buscavam o mesmo endpoint
+            // duas vezes por recarga (ver CdiBackend.getSnapshot).
+            const { students: localStudents, logs: localLogs } = await CdiBackend.getSnapshot();
             setStudents(localStudents.map(mapToView));
             setPresentStudents(new Set(localStudents.filter(s => s.present).map(s => s.id)));
             setLogs(localLogs);
@@ -115,8 +117,8 @@ function BibliotecaView({ onBack }) {
                   inFlight = true;
                   const seenSeq = mutationSeqRef.current;
                   try {
-                        const freshStudents = await CdiBackend.getStudents();
-                        const freshLogs = await CdiBackend.getLogs();
+                        // Uma requisição por ciclo, não duas (getSnapshot).
+                        const { students: freshStudents, logs: freshLogs } = await CdiBackend.getSnapshot();
                         if (cancelled) return;
                         // Houve mutação local durante a requisição → dado já nasceu velho.
                         if (mutationSeqRef.current !== seenSeq) return;
@@ -188,26 +190,26 @@ function BibliotecaView({ onBack }) {
             // Better: fetch fresh from backend to be safe? 
             // Actually, `students` state is view-format. CdiBackend has raw format. 
             // Let's grab from Backend for consistency in backup!
-            CdiBackend.getStudents().then(rawStudents => {
-                  CdiBackend.getLogs().then(rawLogs => {
-                        const data = {
-                              version: '1.0', timestamp: new Date().toISOString(),
-                              students: rawStudents, // Backup raw format
-                              presentStudents: rawStudents.filter(s => s.present).map(s => s.id),
-                              logs: rawLogs,
-                              settings: { muted, pin, encryptBackup, backupTime }, encrypted: !!password
-                        };
-                        let content = JSON.stringify(data, null, 2);
-                        if (password) { content = "ENC:" + SimpleCrypto.encrypt(content, password); }
-                        const blob = new Blob([content], { type: 'application/json' });
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = `cdi_backup_${new Date().toISOString().slice(0, 10)}${password ? '_secure' : ''}.json`;
-                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                        setLastBackup(new Date().toISOString().slice(0, 10));
-                        setUnsavedChanges(false);
-                        if (!silent) setToast({ message: 'Sauvegarde effectuée !', type: 'success' });
-                  });
+            // Uma leitura só: getStudents()+getLogs() aninhados pediam o mesmo
+            // endpoint duas vezes para montar UM arquivo de backup.
+            CdiBackend.getSnapshot().then(({ students: rawStudents, logs: rawLogs }) => {
+                  const data = {
+                        version: '1.0', timestamp: new Date().toISOString(),
+                        students: rawStudents, // Backup raw format
+                        presentStudents: rawStudents.filter(s => s.present).map(s => s.id),
+                        logs: rawLogs,
+                        settings: { muted, pin, encryptBackup, backupTime }, encrypted: !!password
+                  };
+                  let content = JSON.stringify(data, null, 2);
+                  if (password) { content = "ENC:" + SimpleCrypto.encrypt(content, password); }
+                  const blob = new Blob([content], { type: 'application/json' });
+                  const a = document.createElement('a');
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `cdi_backup_${new Date().toISOString().slice(0, 10)}${password ? '_secure' : ''}.json`;
+                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                  setLastBackup(new Date().toISOString().slice(0, 10));
+                  setUnsavedChanges(false);
+                  if (!silent) setToast({ message: 'Sauvegarde effectuée !', type: 'success' });
             });
       }, [muted, pin, encryptBackup, backupTime]);
 
@@ -524,8 +526,7 @@ function BibliotecaView({ onBack }) {
                   <CdiSettingsModal open={modal === 'settings'} onClose={() => setModal(null)} onImport={handleImport}
                         onRestore={async (data) => {
                               await CdiBackend.restore(data);
-                              const restored = await CdiBackend.getStudents();
-                              const logs = await CdiBackend.getLogs();
+                              const { students: restored, logs } = await CdiBackend.getSnapshot();
                               bumpMutation();
                               setStudents(restored.map(mapToView)); // FIX: Map to view format
                               setPresentStudents(new Set(restored.filter(s => s.present).map(s => s.id)));

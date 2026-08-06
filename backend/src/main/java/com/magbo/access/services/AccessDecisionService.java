@@ -258,7 +258,9 @@ public class AccessDecisionService {
                     }
                 }
             } else if (resolved.action() == AccessAction.SAIDA) {
-                flag = validateExitTime(userId, pid, now);
+                // eventTime, e NAO `now`: aqui se MEDE uma duracao, nao se
+                // decide um acesso. Ver o javadoc de validateExitTime.
+                flag = validateExitTime(userId, pid, eventTime);
             }
         }
         
@@ -371,14 +373,33 @@ public class AccessDecisionService {
     /**
      * Valida tempo dentro da cantina (na SAIDA).
      * Retorna "EXCEDEU_TEMPO" se passou mais de 1h desde a ENTRADA mais recente.
+     *
+     * ⚠️ `saidaEm` e a hora do EVENTO de saida, nao a hora da decisao.
+     *
+     * Aqui se MEDE uma duracao entre duas passagens reais, e nao se decide um
+     * acesso — este metodo so carimba uma flag num log que vai ser gravado de
+     * qualquer jeito. Por isso ele escapa da regra do `now` la em cima (o
+     * relogio das REGRAS, que governa DENY/ALLOW): trocar aquele mudaria
+     * politica; trocar este corrige uma medicao.
+     *
+     * O outro lado da subtracao (`lastEntry.getTimestamp()`) ja e hora de
+     * EVENTO desde 8d78f41. Comparar hora de evento com hora de decisao era
+     * misturar dois relogios: com uma fila offline esvaziada, uma entrada as
+     * 12:00 e uma saida as 12:20 chegando juntas as 14:51 davam 2h51 de
+     * permanencia e um EXCEDEU_TEMPO que nunca aconteceu. Com os dois lados em
+     * hora de evento, da os 20 minutos que a pessoa realmente ficou.
+     *
+     * A LOGICA do metodo nao mudou — nem a consulta, nem o limite, nem a
+     * comparacao estrita. Mudou o argumento que o chamador passa. Os testes de
+     * blindagem (ExitTimeRegressionTest) continuam valendo sem alteracao.
      */
-    private String validateExitTime(String userId, String pointId, LocalDateTime now) {
+    private String validateExitTime(String userId, String pointId, LocalDateTime saidaEm) {
         Optional<AccessLog> lastEntry = accessLogRepository
                 .findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(userId, pointId, AccessAction.ENTRADA);
 
         if (lastEntry.isEmpty()) return null;
 
-        Duration inside = Duration.between(lastEntry.get().getTimestamp(), now);
+        Duration inside = Duration.between(lastEntry.get().getTimestamp(), saidaEm);
         if (inside.compareTo(MAX_CANTINA_TIME) > 0) {
             return "EXCEDEU_TEMPO";
         }

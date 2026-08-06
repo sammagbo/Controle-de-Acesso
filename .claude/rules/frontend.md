@@ -19,4 +19,4 @@
 - **`PENDING`** = dado **não preenchido** (aluno sem linha de entitlement), apresentar como tal — **não** como "negado".
 - **Sem permissão granular** (`MEAL_ENTITLEMENT_WRITE`/`EXIT_PERMISSION_WRITE`): campos **desabilitados**, **não escondidos** (leitura continua liberada por área).
 - ⚠️ **xlsx e zeros à esquerda:** IDs Pronote têm zeros à esquerda; ao importar/exportar entitlements, tratar como **texto** (o xlsx tende a virar número e comer o zero).
-- Dívida congelada: o card de resumo da cantina (`/meal-entitlements/summary`) hoje responde **500** (bug de tipo no backend) — não é falha do front.
+- ~~Dívida congelada: o card de resumo da cantina responde 500~~ — **falso desde 16/07.** O backend foi corrigido na B.1 (`e450cd3`) e o front foi corrigido na D-H5 (`31fbab4`, lia nomes de campo errados). O contrato é `{authorized, notAuthorized, pending, totalStudents}`.

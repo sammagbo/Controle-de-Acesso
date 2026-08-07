@@ -1,0 +1,121 @@
+{
+  "ipAddress": "192.168.1.167",
+  "portNo": 8080,
+  "protocol": "HTTP",
+  "macAddress": "08:3b:c1:4e:64:e6",
+  "channelID": 1,
+  "dateTime": "2026-08-07T10:46:01-03:00",
+  "activePostCount": 1,
+  "isDataRetransmission": false,
+  "eventState": "active",
+  "channelName": "ENTRADA-INTERNA-01",
+  "eventType": "alarmResult",
+  "eventDescription": "alarmResult",
+  "capturePictureResolution": {
+    "height": 1504,
+    "width": 2560
+  },
+  "alarmResult": [
+    {
+      "modelData": "<<modelo-biometrico-removido>>",
+      "errorCode": 1,
+      "errorMsg": "ok",
+      "targetAttrs": {
+        "deviceId": "fa07c000-860f-11b5-8456-083bc14e64e6",
+        "deviceChannel": 1,
+        "deviceName": "ENTRADA-INTERNA-01",
+        "faceTime": "2026-08-07T10:46:01-03:00",
+        "rect": {
+          "height": 0.085,
+          "width": 0.037,
+          "x": 0.45,
+          "y": 0.255
+        },
+        "contentID": "backgroundImage",
+        "pId": "2026080710460290900BYIGGXTwpPeGD"
+      },
+      "faces": [
+        {
+          "faceId": 69205,
+          "faceRect": {
+            "height": 0.041,
+            "width": 0.023,
+            "x": 0.456,
+            "y": 0.291
+          },
+          "recommendFaceRect": {
+            "height": 0.46,
+            "width": 0.625,
+            "x": 0.166,
+            "y": 0.281
+          },
+          "score": {
+            "value": 52
+          },
+          "modeldata": "<<modelo-biometrico-removido>>",
+          "identify": [
+            {
+              "relationId": "",
+              "maxsimilarity": 0.95,
+              "candidate": [
+                {
+                  "blacklist_id": "1",
+                  "customFaceLibID": "",
+                  "human_data": [
+                    {
+                      "face_id": "69205",
+                      "contentID": "faceLibImage",
+                      "pId": "2026080710460292000elFqdA7e5Zfqi",
+                      "similarity": 0.95
+                    }
+                  ],
+                  "human_id": "100",
+                  "reserve_field": {
+                    "name": "Sammy MAGBO",
+                    "gender": "unknown",
+                    "bornTime": "2000-01-01",
+                    "certificateType": "ID",
+                    "certificateNumber": "0000000000009001"
+                  },
+                  "similarity": 0.95,
+                  "listType": "blackList",
+                  "extendData": [
+                    {
+                      "extendID": 1,
+                      "enable": false,
+                      "name": "Custom Field 1",
+                      "value": ""
+                    },
+                    {
+                      "extendID": 2,
+                      "enable": false,
+                      "name": "Custom Field 2",
+                      "value": ""
+                    },
+                    {
+                      "extendID": 3,
+                      "enable": false,
+                      "name": "Custom Field 3",
+                      "value": ""
+                    }
+                  ],
+                  "FDLibName": "FUNCIONARIOS",
+                  "FDLibThreshold": 70
+                }
+              ]
+            }
+          ],
+          "contentID": "faceImage",
+          "pId": "2026080710460290900QcGplRXwHvcAs",
+          "stayDuration": 10000
+        }
+      ]
+    }
+  ],
+  "GPS": {
+    "divisionEW": "E",
+    "longitude": 0,
+    "divisionNS": "N",
+    "latitude": 0
+  }
+}

@@ -17,6 +17,7 @@ public class HikvisionWebhookController {
     private final AccessDecisionService accessDecisionService;
     private final com.magbo.access.services.WebhookIngestionDedupService ingestionDedup;
     private final com.magbo.access.services.EventTimeResolver eventTimeResolver;
+    private final com.magbo.access.services.CameraIdentityService cameraIdentityService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${magbo.webhook.token:}")
@@ -109,6 +110,14 @@ public class HikvisionWebhookController {
         if (body == null) {
             return ResponseEntity.ok("Success");
         }
+
+        // Ramo das CAMERAS da portaria (DeepinView): formato proprio, sem
+        // AccessControllerEvent. Ate 07/08/2026 todo evento delas caia em
+        // "Evento nao tratado, descartado" — a portaria inteira era invisivel.
+        if (body.alarmResultJson() != null) {
+            return handleCameraAlarm(body.alarmResultJson(), sourceIp, request);
+        }
+
         HikvisionEventDto payload = body.dto();
 
         // Evento de tipo desconhecido (ex.: part "LocalUserChange", sync do
@@ -201,6 +210,71 @@ public class HikvisionWebhookController {
     }
 
     /**
+     * Evento de comparacao facial das cameras da PORTARIA.
+     *
+     * Passa pelas MESMAS camadas do ramo dos terminais, na mesma ordem:
+     *   dedup de ingestao -> hora do evento -> identidade -> decisao,
+     * onde a decisao (permissao de saida, mesma passagem, gravacao) e o codigo
+     * compartilhado do AccessDecisionService.
+     *
+     * Sempre 200, inclusive em erro: a camera reenvia em loop de ~1 req/s
+     * quando recebe qualquer coisa diferente disso (tcpdump 28/07/2026), e um
+     * loop de milhares de requisicoes e pior que um evento perdido.
+     */
+    private ResponseEntity<String> handleCameraAlarm(String alarmJson, String sourceIp,
+                                                     jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            com.magbo.access.dto.hikvision.CameraAlarmDto alarme =
+                    objectMapper.readValue(alarmJson, com.magbo.access.dto.hikvision.CameraAlarmDto.class);
+
+            // A camera nao manda serialNo — a chave numerica do dedup dos
+            // MinMoe nao existe aqui. faceId/pId identificam a deteccao, e uma
+            // reentrega do mesmo pacote os repete.
+            String chave = alarme.chaveDeIngestao();
+            if (ingestionDedup.isDuplicateCameraEvent(sourceIp, chave)) {
+                log.info("Evento de camera duplicado descartado (ip={}, pId={}, reentrega={}, janela={}s)",
+                        sourceIp, chave, alarme.getIsDataRetransmission(), ingestionDedup.ttlSeconds());
+                return ResponseEntity.ok("Success");
+            }
+            if (Boolean.TRUE.equals(alarme.getIsDataRetransmission())) {
+                // A camera declara reentrega mas o pId nao estava no cache: ou
+                // a entrega original nunca chegou, ou a janela venceu. Processa
+                // — perder o evento seria pior —, mas deixa a linha, que e o
+                // que explica um access_log com hora "estranha" depois.
+                log.info("Camera declarou REENTREGA de um evento nao visto antes (ip={}, pId={})",
+                        sourceIp, chave);
+            }
+
+            // IP do aparelho: o que ele anuncia, com o IP de origem como
+            // fallback. E ele que resolve o ponto E o sentido — .167 e a
+            // ENTRADA de PORT1, .166 a SAIDA (door_mappings).
+            String terminalIp = alarme.getIpAddress();
+            if (terminalIp == null || terminalIp.isBlank()) {
+                terminalIp = request.getRemoteAddr();
+            }
+
+            java.time.LocalDateTime eventTime = eventTimeResolver.resolve(
+                    alarme.horaDoEvento(), sourceIp, java.time.LocalDateTime.now());
+
+            var identidade = cameraIdentityService.resolver(alarme);
+
+            if (identidade.resultado() == com.magbo.access.services.CameraIdentityService.Resultado.IDENTIFICADO) {
+                accessDecisionService.processCameraRecognition(
+                        identidade.user(), alarme.identificadorBruto(), terminalIp, eventTime);
+            } else {
+                accessDecisionService.processCameraDenied(
+                        alarme.identificadorBruto(), identidade.nome(), terminalIp,
+                        identidade.motivoDeNegacao(), eventTime);
+            }
+            return ResponseEntity.ok("Success");
+        } catch (Exception e) {
+            log.error("Erro processando evento de camera (ip={})", sourceIp, e);
+            // 200 mesmo assim: ver o javadoc. O erro fica no log com stack.
+            return ResponseEntity.ok("Success");
+        }
+    }
+
+    /**
      * dateTime do ENVELOPE do payload. Fica na raiz (MinMoe) ou dentro do
      * EventNotificationAlert (camera) — nunca dentro do AccessControllerEvent.
      * O do alerta tem precedencia quando existe; o da raiz cobre o resto.
@@ -213,17 +287,32 @@ public class HikvisionWebhookController {
         return payload.getDateTime();
     }
 
-    /** JSON bruto + nome da part de onde veio + DTO ja desserializado. */
-    private record ParsedBody(String json, String partName, HikvisionEventDto dto) {
+    /**
+     * JSON bruto + nome da part de onde veio + DTO ja desserializado.
+     *
+     * `alarmResultJson` so vem preenchido no ramo das CAMERAS da portaria: e a
+     * part "alarmResult", que carrega o resultado da comparacao facial. Quando
+     * ela existe, e ela que manda — o resto do corpo (faceCapture, faceImage)
+     * e contexto da mesma deteccao.
+     */
+    private record ParsedBody(String json, String partName, HikvisionEventDto dto,
+                              String alarmResultJson) {
     }
 
     /**
      * F6b: extrai o HikvisionEventDto do corpo da requisicao.
      * Terminais MinMoe (DS-K1T344) enviam multipart/form-data com o JSON na
-     * part 'AccessControllerEvent' + uma part 'Picture' (jpeg). Cameras
-     * DeepinView enviam JSON puro (EventNotificationAlert). Retorna null se
+     * part 'AccessControllerEvent' + uma part 'Picture' (jpeg). Retorna null se
      * nao houver JSON parseavel (o chamador responde 200 para evitar
      * tempestade de retries do aparelho).
+     *
+     * Cameras DeepinView tambem mandam multipart, com estas parts (nomes
+     * conferidos na captura de 07/08/2026, boundary literal "boundary"):
+     * 'faceCapture' ou 'alarmResult' (application/json) · 'faceImage',
+     * 'backgroundImage' e 'faceLibImage' (image/jpeg, com filename e
+     * Content-ID iguais a um pId). As tres de imagem sao descartadas pelo
+     * Content-Type, NAO pelo nome — por isso 'backgroundImage' e
+     * 'faceLibImage', que so apareceram na captura, ja passavam em silencio.
      *
      * A part 'AccessControllerEvent' tem PRECEDENCIA sobre qualquer outra part
      * JSON: aparelhos que mandam a part de evento junto com uma part de sync
@@ -235,17 +324,48 @@ public class HikvisionWebhookController {
         try {
             String json = null;
             String partName = null;
+            String alarmJson = null;
+            boolean viuPartDescartavel = false;
             String ct = request.getContentType() != null ? request.getContentType().toLowerCase() : "";
             if (ct.contains("multipart")) {
                 jakarta.servlet.http.Part chosen = null;
                 for (jakarta.servlet.http.Part part : request.getParts()) {
                     String pct = part.getContentType();
+                    String nome = part.getName();
+
+                    // Part de comparacao facial das cameras DeepinView. Lida
+                    // SEMPRE, mesmo quando outra part JSON aparece antes: ela e
+                    // o evento, as outras sao contexto da mesma deteccao.
+                    if (PART_ALARM_RESULT.equalsIgnoreCase(nome)) {
+                        alarmJson = new String(part.getInputStream().readAllBytes(),
+                                java.nio.charset.StandardCharsets.UTF_8);
+                        continue;
+                    }
+
+                    // Deteccao de movimento: a camera manda a part quando a
+                    // funcao esta ligada. Nao e passagem de ninguem — descarte
+                    // silencioso, em DEBUG. Um WARN por movimento na portaria
+                    // encheria o log sozinho, e um 500 poria a camera em loop.
+                    if (ehXml(nome, pct)) {
+                        viuPartDescartavel = true;
+                        log.debug("Webhook: part XML descartada (part={}, type={}, ip={})",
+                                nome, pct, sourceIp);
+                        continue;
+                    }
+
+                    // Imagem do rosto: NUNCA armazenada. O MAGBO registra
+                    // passagem, nao acervo biometrico.
+                    if (pct != null && pct.toLowerCase().startsWith("image/")) {
+                        viuPartDescartavel = true;
+                        continue;
+                    }
+
                     boolean isJson = (pct != null && pct.toLowerCase().contains("json"))
-                            || "AccessControllerEvent".equalsIgnoreCase(part.getName());
+                            || "AccessControllerEvent".equalsIgnoreCase(nome);
                     if (!isJson) continue;
-                    if ("AccessControllerEvent".equalsIgnoreCase(part.getName())) {
+                    if ("AccessControllerEvent".equalsIgnoreCase(nome)) {
                         chosen = part;
-                        break;
+                        continue;
                     }
                     if (chosen == null) chosen = part;
                 }
@@ -258,16 +378,61 @@ public class HikvisionWebhookController {
                 json = new String(request.getInputStream().readAllBytes(),
                         java.nio.charset.StandardCharsets.UTF_8);
             }
+
+            // Ha part de camera: e ela que manda, com ou sem outra part JSON.
+            if (alarmJson != null && !alarmJson.isBlank()) {
+                return new ParsedBody(json, partName, vazio(json), alarmJson);
+            }
+
             if (json == null || json.isBlank()) {
-                log.warn("Webhook: corpo vazio ou sem part JSON (contentType={}, ip={})",
-                        request.getContentType(), sourceIp);
+                // Requisicao que so trazia XML e/ou imagem (ex.: MoveDetection
+                // com a deteccao de movimento ligada): nao e evento, nao e
+                // defeito. DEBUG, nunca WARN.
+                if (viuPartDescartavel) {
+                    log.debug("Webhook: requisicao sem part de evento, so partes descartaveis (ip={})", sourceIp);
+                } else {
+                    log.warn("Webhook: corpo vazio ou sem part JSON (contentType={}, ip={})",
+                            request.getContentType(), sourceIp);
+                }
                 return null;
             }
-            return new ParsedBody(json, partName, objectMapper.readValue(json, HikvisionEventDto.class));
+            return new ParsedBody(json, partName,
+                    objectMapper.readValue(json, HikvisionEventDto.class), null);
         } catch (Exception e) {
             log.warn("Webhook: payload nao parseavel (contentType={}, ip={}): {}",
                     request.getContentType(), sourceIp, e.getMessage());
             return null;
+        }
+    }
+
+    /** Nome da part que carrega o resultado da comparacao facial da camera. */
+    private static final String PART_ALARM_RESULT = "alarmResult";
+
+    /** Nome da part de deteccao de movimento, tal como a camera a envia. */
+    private static final String PART_MOVE_DETECTION = "MoveDetection.xml";
+
+    /**
+     * Part XML — por Content-Type ou pelo nome.
+     *
+     * Pelos DOIS porque nenhum dos dois e garantido: o nome vem de uma
+     * configuracao do aparelho, e o Content-Type de uma part multipart pode
+     * chegar nulo. Exigir os dois deixaria a part passar adiante e virar
+     * "payload nao parseavel" em WARN, que e exatamente o ruido a evitar.
+     */
+    private boolean ehXml(String nome, String contentType) {
+        if (contentType != null && contentType.toLowerCase().contains("xml")) return true;
+        if (nome == null) return false;
+        String n = nome.toLowerCase(java.util.Locale.ROOT);
+        return n.endsWith(".xml") || PART_MOVE_DETECTION.equalsIgnoreCase(nome);
+    }
+
+    /** DTO vazio para o ramo da camera, que nao usa o formato dos MinMoe. */
+    private HikvisionEventDto vazio(String json) {
+        if (json == null || json.isBlank()) return new HikvisionEventDto();
+        try {
+            return objectMapper.readValue(json, HikvisionEventDto.class);
+        } catch (Exception e) {
+            return new HikvisionEventDto();
         }
     }
 

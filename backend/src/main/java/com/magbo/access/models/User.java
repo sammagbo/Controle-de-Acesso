@@ -63,4 +63,26 @@ public class User {
 
     @Column(name = "hikvision_employee_id", unique = true, length = 64)
     private String hikvisionEmployeeId;
+
+    /**
+     * Numero do documento com que a pessoa esta cadastrada na BIBLIOTECA FACIAL
+     * das cameras da portaria (reserve_field.certificateNumber do payload).
+     *
+     * NAO e o mesmo que hikvision_employee_id: aquele e o employeeNo dos
+     * terminais MinMoe do CDI/cantina; este e o identificador de OUTRO produto
+     * (DeepinView), com outra base de pessoas, preenchida a mao. A mesma pessoa
+     * pode ter os dois, um so, ou nenhum.
+     *
+     * Nullable e UNIQUE. Nullable porque quase ninguem tem: preenche-se sozinho
+     * na primeira vez que a camera reconhece alguem e o nome casa com exatamente
+     * UM cadastro (CameraIdentityService). Da segunda passagem em diante a
+     * identificacao e por este numero — deterministica, sem depender de como o
+     * nome foi digitado dos dois lados.
+     *
+     * UNIQUE porque duas pessoas com o mesmo numero de documento seria um erro
+     * de cadastro que, sem a restricao, faria a camera abrir a catraca para
+     * quem o banco escolhesse primeiro.
+     */
+    @Column(name = "camera_person_id", unique = true, length = 64)
+    private String cameraPersonId;
 }

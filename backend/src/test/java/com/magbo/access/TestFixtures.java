@@ -521,6 +521,246 @@ public final class TestFixtures {
         };
     }
 
+    // ────────────────────── Cameras da portaria ──────────────────────
+
+    /** IPs sinteticos das cameras — um por sentido, como os mappings reais. */
+    public static final String IP_CAMERA_ENTRADA = "10.10.0.5";
+    public static final String IP_CAMERA_SAIDA = "10.10.0.6";
+
+    /**
+     * Reescreve o ipAddress do envelope da camera.
+     *
+     * O controller prefere o IP que o APARELHO anuncia ao IP de origem da
+     * requisicao, e e ele que resolve o ponto e o sentido. Os fixtures trazem
+     * 192.168.1.167 (o IP real da escola); os ITs precisam apontar para o IP
+     * sintetico que o proprio teste mapeou, senao caem no fallback legado e
+     * testariam outra coisa.
+     */
+    public static String comIpDeCamera(String json, String ip) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            root.put("ipAddress", ip);
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Carimba a hora do evento da camera `segundosAtras` no passado.
+     *
+     * Mesma razao do withFreshDateTime dos MinMoe: o fixture e uma captura com
+     * a data do dia em que foi feita, e a guarda de 30 dias do
+     * EventTimeResolver acabaria por rejeita-la sozinha com o passar do tempo.
+     */
+    public static String cameraHaSegundos(String json, long segundosAtras) {
+        String iso = LocalDateTime.now().minusSeconds(segundosAtras)
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            root.put("dateTime", iso);
+            JsonNode ar = root.get("alarmResult");
+            if (ar != null && ar.isArray() && ar.size() > 0 && ar.get(0).isObject()) {
+                JsonNode alvo = ar.get(0).get("targetAttrs");
+                if (alvo instanceof ObjectNode alvoNode) alvoNode.put("faceTime", iso);
+            }
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Troca o faceId — a chave do dedup de INGESTAO das cameras.
+     *
+     * Duas passagens de verdade tem faceId diferente; uma reentrega do mesmo
+     * pacote repete o mesmo. Teste que quer duas leituras REAIS (para exercitar
+     * a regra de mesma passagem, que e outra camada) precisa troca-lo, senao o
+     * dedup de ingestao engole a segunda antes.
+     */
+    public static String comFaceId(String json, String faceId) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            JsonNode ar = root.get("alarmResult");
+            if (ar != null && ar.isArray() && ar.size() > 0) {
+                JsonNode faces = ar.get(0).get("faces");
+                if (faces != null && faces.isArray() && faces.size() > 0
+                        && faces.get(0) instanceof ObjectNode face) {
+                    face.put("faceId", faceId);
+                }
+            }
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Troca o dateTime do envelope da camera.
+     *
+     * Por patch de JSON e nao por replace de texto: o corpo passa pelo Jackson
+     * nos helpers acima, que reserializa sem a formatacao do arquivo — um
+     * replace casando o texto original vira no-op SILENCIOSO, e o teste passa a
+     * exercitar outra coisa sem avisar.
+     */
+    public static String comDateTimeDeCamera(String json, String valor) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            if (valor == null) root.remove("dateTime");
+            else root.put("dateTime", valor);
+            // faceTime tambem, senao ele vira a segunda fonte e mascara o teste.
+            JsonNode ar = root.get("alarmResult");
+            if (ar != null && ar.isArray() && ar.size() > 0 && ar.get(0).isObject()) {
+                JsonNode alvo = ar.get(0).get("targetAttrs");
+                if (alvo instanceof ObjectNode alvoNode) {
+                    if (valor == null) alvoNode.remove("faceTime");
+                    else alvoNode.put("faceTime", valor);
+                }
+            }
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Troca o pId — o identificador da PESSOA rastreada (estavel entre deteccoes). */
+    public static String comPId(String json, String pId) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            JsonNode ar = root.get("alarmResult");
+            if (ar != null && ar.isArray() && ar.size() > 0 && ar.get(0).isObject()) {
+                JsonNode alvo = ar.get(0).get("targetAttrs");
+                if (alvo instanceof ObjectNode alvoNode) alvoNode.put("pId", pId);
+            }
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Troca o certificateNumber do primeiro candidato. */
+    public static String comCertificateNumber(String json, String numero) {
+        return patchReserveField(json, node -> node.put("certificateNumber", numero));
+    }
+
+    /** Troca o nome do primeiro candidato (reserve_field.name). */
+    public static String comNomeDeCamera(String json, String nome) {
+        return patchReserveField(json, node -> node.put("name", nome));
+    }
+
+    /** Troca a similaridade do primeiro candidato. */
+    public static String comSimilaridade(String json, double similaridade) {
+        return patchCandidate(json, node -> node.put("similarity", similaridade));
+    }
+
+    /** Troca o limiar da biblioteca (FDLibThreshold) do primeiro candidato. */
+    public static String comLimiarDaBiblioteca(String json, double limiar) {
+        return patchCandidate(json, node -> node.put("FDLibThreshold", limiar));
+    }
+
+    private static String patchReserveField(String json, java.util.function.Consumer<ObjectNode> patch) {
+        return patchCandidate(json, cand -> {
+            JsonNode rf = cand.get("reserve_field");
+            if (rf instanceof ObjectNode rfNode) patch.accept(rfNode);
+        });
+    }
+
+    private static String patchCandidate(String json, java.util.function.Consumer<ObjectNode> patch) {
+        try {
+            ObjectNode root = (ObjectNode) MAPPER.readTree(json);
+            JsonNode ar = root.get("alarmResult");
+            if (ar != null && ar.isArray() && ar.size() > 0) {
+                JsonNode faces = ar.get(0).get("faces");
+                if (faces != null && faces.isArray() && faces.size() > 0) {
+                    JsonNode identify = faces.get(0).get("identify");
+                    if (identify != null && identify.isArray() && identify.size() > 0) {
+                        JsonNode candidates = identify.get(0).get("candidate");
+                        if (candidates != null && candidates.isArray() && candidates.size() > 0
+                                && candidates.get(0) instanceof ObjectNode cand) {
+                            patch.accept(cand);
+                        }
+                    }
+                }
+            }
+            return MAPPER.writeValueAsString(root);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Multipart no formato REAL das cameras DeepinView da portaria, tal como
+     * na captura de 07/08/2026: part "alarmResult" (json) + as TRES parts de
+     * imagem que a camera manda junto.
+     *
+     * Carimba ipAddress e hora frescos — ver comIpDeCamera e cameraHaSegundos.
+     */
+    public static MockMultipartHttpServletRequestBuilder cameraWebhook(String json, String ip) {
+        return cameraWebhookHaSegundos(json, ip, 0);
+    }
+
+    /** Como cameraWebhook, com a passagem `segundosAtras` no passado. */
+    public static MockMultipartHttpServletRequestBuilder cameraWebhookHaSegundos(
+            String json, String ip, long segundosAtras) {
+        String corpo = cameraHaSegundos(comIpDeCamera(json, ip), segundosAtras);
+        return cameraMultipart(ip, jsonPart("alarmResult", corpo),
+                imagemDeRosto(), imagemDeFundo(), imagemDaBiblioteca());
+    }
+
+    /** Part de imagem do rosto — o parser tem de ignora-la sem armazenar nada. */
+    public static MockPart imagemDeRosto() {
+        return imagemJpeg("faceImage");
+    }
+
+    /**
+     * Cena inteira (2560x1504). Na captura real pesa 453-467KB — e a part que
+     * quase estoura o limite default de multipart do Spring.
+     */
+    public static MockPart imagemDeFundo() {
+        return imagemJpeg("backgroundImage");
+    }
+
+    /** Foto que a camera tem na biblioteca facial; so vem quando ha comparacao. */
+    public static MockPart imagemDaBiblioteca() {
+        return imagemJpeg("faceLibImage");
+    }
+
+    /**
+     * Part de imagem generica. O nome varia (faceImage, backgroundImage,
+     * faceLibImage) e o parser NAO pode depender dele: o descarte e por
+     * Content-Type, senao um nome novo de firmware vira "payload nao
+     * parseavel" em WARN.
+     */
+    private static MockPart imagemJpeg(String nome) {
+        MockPart p = new MockPart(nome, nome + ".jpg", fakeJpeg());
+        p.getHeaders().setContentType(MediaType.IMAGE_JPEG);
+        return p;
+    }
+
+    /**
+     * Part de deteccao de movimento, como a camera a envia: nome com extensao
+     * .xml e Content-Type application/xml. Tem de ser descartada em silencio.
+     */
+    public static MockPart moveDetectionPart() {
+        MockPart p = new MockPart("MoveDetection.xml", null,
+                payload("camera-move-detection.xml").getBytes(StandardCharsets.UTF_8));
+        p.getHeaders().setContentType(MediaType.APPLICATION_XML);
+        return p;
+    }
+
+    /** Multipart de camera com parts arbitrarias (token + remoteAddr aplicados). */
+    public static MockMultipartHttpServletRequestBuilder cameraMultipart(String remoteAddr, MockPart... parts) {
+        MockMultipartHttpServletRequestBuilder builder =
+                MockMvcRequestBuilders.multipart(WEBHOOK_URL);
+        for (MockPart part : parts) {
+            builder.part(part);
+        }
+        builder.header(TOKEN_HEADER, WEBHOOK_TOKEN);
+        builder.with(remoteAddr(remoteAddr));
+        return builder;
+    }
+
     /** Bytes minimos com header JPEG — a imagem e ignorada pelo parse. */
     private static byte[] fakeJpeg() {
         return new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0x00, 0x10,

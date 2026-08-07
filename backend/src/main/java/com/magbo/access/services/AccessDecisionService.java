@@ -264,30 +264,87 @@ public class AccessDecisionService {
             }
         }
         
-        // FASE D:
+        registrarPassagem(new Passagem(
+                userId, employeeNoRaw, nomeSnapshot, resolved, terminalIp,
+                classification.method(), classification.result(), subType,
+                eventTime, now, flag, true));
+    }
+
+    /**
+     * Dados de UMA passagem ja identificada, prontos para a decisao final.
+     *
+     * Existe para que os dois ramos de entrada — o dos terminais MinMoe
+     * (employeeNo + subtipo) e o das cameras da portaria (rosto + nome) —
+     * cheguem a {@link #registrarPassagem} pelo MESMO caminho. Sem isto, a
+     * ordem das regras estaria escrita em dois lugares, e a segunda copia
+     * envelheceria em silencio na primeira mudanca de politica.
+     */
+    private record Passagem(
+            String userId,
+            String employeeNoRaw,
+            String nomeSnapshot,
+            DoorMappingService.ResolvedMapping resolved,
+            String terminalIp,
+            AuthMethod method,
+            AuthResult authResult,
+            Integer subType,
+            /** Hora do EVENTO — vai para o registro. */
+            LocalDateTime eventTime,
+            /** Hora da DECISAO — governa as regras. */
+            LocalDateTime now,
+            String flag,
+            /**
+             * Avaliar a permissao de saida neste ponto?
+             *
+             * true nos TERMINAIS — comportamento historico, intocado.
+             *
+             * false nas CAMERAS da portaria, e a escolha e deliberada:
+             * ExitPermissionService.evaluate() nega toda pessoa SEM permissao
+             * ativa e nao olha o tipo do usuario. As cameras sao os primeiros
+             * aparelhos a alimentar um ponto PORT de verdade, entao liga-lo
+             * agora faria TODA saida de servidor virar EXIT_NOT_AUTHORIZED no
+             * primeiro dia — centenas por dia, sem que ninguem tenha decidido
+             * isso. Ligar a portaria a regra de saida e decisao de POLITICA (e
+             * provavelmente precisa antes restringir a regra a ALUNO, ja que a
+             * entidade se chama StudentExitPermission): fica para o Sam, num
+             * passo proprio. Ate la a camera REGISTRA a passagem, que e o que
+             * esta entrega promete.
+             */
+            boolean aplicarPermissaoDeSaida) {
+    }
+
+    /**
+     * FASE D + mesma passagem + gravacao. Ultimo trecho comum a TODA passagem
+     * identificada, venha de terminal ou de camera.
+     *
+     * A ordem aqui e a regra e nao muda por origem: permissao de saida ->
+     * mesma passagem -> grava -> consome a permissao SINGLE.
+     */
+    private void registrarPassagem(Passagem p) {
+        String pid = p.resolved().pointId() == null ? "" : p.resolved().pointId().toUpperCase();
         boolean isGate = pid.startsWith("PORT");
         Long consumedPermissionId = null;
 
-        if (isGate && resolved.action() == AccessAction.SAIDA) {
-            ExitDecision exitDecision = exitPermissionService.evaluate(userId, now);
+        if (p.aplicarPermissaoDeSaida() && isGate && p.resolved().action() == AccessAction.SAIDA) {
+            ExitDecision exitDecision = exitPermissionService.evaluate(p.userId(), p.now());
             if (!exitDecision.allowed()) {
                 PolicyMode mode = policyProperties.getPolicy().getExitNotAuthorized();
                 if (mode == PolicyMode.DENY) {
                     attemptService.record(
-                            userId, employeeNoRaw, nomeSnapshot,
-                            resolved.pointId(), resolved.action(), terminalIp,
-                            classification.method(), classification.result(),
+                            p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
+                            p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
+                            p.method(), p.authResult(),
                             AuthorizationResult.DENIED, exitDecision.reason(),
-                            subType, resolved.isFallback(), eventTime
+                            p.subType(), p.resolved().isFallback(), p.eventTime()
                     );
                     return;
                 } else if (mode == PolicyMode.OBSERVATION) {
                     attemptService.record(
-                            userId, employeeNoRaw, nomeSnapshot,
-                            resolved.pointId(), resolved.action(), terminalIp,
-                            classification.method(), classification.result(),
+                            p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
+                            p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
+                            p.method(), p.authResult(),
                             AuthorizationResult.OBSERVATION, exitDecision.reason(),
-                            subType, resolved.isFallback(), eventTime
+                            p.subType(), p.resolved().isFallback(), p.eventTime()
                     );
                 }
             } else {
@@ -295,40 +352,173 @@ public class AccessDecisionService {
             }
         }
 
-        // MESMA PASSAGEM: o terminal leu a mesma face duas vezes em segundos
+        // MESMA PASSAGEM: o aparelho leu a mesma face duas vezes em segundos
         // (evento novo, serialNo novo — o dedup de ingestao deixa passar e faz
         // certo). Nada e gravado e o webhook responde 200: para o aparelho a
         // passagem foi aceita, que e a verdade — ela ja foi, uma vez.
         // Antes do save E antes do consumeIfSingle: uma leitura repetida nao
         // pode consumir uma permissao de saida SINGLE pela segunda vez.
-        if (samePassageService.alreadyRegistered(userId, resolved.pointId(), resolved.action(), eventTime)) {
+        //
+        // Vale ainda mais na portaria: a camera nao espera ninguem encostar
+        // nela, entao quem para em frente ao portao gera evento atras de evento.
+        if (samePassageService.alreadyRegistered(p.userId(), p.resolved().pointId(),
+                p.resolved().action(), p.eventTime())) {
             log.debug("Mesma passagem ignorada (user={}, point={}, action={}, janela={}s)",
-                    userId, resolved.pointId(), resolved.action(), samePassageService.windowSeconds());
+                    p.userId(), p.resolved().pointId(), p.resolved().action(),
+                    samePassageService.windowSeconds());
             return;
         }
 
         AccessLog accessLog = AccessLog.builder()
-                .userId(userId)
-                .pointId(resolved.pointId())
-                .action(resolved.action())
+                .userId(p.userId())
+                .pointId(p.resolved().pointId())
+                .action(p.resolved().action())
                 // Hora do EVENTO, nao a da recepcao: e daqui que saem os
                 // relatorios de horario e duracao (incidente da fila offline
                 // de 03/08/2026).
-                .timestamp(eventTime)
-                .flag(flag)
-                .authMethod(classification.method())
-                .hikvisionSubEventType(subType)
+                .timestamp(p.eventTime())
+                .flag(p.flag())
+                .authMethod(p.method())
+                .hikvisionSubEventType(p.subType())
                 .build();
 
         accessLogRepository.save(accessLog);
-        
+
         if (consumedPermissionId != null) {
             exitPermissionService.consumeIfSingle(consumedPermissionId);
         }
-        
+
         log.info("Access Log: user={}, point={}, action={}, flag={}, method={}, subType={}, fallback={}",
-                userId, resolved.pointId(), resolved.action(), flag,
-                classification.method(), subType, resolved.isFallback());
+                p.userId(), p.resolved().pointId(), p.resolved().action(), p.flag(),
+                p.method(), p.subType(), p.resolved().isFallback());
+    }
+
+    /**
+     * Entrada das CAMERAS da portaria: a pessoa ja foi identificada pelo
+     * {@link CameraIdentityService}; aqui se decide e se grava.
+     *
+     * Difere do ramo dos terminais so na origem da identidade. Tudo o que vem
+     * depois — usuario inativo, permissao de saida, mesma passagem, hora do
+     * evento no registro — passa pelo mesmo codigo, de proposito: se um dia a
+     * politica de saida mudar, ela muda para os dois ramos ao mesmo tempo.
+     *
+     * NAO ha subtipo Hikvision aqui: a camera nao classifica autenticacao, ela
+     * compara rostos. O campo fica null em access_logs, e e assim que se
+     * distingue uma passagem de camera de uma de terminal.
+     *
+     * @param user       pessoa ja resolvida (nunca criada por evento de camera)
+     * @param employeeNoRaw identificador bruto para auditoria (documento/pId)
+     * @param terminalIp IP da camera — e o que resolve o ponto e o sentido
+     */
+    @Transactional
+    public void processCameraRecognition(User user, String employeeNoRaw, String terminalIp,
+                                         LocalDateTime eventTime) {
+        DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(null, null, terminalIp);
+
+        if (resolved.isFallback() && "ATTEMPT".equals(policyProperties.getPolicy().getMissingDoorMapping())) {
+            attemptService.record(
+                    user.getId(), employeeNoRaw, user.getNome(),
+                    resolved.pointId(), resolved.action(), terminalIp,
+                    AuthMethod.FACE, AuthResult.SUCCESS,
+                    AuthorizationResult.DENIED, DenialReason.MISSING_DOOR_MAPPING,
+                    null, true, eventTime
+            );
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (Boolean.FALSE.equals(user.getAtivo())) {
+            PolicyMode mode = policyProperties.getPolicy().getUserInactive();
+            if (mode == PolicyMode.DENY) {
+                attemptService.record(
+                        user.getId(), employeeNoRaw, user.getNome(),
+                        resolved.pointId(), resolved.action(), terminalIp,
+                        AuthMethod.FACE, AuthResult.SUCCESS,
+                        AuthorizationResult.DENIED, DenialReason.USER_INACTIVE,
+                        null, resolved.isFallback(), eventTime
+                );
+                return;
+            } else if (mode == PolicyMode.OBSERVATION) {
+                attemptService.record(
+                        user.getId(), employeeNoRaw, user.getNome(),
+                        resolved.pointId(), resolved.action(), terminalIp,
+                        AuthMethod.FACE, AuthResult.SUCCESS,
+                        AuthorizationResult.OBSERVATION, DenialReason.USER_INACTIVE,
+                        null, resolved.isFallback(), eventTime
+                );
+            }
+        }
+
+        registrarPassagem(new Passagem(
+                user.getId(), employeeNoRaw, user.getNome(), resolved, terminalIp,
+                // A camera SEMPRE reconhece por rosto, e ela ja "aprovou" a
+                // comparacao — o que o MAGBO decide vem depois.
+                AuthMethod.FACE, AuthResult.SUCCESS, null,
+                eventTime, now, null,
+                // Permissao de saida NAO avaliada aqui — ver o javadoc do campo
+                // em Passagem. Ligar isso e decisao de politica, nao efeito
+                // colateral de a portaria passar a enxergar.
+                false));
+    }
+
+    /**
+     * Tentativa NEGADA vinda de camera: rosto sem dono, ou nome ambiguo.
+     *
+     * Nao ha userId para atribuir — e exatamente esse o ponto. O nome que a
+     * camera leu vai para nome_snapshot, que e a unica pista de quem passou.
+     *
+     * Aplica a regra de MESMA PASSAGEM tambem aqui: quem fica parado diante da
+     * camera sem estar cadastrado geraria uma tentativa por evento, e o feed da
+     * portaria viraria uma coluna com a mesma pessoa cem vezes.
+     *
+     * ⚠️ COMPROMISSO ASSUMIDO, e ele tem um custo real.
+     *
+     * A chave do colapso e `employeeNoRaw` (ver CameraAlarmDto#identificadorBruto).
+     * Quando a camera RECONHECEU alguem — ainda que o MAGBO recuse — ha numero
+     * de documento ou human_id, e o colapso e por PESSOA: exato, sem juntar
+     * gente diferente.
+     *
+     * Quando a comparacao FALHOU (contrastFailed) o payload nao traz nada que
+     * distinga um estranho de outro: o pId e unico por deteccao e o faceId se
+     * repete entre pessoas. Sobra o rotulo constante, e o colapso passa a ser
+     * por PONTO + ACAO + MOTIVO + janela de 30s.
+     *
+     * O que isso custa: duas pessoas DIFERENTES e nao reconhecidas passando no
+     * mesmo portao dentro de 30s viram UMA linha em access_attempts. Num
+     * portao de escola as 07:30 isso acontece. Portanto a contagem de
+     * "nao reconhecidos" deixa de ser "quantos estranhos passaram" e vira
+     * "em quantos momentos passou pelo menos um estranho" — serve para o
+     * operador olhar o portao, NAO serve como estatistica de quantas pessoas
+     * entraram sem ser reconhecidas.
+     *
+     * A alternativa seria nao colapsar nada e deixar o feed encher: quem fica
+     * parado gera um evento a cada poucos segundos, e uma tela cheia da mesma
+     * pessoa e uma tela que ninguem le. Entre perder a contagem exata de
+     * estranhos e perder a tela, escolhe-se perder a contagem.
+     *
+     * Nada disso afeta access_logs: quem foi reconhecido colapsa por userId,
+     * que e exato.
+     */
+    @Transactional
+    public void processCameraDenied(String employeeNoRaw, String nomeSnapshot, String terminalIp,
+                                    DenialReason reason, LocalDateTime eventTime) {
+        DoorMappingService.ResolvedMapping resolved = doorMappingService.resolve(null, null, terminalIp);
+
+        if (samePassageService.alreadyAttempted(employeeNoRaw, resolved.pointId(), resolved.action(),
+                AuthorizationResult.DENIED, reason, eventTime)) {
+            log.debug("Mesma tentativa de camera ignorada (raw={}, point={}, motivo={}, janela={}s)",
+                    employeeNoRaw, resolved.pointId(), reason, samePassageService.windowSeconds());
+            return;
+        }
+
+        attemptService.record(
+                null, employeeNoRaw, nomeSnapshot,
+                resolved.pointId(), resolved.action(), terminalIp,
+                AuthMethod.FACE, AuthResult.SUCCESS,
+                AuthorizationResult.DENIED, reason,
+                null, resolved.isFallback(), eventTime
+        );
     }
 
     /**

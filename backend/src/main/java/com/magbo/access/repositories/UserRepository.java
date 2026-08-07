@@ -11,6 +11,13 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByHikvisionEmployeeId(String hikvisionEmployeeId);
 
+    /**
+     * Pessoa pelo numero do documento da biblioteca facial das cameras da
+     * portaria. Caminho DETERMINISTICO de identificacao — quando existe, nenhum
+     * casamento por nome e tentado.
+     */
+    Optional<User> findByCameraPersonId(String cameraPersonId);
+
     /** Matriculas ja emitidas com um prefixo (FUNC-) — base do proximo numero. */
     java.util.List<User> findByIdStartingWith(String prefix);
     java.util.List<User> findByResponsavelId(String responsavelId);

@@ -9,7 +9,7 @@
 - Segurança: JWT stateless; permitAll apenas login/health/webhooks/h2-console. Autorização por área via `@PreAuthorize("@areaSecurity.can('...')")` + `SystemUser.canOperateSector`. Comparações de segredo: `MessageDigest.isEqual`.
 - Webhook: deny-by-default (token ausente na config = 503/rejeita). Token via header `X-MAGBO-WEBHOOK-TOKEN` OU `?token=`. Parse tolerante multipart/JSON em `parsePayload` (F6b) — não regredir.
 - Novos endpoints admin: prefixo `/api/admin/...`. Escrita sensível: `hasRole('ADMIN') OR @areaSecurity.hasPermission('...')`; leitura por área: `@areaSecurity.can('...')`.
-- **Testes automatizados:** `mvn test` → **350 testes, 0 falhas, 2 `@Disabled`** (medido em 06/08 sobre `2902e74`; eram 183 no fim da Fase I). O `pom.xml` tem `maven-surefire-plugin` com `<include>**/*IT.java` — **sem isso os ITs são pulados em silêncio** (convenção: Surefire ignora `*IT`). Mudanças ainda validam também por bench/curl (plano de testes). As 2 nativas PostgreSQL-only ficam `@Disabled` (H2) → conferência manual (V13).
+- **Testes automatizados:** `mvn test` → **507 testes, 0 falhas, 2 `@Disabled`** (medido em 07/08 na branch das câmeras da portaria; eram 183 no fim da Fase I). O `pom.xml` tem `maven-surefire-plugin` com `<include>**/*IT.java` — **sem isso os ITs são pulados em silêncio** (convenção: Surefire ignora `*IT`). Mudanças ainda validam também por bench/curl (plano de testes). As 2 nativas PostgreSQL-only ficam `@Disabled` (H2) → conferência manual (V13).
 
 ## Camada de decisão (Fases A–E) — taxonomia e regras
 - **`access_logs` = acesso efetivo/autorizado · `access_attempts` = tentativa negada.** `access_logs` **nunca** recebe evento negado (ADR-001). Nenhuma query existente de `access_logs` pode mudar de resultado.

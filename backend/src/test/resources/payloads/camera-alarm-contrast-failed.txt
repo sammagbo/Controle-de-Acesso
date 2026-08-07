@@ -1,0 +1,40 @@
+{
+  "ipAddress": "192.168.1.167",
+  "portNo": 80,
+  "protocol": "HTTP",
+  "macAddress": "44:47:cc:11:22:33",
+  "channelID": 1,
+  "dateTime": "2026-08-07T09:20:05-03:00",
+  "channelName": "ENTRADA-INTERNA-01",
+  "eventType": "alarmResult",
+  "eventState": "active",
+  "eventDescription": "alarmResult",
+  "alarmResult": [
+    {
+      "errorCode": 1,
+      "errorMsg": "contrastFailed",
+      "targetAttrs": {
+        "deviceId": "1",
+        "deviceName": "ENTRADA-INTERNA-01",
+        "faceTime": "2026-08-07T09:20:05-03:00",
+        "rect": { "height": 0.201, "width": 0.118, "x": 0.377, "y": 0.264 },
+        "pId": "1754570405"
+      },
+      "faces": [
+        {
+          "faceId": "1754570405001",
+          "faceRect": { "height": 0.201, "width": 0.118, "x": 0.377, "y": 0.264 },
+          "score": 0.91,
+          "modeldata": "AAAAAA==",
+          "stayDuration": 1,
+          "identify": [
+            {
+              "relationId": "",
+              "maxsimilarity": 0.17
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

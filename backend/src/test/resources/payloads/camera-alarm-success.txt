@@ -1,0 +1,65 @@
+{
+  "ipAddress": "192.168.1.167",
+  "portNo": 80,
+  "protocol": "HTTP",
+  "macAddress": "44:47:cc:11:22:33",
+  "channelID": 1,
+  "dateTime": "2026-08-07T09:14:22-03:00",
+  "channelName": "ENTRADA-INTERNA-01",
+  "eventType": "alarmResult",
+  "eventState": "active",
+  "eventDescription": "alarmResult",
+  "alarmResult": [
+    {
+      "errorCode": 0,
+      "errorMsg": "ok",
+      "targetAttrs": {
+        "deviceId": "1",
+        "deviceName": "ENTRADA-INTERNA-01",
+        "faceTime": "2026-08-07T09:14:22-03:00",
+        "rect": { "height": 0.185, "width": 0.104, "x": 0.412, "y": 0.301 },
+        "pId": "1754570062"
+      },
+      "faces": [
+        {
+          "faceId": "1754570062001",
+          "faceRect": { "height": 0.185, "width": 0.104, "x": 0.412, "y": 0.301 },
+          "score": 0.94,
+          "modeldata": "AAAAAA==",
+          "stayDuration": 2,
+          "identify": [
+            {
+              "relationId": "",
+              "candidate": [
+                {
+                  "blacklist_id": 3,
+                  "customFaceLibID": "1",
+                  "human_id": 41,
+                  "similarity": 0.87,
+                  "listType": "blackList",
+                  "FDLibName": "FUNCIONARIOS",
+                  "FDLibThreshold": 70,
+                  "human_data": [
+                    {
+                      "face_id": 57,
+                      "contentID": "1754570062001",
+                      "pId": "1754570062",
+                      "similarity": 0.87
+                    }
+                  ],
+                  "reserve_field": {
+                    "name": "Sammy MAGBO",
+                    "gender": "male",
+                    "bornTime": "1900-01-01",
+                    "certificateType": "1",
+                    "certificateNumber": "CAM-000041"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

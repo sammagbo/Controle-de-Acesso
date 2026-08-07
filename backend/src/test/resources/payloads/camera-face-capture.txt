@@ -1,0 +1,24 @@
+{
+  "ipAddress": "192.168.1.167",
+  "portNo": 80,
+  "protocol": "HTTP",
+  "macAddress": "44:47:cc:11:22:33",
+  "channelID": 1,
+  "dateTime": "2026-08-07T09:14:21-03:00",
+  "channelName": "ENTRADA-INTERNA-01",
+  "eventType": "faceCapture",
+  "eventState": "active",
+  "eventDescription": "faceCapture",
+  "faceCapture": {
+    "targetAttrs": {
+      "deviceId": "1",
+      "deviceName": "ENTRADA-INTERNA-01",
+      "faceTime": "2026-08-07T09:14:21-03:00",
+      "rect": { "height": 0.185, "width": 0.104, "x": 0.412, "y": 0.301 },
+      "pId": "1754570062"
+    },
+    "faceId": "1754570062001",
+    "score": 0.94,
+    "stayDuration": 1
+  }
+}

@@ -48,6 +48,7 @@ public class WebhookIngestionDedupService {
     private static final String SCOPE_EVENT = "evt:";
     private static final String SCOPE_UNKNOWN = "unk:";
     private static final String SCOPE_HEARTBEAT = "hb:";
+    private static final String SCOPE_CAMERA = "cam:";
 
     private final boolean enabled;
     private final long ttlSeconds;
@@ -83,6 +84,19 @@ public class WebhookIngestionDedupService {
     public boolean isDuplicateEvent(String sourceIp, Long serialNo) {
         if (!enabled || serialNo == null) return false;
         return seenSliding(SCOPE_EVENT + sourceIp + "|" + serialNo);
+    }
+
+    /**
+     * Mesma regra para as CAMERAS da portaria, cuja chave e TEXTO (faceId/pId)
+     * e nao um numerador — elas nao mandam serialNo.
+     *
+     * NAMESPACE proprio pela mesma razao do isDuplicateUnknown: um faceId de
+     * camera e um serialNo de terminal podem coincidir como string, e um evento
+     * de acesso jamais pode sumir por causa da colisao.
+     */
+    public boolean isDuplicateCameraEvent(String sourceIp, String eventKey) {
+        if (!enabled || eventKey == null || eventKey.isBlank()) return false;
+        return seenSliding(SCOPE_CAMERA + sourceIp + "|" + eventKey);
     }
 
     /**

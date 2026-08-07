@@ -140,6 +140,115 @@ class PersonNameMatcherTest {
     }
 
     @Nested
+    @DisplayName("★ nome truncado em 32 caracteres pela camera")
+    class Truncado {
+
+        // Os dois casos de producao de 07/08/2026. Ambos os nomes recebidos tem
+        // EXATAMENTE 32 caracteres crus — e o corte do campo de nome da
+        // biblioteca facial da Hikvision, nao da coluna nome_snapshot (255).
+        private static final String LUIS_CAMERA = "Luis Fernando FIGUEIREDO DOS SAN";
+        private static final String LUIS_CADASTRO = "Luis Fernando FIGUEIREDO DOS SANTOS";
+        private static final String MARCOS_CAMERA = "Marcos Vinicius CLEMENTE FERREIR";
+        private static final String MARCOS_CADASTRO = "Marcos Vinicius CLEMENTE FERREIRA";
+
+        @Test
+        @DisplayName("★ os dois nomes reais tem 32 caracteres — a medida de onde vem o corte")
+        void trintaEDoisCaracteres() {
+            assertThat(LUIS_CAMERA).hasSize(32);
+            assertThat(MARCOS_CAMERA).hasSize(32);
+        }
+
+        @Test
+        @DisplayName("★ caso real 1: FUNC-036, 'DOS SAN' -> 'DOS SANTOS'")
+        void casoLuisFernando() {
+            assertThat(PersonNameMatcher.matches(LUIS_CAMERA, LUIS_CADASTRO))
+                    .as("nao e casamento exato — e por isso que caia em UNKNOWN_FACE")
+                    .isFalse();
+            assertThat(PersonNameMatcher.isTruncatedPrefix(LUIS_CAMERA, LUIS_CADASTRO)).isTrue();
+        }
+
+        @Test
+        @DisplayName("★ caso real 2: FUNC-201, 'FERREIR' -> 'FERREIRA'")
+        void casoMarcosVinicius() {
+            assertThat(PersonNameMatcher.matches(MARCOS_CAMERA, MARCOS_CADASTRO)).isFalse();
+            assertThat(PersonNameMatcher.isTruncatedPrefix(MARCOS_CAMERA, MARCOS_CADASTRO)).isTrue();
+        }
+
+        @Test
+        @DisplayName("★ o sentido importa: o CADASTRO e que comeca com o RECEBIDO")
+        void naoEhSimetrico() {
+            // Inverter e dizer que a camera mandou o nome completo e o cadastro
+            // e que esta cortado — o que nao acontece, e aceitar isso abriria
+            // casamento de "Ana Silva Costa Pereira" com o cadastro "Ana Silva
+            // Costa", que e outra pessoa.
+            assertThat(PersonNameMatcher.isTruncatedPrefix(LUIS_CADASTRO, LUIS_CAMERA)).isFalse();
+        }
+
+        @Test
+        @DisplayName("★ prefixo curto demais e RECUSADO")
+        void prefixoCurtoDemais() {
+            // "maria santos" tem exatamente 12 normalizados: e o exemplo que
+            // reprova o piso de 12 e justifica o de 16.
+            assertThat(PersonNameMatcher.normalize("Maria SANTOS")).hasSize(12);
+            assertThat(PersonNameMatcher.isTruncatedPrefix("Maria SANTOS", "Maria SANTOS DA SILVA"))
+                    .as("nome generico e curto nao pode virar prefixo de meio mundo")
+                    .isFalse();
+
+            assertThat(PersonNameMatcher.normalize("Ana CAROLINA")).hasSize(12);
+            assertThat(PersonNameMatcher.isTruncatedPrefix("Ana CAROLINA", "Ana CAROLINA MAGBO"))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("exatamente no piso (16) PASSA — a porta e >=, nao >")
+        void exatamenteNoPiso() {
+            String recebido = "Ana Carolina MAG";
+            assertThat(PersonNameMatcher.normalize(recebido))
+                    .hasSize(PersonNameMatcher.MIN_PREFIXO_NORMALIZADO);
+            assertThat(PersonNameMatcher.isTruncatedPrefix(recebido, "Ana Carolina MAGBO")).isTrue();
+        }
+
+        @Test
+        @DisplayName("★ o piso nunca barra uma truncagem real (32 crus -> bem acima de 16)")
+        void pisoNaoBarraTruncagemReal() {
+            // Ate o pior caso realista — nome de 32 crus cheio de abreviacoes,
+            // que perde quatro tokens de uma letra na normalizacao — aterrissa
+            // acima do piso. E o que garante ausencia de falso-negativo.
+            String piorCaso = "Maria A. B. C. DOS SANTOS SILVAX";
+            assertThat(piorCaso).hasSize(32);
+            assertThat(PersonNameMatcher.normalize(piorCaso).length())
+                    .isGreaterThan(PersonNameMatcher.MIN_PREFIXO_NORMALIZADO);
+        }
+
+        @Test
+        @DisplayName("★ nome IGUAL nao e prefixo — os dois predicados sao disjuntos")
+        void igualNaoEhPrefixo() {
+            // Manter matches e isTruncatedPrefix sem sobreposicao e o que impede
+            // alguem de trocar um pelo outro e, de quebra, impor o piso de 16 a
+            // um casamento exato — que nao precisa dele.
+            assertThat(PersonNameMatcher.isTruncatedPrefix(LUIS_CADASTRO, LUIS_CADASTRO)).isFalse();
+            assertThat(PersonNameMatcher.isTruncatedPrefix("Sammy MAGBO", "Sammy K. MAGBO"))
+                    .as("normalizam para a mesma coisa: caso de matches, nao de prefixo")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("nome ausente ou ilegivel nunca vira prefixo")
+        void ausenteNaoEhPrefixo() {
+            assertThat(PersonNameMatcher.isTruncatedPrefix(null, LUIS_CADASTRO)).isFalse();
+            assertThat(PersonNameMatcher.isTruncatedPrefix(LUIS_CAMERA, null)).isFalse();
+            assertThat(PersonNameMatcher.isTruncatedPrefix("A. B. C.", LUIS_CADASTRO)).isFalse();
+        }
+
+        @Test
+        @DisplayName("acento e caixa continuam valendo dentro do prefixo")
+        void normalizacaoValeNoPrefixo() {
+            assertThat(PersonNameMatcher.isTruncatedPrefix(
+                    "AURELIE GONCALVES DE OL", "Aurélie Gonçalves de Oliveira")).isTrue();
+        }
+    }
+
+    @Nested
     @DisplayName("robustez")
     class Robustez {
 

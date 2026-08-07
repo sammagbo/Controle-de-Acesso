@@ -292,6 +292,160 @@ class CameraIdentityServiceTest {
         }
     }
 
+    // ───────────────── Nome truncado em 32 pela camera ─────────────────
+
+    @Nested
+    @DisplayName("★ nome cortado em 32 caracteres pela biblioteca facial")
+    class NomeTruncado {
+
+        // Os dois casos de producao de 07/08/2026: registrados como
+        // UNKNOWN_FACE com a pessoa EXISTINDO em app_users.
+        private static final String LUIS_CAMERA = "Luis Fernando FIGUEIREDO DOS SAN";
+        private static final String LUIS_CADASTRO = "Luis Fernando FIGUEIREDO DOS SANTOS";
+        private static final String MARCOS_CAMERA = "Marcos Vinicius CLEMENTE FERREIR";
+        private static final String MARCOS_CADASTRO = "Marcos Vinicius CLEMENTE FERREIRA";
+
+        /** Payload de sucesso com o nome cortado e o documento do caso real. */
+        private CameraAlarmDto truncado(String nomeRecebido, String documento) throws Exception {
+            String json = TestFixtures.comCertificateNumber(
+                    TestFixtures.comNomeDeCamera(
+                            TestFixtures.payload("camera-alarm-success.txt"), nomeRecebido),
+                    documento);
+            return dto(json);
+        }
+
+        @Test
+        @DisplayName("★ caso real 1: FUNC-036 'Luis Fernando FIGUEIREDO DOS SAN'")
+        void casoLuisFernando() throws Exception {
+            User luis = pessoa("FUNC-036", LUIS_CADASTRO, null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(luis));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.resultado())
+                    .as("★ antes disto virava UNKNOWN_FACE com a pessoa cadastrada")
+                    .isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-036");
+        }
+
+        @Test
+        @DisplayName("★ caso real 2: FUNC-201 'Marcos Vinicius CLEMENTE FERREIR'")
+        void casoMarcosVinicius() throws Exception {
+            User marcos = pessoa("FUNC-201", MARCOS_CADASTRO, null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(marcos));
+
+            var id = service.resolver(truncado(MARCOS_CAMERA, "0000000000000006"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-201");
+        }
+
+        @Test
+        @DisplayName("★ o casamento por prefixo GRAVA o documento, como o exato")
+        void gravaODocumento() throws Exception {
+            User luis = pessoa("FUNC-036", LUIS_CADASTRO, null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(luis));
+
+            service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            ArgumentCaptor<User> capturado = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(capturado.capture());
+            assertThat(capturado.getValue().getCameraPersonId())
+                    .as("★ sem isto a pessoa cai no prefixo TODA passagem, para sempre")
+                    .isEqualTo("0000000000001056");
+        }
+
+        @Test
+        @DisplayName("★ prefixo que casa com DOIS cadastros -> AMBIGUO, e nada e gravado")
+        void doisCadastrosComOMesmoPrefixo() throws Exception {
+            // Pai e filho, ou dois irmaos: o corte em 32 nao os distingue.
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-036", LUIS_CADASTRO, null),
+                    pessoa("0001764", "Luis Fernando FIGUEIREDO DOS SANTOS JUNIOR", null)));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.AMBIGUO);
+            assertThat(id.motivoDeNegacao()).isEqualTo(DenialReason.AMBIGUOUS_NAME);
+            assertThat(id.user()).isNull();
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("★ prefixo CURTO demais -> DESCONHECIDO, mesmo com um so cadastro")
+        void prefixoCurtoDemais() throws Exception {
+            // "ana carolina" = 12 normalizados, abaixo do piso de 16. Sem o
+            // piso, um nome generico e completo viraria prefixo de quem tivesse
+            // a infelicidade de ser o unico a comecar assim.
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("0001764", "Ana Carolina MAGBO DA SILVA", null)));
+
+            var id = service.resolver(truncado("Ana CAROLINA", "0000000000007777"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.DESCONHECIDO);
+            assertThat(id.motivoDeNegacao()).isEqualTo(DenialReason.UNKNOWN_FACE);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("★ o casamento EXATO tem precedencia sobre o prefixo")
+        void exatoVencePrefixo() throws Exception {
+            // As duas sao gente de verdade, nao variacoes de escrita. Se o
+            // prefixo ganhasse, a passagem da mae iria para a conta da filha.
+            User exata = pessoa("FUNC-036", LUIS_CAMERA, null);
+            User maisLonga = pessoa("0001764", LUIS_CADASTRO, null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(maisLonga, exata));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.resultado())
+                    .as("★ havendo casamento exato unico, o prefixo nem e consultado")
+                    .isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-036");
+        }
+
+        @Test
+        @DisplayName("★ exato AMBIGUO nao cai para o prefixo")
+        void exatoAmbiguoNaoCaiParaPrefixo() throws Exception {
+            // Dois homonimos exatos + um prefixo unico: escolher o prefixo
+            // seria "resolver" a ambiguidade inventando um terceiro candidato.
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-036", LUIS_CAMERA, null),
+                    pessoa("FUNC-037", LUIS_CAMERA, null),
+                    pessoa("0001764", LUIS_CADASTRO, null)));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.AMBIGUO);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("o camera_person_id ja gravado continua vencendo tudo")
+        void documentoVenceOPrefixo() throws Exception {
+            User outra = pessoa("FUNC-999", "Nome Que Nao Tem Nada A Ver", "0000000000001056");
+            when(userRepository.findByCameraPersonId("0000000000001056"))
+                    .thenReturn(Optional.of(outra));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.user().getId()).isEqualTo("FUNC-999");
+            verify(userRepository, never()).findByAtivoTrue();
+        }
+
+        @Test
+        @DisplayName("nenhum cadastro comeca com o nome recebido -> DESCONHECIDO")
+        void nenhumPrefixo() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-001", "Outra Pessoa Completamente Diferente", null)));
+
+            var id = service.resolver(truncado(LUIS_CAMERA, "0000000000001056"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.DESCONHECIDO);
+            assertThat(id.motivoDeNegacao()).isEqualTo(DenialReason.UNKNOWN_FACE);
+        }
+    }
+
     // ───────────────── Robustez do payload ─────────────────
 
     @Nested

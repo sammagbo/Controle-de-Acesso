@@ -127,6 +127,58 @@ class PortariaCameraIT extends AbstractIT {
     }
 
     @Test
+    @DisplayName("★ 2c. nome CORTADO em 32 pela camera vira acesso (caso real FUNC-036)")
+    void nomeTruncadoViraAcesso() throws Exception {
+        entradaMapeada();
+        servidor("FUNC-036", "Luis Fernando FIGUEIREDO DOS SANTOS", null);
+
+        // Caso de producao de 07/08/2026: a camera manda o nome cortado em 32
+        // caracteres e a pessoa, que EXISTE em app_users, era registrada como
+        // UNKNOWN_FACE — e como nunca era reconhecida, nunca ganhava o
+        // camera_person_id que resolveria as passagens seguintes.
+        String corpo = TestFixtures.comCertificateNumber(
+                TestFixtures.comNomeDeCamera(sucesso(), "Luis Fernando FIGUEIREDO DOS SAN"),
+                "0000000000001056");
+
+        mockMvc.perform(TestFixtures.cameraWebhook(corpo, TestFixtures.IP_CAMERA_ENTRADA))
+                .andExpect(status().isOk());
+
+        assertThat(accessAttemptRepository.count())
+                .as("★ nao pode sobrar tentativa negada: a pessoa foi reconhecida")
+                .isZero();
+        assertThat(unicoLog().getUserId()).isEqualTo("FUNC-036");
+        assertThat(userRepository.findById("FUNC-036"))
+                .get()
+                .extracting(User::getCameraPersonId)
+                .as("★ o prefixo grava o documento igual ao casamento exato — so acontece uma vez")
+                .isEqualTo("0000000000001056");
+    }
+
+    @Test
+    @DisplayName("★ 2d. nome cortado que casa com DOIS cadastros nao vira acesso")
+    void nomeTruncadoAmbiguoNaoViraAcesso() throws Exception {
+        entradaMapeada();
+        servidor("FUNC-036", "Luis Fernando FIGUEIREDO DOS SANTOS", null);
+        servidor("FUNC-037", "Luis Fernando FIGUEIREDO DOS SANTOS JUNIOR", null);
+
+        String corpo = TestFixtures.comCertificateNumber(
+                TestFixtures.comNomeDeCamera(sucesso(), "Luis Fernando FIGUEIREDO DOS SAN"),
+                "0000000000001056");
+
+        mockMvc.perform(TestFixtures.cameraWebhook(corpo, TestFixtures.IP_CAMERA_ENTRADA))
+                .andExpect(status().isOk());
+
+        assertThat(accessLogRepository.count())
+                .as("★ o corte em 32 nao distingue pai de filho — escolher um seria liberar no nome errado")
+                .isZero();
+        assertThat(unicaTentativa().getDenialReason()).isEqualTo(DenialReason.AMBIGUOUS_NAME);
+        assertThat(userRepository.findById("FUNC-036"))
+                .get().extracting(User::getCameraPersonId).isNull();
+        assertThat(userRepository.findById("FUNC-037"))
+                .get().extracting(User::getCameraPersonId).isNull();
+    }
+
+    @Test
     @DisplayName("★ 2b. a segunda passagem ja entra pelo documento (nome irrelevante)")
     void segundaPassagemUsaODocumento() throws Exception {
         entradaMapeada();

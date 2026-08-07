@@ -25,11 +25,17 @@ import java.util.List;
  * ORDEM, e ela importa:
  *   1. NUMERO DO DOCUMENTO ja guardado (camera_person_id). Deterministico:
  *      um numero, uma pessoa. Nao ha ambiguidade possivel e nao se olha o nome.
- *   2. NOME normalizado, e SO se casar com EXATAMENTE UM cadastro ativo. No
- *      casamento unico o numero e GRAVADO naquela pessoa, e a partir da
+ *   2. NOME normalizado IGUAL, e SO se casar com EXATAMENTE UM cadastro ativo.
+ *      No casamento unico o numero e GRAVADO naquela pessoa, e a partir da
  *      proxima passagem cai-se no caso 1 — o casamento por nome acontece uma
  *      vez na vida de cada pessoa.
- *   3. Zero casamentos ou mais de um: NAO CHUTA. Devolve o motivo e o nome
+ *   3. NOME TRUNCADO pelo aparelho (o do cadastro COMECA com o recebido), e so
+ *      se for unico. A biblioteca facial da Hikvision corta o nome em 32
+ *      caracteres, entao quem tem nome comprido nunca chega inteiro. Sem este
+ *      passo essa gente ficava presa em UNKNOWN_FACE: nunca era reconhecida na
+ *      primeira passagem e por isso nunca ganhava o camera_person_id que
+ *      resolveria as seguintes. So e tentado quando o passo 2 deu ZERO.
+ *   4. Zero casamentos ou mais de um: NAO CHUTA. Devolve o motivo e o nome
  *      lido, para virar tentativa negada e uma linha de INFO com nome,
  *      biblioteca e similaridade — que e o que permite a alguem ligar as duas
  *      pontas na mao.
@@ -142,29 +148,66 @@ public class CameraIdentityService {
             return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
         }
 
-        List<User> casamentos = new ArrayList<>();
+        // Uma passada so pelo cadastro, separando os dois tipos de casamento.
+        // Normalizar o nome de cada pessoa e a parte cara (NFD + regex) e cada
+        // uma e normalizada UMA vez, mesmo quando o exato falha e o prefixo
+        // precisa varrer a lista de novo.
+        List<User> exatos = new ArrayList<>();
+        List<User> prefixos = new ArrayList<>();
         for (User u : userRepository.findByAtivoTrue()) {
-            if (alvo.equals(PersonNameMatcher.normalize(u.getNome()))) {
-                casamentos.add(u);
+            String doCadastro = PersonNameMatcher.normalize(u.getNome());
+            if (doCadastro == null) continue;
+            if (alvo.equals(doCadastro)) {
+                exatos.add(u);
+            } else if (PersonNameMatcher.isTruncatedPrefixNormalizado(alvo, doCadastro)) {
+                prefixos.add(u);
             }
         }
 
-        if (casamentos.isEmpty()) {
-            log.info("Camera: nome nao encontrado no cadastro (nome='{}', biblioteca={}, similaridade={})",
-                    nome, biblioteca, similaridade);
-            return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
+        // ── 2. Nome exato: tem PRECEDENCIA sobre o prefixo ──
+        // Um casamento exato existindo, o prefixo nem e consultado. Se fosse o
+        // contrario, "Ana MAGBO" (que existe) poderia perder para "Ana MAGBO
+        // DOS SANTOS" (que tambem existe) e a passagem iria para a pessoa
+        // errada — as duas sao gente de verdade, nao variacoes de escrita.
+        if (exatos.size() == 1) {
+            User unico = exatos.get(0);
+            guardarDocumento(unico, documento, nome, biblioteca);
+            return new Identidade(Resultado.IDENTIFICADO, unico, nome, biblioteca, similaridade, documento);
         }
-
-        if (casamentos.size() > 1) {
+        if (exatos.size() > 1) {
             log.info("Camera: nome ambiguo, {} cadastros ativos (nome='{}', biblioteca={}, similaridade={}, ids={})",
-                    casamentos.size(), nome, biblioteca, similaridade,
-                    casamentos.stream().map(User::getId).toList());
+                    exatos.size(), nome, biblioteca, similaridade,
+                    exatos.stream().map(User::getId).toList());
             return new Identidade(Resultado.AMBIGUO, null, nome, biblioteca, similaridade, documento);
         }
 
-        User unico = casamentos.get(0);
-        guardarDocumento(unico, documento, nome, biblioteca);
-        return new Identidade(Resultado.IDENTIFICADO, unico, nome, biblioteca, similaridade, documento);
+        // ── 3. Nome TRUNCADO pelo aparelho, e so se for unico ──
+        // A camera corta o nome em 32 caracteres (medido em producao em
+        // 07/08/2026). Sem este ramo, quem tem nome comprido nunca e
+        // reconhecido na primeira passagem e nunca ganha o camera_person_id —
+        // fica em UNKNOWN_FACE para sempre, que era o defeito observado.
+        if (prefixos.size() == 1) {
+            User unico = prefixos.get(0);
+            // INFO obrigatorio: prefixo e a unica forma de casamento que aceita
+            // nomes DIFERENTES. Quem auditar a portaria precisa conseguir ver
+            // que aquela ligacao nao veio de um nome igual.
+            log.info("Camera: nome truncado casou por PREFIXO com {} (recebido='{}', cadastro='{}', "
+                            + "biblioteca={}, similaridade={})",
+                    unico.getId(), nome, unico.getNome(), biblioteca, similaridade);
+            guardarDocumento(unico, documento, nome, biblioteca);
+            return new Identidade(Resultado.IDENTIFICADO, unico, nome, biblioteca, similaridade, documento);
+        }
+        if (prefixos.size() > 1) {
+            log.info("Camera: nome truncado ambiguo, {} cadastros ativos comecam por '{}' "
+                            + "(recebido='{}', biblioteca={}, similaridade={}, ids={})",
+                    prefixos.size(), alvo, nome, biblioteca, similaridade,
+                    prefixos.stream().map(User::getId).toList());
+            return new Identidade(Resultado.AMBIGUO, null, nome, biblioteca, similaridade, documento);
+        }
+
+        log.info("Camera: nome nao encontrado no cadastro (nome='{}', biblioteca={}, similaridade={})",
+                nome, biblioteca, similaridade);
+        return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
     }
 
     /**

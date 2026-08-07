@@ -1,40 +1,75 @@
 {
   "ipAddress": "192.168.1.167",
-  "portNo": 80,
+  "portNo": 8080,
   "protocol": "HTTP",
-  "macAddress": "44:47:cc:11:22:33",
+  "macAddress": "08:3b:c1:4e:64:e6",
   "channelID": 1,
-  "dateTime": "2026-08-07T09:20:05-03:00",
+  "dateTime": "2026-08-07T10:45:53-03:00",
+  "activePostCount": 1,
+  "isDataRetransmission": false,
+  "eventState": "active",
   "channelName": "ENTRADA-INTERNA-01",
   "eventType": "alarmResult",
-  "eventState": "active",
   "eventDescription": "alarmResult",
+  "capturePictureResolution": {
+    "height": 1504,
+    "width": 2560
+  },
   "alarmResult": [
     {
-      "errorCode": 1,
+      "modelData": "<<modelo-biometrico-removido>>",
+      "errorCode": 1073750078,
       "errorMsg": "contrastFailed",
       "targetAttrs": {
-        "deviceId": "1",
+        "deviceId": "fa07c000-860f-11b5-8456-083bc14e64e6",
+        "deviceChannel": 1,
         "deviceName": "ENTRADA-INTERNA-01",
-        "faceTime": "2026-08-07T09:20:05-03:00",
-        "rect": { "height": 0.201, "width": 0.118, "x": 0.377, "y": 0.264 },
-        "pId": "1754570405"
+        "faceTime": "2026-08-07T10:45:53-03:00",
+        "rect": {
+          "height": 0.132,
+          "width": 0.062,
+          "x": 0.668,
+          "y": 0.287
+        },
+        "contentID": "backgroundImage",
+        "pId": "20260807104557941003OgQ1qrm8UhQP"
       },
       "faces": [
         {
-          "faceId": "1754570405001",
-          "faceRect": { "height": 0.201, "width": 0.118, "x": 0.377, "y": 0.264 },
-          "score": 0.91,
-          "modeldata": "AAAAAA==",
-          "stayDuration": 1,
+          "faceId": 69205,
+          "faceRect": {
+            "height": 0.061,
+            "width": 0.034,
+            "x": 0.681,
+            "y": 0.338
+          },
+          "recommendFaceRect": {
+            "height": 0.44,
+            "width": 0.55,
+            "x": 0.2,
+            "y": 0.28
+          },
+          "score": {
+            "value": 10
+          },
+          "modeldata": "<<modelo-biometrico-removido>>",
           "identify": [
             {
               "relationId": "",
-              "maxsimilarity": 0.17
+              "maxsimilarity": 0.13
             }
-          ]
+          ],
+          "contentID": "faceImage",
+          "pId": "20260807104557942000D4NMRlieI7aS",
+          "stayDuration": 5000
         }
       ]
     }
-  ]
+  ],
+  "GPS": {
+    "divisionEW": "E",
+    "longitude": 0,
+    "divisionNS": "N",
+    "latitude": 0
+  }
 }

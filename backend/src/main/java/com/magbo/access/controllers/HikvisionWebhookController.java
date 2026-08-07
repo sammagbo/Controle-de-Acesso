@@ -232,9 +232,17 @@ public class HikvisionWebhookController {
             // reentrega do mesmo pacote os repete.
             String chave = alarme.chaveDeIngestao();
             if (ingestionDedup.isDuplicateCameraEvent(sourceIp, chave)) {
-                log.info("Evento de camera duplicado descartado (ip={}, chave={}, janela={}s)",
-                        sourceIp, chave, ingestionDedup.ttlSeconds());
+                log.info("Evento de camera duplicado descartado (ip={}, pId={}, reentrega={}, janela={}s)",
+                        sourceIp, chave, alarme.getIsDataRetransmission(), ingestionDedup.ttlSeconds());
                 return ResponseEntity.ok("Success");
+            }
+            if (Boolean.TRUE.equals(alarme.getIsDataRetransmission())) {
+                // A camera declara reentrega mas o pId nao estava no cache: ou
+                // a entrega original nunca chegou, ou a janela venceu. Processa
+                // — perder o evento seria pior —, mas deixa a linha, que e o
+                // que explica um access_log com hora "estranha" depois.
+                log.info("Camera declarou REENTREGA de um evento nao visto antes (ip={}, pId={})",
+                        sourceIp, chave);
             }
 
             // IP do aparelho: o que ele anuncia, com o IP de origem como
@@ -294,10 +302,17 @@ public class HikvisionWebhookController {
     /**
      * F6b: extrai o HikvisionEventDto do corpo da requisicao.
      * Terminais MinMoe (DS-K1T344) enviam multipart/form-data com o JSON na
-     * part 'AccessControllerEvent' + uma part 'Picture' (jpeg). Cameras
-     * DeepinView enviam JSON puro (EventNotificationAlert). Retorna null se
+     * part 'AccessControllerEvent' + uma part 'Picture' (jpeg). Retorna null se
      * nao houver JSON parseavel (o chamador responde 200 para evitar
      * tempestade de retries do aparelho).
+     *
+     * Cameras DeepinView tambem mandam multipart, com estas parts (nomes
+     * conferidos na captura de 07/08/2026, boundary literal "boundary"):
+     * 'faceCapture' ou 'alarmResult' (application/json) · 'faceImage',
+     * 'backgroundImage' e 'faceLibImage' (image/jpeg, com filename e
+     * Content-ID iguais a um pId). As tres de imagem sao descartadas pelo
+     * Content-Type, NAO pelo nome — por isso 'backgroundImage' e
+     * 'faceLibImage', que so apareceram na captura, ja passavam em silencio.
      *
      * A part 'AccessControllerEvent' tem PRECEDENCIA sobre qualquer outra part
      * JSON: aparelhos que mandam a part de evento junto com uma part de sync

@@ -1,24 +1,59 @@
 {
   "ipAddress": "192.168.1.167",
-  "portNo": 80,
+  "portNo": 8080,
   "protocol": "HTTP",
-  "macAddress": "44:47:cc:11:22:33",
+  "macAddress": "08:3b:c1:4e:64:e6",
   "channelID": 1,
-  "dateTime": "2026-08-07T09:14:21-03:00",
-  "channelName": "ENTRADA-INTERNA-01",
+  "dateTime": "2026-08-07T10:45:26-03:00",
+  "activePostCount": 1,
+  "isDataRetransmission": false,
   "eventType": "faceCapture",
   "eventState": "active",
   "eventDescription": "faceCapture",
-  "faceCapture": {
-    "targetAttrs": {
-      "deviceId": "1",
-      "deviceName": "ENTRADA-INTERNA-01",
-      "faceTime": "2026-08-07T09:14:21-03:00",
-      "rect": { "height": 0.185, "width": 0.104, "x": 0.412, "y": 0.301 },
-      "pId": "1754570062"
-    },
-    "faceId": "1754570062001",
-    "score": 0.94,
-    "stayDuration": 1
+  "channelName": "ENTRADA-INTERNA-01",
+  "faceBackgroundImageResolution": {
+    "height": 1504,
+    "width": 2560
+  },
+  "faceCapture": [
+    {
+      "targetAttrs": {
+        "deviceName": "ENTRADA-INTERNA-01",
+        "deviceChannel": 1,
+        "deviceId": "fa07c000-860f-11b5-8456-083bc14e64e6",
+        "faceTime": "2026-08-07T10:45:26-03:00",
+        "contentID": "backgroundImage",
+        "pId": "2026080710453050100C03LKTGnH49aV"
+      },
+      "faces": [
+        {
+          "faceId": 69192,
+          "faceRect": {
+            "height": 0.085,
+            "width": 0.037,
+            "x": 0.375,
+            "y": 0.265
+          },
+          "contentID": "faceImage",
+          "pId": "20260807104530501003h08tIVLEvt9q",
+          "stayDuration": 283000,
+          "faceScore": 65,
+          "captureEndMark": false,
+          "FacePictureRect": {
+            "height": 0.46,
+            "width": 0.625,
+            "x": 0.208,
+            "y": 0.281
+          }
+        }
+      ],
+      "uid": "b8dcde97-4591-47fc-93b4-559e73198d0a"
+    }
+  ],
+  "GPS": {
+    "divisionEW": "E",
+    "longitude": 0,
+    "divisionNS": "N",
+    "latitude": 0
   }
 }

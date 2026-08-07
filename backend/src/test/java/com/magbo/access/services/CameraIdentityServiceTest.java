@@ -77,8 +77,8 @@ class CameraIdentityServiceTest {
         @Test
         @DisplayName("★ casa pelo camera_person_id, sem olhar o nome")
         void casaPeloDocumento() throws Exception {
-            User sam = pessoa("FUNC-001", "Qualquer Nome Diferente", "CAM-000041");
-            when(userRepository.findByCameraPersonId("CAM-000041")).thenReturn(Optional.of(sam));
+            User sam = pessoa("FUNC-001", "Qualquer Nome Diferente", "0000000000009001");
+            when(userRepository.findByCameraPersonId("0000000000009001")).thenReturn(Optional.of(sam));
 
             var id = service.resolver(sucesso());
 
@@ -91,7 +91,7 @@ class CameraIdentityServiceTest {
         @Test
         @DisplayName("documento desconhecido cai para o casamento por nome")
         void documentoDesconhecidoCaiParaNome() throws Exception {
-            when(userRepository.findByCameraPersonId("CAM-000041")).thenReturn(Optional.empty());
+            when(userRepository.findByCameraPersonId("0000000000009001")).thenReturn(Optional.empty());
             when(userRepository.findByAtivoTrue()).thenReturn(List.of(
                     pessoa("FUNC-001", "Sammy K. MAGBO", null)));
 
@@ -133,7 +133,7 @@ class CameraIdentityServiceTest {
             verify(userRepository).save(capturado.capture());
             assertThat(capturado.getValue().getCameraPersonId())
                     .as("da proxima passagem em diante a identificacao e deterministica")
-                    .isEqualTo("CAM-000041");
+                    .isEqualTo("0000000000009001");
         }
 
         @Test
@@ -178,7 +178,7 @@ class CameraIdentityServiceTest {
         @DisplayName("★ documento diferente ja gravado NAO e sobrescrito")
         void naoSobrescreveDocumento() throws Exception {
             User sam = pessoa("FUNC-001", "Sammy K. MAGBO", "CAM-OUTRO");
-            when(userRepository.findByCameraPersonId("CAM-000041")).thenReturn(Optional.empty());
+            when(userRepository.findByCameraPersonId("0000000000009001")).thenReturn(Optional.empty());
             when(userRepository.findByAtivoTrue()).thenReturn(List.of(sam));
 
             var id = service.resolver(sucesso());
@@ -228,20 +228,22 @@ class CameraIdentityServiceTest {
         @Test
         @DisplayName("★ o limiar DA CAMERA tem precedencia sobre a property")
         void limiarDaCameraVence() throws Exception {
-            // Biblioteca exigente (90%): 0.87 passaria pela property (0.70) mas
-            // nao pelo rigor que quem configurou a lista escolheu.
+            // Biblioteca exigente (98%): o 0.95 do payload real passaria pela
+            // property (0.70) mas nao pelo rigor que quem configurou a lista
+            // escolheu.
             String json = TestFixtures.comLimiarDaBiblioteca(
-                    TestFixtures.payload("camera-alarm-success.txt"), 90);
+                    TestFixtures.payload("camera-alarm-success.txt"), 98);
 
             assertThat(service.resolver(dto(json)).resultado())
                     .isEqualTo(CameraIdentityService.Resultado.DESCONHECIDO);
         }
 
         @Test
-        @DisplayName("★ escalas misturadas: 0.87 contra FDLibThreshold=70 e RECONHECIMENTO")
+        @DisplayName("★ escalas misturadas: 0.95 contra FDLibThreshold=70 e RECONHECIMENTO")
         void escalasMisturadas() throws Exception {
-            // O payload traz fracao (similarity 0.87) e percentual
-            // (FDLibThreshold 70). Comparar cru daria 0.87 < 70 e reprovaria
+            // Escalas confirmadas na captura de 07/08: o payload traz fracao
+            // (similarity 0.95) e percentual (FDLibThreshold 70). Comparar cru
+            // daria 0.95 < 70 e reprovaria
             // TODO reconhecimento bom — em silencio, parecendo defeito de camera.
             when(userRepository.findByAtivoTrue()).thenReturn(List.of(
                     pessoa("FUNC-001", "Sammy K. MAGBO", null)));
@@ -249,14 +251,14 @@ class CameraIdentityServiceTest {
             var id = service.resolver(sucesso());
 
             assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
-            assertThat(id.similaridade()).isEqualTo(0.87);
+            assertThat(id.similaridade()).isEqualTo(0.95);
         }
 
         @Test
         @DisplayName("normalizacao: percentual vira fracao, fracao fica")
         void normalizacao() {
             assertThat(CameraIdentityService.normalizarSimilaridade(70.0)).isEqualTo(0.70);
-            assertThat(CameraIdentityService.normalizarSimilaridade(0.87)).isEqualTo(0.87);
+            assertThat(CameraIdentityService.normalizarSimilaridade(0.95)).isEqualTo(0.95);
             assertThat(CameraIdentityService.normalizarSimilaridade(1.0)).isEqualTo(1.0);
             assertThat(CameraIdentityService.normalizarSimilaridade(null)).isNull();
             assertThat(CameraIdentityService.normalizarSimilaridade(-1.0)).isNull();
@@ -286,7 +288,7 @@ class CameraIdentityServiceTest {
         @DisplayName("a maxsimilarity da falha e reportada, para dar dimensao no log")
         void reportaMaxSimilaridade() throws Exception {
             var id = service.resolver(dto(TestFixtures.payload("camera-alarm-contrast-failed.txt")));
-            assertThat(id.similaridade()).isEqualTo(0.17);
+            assertThat(id.similaridade()).isEqualTo(0.13);
         }
     }
 
@@ -320,6 +322,23 @@ class CameraIdentityServiceTest {
             assertThat(service.resolver(dto(
                     "{\"alarmResult\":[{\"faces\":[{\"identify\":[]}]}]}")).resultado())
                     .isEqualTo(CameraIdentityService.Resultado.DESCONHECIDO);
+        }
+
+        @Test
+        @DisplayName("★ score vem EMBRULHADO ({\"value\":N}) — modelar como numero quebra tudo")
+        void scoreEmbrulhado() throws Exception {
+            // Regressao da captura de 07/08: eu tinha modelado faces[].score
+            // como Double. No payload real ele e um OBJETO. Jackson estourava
+            // em TODO evento, o controller devolvia 200 e a portaria ficava
+            // invisivel — a falha mais cara possivel, porque nao aparece.
+            String json = "{\"alarmResult\":[{\"faces\":[{\"score\":{\"value\":52},"
+                    + "\"identify\":[{\"candidate\":[{\"similarity\":0.95,\"FDLibThreshold\":70,"
+                    + "\"reserve_field\":{\"name\":\"Sammy MAGBO\"}}]}]}]}]}";
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-001", "Sammy K. MAGBO", null)));
+
+            assertThat(service.resolver(dto(json)).resultado())
+                    .isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
         }
 
         @Test

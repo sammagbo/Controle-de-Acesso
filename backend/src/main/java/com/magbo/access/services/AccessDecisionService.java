@@ -471,6 +471,34 @@ public class AccessDecisionService {
      * Aplica a regra de MESMA PASSAGEM tambem aqui: quem fica parado diante da
      * camera sem estar cadastrado geraria uma tentativa por evento, e o feed da
      * portaria viraria uma coluna com a mesma pessoa cem vezes.
+     *
+     * ⚠️ COMPROMISSO ASSUMIDO, e ele tem um custo real.
+     *
+     * A chave do colapso e `employeeNoRaw` (ver CameraAlarmDto#identificadorBruto).
+     * Quando a camera RECONHECEU alguem — ainda que o MAGBO recuse — ha numero
+     * de documento ou human_id, e o colapso e por PESSOA: exato, sem juntar
+     * gente diferente.
+     *
+     * Quando a comparacao FALHOU (contrastFailed) o payload nao traz nada que
+     * distinga um estranho de outro: o pId e unico por deteccao e o faceId se
+     * repete entre pessoas. Sobra o rotulo constante, e o colapso passa a ser
+     * por PONTO + ACAO + MOTIVO + janela de 30s.
+     *
+     * O que isso custa: duas pessoas DIFERENTES e nao reconhecidas passando no
+     * mesmo portao dentro de 30s viram UMA linha em access_attempts. Num
+     * portao de escola as 07:30 isso acontece. Portanto a contagem de
+     * "nao reconhecidos" deixa de ser "quantos estranhos passaram" e vira
+     * "em quantos momentos passou pelo menos um estranho" — serve para o
+     * operador olhar o portao, NAO serve como estatistica de quantas pessoas
+     * entraram sem ser reconhecidas.
+     *
+     * A alternativa seria nao colapsar nada e deixar o feed encher: quem fica
+     * parado gera um evento a cada poucos segundos, e uma tela cheia da mesma
+     * pessoa e uma tela que ninguem le. Entre perder a contagem exata de
+     * estranhos e perder a tela, escolhe-se perder a contagem.
+     *
+     * Nada disso afeta access_logs: quem foi reconhecido colapsa por userId,
+     * que e exato.
      */
     @Transactional
     public void processCameraDenied(String employeeNoRaw, String nomeSnapshot, String terminalIp,

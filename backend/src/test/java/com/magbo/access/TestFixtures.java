@@ -690,8 +690,9 @@ public final class TestFixtures {
     }
 
     /**
-     * Multipart no formato REAL das cameras DeepinView da portaria: part
-     * "alarmResult" (json) + part "faceImage" (jpeg).
+     * Multipart no formato REAL das cameras DeepinView da portaria, tal como
+     * na captura de 07/08/2026: part "alarmResult" (json) + as TRES parts de
+     * imagem que a camera manda junto.
      *
      * Carimba ipAddress e hora frescos — ver comIpDeCamera e cameraHaSegundos.
      */
@@ -704,12 +705,35 @@ public final class TestFixtures {
             String json, String ip, long segundosAtras) {
         String corpo = cameraHaSegundos(comIpDeCamera(json, ip), segundosAtras);
         return cameraMultipart(ip, jsonPart("alarmResult", corpo),
-                imagemDeRosto());
+                imagemDeRosto(), imagemDeFundo(), imagemDaBiblioteca());
     }
 
     /** Part de imagem do rosto — o parser tem de ignora-la sem armazenar nada. */
     public static MockPart imagemDeRosto() {
-        MockPart p = new MockPart("faceImage", "face.jpg", fakeJpeg());
+        return imagemJpeg("faceImage");
+    }
+
+    /**
+     * Cena inteira (2560x1504). Na captura real pesa 453-467KB — e a part que
+     * quase estoura o limite default de multipart do Spring.
+     */
+    public static MockPart imagemDeFundo() {
+        return imagemJpeg("backgroundImage");
+    }
+
+    /** Foto que a camera tem na biblioteca facial; so vem quando ha comparacao. */
+    public static MockPart imagemDaBiblioteca() {
+        return imagemJpeg("faceLibImage");
+    }
+
+    /**
+     * Part de imagem generica. O nome varia (faceImage, backgroundImage,
+     * faceLibImage) e o parser NAO pode depender dele: o descarte e por
+     * Content-Type, senao um nome novo de firmware vira "payload nao
+     * parseavel" em WARN.
+     */
+    private static MockPart imagemJpeg(String nome) {
+        MockPart p = new MockPart(nome, nome + ".jpg", fakeJpeg());
         p.getHeaders().setContentType(MediaType.IMAGE_JPEG);
         return p;
     }

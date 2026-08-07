@@ -39,7 +39,13 @@ class PortariaCameraIT extends AbstractIT {
     /** Nome como a camera o escreve — o cadastro tem a inicial do meio. */
     private static final String NOME_CAMERA = "Sammy MAGBO";
     private static final String NOME_CADASTRO = "Sammy K. MAGBO";
-    private static final String DOCUMENTO = "CAM-000041";
+
+    /**
+     * certificateNumber do fixture. Formato REAL da captura (16 digitos com
+     * zeros a esquerda); digitos trocados por ficticios — o repositorio e
+     * publico e isto e numero de documento.
+     */
+    private static final String DOCUMENTO = "0000000000009001";
 
     private String sucesso() {
         return TestFixtures.payload("camera-alarm-success.txt");
@@ -127,7 +133,7 @@ class PortariaCameraIT extends AbstractIT {
         servidor("FUNC-001", NOME_CADASTRO, null);
 
         mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
-                        TestFixtures.comFaceId(sucesso(), "evento-1"),
+                        TestFixtures.comPId(sucesso(), "evento-1"),
                         TestFixtures.IP_CAMERA_ENTRADA, 300))
                 .andExpect(status().isOk());
 
@@ -137,7 +143,7 @@ class PortariaCameraIT extends AbstractIT {
         userRepository.save(u);
 
         mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
-                        TestFixtures.comFaceId(sucesso(), "evento-2"),
+                        TestFixtures.comPId(sucesso(), "evento-2"),
                         TestFixtures.IP_CAMERA_ENTRADA, 0))
                 .andExpect(status().isOk());
 
@@ -256,6 +262,26 @@ class PortariaCameraIT extends AbstractIT {
     }
 
     @Test
+    @DisplayName("★ so parts de imagem (as TRES da captura real) -> 200 e nada gravado")
+    void soImagens() throws Exception {
+        entradaMapeada();
+
+        // A captura de 07/08 mostrou dois nomes de part que eu nunca tinha
+        // visto: backgroundImage (a cena inteira, ~460KB) e faceLibImage (a
+        // foto da biblioteca facial). O descarte e por Content-Type, nao por
+        // nome — este teste prende essa escolha, porque descartar por nome
+        // faria cada nome novo de firmware virar WARN "payload nao parseavel".
+        mockMvc.perform(TestFixtures.cameraMultipart(TestFixtures.IP_CAMERA_ENTRADA,
+                        TestFixtures.imagemDeRosto(),
+                        TestFixtures.imagemDeFundo(),
+                        TestFixtures.imagemDaBiblioteca()))
+                .andExpect(status().isOk());
+
+        assertThat(accessLogRepository.count()).isZero();
+        assertThat(accessAttemptRepository.count()).isZero();
+    }
+
+    @Test
     @DisplayName("faceCapture sozinha nao vira acesso nem tentativa")
     void faceCaptureSozinha() throws Exception {
         entradaMapeada();
@@ -283,7 +309,7 @@ class PortariaCameraIT extends AbstractIT {
         // Quem colapsa e a regra de mesma passagem, de 30s.
         for (int i = 0; i < 3; i++) {
             mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
-                            TestFixtures.comFaceId(sucesso(), "evento-" + i),
+                            TestFixtures.comPId(sucesso(), "evento-" + i),
                             TestFixtures.IP_CAMERA_ENTRADA, 6 - (i * 3)))
                     .andExpect(status().isOk());
         }
@@ -300,11 +326,11 @@ class PortariaCameraIT extends AbstractIT {
         servidor("FUNC-001", NOME_CADASTRO, DOCUMENTO);
 
         mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
-                        TestFixtures.comFaceId(sucesso(), "manha"),
+                        TestFixtures.comPId(sucesso(), "manha"),
                         TestFixtures.IP_CAMERA_ENTRADA, 300))
                 .andExpect(status().isOk());
         mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
-                        TestFixtures.comFaceId(sucesso(), "tarde"),
+                        TestFixtures.comPId(sucesso(), "tarde"),
                         TestFixtures.IP_CAMERA_ENTRADA, 0))
                 .andExpect(status().isOk());
 
@@ -312,19 +338,40 @@ class PortariaCameraIT extends AbstractIT {
     }
 
     @Test
-    @DisplayName("★ 7c. tentativa negada repetida tambem colapsa (o feed nao vira uma coluna so)")
+    @DisplayName("★ faceId REPETIDO entre eventos distintos nao pode descartar passagem")
+    void faceIdRepetidoNaoDescarta() throws Exception {
+        entradaMapeada();
+        servidor("FUNC-001", NOME_CADASTRO, DOCUMENTO);
+
+        // Na captura de 07/08 o mesmo faceId 69205 aparece num contrastFailed
+        // as 10:45:53 e num reconhecimento as 10:46:01 — pessoas diferentes.
+        // Se faceId fosse a chave do dedup de ingestao, a segunda passagem
+        // sumiria em silencio. pId diferente + 5 min de intervalo -> DUAS.
+        for (int i = 0; i < 2; i++) {
+            String corpo = TestFixtures.comPId(
+                    TestFixtures.comFaceId(sucesso(), "69205"), "deteccao-" + i);
+            mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
+                            corpo, TestFixtures.IP_CAMERA_ENTRADA, 300 - (i * 300)))
+                    .andExpect(status().isOk());
+        }
+
+        assertThat(accessLogRepository.count())
+                .as("★ faceId se repete no payload real; ele NAO e chave de ingestao")
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("★ 7c. desconhecido parado colapsa, mesmo com pId novo a cada deteccao")
     void tentativaNegadaColapsa() throws Exception {
         entradaMapeada();
 
-        // faceId DIFERENTE (deteccao nova, escapa do dedup de ingestao) e pId
-        // IGUAL (a mesma pessoa continua parada ali). E essa combinacao que
-        // acontece na vida real, e e ela que a regra de mesma passagem tem de
-        // colapsar — por isso identificadorBruto() usa pId e nao faceId.
+        // O pId muda a CADA deteccao — 38 valores distintos em 38 ocorrencias
+        // na captura. E a situacao real de quem fica parado no portao. Sem
+        // identidade no payload (contrastFailed nao traz candidato), o colapso
+        // e por ponto+acao+motivo+janela.
         for (int i = 0; i < 3; i++) {
             String corpo = TestFixtures.comPId(
-                    TestFixtures.comFaceId(
-                            TestFixtures.payload("camera-alarm-contrast-failed.txt"), "e" + i),
-                    "pessoa-parada-no-portao");
+                    TestFixtures.payload("camera-alarm-contrast-failed.txt"), "deteccao-" + i);
             mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
                             corpo, TestFixtures.IP_CAMERA_ENTRADA, 6 - (i * 3)))
                     .andExpect(status().isOk());
@@ -336,7 +383,54 @@ class PortariaCameraIT extends AbstractIT {
     }
 
     @Test
-    @DisplayName("reentrega do MESMO pacote (mesmo faceId) e descartada pelo dedup de ingestao")
+    @DisplayName("★ 7d. O CUSTO: dois estranhos DIFERENTES em 30s viram UMA linha")
+    void doisEstranhosDiferentesColapsam() throws Exception {
+        entradaMapeada();
+
+        // contrastFailed nao traz nada que distinga um estranho de outro: pId e
+        // unico por deteccao, faceId se repete entre pessoas. Este teste
+        // CONGELA o preco da decisao para que ele seja uma escolha visivel e
+        // nao uma surpresa: a contagem de nao reconhecidos e "em quantos
+        // momentos passou pelo menos um estranho", nunca "quantos estranhos".
+        for (int i = 0; i < 2; i++) {
+            String corpo = TestFixtures.comPId(
+                    TestFixtures.payload("camera-alarm-contrast-failed.txt"), "pessoa-" + i);
+            mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
+                            corpo, TestFixtures.IP_CAMERA_ENTRADA, 5 - (i * 5)))
+                    .andExpect(status().isOk());
+        }
+
+        assertThat(accessAttemptRepository.count())
+                .as("custo aceito: o feed manda o operador olhar o portao, nao contar gente")
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("★ 7e. reconhecido-e-recusado colapsa por PESSOA, nao por ponto")
+    void reconhecidoRecusadoColapsaPorPessoa() throws Exception {
+        entradaMapeada();
+        // Ninguem no cadastro -> UNKNOWN_FACE, mas COM certificateNumber.
+        String pessoaA = TestFixtures.comCertificateNumber(sucesso(), "0000000000001111");
+        String pessoaB = TestFixtures.comNomeDeCamera(
+                TestFixtures.comCertificateNumber(sucesso(), "0000000000002222"), "Outra Pessoa");
+
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
+                            TestFixtures.comPId(pessoaA, "a" + i),
+                            TestFixtures.IP_CAMERA_ENTRADA, 6 - (i * 3)))
+                    .andExpect(status().isOk());
+        }
+        mockMvc.perform(TestFixtures.cameraWebhookHaSegundos(
+                        TestFixtures.comPId(pessoaB, "b0"), TestFixtures.IP_CAMERA_ENTRADA, 1))
+                .andExpect(status().isOk());
+
+        assertThat(accessAttemptRepository.count())
+                .as("★ com documento ha identidade: A colapsa consigo, B entra separado")
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("reentrega do MESMO pacote (mesmo pId) e descartada pelo dedup de ingestao")
     void reentregaDoMesmoPacote() throws Exception {
         entradaMapeada();
         servidor("FUNC-001", NOME_CADASTRO, DOCUMENTO);

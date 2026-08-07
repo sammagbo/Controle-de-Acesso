@@ -64,6 +64,17 @@ public class CameraAlarmDto {
     @JsonProperty("eventState")
     private String eventState;
 
+    /**
+     * A propria camera avisando que este pacote e uma REENTREGA.
+     *
+     * Sinal de primeira classe que os MinMoe nao dao. Nao e usado para
+     * descartar — se a entrega original nunca chegou, descartar a reentrega
+     * perderia o evento —, mas entra na linha de log: quando uma passagem
+     * "some", saber que o pacote era reentrega e meio caminho do diagnostico.
+     */
+    @JsonProperty("isDataRetransmission")
+    private Boolean isDataRetransmission;
+
     @JsonProperty("alarmResult")
     private List<AlarmResult> alarmResult;
 
@@ -135,23 +146,31 @@ public class CameraAlarmDto {
     }
 
     /**
-     * Identificador do evento para o dedup de ingestao.
+     * Identificador do evento para o dedup de INGESTAO.
      *
-     * A camera NAO manda serialNo — a chave numerica que identifica reentrega
-     * nos MinMoe nao existe aqui. faceId identifica a deteccao especifica; pId
-     * e a pessoa rastreada. Reentrega do mesmo pacote repete os dois; passagem
-     * nova gera outros. Null quando nem um nem outro vem, e ai simplesmente
-     * nao ha dedup de ingestao (nunca arriscar descartar evento legitimo).
+     * A camera nao manda serialNo — a chave numerica dos MinMoe nao existe
+     * aqui. Quem serve e o **pId**: na captura de 07/08 sao 38 valores
+     * DISTINTOS em 38 ocorrencias, e o formato explica por que
+     * ("2026080710453057300" + sufixo aleatorio = data-hora ate o milissegundo
+     * + ruido). Ou seja: unico por deteccao, e uma reentrega do MESMO pacote o
+     * repete — que e exatamente o que um dedup de ingestao precisa.
+     *
+     * ⚠️ NAO usar faceId aqui: ele se repete entre eventos distintos (dois
+     * valores para 18 ocorrencias na captura), e o dedup passaria a descartar
+     * passagens reais.
+     *
+     * Null quando nenhum pId vem — e ai nao ha dedup de ingestao, que e o lado
+     * seguro do erro (nunca descartar evento legitimo).
      */
     public String chaveDeIngestao() {
-        Face f = primeiroRosto();
-        if (f != null && f.getFaceId() != null && !f.getFaceId().isBlank()) {
-            return f.getFaceId();
-        }
         AlarmResult r = primeiroResultado();
         if (r != null && r.getTargetAttrs() != null) {
             String pid = r.getTargetAttrs().getPId();
             if (pid != null && !pid.isBlank()) return pid;
+        }
+        Face f = primeiroRosto();
+        if (f != null && f.getPId() != null && !f.getPId().isBlank()) {
+            return f.getPId();
         }
         return null;
     }
@@ -167,26 +186,35 @@ public class CameraAlarmDto {
      */
     public String identificadorBruto() {
         Candidate c = melhorCandidato();
+
+        // 1. Numero do documento: identifica a PESSOA na biblioteca facial.
+        // Estavel entre passagens, e por isso a regra de mesma passagem
+        // colapsa corretamente as tentativas repetidas de quem foi reconhecido
+        // mas recusado (abaixo do limiar, nome fora do cadastro, homonimo).
         if (c != null && c.certificateNumber() != null) return c.certificateNumber();
 
-        // pId ANTES de faceId, e a ordem e o que faz a regra de mesma passagem
-        // funcionar para quem NAO foi reconhecido. pId identifica a PESSOA
-        // rastreada e se mantem enquanto ela esta diante da camera; faceId
-        // identifica cada DETECCAO e muda a cada evento. Com faceId aqui, um
-        // desconhecido parado no portao geraria uma tentativa negada por
-        // evento — a regra de 30s nunca casaria duas, porque a chave mudava
-        // junto. Provado por PortariaCameraIT#tentativaNegadaColapsa.
-        AlarmResult r = primeiroResultado();
-        if (r != null && r.getTargetAttrs() != null) {
-            String pid = r.getTargetAttrs().getPId();
-            if (pid != null && !pid.isBlank()) return "CAM:" + pid;
-        }
-        Face f = primeiroRosto();
-        if (f != null && f.getFaceId() != null && !f.getFaceId().isBlank()) {
-            return "CAM:" + f.getFaceId();
-        }
-        return "CAM:desconhecido";
+        // 2. human_id: o id do registro na biblioteca. Tambem estavel; cobre
+        // uma biblioteca preenchida sem numero de documento.
+        if (c != null && c.getHumanId() != null) return "CAM:HID:" + c.getHumanId();
+
+        // 3. Sem candidato (contrastFailed) NAO HA identidade nenhuma no
+        // payload. pId e faceId nao servem: o primeiro e unico por deteccao
+        // (38 valores distintos em 38 ocorrencias na captura de 07/08), o
+        // segundo se repete entre pessoas DIFERENTES (dois valores em 18
+        // ocorrencias). Um rotulo CONSTANTE e o unico jeito de a regra de
+        // mesma passagem colapsar o desconhecido parado no portao — e o preco
+        // e agrupar estranhos distintos na mesma janela. Ver
+        // AccessDecisionService#processCameraDenied.
+        return SEM_IDENTIDADE;
     }
+
+    /**
+     * Rotulo de quem a camera viu e nao soube dizer quem era.
+     *
+     * Constante de proposito: e o que permite colapsar por ponto+janela. Ver
+     * o comentario em identificadorBruto().
+     */
+    public static final String SEM_IDENTIDADE = "CAM:SEM-IDENTIDADE";
 
     private static <T> T primeiro(List<T> lista) {
         return (lista == null || lista.isEmpty()) ? null : lista.get(0);
@@ -238,19 +266,52 @@ public class CameraAlarmDto {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Face {
+        /**
+         * ⚠️ NAO e identificador unico de evento. A captura de 07/08 tem 18
+         * ocorrencias com apenas DOIS valores (69192 e 69205), reaproveitados
+         * entre eventos e entre PESSOAS diferentes — o mesmo 69205 aparece num
+         * contrastFailed as 10:45:53 e num reconhecimento as 10:46:01. Usa-lo
+         * como chave de dedup de ingestao descartaria passagens reais como se
+         * fossem reentrega. Quem serve para isso e o pId (ver chaveDeIngestao).
+         *
+         * Vem como NUMERO no payload; String aqui porque o Jackson coage e
+         * porque nada aritmetico e feito com ele.
+         */
         @JsonProperty("faceId")
         private String faceId;
 
-        /** Qualidade da deteccao — nao e similaridade. Nao entra em decisao. */
+        /**
+         * Qualidade da deteccao — NAO e similaridade, nao entra em decisao.
+         *
+         * ⚠️ E um OBJETO `{"value": 65}`, nao um numero. Modelado como Double
+         * na primeira versao, o Jackson lancava e TODO evento real caia no
+         * catch do controller: 200, nada gravado, portaria invisivel de novo.
+         */
         @JsonProperty("score")
-        private Double score;
+        private Score score;
 
-        /** Segundos parado diante da camera. */
+        /**
+         * Tempo diante da camera. Observado 5000 e 10000 na captura, crescendo
+         * entre eventos de quem fica parado — o que sugere MILISSEGUNDOS, mas
+         * nenhuma decisao depende disso e o firmware nao documenta a unidade.
+         */
         @JsonProperty("stayDuration")
-        private Integer stayDuration;
+        private Long stayDuration;
+
+        /** pId do ROSTO — outro valor, ainda por deteccao. Ver targetAttrs.pId. */
+        @JsonProperty("pId")
+        private String pId;
 
         @JsonProperty("identify")
         private List<Identify> identify;
+    }
+
+    /** `score` vem embrulhado: {"value": 65}. */
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Score {
+        @JsonProperty("value")
+        private Double value;
     }
 
     @Data

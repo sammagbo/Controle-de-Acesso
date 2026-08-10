@@ -123,9 +123,38 @@ vazio · **B** = A + `V001..V011` na ordem · **C** = `schema-producao.sql`
    deles é em `access_logs`), porém real em `access_attempts` à medida que a
    portaria cresce.
 
-## Eixo 4 — Percurso completo com cliques
+## Eixo 4 — Percurso completo com cliques ✅ (1 seção do checklist está errada; 3 passos não retestados)
 
-_Pendente._
+Electron real via driver, `MAGBO_API_URL` **explícito** para a instância local
+(confirmado de dentro da página antes do primeiro clique), backend = `main` +
+o fix do pareamento. `externos: []` no percurso inteiro (modo kiosk).
+
+| seção do checklist | veredito |
+|---|---|
+| 1. Login e sessão | ✅ senha errada não entra; login ok. **1.5 (reload) — o CHECKLIST está errado**, ver achado abaixo |
+| 2. Dashboard e setores | ✅ sem NaN; busca; registro manual por clique aparece na lista; enfermaria abre |
+| 3. CDI | ✅ abre; toggle "Inclure le personnel" presente. 3.7/3.8 (scan de entrada/saída no CDI) não exercitados por clique |
+| 3.9 Rapport CDI | ✅ indireto: os números do CDI no overview vêm do mesmo serviço, sem duração negativa |
+| 4.1 Vue d'ensemble | ✅ toggle CDI presente; **nenhuma duração negativa**; card CDI = 2 visitas/21 min (o fix do pareamento em tela) |
+| 4.2 Par élève | ✅ busca acha |
+| 4.3 Journal | ✅ 27 mouvements; lente Répétitions; 10 etiquetas; fechamento das 17:00 listado. CSV (download) não assertado |
+| 5.0 Layout Configurações | ✅ tela cheia, X visível |
+| 5.2 HikCentral | ✅ aba abre com instruções. **Drop do arquivo não retestado** (a lib xlsx local é UMD de navegador e não gera fixture em Node; fluxo tem E2E anterior com arquivo real de 1198 linhas, 17/07) |
+| 5.3 Servidores | ✅ lista carrega; coluna Posto fixo com rótulos; **reclassificação: busca + prévia lado a lado ("ALUNO RECEBE A FACE"/"SERVIDOR SERÁ INATIVADO") provadas em tela, nada confirmado** (screenshot; o painel aberto foi o da 1ª linha) |
+| 5.x Fotos | ✅ dry-run (selo "nada gravado", 1 Nova + 1 Sem dono, banco em 0) → aplicar → "Gravado", banco com a foto (74 bytes, `por admin`) |
+| 5.x Droits Repas (xlsx) | **não retestado** (mesma limitação de fixture; E2E anterior com XLSX real, D5, 17/07) |
+| 6. Fechamento automático | ✅ observado ao vivo DUAS vezes na sessão (17:00 disparou e fechou presenças abertas; linhas no Journal) |
+| 6-bis. Ocupação em SQL | ✅ coberto pelo eixo 2 (verbatim, PG real) |
+| 7. Regressões | ✅ console limpo exceto: 1×401 (a própria tentativa de senha errada) e 404s do endpoint de foto (fallback de iniciais — comportamento desenhado) |
+
+### ⚠️ ACHADO (severidade c, mas derrubou metade do percurso até ser isolado):
+**o passo 1.5 do checklist afirma o contrário do código.** "Recarregar (Ctrl+R)
+→ continua logado (token persistido)" — o token **nunca** foi persistido:
+`js/utils/auth.js` o guarda em memória, com comentário explícito ("não
+localStorage por segurança em Electron"), e `git log -S localStorage.setItem`
+sobre o arquivo volta vazio em toda a história. Um F5 no kiosk = login de novo,
+**por design**. Corrigir o checklist (e decidir, se quiser, se o design muda —
+mas isso é decisão de segurança, não da auditoria).
 
 ## Eixo 5 — Passada de segurança
 

@@ -82,9 +82,46 @@ Correção proposta (pequena e assimétrica, espelhando as consultas): o pareado
 **pula ENTRADA marcada como repetição, nunca uma SAÍDA** — ver branch de fix
 listada no relatório final.
 
-## Eixo 3 — Drift de schema (migrations × Hibernate × produção)
+## Eixo 3 — Drift de schema (migrations × Hibernate × produção) ✅
 
-_Pendente._
+Comparação a três em PG 16.14 local: **A** = Hibernate `ddl-auto` sobre banco
+vazio · **B** = A + `V001..V011` na ordem · **C** = `schema-producao.sql`
+(dump schema-only da produção real, 11 tabelas). Fingerprint por
+`information_schema` (colunas/tipos/nulidade) + `pg_constraint` (CHECKs) +
+`pg_indexes`.
+
+### O resultado central: produção está EM DIA
+
+- **Colunas: os três IDÊNTICOS** — 113 colunas, tipos e nulidade iguais,
+  incluindo `posto_fixo_point_id` (V010) e a tabela `user_photos` (V011).
+- **A armadilha da V009 NÃO tem irmãos novos:** o CHECK de `denial_reason` na
+  produção já contém os 12 valores (`UNKNOWN_FACE`/`AMBIGUOUS_NAME` inclusos) e
+  `meal_entitlement_events.source` existe lá — as duas armadilhas conhecidas
+  estão aplicadas.
+- Diferenças de CHECK entre A e C são de **formato** (`x IS NULL OR x = ANY`
+  vs `x = ANY` — para coluna nullable, semanticamente equivalentes: CHECK com
+  NULL passa). Única diferença **real** A×C: o CHECK de `source`, que o
+  Hibernate não gera — exatamente o que `database.md` já documenta.
+
+### Achados
+
+1. **(c) As migrations NÃO são autossuficientes.** Sobre banco vazio,
+   V005/V007/V008/V010 falham (`relation does not exist`): elas pressupõem o
+   schema-base nascido do Hibernate/dump. Uma VM reconstruída do zero **não**
+   nasce de `deploy/migrations/` sozinha — precisa do dump antes. O README
+   implica a ordem mas não afirma isso; vale uma frase explícita.
+2. **(c) Índice UNIQUE duplicado se as migrations rodarem DEPOIS do
+   Hibernate.** Em B, `app_users.camera_person_id` fica com DOIS índices únicos
+   (`uk_5iw58k…` do Hibernate + `app_users_camera_person_id_key` da V008 — o
+   `DO $$` da V008 só engole a exceção do próprio nome). A produção está limpa
+   (só o da V008 ⇒ lá a V008 rodou antes do boot). Efeito: custo de escrita
+   redundante, sem risco funcional.
+3. **(c) O PC (só `ddl-auto`, sem migrations) roda SEM os índices de
+   performance da V006** (`idx_attempts_*`, `idx_ment_events_user_ts`,
+   `idx_exitperm_*`). O README diz que o PC "não precisa dos SQLs", o que é
+   verdade para o schema — mas não para esses índices. Impacto contido (nenhum
+   deles é em `access_logs`), porém real em `access_attempts` à medida que a
+   portaria cresce.
 
 ## Eixo 4 — Percurso completo com cliques
 

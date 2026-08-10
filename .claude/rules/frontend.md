@@ -9,6 +9,8 @@
 - Polling: AdminDashboard 5s, CantineMonitor 3s, relógios 1s. Novos pollings: limpar no cleanup do useEffect.
 - CDI/Biblioteca: presença e scan passam pelo backend (ponto `BIBLIO`); localStorage só p/ preferências/backup local. Cadastro de alunos é read-only no CDI.
 - Constantes físicas da escola: `js/data/constants.js` (`ACCESS_POINTS`) — espelho consciente do `AreaMapping` do backend; alterar os DOIS juntos.
+- **Fotos de pessoas: sempre `<PersonPhoto userId nome fotoUrl className/>`** (`js/components/PersonPhoto.js`), nunca um `<img src={user.foto_url}>` novo. Queda única e testada (`window.MagboPhotoCache.srcEfetivo`): **foto importada → `foto_url` → iniciais** (`localAvatar`, SVG inline, funciona sem rede — risco R1). ⚠️ **A foto NÃO entra por `<img src="/api/users/X/photo">`:** o endpoint é autenticado e o navegador não manda `Authorization` em `<img>`; abrir o endpoint seria publicar um catálogo de rostos de crianças na rede da escola. `js/utils/photoCache.js` busca por `fetch` com o token e devolve um `objectURL` — uma requisição por pessoa (promessa compartilhada), 404 lembrado, **falha de rede NÃO lembrada**, teto de objectURLs vivos com revogação. Depois de importar em lote: `MagboPhotoCache.clear()`, senão quem acabou de ganhar foto fica com as iniciais até reiniciar.
+- ⚠️ **`authHeaders()` sempre põe `Content-Type: application/json`** — usar `somenteAutorizacao()` (js/api.js) para `FormData` e corpo binário. Com `FormData`, um Content-Type declarado à mão substitui o `multipart/form-data; boundary=…` do navegador e o upload chega vazio, **sem erro visível**.
 - Ícones lucide; paleta navy/gold MAGBO (tokens em styles.css/Tailwind config inline).
 
 ## Componentes da camada de decisão (Fase H)

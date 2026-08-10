@@ -42,6 +42,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V006_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V007__app_users_departamento.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V008__app_users_camera_person_id.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V009__denial_reason_camera.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010__app_users_posto_fixo.sql
 ```
 
@@ -56,6 +57,17 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010_
 | `V007__app_users_departamento.sql` | `ALTER TABLE app_users ADD COLUMN departamento` (nullable) | Servidores |
 | `V008__app_users_camera_person_id.sql` | `ALTER TABLE app_users ADD COLUMN camera_person_id` (nullable, UNIQUE) | Câmeras da portaria |
 | `V009__denial_reason_camera.sql` | amplia o CHECK de `access_attempts.denial_reason` (`UNKNOWN_FACE`, `AMBIGUOUS_NAME`) | Câmeras da portaria |
+| `V011__user_photos.sql` | tabela `user_photos` (`bytea`) — fotos de identificação | Fotos |
+
+> ⚠️ **`V010` não está nesta lista de propósito:** ela vem da branch do *posto fixo*,
+> entregue em paralelo. Quando as duas forem integradas, aplicar **V010 antes de V011**
+> (a ordem numérica). Nenhuma das duas depende da outra — são tabelas/colunas distintas.
+
+> ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
+> As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —
+> ver o cabeçalho do arquivo). Isso é uma vantagem: elas entram no `pg_dump` como qualquer
+> coluna. Mas o rollback `R011` **apaga as imagens**, e restaurá-las exige o dump anterior
+> ou reimportar os arquivos de origem. Backup antes, sempre.
 | `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 
 ## 4. Procedimento completo na VM

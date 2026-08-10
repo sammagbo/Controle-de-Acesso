@@ -189,7 +189,17 @@ class PostoFixoIT extends AbstractIT {
                 .isNull();
     }
 
-    /** Ninguem sem posto fixo e afetado: e o comportamento historico intacto. */
+    /**
+     * Ninguem sem posto fixo e afetado: e o comportamento historico intacto.
+     *
+     * ⚠️ Tres ENTRADAS seguidas sem saida, no PORTAO, e de proposito — e o
+     * cenario que a regra de presenca aberta (JA_PRESENTE) marcaria se ela
+     * rodasse ali. Ela NAO roda: no portao a saida escapa, "ja esta dentro" e
+     * palpite, e marcar esconderia uma entrada real (decisao do Sam,
+     * 10/08/2026 — ver AreaMapping.temPresencaConfiavel). Este teste passou a
+     * cobrar as duas coisas de uma vez: sem posto fixo nao ha POSTO_FIXO, e no
+     * portao nao ha JA_PRESENTE.
+     */
     @Test
     @DisplayName("★ 4. sem posto fixo, nada muda — nenhuma passagem recebe flag")
     void semPostoFixoNadaMuda() throws Exception {
@@ -241,7 +251,7 @@ class PostoFixoIT extends AbstractIT {
      * Mesmo padrao ja validado do filtro de tipo — parametro, nunca regra fixa.
      */
     @Test
-    @DisplayName("★ 6. /logs/{ponto} esconde a repeticao por padrao e a devolve com incluirPostoFixo")
+    @DisplayName("★ 6. /logs/{ponto} esconde a repeticao por padrao e a devolve com incluirRepeticoes")
     void telaDoSetorEscondeEMostraSobPedido() throws Exception {
         String token = TestAuthHelper.loginAdmin(mockMvc);
         entradaMapeada();
@@ -257,7 +267,7 @@ class PostoFixoIT extends AbstractIT {
                 .andExpect(jsonPath("$.length()").value(1));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/access/logs/PORT1")
-                        .param("incluirPostoFixo", "true")
+                        .param("incluirRepeticoes", "true")
                         .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3));
@@ -282,16 +292,16 @@ class PostoFixoIT extends AbstractIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3));
 
-        mockMvc.perform(journal(token).param("limit", "500").param("postoFixo", "SEULEMENT"))
+        mockMvc.perform(journal(token).param("limit", "500").param("repeticoes", "SEULEMENT"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
 
-        mockMvc.perform(journal(token).param("limit", "500").param("postoFixo", "SANS"))
+        mockMvc.perform(journal(token).param("limit", "500").param("repeticoes", "SANS"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
         // Valor que a tela nunca manda: nao pode estreitar nada em silencio.
-        mockMvc.perform(journal(token).param("limit", "500").param("postoFixo", "talvez"))
+        mockMvc.perform(journal(token).param("limit", "500").param("repeticoes", "talvez"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3));
     }

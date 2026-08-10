@@ -352,6 +352,56 @@ mesmo cenário ela deve devolver **2**: o aluno A (entrou na cantina e não saiu
 e a enfermeira (primeira entrada do dia, sem saída). A cantina **não** pode
 aparecer — a entrada dela às 11:00 foi fechada pela **saída marcada** das 11:30.
 
+### `JA_PRESENTE` — a segunda flag de repetição, no mesmo cenário
+
+Desde 10/08/2026 há **duas** flags de repetição, e as consultas as excluem
+**juntas** (`flag NOT IN ('POSTO_FIXO','JA_PRESENTE')`, lista única em
+`AccessLogRepository.REPETICOES`). O caso: o aluno 0003053 entrou no CDI quatro
+vezes em cinco minutos — 12:49, 12:51, 12:51, 12:54 — **sem saída entre elas**.
+
+Acrescentar ao seed:
+
+```sql
+INSERT INTO access_logs (user_id,point_id,action,timestamp,flag) VALUES
+ ('<alunoC>','BIBLIO','ENTRADA',CURRENT_DATE+time '12:49',NULL),
+ ('<alunoC>','BIBLIO','ENTRADA',CURRENT_DATE+time '12:51','JA_PRESENTE'),
+ ('<alunoC>','BIBLIO','ENTRADA',CURRENT_DATE+time '12:51','JA_PRESENTE'),
+ ('<alunoC>','BIBLIO','ENTRADA',CURRENT_DATE+time '12:54','JA_PRESENTE');
+```
+
+| Verificação | Esperado | Por quê |
+|---|---|---|
+| `currentOccupancyByPoint` → `BIBLIO` | **+1** (o aluno C, uma vez) | ele entrou e não saiu; as três repetições não podem contar como quatro pessoas |
+| `countUnregisteredExits` | **inalterado** | `BIBLIO` não está na lista (`REFEI1`,`REFEI2`,`ENFERM`) — se mudar, alguém alterou a consulta |
+| `countRelevantesSince` | **+1**, não +4 | é a contagem de tela |
+| `countByTimestampGreaterThanEqual` | **+4** | a contagem crua prova que nada foi apagado |
+| `countBlockedSince` | **inalterado** | `JA_PRESENTE` não é alerta — a marca criada para calar ruído não pode virar ruído |
+
+> ⚠️ **`JA_PRESENTE` NÃO roda no portão** (decisão do Sam, 10/08/2026). Ali a
+> saída escapa — sai-se por fora do campo da câmera —, então "já está dentro" é
+> palpite, e marcar uma reentrada esconderia uma **entrada real**. O ruído do
+> portão já tem dono: `POSTO_FIXO`, marcado por pessoa e por decisão explícita.
+> A noção é `AreaMapping.temPresencaConfiavel` (derivada da ÁREA), então
+> cantina e enfermaria entram sozinhas quando forem comissionadas.
+>
+> **Conferência:** semear 3 ENTRADAS seguidas em `PORT1` sem saída, para a
+> mesma pessoa. Nenhuma pode sair com `JA_PRESENTE`; as três contam como três
+> movimentos. Se alguma vier marcada, a regra vazou para o portão.
+
+> ⚠️ **A assimetria vale para as duas flags.** `JA_PRESENTE` só marca ENTRADA
+> por construção, mas o predicado assimétrico de `currentOccupancyByPoint`
+> continua sendo o que protege a SAÍDA — e agora ele protege contra as duas.
+> Se alguém marcar uma SAÍDA com qualquer flag de repetição, é o defeito de
+> 10/08 de volta.
+
+### Se as contagens divergirem, o primeiro lugar a olhar
+
+`AccessLogRepository.REPETICOES` é a lista **única**. Uma flag nova que entre
+numa consulta e falte noutra não quebra nada — só faz a décima contar diferente.
+`AccessLogRepositoryQueryGuardTest` cobra que toda consulta que cita uma flag de
+repetição passe por essa lista, mas ele lê **string**: só pega o que estiver
+escrito no `@Query`, não o que uma consulta nova faça em código Java.
+
 ---
 
 ## 7. Regressões que não podem aparecer

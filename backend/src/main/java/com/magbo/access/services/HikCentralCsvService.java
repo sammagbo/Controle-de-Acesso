@@ -61,10 +61,36 @@ public class HikCentralCsvService {
     static final String FIM_DE_LINHA = "\r\n";
 
     /**
-     * Cabecalho, com os mesmos nomes que o import le
-     * (js/utils/hikcentralSheet.js e HikCentralImportService).
+     * Nome da coluna que leva a TURMA do aluno.
+     *
+     * ⚠️ SUPOSICAO DECLARADA, e ela e de UMA LINHA de proposito.
+     *
+     * O template de IMPORTACAO do HCP continua sendo a pendencia 3 do
+     * procedimento ("[A DEFINIR COM FABIANO]"), e o projeto nao tem, em doc
+     * nenhum, o nome que o HCP espera para a classe — o unico mapeamento de
+     * turma que existe e o do PRONOTE (`CLASSES`, docs/PROCEDURE_ANNUELLE.md),
+     * que e outro sistema e nao serve aqui. As quatro colunas restantes deste
+     * arquivo vem do EXPORT real do HCP, que o projeto ja leu e provou.
+     *
+     * "Classe" foi escolhido por ser o termo do proprio locale frances do HCP,
+     * coerente com "Prénom" / "Nom de famille" / "Service". Quando o Fabiano
+     * entregar o template, muda-se ESTA constante e mais nada.
+     *
+     * Acrescentar a coluna NAO quebra a ida-e-volta: o import descarta colunas
+     * que nao conhece (provado em tests/hikcentralSheet.test.js, "ignora
+     * colunas desconhecidas"), entao o que sai daqui continua voltando igual.
      */
-    static final List<String> COLUNAS = List.of("ID", "Prénom", "Nom de famille", "Service");
+    static final String COLUNA_TURMA = "Classe";
+
+    /**
+     * Cabecalho, com os mesmos nomes que o import le
+     * (js/utils/hikcentralSheet.js e HikCentralImportService) + a turma.
+     *
+     * A turma vai no FIM: as quatro primeiras sao as provadas contra arquivo
+     * real, e mante-las na mesma ordem e o que permite comparar um export de
+     * hoje com um de antes desta mudanca sem realinhar coluna nenhuma.
+     */
+    static final List<String> COLUNAS = List.of("ID", "Prénom", "Nom de famille", "Service", COLUNA_TURMA);
 
     /** Valor da coluna Service para aluno — o import devolve UserType.ALUNO a partir dele. */
     static final String SERVICE_ALUNOS = "All Departments/ALUNOS";
@@ -113,7 +139,8 @@ public class HikCentralCsvService {
                         personId(u),
                         prenom(u.getNome()),
                         nomDeFamille(u.getNome()),
-                        SERVICE_ALUNOS
+                        SERVICE_ALUNOS,
+                        turma(u)
                 )));
             }
         }
@@ -131,6 +158,23 @@ public class HikCentralCsvService {
     String personId(User u) {
         String hik = trim(u.getHikvisionEmployeeId());
         return hik != null ? hik : trim(u.getId());
+    }
+
+    /**
+     * A turma do aluno, como TEXTO.
+     *
+     * Aluno sem turma sai com campo VAZIO, nunca com "—", "N/A" ou o proprio
+     * id: o CSV vai ser lido por outra maquina, e um marcador humano viraria
+     * uma turma chamada "—" no HCP.
+     *
+     * Turma nao tem zero a esquerda hoje ("1E1", "CE2A"), mas sai entre aspas
+     * como todo campo deste arquivo — pela mesma razao da matricula: em CSV,
+     * aspas e a forma de dizer "isto e texto", e uma turma futura que comece
+     * por zero nao pode depender de ninguem ter lembrado disso.
+     */
+    String turma(User u) {
+        String t = trim(u.getTurma());
+        return t != null ? t : "";
     }
 
     /**

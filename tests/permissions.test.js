@@ -102,6 +102,58 @@ describe('permissions — gate de escrita', () => {
         });
     });
 
+    /**
+     * O ATALHO DO DASHBOARD — o defeito que ele conserta.
+     *
+     * A correção de permissão da tela de Sorties foi entregue e o backend
+     * aceita o OPERATOR com EXIT_PERMISSION_WRITE. Mas a tela é `hidden` e da
+     * área `admin`, então o Dashboard não a oferecia a ninguém, e o Painel
+     * Administrativo — o outro caminho — exige PIN admin-only. Resultado: a
+     * pessoa tinha o direito, o servidor aceitava, e não havia por onde entrar.
+     */
+    describe('★ atalho no Dashboard para as telas de gestão', () => {
+
+        it('★ OPERATOR com a permissão granular VÊ o atalho', () => {
+            const operador = auth({ permissoes: 'EXIT_PERMISSION_WRITE' });
+            expect(P.mostraAtalhoNoDashboard(operador, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(true);
+        });
+
+        it('OPERATOR sem a permissão NÃO vê', () => {
+            const operador = auth({ permissoes: 'ATTEMPTS_READ' });
+            expect(P.mostraAtalhoNoDashboard(operador, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+        });
+
+        it('★ ADMIN não vê o atalho — ele entra pelo Painel Administrativo', () => {
+            // Não é restrição de direito: é onde cada papel entra. Sem isto o
+            // admin veria o card duplicado (Dashboard + painel).
+            expect(P.mostraAtalhoNoDashboard(auth({ admin: true }), P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+        });
+
+        it('a permissão da CANTINA não abre a tela de SORTIES', () => {
+            // Cada atalho é governado pela sua própria permissão — foi o
+            // erro que a permissão granular existe para impedir.
+            const cantina = auth({ permissoes: 'MEAL_ENTITLEMENT_WRITE' });
+            expect(P.mostraAtalhoNoDashboard(cantina, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+            expect(P.mostraAtalhoNoDashboard(cantina, P.PERMISSIONS.MEAL_ENTITLEMENT_WRITE)).toBe(true);
+        });
+
+        it('permissão "*" abre os dois atalhos', () => {
+            const coringa = auth({ permissoes: '*' });
+            expect(P.mostraAtalhoNoDashboard(coringa, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(true);
+            expect(P.mostraAtalhoNoDashboard(coringa, P.PERMISSIONS.MEAL_ENTITLEMENT_WRITE)).toBe(true);
+        });
+
+        it('sem auth (tela carregando) devolve false, nunca undefined', () => {
+            expect(P.mostraAtalhoNoDashboard(null, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+            expect(P.mostraAtalhoNoDashboard(undefined, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+            expect(P.mostraAtalhoNoDashboard({}, P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
+        });
+
+        it('permissão ausente devolve false', () => {
+            expect(P.mostraAtalhoNoDashboard(auth({ permissoes: '*' }), null)).toBe(false);
+        });
+    });
+
     describe('nomes espelhados do backend', () => {
         it('batem com security/Permissions.java', () => {
             expect(P.PERMISSIONS).toEqual({

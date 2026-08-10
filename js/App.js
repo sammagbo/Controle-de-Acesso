@@ -38,7 +38,7 @@ function App() {
        * não dentro do SectorView, porque o filtro é do SERVIDOR — a busca
        * precisa refazer-se quando ele muda, e é esta função que busca.
        */
-      const [incluirPostoFixo, setIncluirPostoFixo] = React.useState(false);
+      const [incluirRepeticoes, setIncluirRepeticoes] = React.useState(false);
       const [activeTimers, setActiveTimers] = React.useState([]);
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
@@ -125,7 +125,7 @@ function App() {
                   if (inFlight) return;
                   inFlight = true;
                   try {
-                        const logs = await fetchLogs(pointId, { incluirPostoFixo });
+                        const logs = await fetchLogs(pointId, { incluirRepeticoes });
                         if (cancelled) return;
 
                         // Guard: ensure logs is always an array (fetchLogs already normalises)
@@ -205,12 +205,12 @@ function App() {
             // incluirPostoFixo entra nas dependências porque o filtro é do
             // servidor: ligar o botão tem que REBUSCAR, não refiltrar o que já
             // está em tela (as linhas escondidas nunca chegaram ao cliente).
-      }, [currentPoint, incluirPostoFixo]);
+      }, [currentPoint, incluirRepeticoes]);
 
       // Trocar de setor volta ao padrão. O botão é um recurso de diagnóstico —
       // "quanto ruído o posto fixo está absorvendo aqui?" —, não uma
       // preferência que deva seguir o operador pela portaria e pela enfermaria.
-      React.useEffect(() => { setIncluirPostoFixo(false); }, [currentPoint]);
+      React.useEffect(() => { setIncluirRepeticoes(false); }, [currentPoint]);
 
       // ─────────────────────────────────────────────────────────────
       // processAccess — Lógica de Negócio Assíncrona Integrada (API)
@@ -411,8 +411,8 @@ function App() {
                         accessLogs={accessLogs}
                         onProcess={processAccess}
                         activeTimers={activeTimers}
-                        incluirPostoFixo={incluirPostoFixo}
-                        onTogglePostoFixo={setIncluirPostoFixo}
+                        incluirRepeticoes={incluirRepeticoes}
+                        onToggleRepeticoes={setIncluirRepeticoes}
                   />
             )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />

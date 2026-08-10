@@ -197,7 +197,7 @@ public class AccessController {
      *             passagens de pessoas daquele tipo. É PARÂMETRO e não regra
      *             fixa exatamente porque o endpoint é compartilhado: filtrar
      *             aqui sem opção mudaria portaria e enfermaria junto.
-     * @param incluirPostoFixo o que o botão da tela liga. Por padrão FALSE: a
+     * @param incluirRepeticoes o que o botão da tela liga. Por padrão FALSE: a
      *             repetição do dia de quem está POSTADO no ponto (porteiro, Vie
      *             Scolaire de plantão no portão) sai da lista, porque era ela
      *             que enchia a tela do Portail de linhas iguais. Nada é apagado
@@ -208,10 +208,10 @@ public class AccessController {
     public ResponseEntity<List<AccessLog>> getLogsByPoint(
             @PathVariable String pointId,
             @RequestParam(required = false) String tipo,
-            @RequestParam(required = false, defaultValue = "false") boolean incluirPostoFixo) {
+            @RequestParam(required = false, defaultValue = "false") boolean incluirRepeticoes) {
         LocalDateTime start = LocalDateTime.now().minusHours(24);
         List<AccessLog> logs = accessLogRepository.findRecentesDoPonto(
-                pointId, start, incluirPostoFixo, PageRequest.of(0, 500));
+                pointId, start, incluirRepeticoes, PageRequest.of(0, 500));
         return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
     }
 
@@ -222,9 +222,9 @@ public class AccessController {
      * TUDO. É a única resposta possível para a aba de auditoria: um filtro que
      * o operador não reconhece não pode esconder linha nenhuma em silêncio.
      */
-    private Boolean lentePostoFixo(String postoFixo) {
-        if (postoFixo == null || postoFixo.isBlank()) return null;
-        String v = postoFixo.trim().toUpperCase();
+    private Boolean lenteRepeticoes(String repeticoes) {
+        if (repeticoes == null || repeticoes.isBlank()) return null;
+        String v = repeticoes.trim().toUpperCase();
         if (v.equals("SEULEMENT")) return Boolean.TRUE;
         if (v.equals("SANS")) return Boolean.FALSE;
         return null;
@@ -259,7 +259,7 @@ public class AccessController {
      * @param eleve nome (parcial) OU matricula do aluno. Filtra no banco, sobre
      *              o periodo inteiro — filtrar no cliente so alcancaria as
      *              linhas ja carregadas (teto de 500).
-     * @param postoFixo lente sobre a repeticao de quem esta POSTADO num ponto:
+     * @param repeticoes lente sobre a repeticao de quem esta POSTADO num ponto:
      *              vazio = TUDO (padrao — o Journal e a auditoria e nunca
      *              esconde linha), "SEULEMENT" = so as marcadas, "SANS" = tudo
      *              menos elas. Valor desconhecido nao estreita nada, mesma
@@ -273,7 +273,7 @@ public class AccessController {
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String eleve,
             @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) String postoFixo,
+            @RequestParam(required = false) String repeticoes,
             @RequestParam(defaultValue = "50") Integer limit) {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         Pageable pageable = PageRequest.of(0, safeLimit);
@@ -307,7 +307,7 @@ public class AccessController {
 
         List<AccessLog> logs = accessLogRepository.findFilteredLogs(
                 start, end, pointId, actionEnum, elevePattern,
-                lentePostoFixo(postoFixo), pageable);
+                lenteRepeticoes(repeticoes), pageable);
         // O Journal é a visão de AUDITORIA: sem filtro ele mostra tudo, e é
         // assim que continua por padrão. O tipo é uma lente que o operador
         // escolhe, nunca um recorte silencioso.

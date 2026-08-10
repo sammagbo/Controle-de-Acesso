@@ -136,6 +136,11 @@ const api = {
             if (filters.eleve)    params.set('eleve',    filters.eleve);
             // O Journal é a visão de AUDITORIA: sem tipo, mostra tudo.
             if (filters.tipo)     params.set('tipo',     filters.tipo);
+            // Lente de POSTO FIXO: '' = tudo (padrão), 'SEULEMENT' = só as
+            // repetições de quem está de serviço no ponto, 'SANS' = tudo menos
+            // elas. Vazio nunca vira parâmetro — filtro em branco não pode
+            // estreitar a visão de auditoria.
+            if (filters.postoFixo) params.set('postoFixo', filters.postoFixo);
             const res = await fetch(`${API_BASE_URL}/access/logs/all?${params}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];
@@ -387,9 +392,18 @@ const api = {
         return Array.isArray(data) ? data : [];
     },
 
-    async updateStaff(id, { tipo, departamento }) {
+    /**
+     * @param {Object} campos - { tipo, departamento, postoFixoPointId }
+     *   postoFixoPointId: string vazia LIMPA o posto; `undefined` (chave
+     *   ausente no JSON) não mexe nele. O backend distingue os dois, então a
+     *   chave só entra no corpo quando o formulário de fato a preencheu — sem
+     *   isso, editar o departamento de alguém apagaria a marcação de posto.
+     */
+    async updateStaff(id, { tipo, departamento, postoFixoPointId }) {
+        const corpo = { tipo, departamento };
+        if (postoFixoPointId !== undefined) corpo.postoFixoPointId = postoFixoPointId;
         const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}`, {
-            method: 'PUT', headers: authHeaders(), body: JSON.stringify({ tipo, departamento })
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify(corpo)
         });
         return await this.handleResponse(res);
     },

@@ -86,7 +86,11 @@ class AccessDecisionServiceTest {
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,
                 classifier, dedupService, attemptService, policy,
-                mealEntitlementService, exitPermissionService, samePassageService);
+                mealEntitlementService, exitPermissionService, samePassageService,
+                // Real, e nao mock: com postoFixoPointId nulo (o caso destes
+                // cenarios) ele sai antes de tocar o repositorio, e o teste
+                // passa a provar tambem esse curto-circuito.
+                new PostoFixoService(accessLogRepository));
 
         when(userRepository.findByHikvisionEmployeeId(EMPLOYEE))
                 .thenReturn(Optional.of(aluno(TURMA_SEM_REFEICAO)));

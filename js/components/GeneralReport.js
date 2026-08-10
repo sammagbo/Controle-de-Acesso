@@ -16,6 +16,10 @@ function JournalTab({ active = true }) {
     // Vazio = TUDO. O Journal é a visão de auditoria: o tipo é uma lente que o
     // operador escolhe, nunca um recorte silencioso.
     const [tipo, setTipo] = React.useState('');
+    // Idem: vazio = TUDO. O Journal mostra a repetição de quem está postado num
+    // ponto como mostra qualquer outra linha — é a única tela que nunca a
+    // esconde. A lente serve para conferir quanto ruído a marcação absorveu.
+    const [postoFixo, setPostoFixo] = React.useState('');
     const [aluno, setAluno] = React.useState('');
     const [alunoQuery, setAlunoQuery] = React.useState('');
     const [logs, setLogs] = React.useState([]);
@@ -47,7 +51,8 @@ function JournalTab({ active = true }) {
         if (!silent) setLoading(true);
         try {
             const data = await window.api.fetchAllLogs({
-                dateFrom, dateTo, pointId, action, tipo, eleve: alunoQuery, limit: 500
+                dateFrom, dateTo, pointId, action, tipo, postoFixo,
+                eleve: alunoQuery, limit: 500
             });
             setLogs(Array.isArray(data) ? data : []);
             setError(null);
@@ -60,7 +65,7 @@ function JournalTab({ active = true }) {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [dateFrom, dateTo, pointId, action, tipo, alunoQuery]);
+    }, [dateFrom, dateTo, pointId, action, tipo, postoFixo, alunoQuery]);
 
     // ⚠️ REGRESSÃO DE 03/08/2026 — não voltar a carregar só na montagem.
     // O Journal buscava UMA vez, quando a tela do Rapport era aberta, e nunca
@@ -106,7 +111,7 @@ function JournalTab({ active = true }) {
     // a cada 30 s (`filtered` é um array novo a cada carga).
     React.useEffect(() => {
         setPage(1);
-    }, [dateFrom, dateTo, pointId, action, tipo, alunoQuery, classe, sortDir]);
+    }, [dateFrom, dateTo, pointId, action, tipo, postoFixo, alunoQuery, classe, sortDir]);
     // Uma atualização pode encurtar a lista com o leitor numa página alta.
     React.useEffect(() => {
         if (page > totalPages) setPage(totalPages);
@@ -123,13 +128,18 @@ function JournalTab({ active = true }) {
     };
 
     const exportCSV = () => {
-        const header = 'Date,ID,Nom,Classe,Zone,Action\n';
+        // A coluna Marque vai junto: o CSV é a cópia que sai da tela e circula
+        // por e-mail, e sem ela quem recebe conta as linhas de posto fixo como
+        // movimentos comuns — a divergência com o painel reapareceria fora do
+        // sistema, onde ninguém pode investigá-la.
+        const header = 'Date,ID,Nom,Classe,Zone,Action,Marque\n';
         const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const rows = filtered.map(l => {
             const u = window.userCache?.byId(l.userId);
             return [
                 esc(fmtDateTime(l.timestamp)), esc(l.userId), esc(u?.nome || ''),
-                esc(u?.turma || u?.departamento || ''), esc(pointName(l.pointId)), esc(l.action)
+                esc(u?.turma || u?.departamento || ''), esc(pointName(l.pointId)), esc(l.action),
+                esc(l.flag || '')
             ].join(',');
         }).join('\n');
         const csv = '\uFEFF' + header + rows;
@@ -181,6 +191,19 @@ function JournalTab({ active = true }) {
                         <option value="ALUNO">Élèves</option>
                         <option value="PROFESSOR">Professeurs</option>
                         <option value="FUNCIONARIO">Personnel</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Poste fixe</label>
+                    <select
+                        value={postoFixo}
+                        onChange={e => setPostoFixo(e.target.value)}
+                        title="Passages répétés de qui tient un poste (portail, accueil). Enregistrés toujours ; masqués des autres écrans, jamais d'ici."
+                        className={inputCls}
+                    >
+                        <option value="">Tous</option>
+                        <option value="SANS">Sans les postes fixes</option>
+                        <option value="SEULEMENT">Postes fixes seulement</option>
                     </select>
                 </div>
                 <div>
@@ -270,7 +293,21 @@ function JournalTab({ active = true }) {
                                             departamento, que é o equivalente
                                             útil na coluna "Classe". */}
                                         <td className="px-4 py-2 text-slate-500">{u?.turma || u?.departamento || '—'}</td>
-                                        <td className="px-4 py-2 text-slate-600">{pointName(l.pointId)}</td>
+                                        <td className="px-4 py-2 text-slate-600">
+                                            {pointName(l.pointId)}
+                                            {/* O Journal é a auditoria: ele mostra a linha E diz por que
+                                                as outras telas não a mostram. Sem a etiqueta, o operador
+                                                veria aqui um número de passagens que não bate com o do
+                                                Portail e não teria como explicar a diferença. */}
+                                            {l.flag === 'POSTO_FIXO' && (
+                                                <span
+                                                    title="Passage répété de qui tient ce poste — enregistré, hors des compteurs"
+                                                    className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
+                                                >
+                                                    Poste fixe
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-2">
                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${isEntrada
                                                     ? 'text-success-700 bg-success-100'

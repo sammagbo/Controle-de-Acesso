@@ -90,13 +90,14 @@ class LegacyRegressionIT extends AbstractIT {
                 .as("A e B sairam; C (portao) e D (cantina) entraram sem sair -> 2 ativos")
                 .isEqualTo(2);
 
-        // eleve=null = sem filtro de aluno, exatamente o que a assinatura
-        // anterior significava. Asserções inalteradas.
+        // eleve=null = sem filtro de aluno e somentePostoFixo=null = sem lente
+        // de posto fixo: exatamente o que a assinatura anterior significava.
+        // Asserções inalteradas.
         assertThat(accessLogRepository.findFilteredLogs(
-                janelaDe, janelaAte, null, null, null, PageRequest.of(0, 100)))
+                janelaDe, janelaAte, null, null, null, null, PageRequest.of(0, 100)))
                 .isNotEmpty();
         assertThat(accessLogRepository.findFilteredLogs(
-                janelaDe, janelaAte, "REFEI1", AccessAction.ENTRADA, null, PageRequest.of(0, 100)))
+                janelaDe, janelaAte, "REFEI1", AccessAction.ENTRADA, null, null, PageRequest.of(0, 100)))
                 .allSatisfy(l -> {
                     assertThat(l.getPointId()).isEqualTo("REFEI1");
                     assertThat(l.getAction()).isEqualTo(AccessAction.ENTRADA);

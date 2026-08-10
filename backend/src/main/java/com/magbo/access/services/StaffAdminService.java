@@ -49,7 +49,21 @@ public class StaffAdminService {
     /** Linha da lista de servidores, com o que a tela precisa decidir. */
     public record StaffRow(String id, String nome, String tipo, String departamento,
                            String hikvisionEmployeeId, boolean ativo,
-                           long passagens, boolean podeRemover) {
+                           long passagens, boolean podeRemover,
+                           String postoFixoPointId) {
+    }
+
+    /**
+     * Pontos válidos para posto fixo — os pontos FÍSICOS que o backend conhece.
+     *
+     * Vem do {@link com.magbo.access.config.AreaMapping}, que já é a fonte
+     * única do mapeamento ponto→área: uma segunda lista aqui envelheceria na
+     * primeira porta nova da escola. Ficam de fora as telas virtuais
+     * (CANTINA_MONITOR, GENERAL_REPORT...) porque ninguém fica postado num
+     * relatório.
+     */
+    private static Set<String> pontosValidos() {
+        return com.magbo.access.config.AreaMapping.pointToArea().keySet();
     }
 
     /**
@@ -69,7 +83,8 @@ public class StaffAdminService {
                     long passagens = accessLogRepository.countByUserId(u.getId());
                     return new StaffRow(u.getId(), u.getNome(), u.getTipo().name(),
                             u.getDepartamento(), u.getHikvisionEmployeeId(),
-                            Boolean.TRUE.equals(u.getAtivo()), passagens, passagens == 0);
+                            Boolean.TRUE.equals(u.getAtivo()), passagens, passagens == 0,
+                            u.getPostoFixoPointId());
                 })
                 .toList();
     }
@@ -81,9 +96,19 @@ public class StaffAdminService {
      * aluno sem turma e sem responsável, fora do Pronote — que é exatamente o
      * registro duplicado que se está tentando desfazer. Quando o servidor é na
      * verdade um aluno, o caminho é {@link #reassignHikvisionId}.
+     *
+     * ⚠️ É TAMBÉM a única porta de escrita do posto fixo, e é por isso que
+     * ALUNO nunca ganha um: {@link #carregarServidor} recusa qualquer id que
+     * não seja PROFESSOR/FUNCIONARIO antes de a primeira linha ser tocada. A
+     * garantia é estrutural, não uma checagem de tela que alguém pode
+     * contornar por curl.
+     *
+     * @param postoFixoPointId {@code null} = não mexer (o campo não veio no
+     *        corpo); {@code ""} = LIMPAR, que é como se desfaz a marcação
+     *        quando a pessoa sai do posto. Mesma convenção do departamento.
      */
     @Transactional
-    public User updateStaff(String id, String tipo, String departamento) {
+    public User updateStaff(String id, String tipo, String departamento, String postoFixoPointId) {
         User servidor = carregarServidor(id);
 
         if (tipo != null && !tipo.isBlank()) {
@@ -108,9 +133,28 @@ public class StaffAdminService {
             servidor.setDepartamento(d.isEmpty() ? null : d);
         }
 
+        // Posto fixo: ponto conhecido, ou nada. Um id digitado errado
+        // ("PORT-1", "portaria") não marcaria passagem nenhuma e a pessoa
+        // continuaria enchendo a tela — sem nenhum sinal de que a configuração
+        // não pegou. Recusar na hora, com o valor na mensagem, é a diferença
+        // entre um erro de digitação e um defeito que ninguém encontra.
+        if (postoFixoPointId != null) {
+            String p = postoFixoPointId.trim().toUpperCase(Locale.ROOT);
+            if (p.isEmpty()) {
+                servidor.setPostoFixoPointId(null);
+            } else if (!pontosValidos().contains(p)) {
+                throw new StaffAdminException(
+                        "Ponto de posto fixo desconhecido: " + postoFixoPointId
+                                + ". Válidos: " + String.join(", ", new java.util.TreeSet<>(pontosValidos())));
+            } else {
+                servidor.setPostoFixoPointId(p);
+            }
+        }
+
         User salvo = userRepository.save(servidor);
-        log.info("Servidor atualizado: id={}, tipo={}, departamento={}",
-                salvo.getId(), salvo.getTipo(), salvo.getDepartamento());
+        log.info("Servidor atualizado: id={}, tipo={}, departamento={}, postoFixo={}",
+                salvo.getId(), salvo.getTipo(), salvo.getDepartamento(),
+                salvo.getPostoFixoPointId());
         return salvo;
     }
 

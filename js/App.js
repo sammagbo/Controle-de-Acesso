@@ -30,6 +30,15 @@ function App() {
 
       const [currentPoint, setCurrentPoint] = React.useState(null);
       const [accessLogs, setAccessLogs] = React.useState([]);
+      /**
+       * "Mostrar as passagens de quem está POSTADO neste ponto".
+       *
+       * Desligado por padrão: a repetição do dia do porteiro (e da Vie Scolaire
+       * de plantão no portão) é o ruído que motivou a marcação. Vive aqui, e
+       * não dentro do SectorView, porque o filtro é do SERVIDOR — a busca
+       * precisa refazer-se quando ele muda, e é esta função que busca.
+       */
+      const [incluirPostoFixo, setIncluirPostoFixo] = React.useState(false);
       const [activeTimers, setActiveTimers] = React.useState([]);
       const [toast, setToast] = React.useState(null);
       const [accessModal, setAccessModal] = React.useState(null);
@@ -116,7 +125,7 @@ function App() {
                   if (inFlight) return;
                   inFlight = true;
                   try {
-                        const logs = await fetchLogs(pointId);
+                        const logs = await fetchLogs(pointId, { incluirPostoFixo });
                         if (cancelled) return;
 
                         // Guard: ensure logs is always an array (fetchLogs already normalises)
@@ -193,7 +202,15 @@ function App() {
                   cancelled = true;
                   clearInterval(interval);
             };
-      }, [currentPoint]);
+            // incluirPostoFixo entra nas dependências porque o filtro é do
+            // servidor: ligar o botão tem que REBUSCAR, não refiltrar o que já
+            // está em tela (as linhas escondidas nunca chegaram ao cliente).
+      }, [currentPoint, incluirPostoFixo]);
+
+      // Trocar de setor volta ao padrão. O botão é um recurso de diagnóstico —
+      // "quanto ruído o posto fixo está absorvendo aqui?" —, não uma
+      // preferência que deva seguir o operador pela portaria e pela enfermaria.
+      React.useEffect(() => { setIncluirPostoFixo(false); }, [currentPoint]);
 
       // ─────────────────────────────────────────────────────────────
       // processAccess — Lógica de Negócio Assíncrona Integrada (API)
@@ -394,6 +411,8 @@ function App() {
                         accessLogs={accessLogs}
                         onProcess={processAccess}
                         activeTimers={activeTimers}
+                        incluirPostoFixo={incluirPostoFixo}
+                        onTogglePostoFixo={setIncluirPostoFixo}
                   />
             )}
                   <Toast toast={toast} onDismiss={() => setToast(null)} />

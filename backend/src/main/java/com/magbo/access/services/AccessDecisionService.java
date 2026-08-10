@@ -46,6 +46,7 @@ public class AccessDecisionService {
     private final MealEntitlementService mealEntitlementService;
     private final ExitPermissionService exitPermissionService;
     private final SamePassageService samePassageService;
+    private final PostoFixoService postoFixoService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -267,7 +268,7 @@ public class AccessDecisionService {
         registrarPassagem(new Passagem(
                 userId, employeeNoRaw, nomeSnapshot, resolved, terminalIp,
                 classification.method(), classification.result(), subType,
-                eventTime, now, flag, true));
+                eventTime, now, flag, user.getPostoFixoPointId(), true));
     }
 
     /**
@@ -293,6 +294,15 @@ public class AccessDecisionService {
             /** Hora da DECISAO — governa as regras. */
             LocalDateTime now,
             String flag,
+            /**
+             * Ponto onde esta pessoa fica POSTADA o dia inteiro, ou null.
+             *
+             * Copiado do cadastro no momento em que a pessoa e resolvida, e nao
+             * relido depois: o valor entra na decisao desta passagem, e uma
+             * mudanca de cadastro no meio do processamento nao pode mudar o que
+             * ja esta sendo gravado.
+             */
+            String postoFixoPointId,
             /**
              * Avaliar a permissao de saida neste ponto?
              *
@@ -369,6 +379,24 @@ public class AccessDecisionService {
             return;
         }
 
+        // POSTO FIXO: quem TRABALHA neste ponto passa por ele o dia inteiro.
+        // A primeira passagem do dia fica normal; da segunda em diante a linha
+        // e gravada com flag e sai das telas padrao e dos contadores.
+        //
+        // DEPOIS da regra de mesma passagem, de proposito: leitura repetida em
+        // segundos nem chega aqui, e nao vale gastar uma consulta com ela.
+        //
+        // O flag de NEGOCIO vence quando ja existe. FORA_HORARIO e
+        // EXCEDEU_TEMPO nomeiam um problema que alguem precisa ver; POSTO_FIXO
+        // so diz "isto e rotina". Silenciar um alerta porque a pessoa esta de
+        // servico ali seria trocar informacao por sossego. O campo e um so
+        // (access_logs.flag, String de 32) e nao ha empilhamento.
+        String flag = p.flag();
+        if (flag == null) {
+            flag = postoFixoService.flagDaRepeticao(
+                    p.userId(), p.postoFixoPointId(), p.resolved().pointId(), p.eventTime());
+        }
+
         AccessLog accessLog = AccessLog.builder()
                 .userId(p.userId())
                 .pointId(p.resolved().pointId())
@@ -377,7 +405,7 @@ public class AccessDecisionService {
                 // relatorios de horario e duracao (incidente da fila offline
                 // de 03/08/2026).
                 .timestamp(p.eventTime())
-                .flag(p.flag())
+                .flag(flag)
                 .authMethod(p.method())
                 .hikvisionSubEventType(p.subType())
                 .build();
@@ -388,8 +416,11 @@ public class AccessDecisionService {
             exitPermissionService.consumeIfSingle(consumedPermissionId);
         }
 
+        // `flag` e nao `p.flag()`: e o valor EFETIVAMENTE gravado, ja incluindo
+        // o POSTO_FIXO decidido aqui. Uma linha de log que nao corresponde ao
+        // que foi para o banco e pior que nenhuma.
         log.info("Access Log: user={}, point={}, action={}, flag={}, method={}, subType={}, fallback={}",
-                p.userId(), p.resolved().pointId(), p.resolved().action(), p.flag(),
+                p.userId(), p.resolved().pointId(), p.resolved().action(), flag,
                 p.method(), p.subType(), p.resolved().isFallback());
     }
 
@@ -455,7 +486,7 @@ public class AccessDecisionService {
                 // A camera SEMPRE reconhece por rosto, e ela ja "aprovou" a
                 // comparacao — o que o MAGBO decide vem depois.
                 AuthMethod.FACE, AuthResult.SUCCESS, null,
-                eventTime, now, null,
+                eventTime, now, null, user.getPostoFixoPointId(),
                 // Permissao de saida NAO avaliada aqui — ver o javadoc do campo
                 // em Passagem. Ligar isso e decisao de politica, nao efeito
                 // colateral de a portaria passar a enxergar.

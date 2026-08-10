@@ -29,7 +29,12 @@ public class StatsController {
     public ResponseEntity<GlobalStats> getGlobalStats() {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIDNIGHT);
 
-        long totalToday    = accessLogRepository.countByTimestampGreaterThanEqual(startOfDay);
+        // countRelevantesSince, nao countByTimestampGreaterThanEqual: a
+        // repeticao do dia de quem esta POSTADO num ponto (porteiro, Vie
+        // Scolaire no portao) fica fora do contador da tela. As linhas
+        // continuam todas no banco — a contagem crua segue disponivel no
+        // repositorio e o Journal mostra cada uma.
+        long totalToday    = accessLogRepository.countRelevantesSince(startOfDay);
         long alertas       = accessLogRepository.countBlockedSince(startOfDay);
         long activeUsers   = accessLogRepository.countActiveUsersSince(startOfDay);
         long totalUsers    = userRepository.count();

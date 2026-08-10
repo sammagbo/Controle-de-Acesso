@@ -285,15 +285,35 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     // Ocupação atual por setor: última ação de cada user em cada ponto = ENTRADA
     //
-    // ⚠️ Aqui a exclusão entra ANTES do DISTINCT ON, e é a única forma correta:
-    // o DISTINCT ON escolhe a ÚLTIMA linha de cada (user, ponto). Filtrar
-    // depois deixaria quem está de serviço fora do resultado quando sua última
-    // linha fosse marcada — e dentro do setor quando não fosse, oscilando a
-    // ocupação a cada reconhecimento da câmera.
+    // ⚠️ A exclusão é ASSIMÉTRICA — tira a ENTRADA marcada, NUNCA a SAÍDA.
+    // Mesma assimetria de countLongInfirmaryStays e countUnregisteredExits, e
+    // aqui ela foi aprendida do jeito caro (conferência manual em PostgreSQL
+    // real, 10/08/2026).
+    //
+    // A primeira versão excluía TODA linha marcada. O DISTINCT ON escolhe a
+    // última linha de cada (user, ponto); tirando também a saída, quem tem
+    // posto fixo ficava preso na primeira entrada do dia e aparecia como
+    // "dentro" ATÉ A MEIA-NOITE, mesmo tendo ido embora — a bibliotecária que
+    // saiu às 17:00 constava no CDI às 23:00. Medido: BIBLIO 1->2, REFEI1 1->2,
+    // PORT1 0->1, com as três pessoas fora do prédio.
+    // E o fechamento automático não corrige: ele olha o último evento CRU, vê
+    // uma SAIDA e corretamente não faz nada.
+    //
+    // Com a assimetria: a repetição não reabre presença (a oscilação, que era o
+    // objetivo, some) e a saída real continua fechando.
+    //
+    // O `flag IS NULL OR` não é enfeite: quase toda linha tem flag nula, e
+    // `flag <> 'POSTO_FIXO'` sozinho é UNKNOWN para NULL. A forma equivalente
+    // `NOT (flag = 'POSTO_FIXO' AND action = 'ENTRADA')` devolve ZERO linhas
+    // pelo mesmo motivo — foi verificada, e falha assim.
+    //
+    // ⚠️ PostgreSQL-only (DISTINCT ON): @Disabled no H2, a suíte NÃO protege
+    // esta consulta. Roteiro de conferência manual em
+    // docs/frontend-smoke-checklist.md, seção "Ocupação atual com posto fixo".
     @Query(value = "SELECT point_id, COUNT(*) FROM (" +
            "  SELECT DISTINCT ON (user_id, point_id) user_id, point_id, action " +
            "  FROM access_logs WHERE timestamp >= :dayStart " +
-           "    AND (flag IS NULL OR flag <> 'POSTO_FIXO') " +
+           "    AND (flag IS NULL OR flag <> 'POSTO_FIXO' OR action <> 'ENTRADA') " +
            "  ORDER BY user_id, point_id, timestamp DESC" +
            ") last WHERE action='ENTRADA' GROUP BY point_id", nativeQuery = true)
     java.util.List<Object[]> currentOccupancyByPoint(@Param("dayStart") java.time.LocalDateTime dayStart);

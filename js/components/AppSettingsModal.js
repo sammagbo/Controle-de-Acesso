@@ -465,7 +465,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
         if (!staffEdit) return;
         try {
             const r = await window.api.updateStaff(staffEdit.id, {
-                tipo: staffEdit.tipo, departamento: staffEdit.departamento
+                tipo: staffEdit.tipo, departamento: staffEdit.departamento,
+                // Sempre enviado a partir daqui (string vazia = limpar): este
+                // formulário é a única porta de escrita do posto, e é ele quem
+                // acabou de mostrar o valor ao operador.
+                postoFixoPointId: staffEdit.postoFixoPointId || ''
             });
             onShowToast({ title: 'Servidor atualizado', message: r.message, type: 'success' });
             setStaffEdit(null);
@@ -732,6 +736,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 <th className="py-2 px-2">Nome</th>
                                 <th className="py-2 px-2">Tipo</th>
                                 <th className="py-2 px-2">Departamento</th>
+                                <th className="py-2 px-2">Posto fixo</th>
                                 <th className="py-2 px-2">ID Hikvision</th>
                                 <th className="py-2 px-2">Passagens</th>
                                 <th className="py-2 px-2"></th>
@@ -746,12 +751,24 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                     </td>
                                     <td className="py-1.5 px-2 text-slate-600">{r.tipo}</td>
                                     <td className="py-1.5 px-2 text-slate-600">{r.departamento || '—'}</td>
+                                    <td className="py-1.5 px-2 text-slate-600">
+                                        {r.postoFixoPointId
+                                            ? <span title="As passagens repetidas desta pessoa neste ponto ficam gravadas, fora das telas padrão"
+                                                    className="font-semibold text-navy-500">
+                                                  {window.MagboPostoFixo.rotuloDoPonto(r.postoFixoPointId)}
+                                              </span>
+                                            : '—'}
+                                    </td>
                                     <td className="py-1.5 px-2 font-mono text-slate-500">{r.hikvisionEmployeeId || '—'}</td>
                                     <td className="py-1.5 px-2 tabular-nums text-slate-500">{r.passagens}</td>
                                     <td className="py-1.5 px-2 text-right whitespace-nowrap">
                                         <button onClick={() => setStaffEdit({
                                             id: r.id, nome: r.nome, tipo: r.tipo,
-                                            departamento: r.departamento || ''
+                                            departamento: r.departamento || '',
+                                            // Já gravado vence; sem nada, o departamento
+                                            // SUGERE (e só sugere — ver js/utils/postoFixo.js).
+                                            postoFixoPointId: window.MagboPostoFixo.sugerir(r),
+                                            postoFixoOriginal: r.postoFixoPointId || ''
                                         })}
                                             className="px-2 py-1 rounded bg-soft-100 text-navy-500 font-bold hover:bg-soft-200">
                                             Editar
@@ -816,6 +833,39 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 onChange={e => setStaffEdit({ ...staffEdit, departamento: e.target.value })}
                                 className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm" />
                         </div>
+                    </div>
+
+                    {/* ── Posto fixo ───────────────────────────────────────
+                        Quem TRABALHA num ponto passa por ele o dia inteiro. A
+                        primeira passagem do dia conta normalmente; as seguintes
+                        continuam gravadas, mas saem das telas padrão e dos
+                        contadores. Aluno nunca chega aqui — esta tela só lista
+                        professores e funcionários, e o backend recusa o resto. */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">
+                            Posto fixo (opcional)
+                        </label>
+                        <select
+                            value={staffEdit.postoFixoPointId || ''}
+                            onChange={e => setStaffEdit({ ...staffEdit, postoFixoPointId: e.target.value })}
+                            className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm"
+                        >
+                            <option value="">Nenhum — todas as passagens contam</option>
+                            {window.MagboPostoFixo.PONTOS.map(p => (
+                                <option key={p.id} value={p.id}>{p.label}</option>
+                            ))}
+                        </select>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                            {window.MagboPostoFixo.ehSugestao(
+                                { departamento: staffEdit.departamento, postoFixoPointId: staffEdit.postoFixoOriginal },
+                                staffEdit.postoFixoPointId)
+                                ? <span className="text-amber-600 font-semibold">
+                                      Sugerido pelo departamento — confirme salvando, ou escolha outro.
+                                  </span>
+                                : 'Neste ponto, só a primeira passagem do dia conta. As demais ficam '
+                                  + 'gravadas (o Journal mostra todas) mas saem das telas e dos contadores. '
+                                  + 'Em qualquer outro ponto, nada muda.'}
+                        </p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={salvarServidor}

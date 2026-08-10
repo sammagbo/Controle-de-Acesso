@@ -53,13 +53,16 @@ public class StaffController {
     public ResponseEntity<Map<String, Object>> updateStaff(
             @PathVariable String id, @RequestBody Map<String, String> body) {
         try {
+            // body.get(...) devolve null quando a chave NÃO veio — e é assim
+            // que o serviço distingue "não mexer" de "limpar" (string vazia).
             com.magbo.access.models.User salvo = staffAdminService.updateStaff(
-                    id, body.get("tipo"), body.get("departamento"));
+                    id, body.get("tipo"), body.get("departamento"), body.get("postoFixoPointId"));
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "id", salvo.getId(),
                     "tipo", salvo.getTipo().name(),
                     "departamento", salvo.getDepartamento() == null ? "" : salvo.getDepartamento(),
+                    "postoFixoPointId", salvo.getPostoFixoPointId() == null ? "" : salvo.getPostoFixoPointId(),
                     "message", "Servidor atualizado: " + salvo.getNome()));
         } catch (com.magbo.access.services.StaffAdminService.StaffAdminException e) {
             return ResponseEntity.badRequest().body(Map.of("status", "error", "message", e.getMessage()));

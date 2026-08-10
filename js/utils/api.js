@@ -50,6 +50,11 @@ function normaliseLog(raw) {
             status:    raw.action,          // backend calls it "action", frontend calls it "status"
             timestamp: new Date(raw.timestamp).getTime(),
             duration:  null,
+            // A flag do backend (FORA_HORARIO, EXCEDEU_TEMPO, FECHAMENTO_AUTO,
+            // POSTO_FIXO). Vem para a tela poder DIZER por que uma linha está
+            // ali quando o operador liga "mostrar posto fixo" — sem ela, as
+            // repetições reapareceriam sem nada que as distinguisse das outras.
+            flag:      raw.flag || null,
       };
 }
 
@@ -105,12 +110,26 @@ async function registerAccess(payload) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// fetchLogs(pointId) — GET /api/access/logs/{pointId}
+// fetchLogs(pointId, opts?) — GET /api/access/logs/{pointId}
 // Returns array of normalised logs or [] on error
+//
+// opts.incluirPostoFixo (default false) = mostra também a repetição do dia de
+// quem está POSTADO no ponto (porteiro, Vie Scolaire de plantão no portão).
+// Escondido por padrão porque era ele que enchia a tela do Portail de linhas
+// iguais; nada é apagado, e o Journal sempre lista todas.
+//
+// O filtro é do SERVIDOR de propósito: a resposta tem teto de 500 linhas, e
+// filtrar aqui devolveria menos de 500 com passagens reais sobrando fora da
+// página — o mesmo defeito que fez o filtro de aluno do Journal migrar para a
+// consulta.
 // ─────────────────────────────────────────────────────────────
-async function fetchLogs(pointId) {
+async function fetchLogs(pointId, opts = {}) {
       try {
-            const res = await fetch(`${API_BASE}/access/logs/${encodeURIComponent(pointId)}`, {
+            const params = new URLSearchParams();
+            if (opts.incluirPostoFixo) params.set('incluirPostoFixo', 'true');
+            const qs = params.toString();
+            const res = await fetch(
+                  `${API_BASE}/access/logs/${encodeURIComponent(pointId)}${qs ? '?' + qs : ''}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
             checkAuthError(res);

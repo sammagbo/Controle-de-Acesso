@@ -27,9 +27,10 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V007. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V010. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
-cadastro de servidores. Comando por arquivo:
+cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
+fixo. Comando por arquivo:
 
 ```bash
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V001__access_attempts.sql
@@ -39,6 +40,9 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V004_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V005__system_users_permissoes.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V006__indexes.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V007__app_users_departamento.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V008__app_users_camera_person_id.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V009__denial_reason_camera.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010__app_users_posto_fixo.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -50,6 +54,9 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V007_
 | `V005__system_users_permissoes.sql` | `ALTER TABLE system_users ADD COLUMN permissoes` (nullable) | F |
 | `V006__indexes.sql` | índices das tabelas acima (nenhum em `access_logs`) | — |
 | `V007__app_users_departamento.sql` | `ALTER TABLE app_users ADD COLUMN departamento` (nullable) | Servidores |
+| `V008__app_users_camera_person_id.sql` | `ALTER TABLE app_users ADD COLUMN camera_person_id` (nullable, UNIQUE) | Câmeras da portaria |
+| `V009__denial_reason_camera.sql` | amplia o CHECK de `access_attempts.denial_reason` (`UNKNOWN_FACE`, `AMBIGUOUS_NAME`) | Câmeras da portaria |
+| `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 
 ## 4. Procedimento completo na VM
 

@@ -2,7 +2,8 @@
 // SECTOR VIEW (Split View)
 // =====================================================================
 
-function SectorView({ point, accessLogs, onProcess, activeTimers }) {
+function SectorView({ point, accessLogs, onProcess, activeTimers,
+                      incluirPostoFixo = false, onTogglePostoFixo }) {
       const [searchQuery, setSearchQuery] = React.useState('');
       const [searchResults, setSearchResults] = React.useState([]);
       const [isSearching, setIsSearching] = React.useState(false);
@@ -70,6 +71,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
       };
 
       const colors = CATEGORY_COLORS[point.category];
+
+      // Quantas das linhas em tela são repetição de quem está POSTADO aqui.
+      // Só faz sentido quando o botão está ligado — desligado, o servidor nem
+      // as mandou, e o número seria sempre zero.
+      const postoFixoEmTela = React.useMemo(
+            () => window.MagboPostoFixo ? window.MagboPostoFixo.contarPostoFixo(pointLogs) : 0,
+            [pointLogs]
+      );
 
       return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in">
@@ -175,14 +184,37 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                         {/* RIGHT PANEL — Monitor */}
                         <div className="lg:col-span-7">
                               <div className="bg-white rounded-2xl shadow-sm border border-soft-200 overflow-hidden">
-                                    <div className="px-5 py-4 border-b border-soft-100 flex items-center justify-between">
+                                    <div className="px-5 py-4 border-b border-soft-100 flex items-center justify-between gap-3">
                                           <div className="flex items-center gap-2">
                                                 <LucideIcon name="radio" size={18} className="text-accent-500" />
                                                 <h3 className="text-sm font-bold text-navy-500 uppercase tracking-wider">Últimos Acessos</h3>
                                           </div>
-                                          <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full">
-                                                {pointLogs.length} acessos (24h)
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                                {/* Posto fixo: a repetição do dia de quem TRABALHA neste
+                                                    ponto sai da lista por padrão. O botão existe porque
+                                                    esconder sem dizer é o mesmo que apagar aos olhos de
+                                                    quem opera — e nada aqui é apagado. */}
+                                                {onTogglePostoFixo && (
+                                                      <label
+                                                            title="Quem fica postado neste ponto (porteiro, plantão) passa dezenas de vezes por dia. A primeira passagem conta normalmente; as seguintes ficam gravadas mas fora desta lista."
+                                                            className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-colors ${incluirPostoFixo ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-soft-100 text-slate-500 border border-transparent hover:bg-soft-200'}`}
+                                                      >
+                                                            <input
+                                                                  type="checkbox"
+                                                                  checked={incluirPostoFixo}
+                                                                  onChange={(e) => onTogglePostoFixo(e.target.checked)}
+                                                                  className="w-3 h-3 rounded accent-accent-500"
+                                                            />
+                                                            Posto fixo
+                                                            {incluirPostoFixo && postoFixoEmTela > 0 && (
+                                                                  <span className="tabular-nums">({postoFixoEmTela})</span>
+                                                            )}
+                                                      </label>
+                                                )}
+                                                <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full whitespace-nowrap">
+                                                      {pointLogs.length} acessos (24h)
+                                                </span>
+                                          </div>
                                     </div>
 
                                     <div ref={logListRef} className="max-h-[calc(100vh-320px)] overflow-y-auto">
@@ -201,10 +233,15 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
                                                 const isEntrada = log.status === 'ENTRADA';
                                                 const time = new Date(safeDateParse(log.timestamp));
+                                                // Só aparece quando o operador ligou o botão — e aí precisa
+                                                // ficar claro POR QUE aquela linha voltou, senão ela se
+                                                // confunde com uma passagem comum.
+                                                const ehPostoFixo = window.MagboPostoFixo
+                                                      ? window.MagboPostoFixo.ehPostoFixo(log) : false;
                                                 return (
                                                       <div
                                                             key={log.id}
-                                                            className="flex items-center gap-4 px-5 py-3.5 border-b border-soft-50 hover:bg-soft-50/50 transition-colors animate-slide-in-right"
+                                                            className={`flex items-center gap-4 px-5 py-3.5 border-b border-soft-50 hover:bg-soft-50/50 transition-colors animate-slide-in-right ${ehPostoFixo ? 'bg-soft-50/60' : ''}`}
                                                             style={{ animationDelay: `${idx * 0.03}s` }}
                                                       >
                                                             <div className="relative flex-shrink-0">
@@ -221,6 +258,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                                         </span>
                                                                         {user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
+                                                                        )}
+                                                                        {ehPostoFixo && (
+                                                                              <span
+                                                                                    title="Repetição do dia de quem está postado neste ponto — gravada, mas fora das contagens"
+                                                                                    className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
+                                                                              >
+                                                                                    Posto fixo
+                                                                              </span>
                                                                         )}
                                                                   </div>
                                                             </div>

@@ -55,6 +55,26 @@
     /** Marca da saída sintética das 17:00 (PresenceAutoCloseService.FLAG_FECHAMENTO). */
     const FLAG_FECHAMENTO = 'FECHAMENTO_AUTO';
 
+    /**
+     * ENTRADAs de REPETIÇÃO não abrem visita — auditoria de 10/08/2026.
+     *
+     * Espelho do VisitStatsService (backend) e do postoFixo.js: POSTO_FIXO é a
+     * repetição de quem trabalha no ponto, JA_PRESENTE é a entrada de quem já
+     * estava dentro. Sem este filtro, cada ENTRADA marcada virava uma "visita
+     * aberta" fantasma na pilha do pairVisits, e a visita fechada media do
+     * reconhecimento repetido até a saída — o Rapport CDI (calculado AQUI, no
+     * cliente) inflava a contagem e encurtava a média.
+     *
+     * ⚠️ ASSIMÉTRICO: pula ENTRADA marcada, NUNCA uma SAÍDA — a saída marcada
+     * continua fechando a visita, mesma regra das consultas do backend.
+     */
+    const FLAGS_DE_REPETICAO = ['POSTO_FIXO', 'JA_PRESENTE'];
+
+    function entradaDeRepeticao(evento) {
+        return !!evento && evento.entrada
+            && FLAGS_DE_REPETICAO.indexOf(evento.flag) !== -1;
+    }
+
     const TIPOS_DE_SERVIDOR = ['PROFESSOR', 'FUNCIONARIO'];
 
     /** true para PROFESSOR/FUNCIONARIO. Pessoa desconhecida não é servidor nem aluno. */
@@ -113,6 +133,8 @@
         const eventos = (Array.isArray(logs) ? logs : [])
             .map(normalizeEvent)
             .filter(function (e) { return e && e.personId != null && e.time != null; })
+            // Repetição marcada não abre visita (ver entradaDeRepeticao).
+            .filter(function (e) { return !entradaDeRepeticao(e); })
             // Ordem CRESCENTE: o backend devolve do mais novo para o mais
             // antigo, e emparelhar nessa ordem inverte entrada com saída.
             .sort(function (a, b) { return a.time - b.time; });

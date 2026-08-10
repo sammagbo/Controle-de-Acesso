@@ -78,6 +78,46 @@ describe('reportFilters — filtro de tipo', () => {
 
 describe('reportFilters — emparelhamento de visitas', () => {
 
+    /**
+     * ★ Auditoria de 10/08/2026: as flags de repetição estavam nas consultas e
+     * nas telas, mas o pareador consumia os logs crus. O incidente real do
+     * aluno 0003053 (4 entradas em 5 min, sem saída entre elas) virava 3
+     * visitas — 2 abertas fantasmas + 1 fechada medindo 16 min em vez de 21.
+     */
+    it('★ ENTRADA JA_PRESENTE não abre visita fantasma nem encurta a duração', () => {
+        const v = R.pairVisits([
+            ev('0003053', 'IN', 0),                    // 12:49 — a entrada real
+            ev('0003053', 'IN', 2, 'JA_PRESENTE'),     // 12:51
+            ev('0003053', 'IN', 5, 'JA_PRESENTE'),     // 12:54
+            ev('0003053', 'OUT', 21),                  // 13:10
+        ]);
+        expect(v).toHaveLength(1);
+        expect(v[0].seconds).toBe(21 * 60);
+        expect(v[0].open).toBe(false);
+    });
+
+    it('★ ENTRADA POSTO_FIXO não abre visita; a SAÍDA marcada AINDA fecha (assimetria)', () => {
+        const v = R.pairVisits([
+            ev('FUNC-LIB', 'IN', 0),                   // 08:00 — chegada real
+            ev('FUNC-LIB', 'IN', 60, 'POSTO_FIXO'),    // 09:00
+            ev('FUNC-LIB', 'OUT', 540, 'POSTO_FIXO'),  // 17:00 — foi embora DE VERDADE
+        ]);
+        expect(v).toHaveLength(1);
+        expect(v[0].seconds).toBe(540 * 60);
+        expect(v[0].open)
+            .toBe(false); // pular a saída marcada reabriria o defeito de ocupação de 10/08
+    });
+
+    it('as flags que CONTAM continuam abrindo visita normalmente', () => {
+        // FORA_HORARIO marca um problema, não uma repetição — a visita existe.
+        const v = R.pairVisits([
+            ev('0004048', 'IN', 0, 'FORA_HORARIO'),
+            ev('0004048', 'OUT', 30),
+        ]);
+        expect(v).toHaveLength(1);
+        expect(v[0].seconds).toBe(1800);
+    });
+
     it('emparelha ENTRADA→SAIDA e calcula a duração', () => {
         const v = R.pairVisits([ev('0004048', 'IN', 0), ev('0004048', 'OUT', 30)]);
         expect(v).toHaveLength(1);

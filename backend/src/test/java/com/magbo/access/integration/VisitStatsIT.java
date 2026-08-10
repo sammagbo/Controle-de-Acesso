@@ -229,6 +229,48 @@ class VisitStatsIT extends AbstractIT {
                 .departamento("VIE SCOLAIRE").ativo(true).mealCount(0).build());
     }
 
+    // ───────────────── Flags de repetição no pareamento ─────────────────
+    // Auditoria de 10/08/2026: as flags estavam nas consultas e nas telas, mas
+    // o PAREADOR consumia os logs crus — cada ENTRADA marcada virava uma
+    // "visita aberta" fantasma e a fechada media do reconhecimento repetido
+    // até a saída. O card do CDI dizia 4 visitas/16 min onde a verdade era
+    // 1 fechada de 21 (+1 aberta).
+
+    /** O incidente real do aluno 0003053, com as horas reais. */
+    @Test
+    @DisplayName("★ ENTRADA JA_PRESENTE não abre visita fantasma nem encurta a média")
+    void jaPresenteNaoAbreVisita() {
+        aluno("0003053", "Aluno Do Incidente");
+        entrada("0003053", LocalTime.of(12, 49));
+        salvar("0003053", AccessAction.ENTRADA, DIA.atTime(12, 51), "JA_PRESENTE");
+        salvar("0003053", AccessAction.ENTRADA, DIA.atTime(12, 54), "JA_PRESENTE");
+        saidaComFlag("0003053", LocalTime.of(13, 10), null);
+
+        VisitStatsService.VisitStats stats = visitStats.stats(CDI, DE, ATE, false);
+        assertThat(stats.visits()).as("uma visita, não três").isEqualTo(1);
+        assertThat(stats.openVisits()).isZero();
+        assertThat(stats.avgDurationMin())
+                .as("mede da ENTRADA REAL (12:49) até a saída — 21 min, não 16")
+                .isEqualTo(21);
+    }
+
+    @Test
+    @DisplayName("★ ENTRADA POSTO_FIXO também não abre visita; a SAÍDA marcada AINDA fecha")
+    void postoFixoAssimetrico() {
+        servidor("FUNC-LIB", "Bibliotecaria");
+        entrada("FUNC-LIB", LocalTime.of(8, 0));
+        salvar("FUNC-LIB", AccessAction.ENTRADA, DIA.atTime(9, 0), "POSTO_FIXO");
+        salvar("FUNC-LIB", AccessAction.SAIDA, DIA.atTime(17, 0), "POSTO_FIXO");
+
+        VisitStatsService.VisitStats stats = visitStats.stats(CDI, DE, ATE, true);
+        assertThat(stats.visits()).isEqualTo(1);
+        assertThat(stats.openVisits())
+                .as("a SAÍDA marcada fecha a visita — pular saída reabriria o defeito "
+                        + "de ocupação de 10/08 dentro do pareador")
+                .isZero();
+        assertThat(stats.avgDurationMin()).isEqualTo(540);   // 08:00→17:00
+    }
+
     private void visita(String userId, LocalTime entrada, LocalTime saida) {
         entrada(userId, entrada);
         saidaComFlag(userId, saida, null);

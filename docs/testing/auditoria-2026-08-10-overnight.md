@@ -194,10 +194,68 @@ Corretos e em dia (conferidos): contagens de teste em `CLAUDE.md`/`backend.md`
 (603/279 ✓), README das migrations cita V008–V011 e a ordem ✓, as regras novas
 de posto fixo/`JA_PRESENTE`/fotos descrevem o código como ele é ✓.
 
-## Eixo 7 — Pacote de release
+## Eixo 7 — Pacote de release ✅ com 2 ressalvas
 
-_Pendente._
+`npm run verify:package` → **APROVADO** (0 vazamentos em 17 regras; 26/26
+obrigatórios). Mas:
+
+1. **(c) O veredito é sobre um artefato de 06/08.** O `app.asar` em `dist/` é
+   anterior a posto fixo, fotos, `JA_PRESENTE` e casamento por matrícula —
+   contém **0** dos módulos novos. Nenhuma release foi cortada desde então
+   (coerente), mas o portable atualmente em `dist/` **não pode ser
+   distribuído** como se fosse a `main`: precisa de rebuild.
+2. **(b) A lista de obrigatórios do verificador é ESTÁTICA e não conhece os
+   módulos novos** (`postoFixo.js`, `photoCache.js`, `PersonPhoto.js` ausentes
+   da lista). Um build futuro que perdesse um deles no empacotamento **passaria
+   no portão** — exatamente a classe de acidente das tags do `index.html` que
+   já mordeu duas vezes. Recomendação: derivar os `js/` obrigatórios **do
+   próprio `index.html`** (que o `wiring.test.js` já garante completo), em vez
+   de manter segunda lista à mão. Não corrigido esta noite de propósito: com o
+   asar de 06/08 no `dist/`, o portão passaria a acusar — corretamente — um
+   pacote velho, e isso merece o rebuild junto, decisão de release e não de
+   auditoria.
 
 ## Relatório final por severidade
 
-_Pendente._
+### (a) Quebra produção ou perde dado
+**Nenhum achado.** As 15 consultas nativas são exatas em PostgreSQL real; o
+schema da produção está alinhado coluna a coluna com o código; nenhum segredo
+na árvore nem na história; nenhum endpoint de dado pessoal aberto.
+
+### (b) Resultado errado que a suíte não vê
+1. **Pareamento de visitas ignorava as flags de repetição** (backend
+   `VisitStatsService` + frontend `pairVisits`): o card do CDI mostrava 4
+   visitas/16 min onde a verdade era 2/21 com o incidente real semeado.
+   **Corrigido e provado** na branch `fix/visit-pairing-repetition-flags`
+   (605/282 verdes; assimetria preservada — SAÍDA marcada segue fechando).
+2. **O portão de release não protege os módulos novos**: lista estática de
+   obrigatórios sem `postoFixo.js`/`photoCache.js`/`PersonPhoto.js` — um
+   empacotamento que os perdesse passaria. Recomendação: derivar do
+   `index.html`. (Não corrigido: exige rebuild junto — decisão de release.)
+
+### (c) Cosmético ou documentação
+3. **R1 consta como risco aberto e está resolvido** — `libs/` vendorizado,
+   0 CDN no `index.html`, `externos: []` em todos os percursos kiosk. Corrigir
+   `CLAUDE.md`, `frontend.md`, `deploy-seguranca.md`.
+4. **`endpoints.md` está 23 rotas atrás do código** (fotos, meal bulk/import,
+   exit active/revoke, search/all/bulk, webhook `/t/{token}`…).
+5. **Checklist**: 1.5 afirma persistência de token que nunca existiu (design é
+   memória); "Encerramento" espera 350/58 testes (real: 603/279).
+6. **Migrations não são autossuficientes** em banco vazio (V005/V007/V008/V010
+   pressupõem o schema-base); dizer isso no README.
+7. **Índice UNIQUE duplicado** em `camera_person_id` quando migrations rodam
+   após o Hibernate (produção está limpa); **PC roda sem os índices da V006**.
+8. **`dist/` contém portable de 06/08** — não distribuir sem rebuild.
+9. `/webhook/capture` imprime corpo textual no log — manter restrito à bancada.
+
+### Branches empurradas nesta sessão
+- `audit/overnight-2026-08-10` — este relatório, um commit por eixo.
+- `fix/visit-pairing-repetition-flags` — o fix do item (b)1, com testes
+  (backend 605/0/2 · npm 282/0), **não mergeada**.
+
+### O que esta auditoria NÃO cobriu
+Drops de xlsx nas telas (HikCentral/Droits Repas — E2E anterior com arquivo
+real existe), scan de cartão no CDI por clique, CSV download, e qualquer coisa
+que exigisse hardware ou a VM. A VM, as câmeras e o HikCentral **não foram
+tocados**; o banco real do PC (`magbo-postgres`) permaneceu `Exited` a noite
+inteira.

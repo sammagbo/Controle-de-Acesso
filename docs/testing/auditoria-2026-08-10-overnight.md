@@ -156,9 +156,30 @@ sobre o arquivo volta vazio em toda a história. Um F5 no kiosk = login de novo,
 **por design**. Corrigir o checklist (e decidir, se quiser, se o design muda —
 mas isso é decisão de segurança, não da auditoria).
 
-## Eixo 5 — Passada de segurança
+## Eixo 5 — Passada de segurança ✅ (nada crítico; 1 observação)
 
-_Pendente._
+Sondagem contra a instância **local** (a VM nunca foi tocada). Endpoints
+enumerados por varredura dos controllers (86 rotas).
+
+| verificação | resultado |
+|---|---|
+| **26 rotas de dado pessoal SEM token** (users, logs, attempts, fotos, staff, meal, exit, stats, overview, auth/me) | **todas recusam** — 403 (a dívida congelada "403 em vez de 401" continua, documentada) |
+| foto sem autenticação (`/api/users/{id}/photo`) | **403** — não há URL pública de retrato |
+| webhook sem token | **401** (deny-by-default vivo) |
+| `/h2-console` no perfil prod | inacessível (403; servlet não registrado) |
+| rotas de exportação em massa de fotos | **não existem** — enumeração dos mappings confirma (só `summary`/`import*`/`DELETE {userId}`); sondas com e sem admin respondem 4xx (o 403 com admin é o `/error` do Spring atrás do gate — rota inexistente) |
+| `.env` rastreado | **não** — só `deploy/.env.example` (placeholders) |
+| token real do webhook na árvore rastreada | **0 ocorrências** |
+| token real do webhook na história inteira (`git log -S`) | **0 commits** |
+| senhas com valor em código rastreado | só os fallbacks de DEV já documentados (`AdminBootstrap`, `application-dev`, `.env.example`, compose) |
+| `schema-producao.sql` | **não rastreado** (e apagado ao fim da sessão) |
+| logs da noite (2 boots completos + tráfego) | **0** tokens, **0** `Bearer`, **0** blobs base64 |
+| código que loga bytes/token | nenhum no caminho normal; fotos logam só contagem/tamanho |
+
+**Observação (c):** o endpoint de DESCOBERTA `/webhook/capture` (protegido por
+token, não persiste) imprime no log o corpo textual das parts — em bancada é o
+propósito dele, mas se usado com câmera real em produção, nomes lidos pela
+câmera entram no log. Manter o uso restrito à bancada, como hoje.
 
 ## Eixo 6 — Docs × código
 

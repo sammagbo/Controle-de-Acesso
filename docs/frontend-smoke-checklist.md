@@ -260,6 +260,100 @@ Cabeçalho → engrenagem. **Tela cheia**, com navegação à esquerda.
 
 ---
 
+## 6-bis. Ocupação atual com posto fixo — conferência em SQL, obrigatória
+
+> **Por que este bloco existe e por que é em SQL, não em cliques.**
+> `currentOccupancyByPoint` usa `DISTINCT ON`, que é **exclusivo do
+> PostgreSQL**: o teste dela está `@Disabled` no H2 e **a suíte não a protege**.
+> Em 10/08/2026 a primeira versão do filtro de posto fixo passou nas 546 e
+> **estava errada** — só apareceu numa execução manual em Postgres real.
+> Repetir isto **depois de todo deploy que toque `AccessLogRepository`**.
+
+**O defeito que este roteiro pega:** se a exclusão do posto fixo tirar *toda*
+linha marcada (em vez de só a ENTRADA), quem tem posto fixo fica preso na
+primeira entrada do dia e aparece como **"dentro" até a meia-noite, mesmo tendo
+ido embora** — a saída real dele é marcada e some junto. O fechamento
+automático **não** corrige: ele olha o último evento cru, vê uma SAIDA e
+corretamente não faz nada.
+
+### Como semear (banco de teste, **nunca** o de produção)
+
+```sql
+-- 4 pessoas com posto fixo + 2 alunos. A "verdade" está nos comentários.
+UPDATE app_users SET posto_fixo_point_id='PORT1'  WHERE id='<porteiro>';
+UPDATE app_users SET posto_fixo_point_id='ENFERM' WHERE id='<enfermeira>';
+UPDATE app_users SET posto_fixo_point_id='BIBLIO' WHERE id='<bibliotecaria>';
+UPDATE app_users SET posto_fixo_point_id='REFEI1' WHERE id='<cantina>';
+
+INSERT INTO access_logs (user_id,point_id,action,timestamp,flag) VALUES
+ -- bibliotecária: entrou 08:00 e FOI EMBORA às 17:00 (saída marcada)
+ ('<bibliotecaria>','BIBLIO','ENTRADA',CURRENT_DATE+time '08:00',NULL),
+ ('<bibliotecaria>','BIBLIO','ENTRADA',CURRENT_DATE+time '09:00','POSTO_FIXO'),
+ ('<bibliotecaria>','BIBLIO','SAIDA'  ,CURRENT_DATE+time '17:00','POSTO_FIXO'),
+ -- cantina: entrou 11:00 e SAIU 11:30 (saída marcada)
+ ('<cantina>','REFEI1','ENTRADA',CURRENT_DATE+time '11:00',NULL),
+ ('<cantina>','REFEI1','SAIDA'  ,CURRENT_DATE+time '11:30','POSTO_FIXO'),
+ -- porteiro: vai e volta o tempo todo, ÚLTIMO evento é SAÍDA 08:10
+ ('<porteiro>','PORT1','ENTRADA',CURRENT_DATE+time '07:30',NULL),
+ ('<porteiro>','PORT1','SAIDA'  ,CURRENT_DATE+time '08:00','POSTO_FIXO'),
+ ('<porteiro>','PORT1','ENTRADA',CURRENT_DATE+time '08:05','POSTO_FIXO'),
+ ('<porteiro>','PORT1','SAIDA'  ,CURRENT_DATE+time '08:10','POSTO_FIXO'),
+ -- enfermeira: entrou 08:00 e NUNCA passou o rosto na saída
+ ('<enfermeira>','ENFERM','ENTRADA',CURRENT_DATE+time '08:00',NULL),
+ ('<enfermeira>','ENFERM','ENTRADA',CURRENT_DATE+time '10:00','POSTO_FIXO'),
+ ('<enfermeira>','ENFERM','ENTRADA',CURRENT_DATE+time '12:00','POSTO_FIXO'),
+ -- dois alunos, sem posto fixo, de fato dentro
+ ('<alunoA>','REFEI1','ENTRADA',CURRENT_DATE+time '11:00',NULL),
+ ('<alunoB>','BIBLIO','ENTRADA',CURRENT_DATE+time '14:00',NULL);
+```
+
+### A consulta
+
+```sql
+SELECT point_id, COUNT(*) FROM (
+  SELECT DISTINCT ON (user_id, point_id) user_id, point_id, action
+  FROM access_logs WHERE timestamp >= CURRENT_DATE
+    AND (flag IS NULL OR flag <> 'POSTO_FIXO' OR action <> 'ENTRADA')
+  ORDER BY user_id, point_id, timestamp DESC
+) last WHERE action='ENTRADA' GROUP BY point_id ORDER BY 1;
+```
+
+### A verdade esperada, ponto a ponto
+
+| Ponto | Esperado | Quem, e por quê |
+|---|---|---|
+| `BIBLIO` | **1** | só o aluno B. A bibliotecária saiu às 17:00 e a saída marcada **tem de** fechar |
+| `ENFERM` | **1** | a enfermeira — ela de fato **nunca** passou o rosto na saída, então está certo constar dentro |
+| `REFEI1` | **1** | só o aluno A. A cantina saiu às 11:30 |
+| `PORT1` | **ausente** (0) | o porteiro saiu às 08:10; a re-entrada marcada **não** pode reabrir presença |
+
+> **Se `BIBLIO`, `REFEI1` ou `PORT1` vierem maiores, o filtro voltou a ser
+> simétrico** (`flag <> 'POSTO_FIXO'` sem o `OR action <> 'ENTRADA'`) e o
+> sistema está afirmando que gente que foi embora continua dentro.
+
+> ⚠️ **A armadilha do NULL.** A forma "equivalente"
+> `AND NOT (flag = 'POSTO_FIXO' AND action = 'ENTRADA')` devolve **ZERO linhas**:
+> `flag = 'POSTO_FIXO'` é `NULL` quando a flag é nula, `NOT NULL` é `NULL`, e
+> toda linha sem flag — que é quase toda a base — é descartada. Foi verificada e
+> falha assim. Manter sempre a forma com `flag IS NULL OR ...`.
+
+### Medição de referência (10/08/2026, PostgreSQL 16.14, cenário acima)
+
+| Versão da consulta | BIBLIO | ENFERM | REFEI1 | PORT1 |
+|---|---|---|---|---|
+| antes do posto fixo (sem filtro) | 1 | 1 | 1 | — |
+| filtro **simétrico** (defeituoso) | **2** | 1 | **2** | **1** |
+| filtro **assimétrico** (em vigor) | 1 | 1 | 1 | — |
+
+### A outra PG-only, na mesma tacada
+
+`countUnregisteredExits` (`interval '4 hours'`) também é `@Disabled` no H2. No
+mesmo cenário ela deve devolver **2**: o aluno A (entrou na cantina e não saiu)
+e a enfermeira (primeira entrada do dia, sem saída). A cantina **não** pode
+aparecer — a entrada dela às 11:00 foi fechada pela **saída marcada** das 11:30.
+
+---
+
 ## 7. Regressões que não podem aparecer
 
 | # | Verificação | Esperado |
@@ -301,5 +395,11 @@ antes/depois do 5.2 e do 5.3, e qualquer passo que falhou com o que apareceu.
   lista). O resto é este roteiro.
 - Os passos com hardware (5.3.10) dependem do terminal e das conferências de IP
   do `.claude/rules/hikvision.md` — IPs mudam por DHCP e quebram em silêncio.
+- **Duas consultas nativas são PostgreSQL-only e ficam `@Disabled` no H2**
+  (`currentOccupancyByPoint`, `DISTINCT ON`; `countUnregisteredExits`,
+  `interval '4 hours'`). A suíte **não** as protege: `mvn test` fica verde com
+  elas erradas — aconteceu em 10/08/2026. A conferência delas é a **seção
+  6-bis**, e ela é obrigatória depois de qualquer mudança em
+  `AccessLogRepository`.
 - **Cantina e enfermaria não foram alteradas** nesta entrega; se um número ali
   mudou, é regressão.

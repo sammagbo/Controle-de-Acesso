@@ -69,7 +69,8 @@ class EntryWindowRegressionTest {
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,
                 new HikvisionEventClassifier(), dedupService, attemptService, new PolicyProperties(),
-                mealEntitlementService, exitPermissionService, samePassageService);
+                mealEntitlementService, exitPermissionService, samePassageService,
+                new PostoFixoService(accessLogRepository));
     }
 
     private String validar(User user, LocalTime hora) {

@@ -1,0 +1,44 @@
+-- MAGBO Access Control — V010: posto_fixo_point_id em app_users
+-- Marca a pessoa que fica POSTADA num ponto o dia inteiro (porteiro, Vie
+-- Scolaire de plantao no portao, bibliotecario no balcao do CDI).
+-- Adiciona a coluna a uma tabela EXISTENTE. Idempotente: pode ser executado
+-- mais de uma vez.
+--
+-- Fonte da verdade: backend/src/main/java/com/magbo/access/models/User.java
+--   @Column(name = "posto_fixo_point_id", length = 32)  -> VARCHAR(32), nullable.
+--
+-- O PROBLEMA QUE ELA RESOLVE (medido em 10/08/2026): quem trabalha no portao e
+-- reconhecido pela camera dezenas de vezes por dia. Sao passagens legitimas,
+-- separadas por minutos — a regra de mesma passagem (30s, para leitura
+-- repetida) nao as alcanca e nem deveria. A tela do Portail e os contadores
+-- enchiam de ruido.
+--
+-- POR PESSOA, E NAO POR DEPARTAMENTO. O dado real de producao mostra gente da
+-- VIE SCOLAIRE postada no portao, e gente da PORTARIA que precisa de rastreio
+-- normal em qualquer outro ponto. O departamento SUGERE o valor na tela; quem
+-- decide e o operador, um cadastro por vez.
+--
+-- ATENCAO: NULLABLE, obrigatoriamente. Quase ninguem tem posto fixo, e os 923
+-- alunos nunca terao — um NOT NULL aqui invalidaria a tabela inteira.
+-- null = pessoa sem posto fixo, que e o comportamento historico (toda passagem
+-- conta).
+--
+-- Sem CHECK e sem FK para door_mappings, de proposito:
+--   • no Java e String livre (o Hibernate nao gera CHECK aqui);
+--   • os pontos sao os mesmos de door_mappings.point_id, mas essa coluna NAO e
+--     unica — uma FK exigiria uma tabela de pontos que o sistema nao tem.
+--   A validacao do valor esta em StaffAdminService.updateStaff, que so aceita
+--   ponto conhecido (AreaMapping) ou vazio. Um valor invalido aqui nao quebra
+--   nada: nenhuma passagem casaria com ele e tudo seguiria contando como hoje.
+--
+-- Sem indice: a coluna e lida uma pessoa por vez (o usuario ja resolvido da
+-- passagem em curso), nunca varrida. O indice util e o de access_logs
+-- (user_id, point_id, timestamp), que a V006 ja cobre.
+--
+-- ADITIVA e nao destrutiva: nao toca em coluna nenhuma existente, nao remove
+-- nem relaxa restricao, e nao apaga uma linha sequer de access_logs. As
+-- passagens repetidas continuam TODAS gravadas — o que a coluna liga e apenas
+-- a flag POSTO_FIXO, que as tira das telas padrao e dos contadores. O Journal
+-- (auditoria) continua mostrando tudo.
+
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS posto_fixo_point_id VARCHAR(32);

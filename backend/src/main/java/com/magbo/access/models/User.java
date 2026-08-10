@@ -85,4 +85,31 @@ public class User {
      */
     @Column(name = "camera_person_id", unique = true, length = 64)
     private String cameraPersonId;
+
+    /**
+     * Ponto onde esta pessoa fica POSTADA o dia inteiro (PORT1, BIBLIO...).
+     *
+     * O problema real, medido em 10/08/2026: quem trabalha NO portao — o
+     * porteiro, e tambem a Vie Scolaire que fica de pe ali — e reconhecido pela
+     * camera dezenas de vezes por dia, entrada, saida, entrada. Sao passagens
+     * legitimas e minutos separadas, entao a regra de mesma passagem (30s) nao
+     * as alcanca e nem deveria: ela existe para leitura repetida, nao para
+     * quem esta de servico.
+     *
+     * Marcado POR PESSOA e nao por departamento, e a diferenca importa:
+     * ha gente da VIE SCOLAIRE postada no portao e gente da PORTARIA que
+     * precisa de rastreio normal em qualquer outro lugar. O departamento pode
+     * SUGERIR o valor na tela; quem decide e o operador, uma pessoa por vez.
+     *
+     * Nullable porque a esmagadora maioria nao tem posto fixo — e 923 alunos
+     * nunca terao. Nunca preenchido para ALUNO: a tela de servidores e a unica
+     * porta de escrita, e ela so aceita PROFESSOR/FUNCIONARIO.
+     *
+     * O que ele NAO faz: bloquear, esconder ou apagar passagem. Ele so nomeia
+     * o ponto em que a REPETICAO do dia recebe flag POSTO_FIXO
+     * (PostoFixoService) — a primeira do dia continua normal, e movimento em
+     * QUALQUER outro ponto e intocado.
+     */
+    @Column(name = "posto_fixo_point_id", length = 32)
+    private String postoFixoPointId;
 }

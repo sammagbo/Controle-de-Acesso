@@ -113,8 +113,9 @@ async function registerAccess(payload) {
 // fetchLogs(pointId, opts?) — GET /api/access/logs/{pointId}
 // Returns array of normalised logs or [] on error
 //
-// opts.incluirPostoFixo (default false) = mostra também a repetição do dia de
-// quem está POSTADO no ponto (porteiro, Vie Scolaire de plantão no portão).
+// opts.incluirRepeticoes (default false) = mostra também as linhas de REPETIÇÃO:
+// a do dia de quem está POSTADO no ponto (POSTO_FIXO) e a ENTRADA de quem já
+// estava dentro (JA_PRESENTE).
 // Escondido por padrão porque era ele que enchia a tela do Portail de linhas
 // iguais; nada é apagado, e o Journal sempre lista todas.
 //
@@ -126,7 +127,7 @@ async function registerAccess(payload) {
 async function fetchLogs(pointId, opts = {}) {
       try {
             const params = new URLSearchParams();
-            if (opts.incluirPostoFixo) params.set('incluirPostoFixo', 'true');
+            if (opts.incluirRepeticoes) params.set('incluirRepeticoes', 'true');
             const qs = params.toString();
             const res = await fetch(
                   `${API_BASE}/access/logs/${encodeURIComponent(pointId)}${qs ? '?' + qs : ''}`, {

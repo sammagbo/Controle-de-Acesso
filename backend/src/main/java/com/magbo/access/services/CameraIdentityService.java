@@ -25,6 +25,15 @@ import java.util.List;
  * ORDEM, e ela importa:
  *   1. NUMERO DO DOCUMENTO ja guardado (camera_person_id). Deterministico:
  *      um numero, uma pessoa. Nao ha ambiguidade possivel e nao se olha o nome.
+ *   1b. O PROPRIO NUMERO COMO MATRICULA (ou como employeeNo do HCP). Desde a
+ *      repovoacao das bibliotecas faciais pelo modulo de pessoas do HCP em
+ *      08/08/2026, o certificateNumber que a camera devolve E a matricula do
+ *      aluno, preenchida com zeros ate 16 digitos ("0000000000003535" para o
+ *      aluno 0003535). Sem este passo, TODO aluno precisaria de um casamento
+ *      por nome antes de virar deterministico — e o casamento por nome e
+ *      justamente o passo fragil (acento, ordem, truncamento em 32 caracteres).
+ *      Os cadastros antigos, com id de 10 digitos do HCP, continuam casando
+ *      pela mesma comparacao contra hikvision_employee_id.
  *   2. NOME normalizado IGUAL, e SO se casar com EXATAMENTE UM cadastro ativo.
  *      No casamento unico o numero e GRAVADO naquela pessoa, e a partir da
  *      proxima passagem cai-se no caso 1 — o casamento por nome acontece uma
@@ -140,6 +149,30 @@ public class CameraIdentityService {
             }
         }
 
+        // ── 1b. O proprio numero COMO MATRICULA / employeeNo ──
+        //
+        // ⚠️ VEM ANTES DO NOME DE PROPOSITO, e a razao e que o identificador e
+        // EVIDENCIA MAIS FORTE que o nome. O numero foi digitado uma vez, no
+        // modulo de pessoas do HCP, e aponta para uma linha; o nome chega
+        // normalizado, as vezes truncado em 32 caracteres, e casa por
+        // semelhanca. Quando os dois discordam — o numero diz uma pessoa e o
+        // nome diz outra — a passagem vai para a do NUMERO. Inverter isso
+        // significaria atribuir a passagem a um homonimo por causa de um campo
+        // de texto, que numa portaria e liberar a saida de uma crianca no nome
+        // de outra.
+        if (documento != null) {
+            User porIdentificador = casarPorIdentificador(documento);
+            if (porIdentificador != null) {
+                // Grava o certificateNumber tal como veio (com os zeros): a
+                // proxima passagem cai no passo 1, que e uma consulta so.
+                guardarDocumento(porIdentificador, documento, nome, biblioteca);
+                log.info("Camera: {} identificado pelo IDENTIFICADOR {} (nome lido='{}', biblioteca={})",
+                        porIdentificador.getId(), documento, nome, biblioteca);
+                return new Identidade(Resultado.IDENTIFICADO, porIdentificador,
+                        nome, biblioteca, similaridade, documento);
+            }
+        }
+
         // ── 2. Nome, e so se for unico ──
         String alvo = PersonNameMatcher.normalize(nome);
         if (alvo == null) {
@@ -208,6 +241,69 @@ public class CameraIdentityService {
         log.info("Camera: nome nao encontrado no cadastro (nome='{}', biblioteca={}, similaridade={})",
                 nome, biblioteca, similaridade);
         return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
+    }
+
+    /**
+     * O certificateNumber e a matricula (ou o employeeNo) de alguem?
+     *
+     * ⚠️ OS DOIS LADOS NORMALIZADOS, e e o ponto inteiro do metodo. A camera
+     * manda "0000000000003535" (16 digitos) e o banco guarda "0003535" (7
+     * digitos, matricula do Pronote) — comparar cru nao casa NADA, e a falha
+     * seria silenciosa: todo aluno continuaria caindo no casamento por nome,
+     * exatamente como antes, e ninguem notaria que o passo novo nunca funciona.
+     *
+     * Normalizar aqui e TIRAR OS ZEROS A ESQUERDA dos dois lados. Nao e
+     * converter para numero: matricula e TEXTO no projeto inteiro (a coluna e
+     * VARCHAR, o CSV sai entre aspas, o xlsx e lido como texto), e um long de
+     * 16 digitos ainda cabe mas o habito de converter e o que come o zero em
+     * todo lugar onde ja mordeu.
+     *
+     * Consulta o cadastro INTEIRO uma vez porque a comparacao e sobre o valor
+     * normalizado, que nao existe como coluna — nao ha indice que sirva. E a
+     * mesma varredura que o casamento por nome ja faz logo abaixo.
+     *
+     * Devolve null quando zero OU mais de um casam: dois cadastros com o mesmo
+     * numero normalizado e erro de cadastro, e escolher um deles seria o
+     * sistema decidindo de quem e a passagem.
+     */
+    private User casarPorIdentificador(String certificateNumber) {
+        String alvo = semZerosAEsquerda(certificateNumber);
+        if (alvo == null) return null;
+
+        List<User> casaram = new ArrayList<>();
+        for (User u : userRepository.findByAtivoTrue()) {
+            if (alvo.equals(semZerosAEsquerda(u.getId()))
+                    || alvo.equals(semZerosAEsquerda(u.getHikvisionEmployeeId()))) {
+                casaram.add(u);
+            }
+        }
+
+        if (casaram.size() == 1) return casaram.get(0);
+        if (casaram.size() > 1) {
+            log.warn("Camera: identificador {} casa com {} cadastros ativos ({}) — NAO identificado "
+                            + "por ele; conferir duplicata de matricula/employeeNo",
+                    certificateNumber, casaram.size(), casaram.stream().map(User::getId).toList());
+        }
+        return null;
+    }
+
+    /**
+     * Tira os zeros a esquerda, mantendo TEXTO.
+     *
+     * "0000000000003535" e "0003535" e "3535" viram todos "3535". Um valor so
+     * de zeros vira "0" (e nao vazio), para nao casar com qualquer coisa. Nao
+     * numerico volta como esta, em maiusculas e sem espacos: FUNC-036 nao tem
+     * zero a esquerda e tem que continuar comparavel consigo mesmo.
+     */
+    static String semZerosAEsquerda(String valor) {
+        if (valor == null) return null;
+        String v = valor.trim();
+        if (v.isEmpty()) return null;
+        if (!v.chars().allMatch(Character::isDigit)) {
+            return v.toUpperCase(java.util.Locale.ROOT);
+        }
+        String semZeros = v.replaceFirst("^0+", "");
+        return semZeros.isEmpty() ? "0" : semZeros;
     }
 
     /**

@@ -13,11 +13,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * ⚠️ POSTO FIXO E AS CONSULTAS DAQUI.
+ * ⚠️ AS FLAGS DE REPETICAO E AS CONSULTAS DAQUI.
  *
- * Uma linha com {@code flag='POSTO_FIXO'} e a repeticao do dia de quem
- * TRABALHA naquele ponto (ver {@link com.magbo.access.services.PostoFixoService}).
- * Ela EXISTE no banco, e para sempre — nada e apagado. O que muda e quem a
+ * Duas flags marcam linhas que EXISTEM mas nao abrem visita nova:
+ *
+ *   • {@code POSTO_FIXO} — a repeticao do dia de quem TRABALHA naquele ponto
+ *     (ver {@link com.magbo.access.services.PostoFixoService});
+ *   • {@code JA_PRESENTE} — a ENTRADA de quem ja estava dentro
+ *     (ver {@link com.magbo.access.services.PresencaAbertaService}).
+ *
+ * As linhas ficam no banco para sempre — nada e apagado. O que muda e quem as
  * conta:
  *
  *   • telas padrao e contadores  -> NAO contam (o ruido e justamente o problema);
@@ -27,15 +32,32 @@ import org.springframework.data.repository.query.Param;
  *     ela e o resultado seria numericamente identico. Mexer ali seria churn
  *     sem efeito.
  *
- * O predicado da exclusao e sempre o mesmo, e o {@code IS NULL} nao e enfeite:
- * a esmagadora maioria das linhas tem flag nula, e {@code flag <> 'POSTO_FIXO'}
- * sozinho e UNKNOWN para NULL em SQL — descartaria a base inteira em silencio.
+ * A LISTA vive em {@link #REPETICOES}, UMA vez, porque dez consultas repetindo
+ * literais e como uma flag nova entra em nove delas e some da decima.
  *
- *   JPQL   : (a.flag IS NULL OR a.flag <> 'POSTO_FIXO')
- *   nativa : (flag IS NULL OR flag <> 'POSTO_FIXO')
+ * O {@code IS NULL} nao e enfeite: a esmagadora maioria das linhas tem flag
+ * nula, e {@code flag NOT IN (...)} sozinho e UNKNOWN para NULL em SQL —
+ * descartaria a base inteira em silencio.
+ *
+ *   simetrico  : (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))
+ *   assimetrico: o acima + " OR action <> 'ENTRADA'"
  */
 @Repository
 public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
+
+    /**
+     * As flags cuja linha e REPETICAO — existe, mas nao abre visita nova.
+     *
+     * Constante de compilacao (String final) para poder ser concatenada dentro
+     * de {@code @Query}. Flag nova de repeticao entra AQUI e alcanca todas as
+     * consultas de uma vez; era esse o defeito que uma lista por consulta
+     * convidava.
+     *
+     * ⚠️ Nao inclui FECHAMENTO_AUTO nem FORA_HORARIO/EXCEDEU_TEMPO: aquelas
+     * marcam passagens que CONTAM (a saida sintetica fecha uma visita de
+     * verdade; os alertas nomeiam um problema que alguem precisa ver).
+     */
+    String REPETICOES = "('POSTO_FIXO','JA_PRESENTE')";
 
     List<AccessLog> findTop500ByPointIdAndTimestampGreaterThanEqualOrderByTimestampDesc(String pointId, LocalDateTime timestamp);
 
@@ -48,23 +70,44 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
      * pagina — o mesmo defeito que fez o filtro de aluno do Journal migrar para
      * a consulta.
      *
-     * @param incluirPostoFixo o que o botao da tela liga. false (padrao)
-     *                         esconde a repeticao de quem esta de servico;
-     *                         true mostra tudo, sem esconder nada de ninguem
+     * @param incluirRepeticoes o que o botao da tela liga. false (padrao)
+     *                          esconde as linhas de REPETICAO — a do dia de
+     *                          quem esta de servico (POSTO_FIXO) e a entrada de
+     *                          quem ja estava dentro (JA_PRESENTE); true mostra
+     *                          tudo, sem esconder nada de ninguem.
+     *                          ⚠️ O nome fala do CONJUNTO, e nao de uma das
+     *                          flags, porque e o conjunto que ele governa — um
+     *                          parametro chamado "incluirPostoFixo" que
+     *                          tambem revelasse JA_PRESENTE seria a proxima
+     *                          pessoa a descobrir a diferenca por acidente.
      */
     @Query("""
         SELECT a FROM AccessLog a
         WHERE a.pointId = :pointId
           AND a.timestamp >= :desde
-          AND (:incluirPostoFixo = true
-               OR a.flag IS NULL OR a.flag <> 'POSTO_FIXO')
+          AND (:incluirRepeticoes = true
+               OR a.flag IS NULL OR a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))
         ORDER BY a.timestamp DESC
     """)
     List<AccessLog> findRecentesDoPonto(
             @Param("pointId") String pointId,
             @Param("desde") LocalDateTime desde,
-            @Param("incluirPostoFixo") boolean incluirPostoFixo,
+            @Param("incluirRepeticoes") boolean incluirRepeticoes,
             Pageable pageable);
+
+    /**
+     * PRESENCA ABERTA: o ULTIMO evento desta pessoa neste ponto, ate a hora
+     * informada, dentro do dia.
+     *
+     * Se for ENTRADA, a pessoa esta dentro e uma nova ENTRADA e repeticao.
+     *
+     * ⚠️ "ate a hora informada", e nao "o ultimo de todos": uma fila offline
+     * esvaziada entrega evento fora de ordem, e perguntar pelo ultimo absoluto
+     * faria a resposta depender de quem chegou primeiro ao banco em vez de do
+     * que aconteceu antes na vida real.
+     */
+    Optional<AccessLog> findTopByUserIdAndPointIdAndTimestampBetweenOrderByTimestampDesc(
+            String userId, String pointId, LocalDateTime from, LocalDateTime to);
 
     /**
      * POSTO FIXO: esta pessoa ja passou por este ponto no dia?
@@ -120,13 +163,13 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
      *
      * @param eleve termo JA em minusculas e JA entre '%' (o controller monta);
      *              null quando o filtro esta vazio
-     * @param somentePostoFixo lente do POSTO FIXO, e uma lente so — o padrao
+     * @param somenteRepeticoes lente das REPETICOES, e uma lente so — o padrao
      *              nao esconde nada. {@code null} = mostra TUDO, que e como o
      *              Journal abre e como ele tem que continuar abrindo (e a visao
-     *              de auditoria). {@code TRUE} = so as repeticoes marcadas, para
-     *              conferir quanto ruido o posto fixo esta absorvendo.
-     *              {@code FALSE} = tudo menos elas, que e o que as outras telas
-     *              ja mostram.
+     *              de auditoria). {@code TRUE} = so as linhas marcadas
+     *              (POSTO_FIXO ou JA_PRESENTE), para conferir quanto ruido as
+     *              regras estao absorvendo. {@code FALSE} = tudo menos elas,
+     *              que e o que as outras telas ja mostram.
      */
     @Query("""
         SELECT a FROM AccessLog a
@@ -138,10 +181,11 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
                OR LOWER(a.userId) LIKE :eleve
                OR EXISTS (SELECT 1 FROM User u
                           WHERE u.id = a.userId AND LOWER(u.nome) LIKE :eleve))
-          AND (:#{#somentePostoFixo == null} = true
-               OR (:#{#somentePostoFixo == true} = true AND a.flag = 'POSTO_FIXO')
-               OR (:#{#somentePostoFixo == false} = true
-                   AND (a.flag IS NULL OR a.flag <> 'POSTO_FIXO')))
+          AND (:#{#somenteRepeticoes == null} = true
+               OR (:#{#somenteRepeticoes == true} = true
+                   AND a.flag IN ('POSTO_FIXO','JA_PRESENTE'))
+               OR (:#{#somenteRepeticoes == false} = true
+                   AND (a.flag IS NULL OR a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))))
         ORDER BY a.timestamp DESC
     """)
     List<AccessLog> findFilteredLogs(
@@ -150,7 +194,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
         @Param("pointId") String pointId,
         @Param("action") com.magbo.access.models.AccessAction action,
         @Param("eleve") String eleve,
-        @Param("somentePostoFixo") Boolean somentePostoFixo,
+        @Param("somenteRepeticoes") Boolean somenteRepeticoes,
         Pageable pageable
     );
 
@@ -175,7 +219,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query("""
         SELECT COUNT(a) FROM AccessLog a
         WHERE a.timestamp >= :start
-          AND (a.flag IS NULL OR a.flag <> 'POSTO_FIXO')
+          AND (a.flag IS NULL OR a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))
     """)
     long countRelevantesSince(@Param("start") LocalDateTime start);
 
@@ -193,7 +237,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
         SELECT COUNT(a) FROM AccessLog a
         WHERE a.timestamp >= :start
           AND a.flag IS NOT NULL AND a.flag <> ''
-          AND a.flag <> 'POSTO_FIXO'
+          AND a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')
     """)
     long countBlockedSince(@Param("start") LocalDateTime start);
 
@@ -207,7 +251,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
         SELECT COUNT(DISTINCT a.userId) FROM AccessLog a
         WHERE a.timestamp >= :start
           AND a.action = com.magbo.access.models.AccessAction.ENTRADA
-          AND (a.flag IS NULL OR a.flag <> 'POSTO_FIXO')
+          AND (a.flag IS NULL OR a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))
           AND NOT EXISTS (
               SELECT 1 FROM AccessLog b
               WHERE b.userId = a.userId
@@ -224,7 +268,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
             List<String> pointIds, LocalDateTime from, LocalDateTime to);
 
     // Total de movimentos no período (excluindo portões e a repetição de posto fixo)
-    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3') AND (flag IS NULL OR flag <> 'POSTO_FIXO')", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3') AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))", nativeQuery = true)
     long countMovementsInternal(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Total de movimentos no período — CRU, inclusive posto fixo.
@@ -240,11 +284,11 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     long countUniqueStudents(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Movimentos por hora (0-23)
-    @Query(value = "SELECT CAST(EXTRACT(HOUR FROM timestamp) AS int) AS hour, COUNT(*) AS cnt FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3') AND (flag IS NULL OR flag <> 'POSTO_FIXO') GROUP BY hour ORDER BY hour", nativeQuery = true)
+    @Query(value = "SELECT CAST(EXTRACT(HOUR FROM timestamp) AS int) AS hour, COUNT(*) AS cnt FROM access_logs WHERE timestamp BETWEEN :from AND :to AND point_id NOT IN ('PORT1','PORT2','PORT3') AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) GROUP BY hour ORDER BY hour", nativeQuery = true)
     java.util.List<Object[]> countByHour(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Movimentos, únicos e entradas por point_id no período
-    @Query(value = "SELECT point_id, COUNT(*) AS mov, COUNT(DISTINCT user_id) AS uniq, COUNT(*) FILTER (WHERE action='ENTRADA') AS entries FROM access_logs WHERE timestamp BETWEEN :from AND :to AND (flag IS NULL OR flag <> 'POSTO_FIXO') GROUP BY point_id", nativeQuery = true)
+    @Query(value = "SELECT point_id, COUNT(*) AS mov, COUNT(DISTINCT user_id) AS uniq, COUNT(*) FILTER (WHERE action='ENTRADA') AS entries FROM access_logs WHERE timestamp BETWEEN :from AND :to AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) GROUP BY point_id", nativeQuery = true)
     java.util.List<Object[]> statsByPoint(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Refeições fora do horário (flag)
@@ -268,7 +312,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "  SELECT e.user_id, e.timestamp AS ent, " +
            "    (SELECT MIN(s.timestamp) FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id='ENFERM' AND s.action='SAIDA' AND s.timestamp > e.timestamp) AS sai " +
            "  FROM access_logs e WHERE e.point_id='ENFERM' AND e.action='ENTRADA' AND e.timestamp BETWEEN :from AND :to" +
-           "    AND (e.flag IS NULL OR e.flag <> 'POSTO_FIXO')" +
+           "    AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))" +
            ") t WHERE t.sai IS NOT NULL AND EXTRACT(EPOCH FROM (t.sai - t.ent))/60 > 30", nativeQuery = true)
     long countLongInfirmaryStays(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
@@ -279,7 +323,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT COUNT(*) FROM access_logs e " +
            "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND e.timestamp BETWEEN :from AND :to " +
-           "AND (e.flag IS NULL OR e.flag <> 'POSTO_FIXO') " +
+           "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours')", nativeQuery = true)
     long countUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
@@ -313,7 +357,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT point_id, COUNT(*) FROM (" +
            "  SELECT DISTINCT ON (user_id, point_id) user_id, point_id, action " +
            "  FROM access_logs WHERE timestamp >= :dayStart " +
-           "    AND (flag IS NULL OR flag <> 'POSTO_FIXO' OR action <> 'ENTRADA') " +
+           "    AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE') OR action <> 'ENTRADA') " +
            "  ORDER BY user_id, point_id, timestamp DESC" +
            ") last WHERE action='ENTRADA' GROUP BY point_id", nativeQuery = true)
     java.util.List<Object[]> currentOccupancyByPoint(@Param("dayStart") java.time.LocalDateTime dayStart);
@@ -338,7 +382,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "    LAG(timestamp) OVER w AS prev_ts " +
            "  FROM access_logs " +
            "  WHERE timestamp BETWEEN :from AND :to AND point_id IN (:points) " +
-           "    AND (flag IS NULL OR flag <> 'POSTO_FIXO') " +
+           "    AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "  WINDOW w AS (PARTITION BY user_id, point_id, CAST(timestamp AS date) ORDER BY timestamp)" +
            ") t WHERE t.action = 'SAIDA' AND t.prev_action = 'ENTRADA'", nativeQuery = true)
     Double avgStayMinutesByPoints(@Param("from") java.time.LocalDateTime from,

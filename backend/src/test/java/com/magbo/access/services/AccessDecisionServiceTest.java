@@ -90,7 +90,11 @@ class AccessDecisionServiceTest {
                 // Real, e nao mock: com postoFixoPointId nulo (o caso destes
                 // cenarios) ele sai antes de tocar o repositorio, e o teste
                 // passa a provar tambem esse curto-circuito.
-                new PostoFixoService(accessLogRepository));
+                new PostoFixoService(accessLogRepository),
+                // Real sobre repositorio mock, como o PostoFixoService: nestes
+                // cenarios nao ha log anterior, entao ele devolve null sem
+                // decidir nada — e o teste passa a cobrir tambem esse caminho.
+                new PresencaAbertaService(accessLogRepository));
 
         when(userRepository.findByHikvisionEmployeeId(EMPLOYEE))
                 .thenReturn(Optional.of(aluno(TURMA_SEM_REFEICAO)));

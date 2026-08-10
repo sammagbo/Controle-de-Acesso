@@ -41,18 +41,71 @@ describe('postoFixo — reconhecer a marca', () => {
         expect(P.FLAG_POSTO_FIXO).toBe('POSTO_FIXO');
     });
 
-    it('contarPostoFixo conta só as marcadas', () => {
+    it('contarRepeticoes conta só as marcadas', () => {
         const logs = [
             { flag: null }, { flag: 'POSTO_FIXO' },
             { flag: 'POSTO_FIXO' }, { flag: 'EXCEDEU_TEMPO' },
         ];
-        expect(P.contarPostoFixo(logs)).toBe(2);
+        expect(P.contarRepeticoes(logs)).toBe(2);
     });
 
-    it('contarPostoFixo aceita entrada inválida sem estourar', () => {
-        expect(P.contarPostoFixo(null)).toBe(0);
-        expect(P.contarPostoFixo(undefined)).toBe(0);
-        expect(P.contarPostoFixo([])).toBe(0);
+    it('contarRepeticoes aceita entrada inválida sem estourar', () => {
+        expect(P.contarRepeticoes(null)).toBe(0);
+        expect(P.contarRepeticoes(undefined)).toBe(0);
+        expect(P.contarRepeticoes([])).toBe(0);
+    });
+});
+
+/**
+ * AS DUAS FLAGS DE REPETIÇÃO.
+ *
+ * `POSTO_FIXO` e `JA_PRESENTE` marcam coisas diferentes — quem trabalha ali, e
+ * quem já estava dentro — mas a tela faz a MESMA coisa com as duas: esconde por
+ * padrão, conta fora, e o Journal mostra. Por isso existe o conceito de
+ * conjunto: o botão fala de "repetições", não de uma das duas.
+ */
+describe('postoFixo — o conjunto das repetições', () => {
+
+    it('ehJaPresente só é verdade para JA_PRESENTE', () => {
+        expect(P.ehJaPresente({ flag: 'JA_PRESENTE' })).toBe(true);
+        expect(P.ehJaPresente({ flag: 'POSTO_FIXO' })).toBe(false);
+        expect(P.ehJaPresente({ flag: null })).toBe(false);
+        expect(P.ehJaPresente(null)).toBe(false);
+    });
+
+    it('★ ehRepeticao cobre as DUAS, e só elas', () => {
+        expect(P.ehRepeticao({ flag: 'POSTO_FIXO' })).toBe(true);
+        expect(P.ehRepeticao({ flag: 'JA_PRESENTE' })).toBe(true);
+        // As que CONTAM não podem entrar: a saída sintética fecha uma visita de
+        // verdade, e os alertas nomeiam um problema que alguém precisa ver.
+        expect(P.ehRepeticao({ flag: 'FECHAMENTO_AUTO' })).toBe(false);
+        expect(P.ehRepeticao({ flag: 'FORA_HORARIO' })).toBe(false);
+        expect(P.ehRepeticao({ flag: 'EXCEDEU_TEMPO' })).toBe(false);
+        expect(P.ehRepeticao({ flag: null })).toBe(false);
+        expect(P.ehRepeticao(null)).toBe(false);
+    });
+
+    it('a flag do front é a mesma string do backend', () => {
+        // Espelho de PresencaAbertaService.FLAG_JA_PRESENTE. Divergir aqui faria
+        // a tela nunca reconhecer uma linha marcada — e sem erro nenhum.
+        expect(P.FLAG_JA_PRESENTE).toBe('JA_PRESENTE');
+        expect(P.FLAGS_DE_REPETICAO).toEqual(['POSTO_FIXO', 'JA_PRESENTE']);
+    });
+
+    it('contarRepeticoes soma as duas', () => {
+        const logs = [
+            { flag: null }, { flag: 'POSTO_FIXO' },
+            { flag: 'JA_PRESENTE' }, { flag: 'JA_PRESENTE' },
+            { flag: 'FECHAMENTO_AUTO' },
+        ];
+        expect(P.contarRepeticoes(logs)).toBe(3);
+    });
+
+    it('rotuloDaFlag nomeia cada uma, e devolve vazio para o resto', () => {
+        expect(P.rotuloDaFlag('POSTO_FIXO')).toBe('Posto fixo');
+        expect(P.rotuloDaFlag('JA_PRESENTE')).toBe('Já presente');
+        expect(P.rotuloDaFlag('FECHAMENTO_AUTO')).toBe('');
+        expect(P.rotuloDaFlag(null)).toBe('');
     });
 });
 

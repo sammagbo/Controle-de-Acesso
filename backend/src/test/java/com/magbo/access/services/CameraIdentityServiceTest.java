@@ -102,6 +102,165 @@ class CameraIdentityServiceTest {
         }
     }
 
+    // ───────────────── Identificador como matrícula ─────────────────
+
+    @Nested
+    @DisplayName("★ 1b. o certificateNumber COMO matricula / employeeNo")
+    class PorIdentificador {
+
+        /**
+         * O caso de producao: desde 08/08/2026 as bibliotecas faciais foram
+         * repovoadas pelo modulo de pessoas do HCP, e o certificateNumber que a
+         * camera devolve E a matricula do aluno — com zeros ate 16 digitos.
+         */
+        private CameraAlarmDto comDocumento(String numero) throws Exception {
+            return dto(TestFixtures.comCertificateNumber(
+                    TestFixtures.payload("camera-alarm-success.txt"), numero));
+        }
+
+        private User aluno(String matricula, String nome, String hikvisionId) {
+            return User.builder().id(matricula).nome(nome).tipo(UserType.ALUNO)
+                    .ativo(true).hikvisionEmployeeId(hikvisionId).build();
+        }
+
+        @Test
+        @DisplayName("★ matricula com zeros ate 16 digitos casa com app_users.id")
+        void matriculaPreenchidaComZeros() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    aluno("0003535", "Nome Que Nao Casa", null)));
+
+            var id = service.resolver(comDocumento("0000000000003535"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId())
+                    .as("os DOIS lados normalizados: '0000000000003535' e '0003535' sao o mesmo aluno")
+                    .isEqualTo("0003535");
+        }
+
+        @Test
+        @DisplayName("matricula SEM zeros tambem casa")
+        void matriculaSemZeros() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    aluno("0003535", "Nome Que Nao Casa", null)));
+
+            var id = service.resolver(comDocumento("3535"));
+
+            assertThat(id.user().getId()).isEqualTo("0003535");
+        }
+
+        /** Os cadastros antigos do HCP: id de 10 digitos em hikvision_employee_id. */
+        @Test
+        @DisplayName("★ id de 10 digitos do HCP continua casando por hikvision_employee_id")
+        void legadoDezDigitos() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    aluno("0004486", "Nome Que Nao Casa", "5629236986")));
+
+            var id = service.resolver(comDocumento("5629236986"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("0004486");
+        }
+
+        @Test
+        @DisplayName("numero que nao e de ninguem cai para o casamento por NOME")
+        void numeroSemDonoCaiParaNome() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-001", "Sammy K. MAGBO", null)));
+
+            var id = service.resolver(comDocumento("0000000000999999"));
+
+            assertThat(id.resultado())
+                    .as("o passo novo nao pode BLOQUEAR o caminho antigo quando nao acha ninguem")
+                    .isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-001");
+        }
+
+        /**
+         * ★ O DESEMPATE. O identificador foi digitado uma vez, no modulo de
+         * pessoas do HCP, e aponta para UMA linha; o nome chega normalizado, as
+         * vezes truncado em 32 caracteres, e casa por semelhanca. Quando os
+         * dois discordam, a passagem e de quem o NUMERO diz — atribui-la ao
+         * homonimo por causa de um campo de texto e, numa portaria, liberar a
+         * saida de uma crianca no nome de outra.
+         */
+        @Test
+        @DisplayName("★ numero aponta para A e o NOME para B -> vence o identificador")
+        void identificadorVenceONome() throws Exception {
+            User pelaMatricula = aluno("0003535", "Outra Pessoa Completamente", null);
+            User peloNome = pessoa("FUNC-001", "Sammy K. MAGBO", null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(pelaMatricula, peloNome));
+
+            // O fixture traz o nome "Sammy MAGBO", que casaria com FUNC-001.
+            var id = service.resolver(comDocumento("0000000000003535"));
+
+            assertThat(id.user().getId())
+                    .as("identificador e evidencia mais forte que nome")
+                    .isEqualTo("0003535");
+        }
+
+        @Test
+        @DisplayName("o certificateNumber e GRAVADO — a proxima passagem cai no passo 1")
+        void gravaODocumento() throws Exception {
+            User alvo = aluno("0003535", "Nome Que Nao Casa", null);
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(alvo));
+
+            service.resolver(comDocumento("0000000000003535"));
+
+            ArgumentCaptor<User> salvo = ArgumentCaptor.forClass(User.class);
+            verify(userRepository).save(salvo.capture());
+            assertThat(salvo.getValue().getCameraPersonId())
+                    .as("guarda o numero COMO VEIO, com os zeros — e o que a camera manda de novo")
+                    .isEqualTo("0000000000003535");
+        }
+
+        @Test
+        @DisplayName("dois cadastros com o mesmo numero normalizado -> NAO identifica por ele")
+        void numeroDuplicadoNaoIdentifica() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    aluno("0003535", "Aluno Um", null),
+                    aluno("3535", "Aluno Dois", null)));
+
+            var id = service.resolver(comDocumento("0000000000003535"));
+
+            assertThat(id.resultado())
+                    .as("escolher um dos dois seria o sistema decidindo de quem e a passagem")
+                    .isNotEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+        }
+    }
+
+    @Nested
+    @DisplayName("normalizacao de zeros a esquerda")
+    class Normalizacao {
+
+        @Test
+        @DisplayName("os tres formatos da mesma matricula colapsam no mesmo valor")
+        void colapsam() {
+            assertThat(CameraIdentityService.semZerosAEsquerda("0000000000003535")).isEqualTo("3535");
+            assertThat(CameraIdentityService.semZerosAEsquerda("0003535")).isEqualTo("3535");
+            assertThat(CameraIdentityService.semZerosAEsquerda("3535")).isEqualTo("3535");
+        }
+
+        @Test
+        @DisplayName("nao numerico volta inteiro — FUNC-036 continua comparavel consigo mesmo")
+        void naoNumerico() {
+            assertThat(CameraIdentityService.semZerosAEsquerda("FUNC-036")).isEqualTo("FUNC-036");
+            assertThat(CameraIdentityService.semZerosAEsquerda(" func-036 ")).isEqualTo("FUNC-036");
+        }
+
+        @Test
+        @DisplayName("so zeros vira '0', nao vazio — vazio casaria com qualquer coisa")
+        void soZeros() {
+            assertThat(CameraIdentityService.semZerosAEsquerda("0000")).isEqualTo("0");
+        }
+
+        @Test
+        @DisplayName("nulo e vazio devolvem null")
+        void nuloEVazio() {
+            assertThat(CameraIdentityService.semZerosAEsquerda(null)).isNull();
+            assertThat(CameraIdentityService.semZerosAEsquerda("   ")).isNull();
+        }
+    }
+
     // ───────────────── Casamento por nome ─────────────────
 
     @Nested

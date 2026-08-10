@@ -66,14 +66,51 @@
      */
     const SUGESTOES = { 'PORTARIA': 'PORT1' };
 
+    /**
+     * Espelho de PresencaAbertaService.FLAG_JA_PRESENTE — a ENTRADA de quem já
+     * estava dentro. Produção 10/08/2026: o aluno 0003053 entrou no CDI quatro
+     * vezes em cinco minutos, sem saída entre elas.
+     */
+    const FLAG_JA_PRESENTE = 'JA_PRESENTE';
+
+    /**
+     * As flags cuja linha é REPETIÇÃO — existe, mas não abre visita nova.
+     *
+     * Espelho de AccessLogRepository.REPETICOES. Mudar os DOIS juntos, mesmo
+     * padrão de ACCESS_POINTS/AreaMapping: é esta lista que decide o que a tela
+     * esconde por padrão, e o backend decide o que ela recebe.
+     */
+    const FLAGS_DE_REPETICAO = [FLAG_POSTO_FIXO, FLAG_JA_PRESENTE];
+
+    /** Rótulo curto de cada flag de repetição, para a etiqueta na linha. */
+    const ROTULOS = {
+        [FLAG_POSTO_FIXO]: 'Posto fixo',
+        [FLAG_JA_PRESENTE]: 'Já presente'
+    };
+
     /** true quando esta passagem é a repetição do dia de quem está de serviço. */
     function ehPostoFixo(log) {
         return !!log && log.flag === FLAG_POSTO_FIXO;
     }
 
-    /** Quantas das passagens em tela são repetição de posto fixo. */
-    function contarPostoFixo(logs) {
-        return (Array.isArray(logs) ? logs : []).filter(ehPostoFixo).length;
+    /** true quando esta passagem é a ENTRADA de quem já estava dentro. */
+    function ehJaPresente(log) {
+        return !!log && log.flag === FLAG_JA_PRESENTE;
+    }
+
+    /** true para QUALQUER repetição — é o que a tela esconde por padrão. */
+    function ehRepeticao(log) {
+        return !!log && FLAGS_DE_REPETICAO.indexOf(log.flag) !== -1;
+    }
+
+    /** O rótulo da flag, ou '' quando a linha não é repetição. */
+    function rotuloDaFlag(flag) {
+        return ROTULOS[flag] || '';
+    }
+
+    /** Quantas das passagens em tela são repetição (de qualquer das duas). */
+    function contarRepeticoes(logs) {
+        return (Array.isArray(logs) ? logs : []).filter(ehRepeticao).length;
     }
 
     /**
@@ -124,10 +161,15 @@
 
     return {
         FLAG_POSTO_FIXO: FLAG_POSTO_FIXO,
+        FLAG_JA_PRESENTE: FLAG_JA_PRESENTE,
+        FLAGS_DE_REPETICAO: FLAGS_DE_REPETICAO,
         PONTOS: PONTOS,
         SUGESTOES: SUGESTOES,
         ehPostoFixo: ehPostoFixo,
-        contarPostoFixo: contarPostoFixo,
+        ehJaPresente: ehJaPresente,
+        ehRepeticao: ehRepeticao,
+        rotuloDaFlag: rotuloDaFlag,
+        contarRepeticoes: contarRepeticoes,
         sugerir: sugerir,
         ehSugestao: ehSugestao,
         rotuloDoPonto: rotuloDoPonto,

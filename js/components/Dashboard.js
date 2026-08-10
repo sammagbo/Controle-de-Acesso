@@ -74,13 +74,20 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                         {ACCESS_POINTS.filter(point => {
                               // Regra padrão: ponto visível se não-hidden e o usuário tem a área.
                               if (!point.hidden && window.auth.canAccessArea(point.area)) return true;
-                              // Exceção (decisão do Sam): a gestão de Droits Repas (hidden, área admin)
-                              // é a porta de entrada dedicada do OPERATOR de cantina com
-                              // MEAL_ENTITLEMENT_WRITE — o painel admin exige PIN admin-only, então o
-                              // operador não chega lá. Admin continua entrando pelo painel (não vê aqui).
-                              if (point.id === 'MEAL_ENTITLEMENT_MANAGEMENT'
-                                    && !window.auth.isAdmin()
-                                    && window.auth.hasPermission?.('MEAL_ENTITLEMENT_WRITE')) return true;
+                              // Exceção (decisão do Sam): as telas de gestão (hidden, área admin) são
+                              // a porta de entrada dedicada do OPERATOR que tem a permissão granular
+                              // — o painel admin exige PIN admin-only, então o operador não chega lá.
+                              // Admin continua entrando pelo painel (não vê estes cards).
+                              // A regra vive em js/utils/permissions.js, com teste: uma tela que
+                              // habilita por um critério e um endpoint que aceita por outro produz
+                              // botão morto de um lado e 403 do outro.
+                              const P = window.MagboPermissions;
+                              if (point.id === 'MEAL_ENTITLEMENT_MANAGEMENT') {
+                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.MEAL_ENTITLEMENT_WRITE);
+                              }
+                              if (point.id === 'EXIT_PERMISSION_MANAGEMENT') {
+                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.EXIT_PERMISSION_WRITE);
+                              }
                               return false;
                         }).map((point) => {
                               const colors = CATEGORY_COLORS[point.category];

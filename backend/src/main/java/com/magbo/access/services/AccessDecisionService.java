@@ -47,6 +47,7 @@ public class AccessDecisionService {
     private final ExitPermissionService exitPermissionService;
     private final SamePassageService samePassageService;
     private final PostoFixoService postoFixoService;
+    private final PresencaAbertaService presencaAbertaService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -395,6 +396,21 @@ public class AccessDecisionService {
         if (flag == null) {
             flag = postoFixoService.flagDaRepeticao(
                     p.userId(), p.postoFixoPointId(), p.resolved().pointId(), p.eventTime());
+        }
+
+        // PRESENCA JA ABERTA: uma ENTRADA de quem ja esta dentro nao abre visita
+        // nova. Producao 10/08/2026: o aluno 0003053 entrou no CDI quatro vezes
+        // em cinco minutos, sem saida entre elas — a regra de mesma passagem
+        // (30 s) nao alcanca porque o que se repete nao e a LEITURA, e a
+        // presenca.
+        //
+        // DEPOIS do posto fixo, de proposito: para quem esta POSTADO ali, a
+        // explicacao verdadeira da repeticao e o posto, nao a presenca aberta.
+        // Ambas saem das contagens do mesmo jeito, entao a ordem so decide qual
+        // palavra o Journal mostra — e ela deve ser a mais informativa.
+        if (flag == null) {
+            flag = presencaAbertaService.flagDeEntradaRepetida(
+                    p.userId(), p.resolved().pointId(), p.resolved().action(), p.eventTime());
         }
 
         AccessLog accessLog = AccessLog.builder()

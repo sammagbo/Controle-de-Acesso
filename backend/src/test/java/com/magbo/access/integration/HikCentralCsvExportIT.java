@@ -28,8 +28,13 @@ class HikCentralCsvExportIT extends AbstractIT {
     private static final String URL = "/api/admin/hikvision-mapping/export-csv";
 
     private void semFace(String id, String nome) {
+        semFace(id, nome, null);
+    }
+
+    /** Sobrecarga com TURMA — a coluna nova do arquivo. */
+    private void semFace(String id, String nome, String turma) {
         userRepository.save(User.builder()
-                .id(id).nome(nome).tipo(UserType.ALUNO).ativo(true).build());
+                .id(id).nome(nome).tipo(UserType.ALUNO).ativo(true).turma(turma).build());
     }
 
     private void comFace(String id, String nome, String hikId) {
@@ -163,7 +168,35 @@ class HikCentralCsvExportIT extends AbstractIT {
 
         String cabecalho = corpo(exportar("missing-face")).split("\r\n")[0];
 
-        assertThat(cabecalho).isEqualTo("\"ID\";\"Prénom\";\"Nom de famille\";\"Service\"");
+        // As QUATRO colunas que o importador le, nos mesmos nomes e na mesma
+        // ordem. Cobrado assim, e nao por igualdade da linha inteira: o arquivo
+        // pode GANHAR coluna (a turma ganhou) sem que a ida-e-volta se perca,
+        // porque o importador descarta o que nao conhece
+        // (tests/hikcentralSheet.test.js, "ignora colunas desconhecidas").
+        // Renomear uma das quatro, ao contrario, continua derrubando o teste.
+        assertThat(cabecalho)
+                .startsWith("\"ID\";\"Prénom\";\"Nom de famille\";\"Service\"");
+
+        // A turma vem DEPOIS das quatro — o que mantem um export de hoje
+        // comparavel, coluna a coluna, com um anterior a ela.
+        assertThat(cabecalho)
+                .as("template real do HCP ainda e pendencia 3; 'Classe' e suposicao declarada "
+                        + "em HikCentralCsvService.COLUNA_TURMA")
+                .isEqualTo("\"ID\";\"Prénom\";\"Nom de famille\";\"Service\";\"Classe\"");
+
         assertThat(TestFixtures.EMPLOYEE_PILOTO).isNotNull();   // fixtures carregadas
+    }
+
+    /** A turma do aluno chega no arquivo, e nao so no cabecalho. */
+    @Test
+    @DisplayName("a turma do aluno sai na linha dele")
+    void turmaSaiNaLinha() throws Exception {
+        semFace("0003535", "Ana Silva", "3B");
+
+        String csv = corpo(exportar("missing-face"));
+
+        assertThat(csv.split("\r\n")[1])
+                .as("a turma vem do cadastro, como texto entre aspas")
+                .endsWith(";\"3B\"");
     }
 }

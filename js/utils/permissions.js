@@ -57,6 +57,30 @@
         return auth.hasPermission(permission) === true;
     }
 
+    /**
+     * O Dashboard deve mostrar o ATALHO para uma tela de gestão?
+     *
+     * As telas de gestão (Droits Repas, Sorties) são `hidden` e da área
+     * `admin`, então a regra padrão do Dashboard não as oferece a ninguém. O
+     * ADMIN chega nelas pelo Painel Administrativo; o OPERATOR **não** — o
+     * painel exige o PIN de admin. Sem este atalho, quem tem a permissão
+     * granular não tem por onde entrar: a permissão existe, o backend aceita,
+     * e a pessoa não alcança a tela.
+     *
+     * Por que `!isAdmin`: o administrador entra pelo painel e veria o card
+     * duplicado no Dashboard. Não é uma restrição de direito — é onde cada
+     * papel entra.
+     *
+     * A negação vem PRIMEIRO de propósito. `canWrite` devolve true para admin
+     * (espelha o `hasRole('ADMIN') OR hasPermission(...)` do backend), então
+     * sem o `!isAdmin` na frente o admin veria os dois caminhos.
+     */
+    function mostraAtalhoNoDashboard(auth, permission) {
+        if (!auth || !permission) return false;
+        if (typeof auth.isAdmin === 'function' && auth.isAdmin()) return false;
+        return canWrite(auth, permission);
+    }
+
     /** Atalho para a tela de Sorties (`POST/revoke /api/admin/exit-permissions`). */
     function canWriteExitPermissions(auth) {
         return canWrite(auth, PERMISSIONS.EXIT_PERMISSION_WRITE);
@@ -70,6 +94,7 @@
     return {
         PERMISSIONS: PERMISSIONS,
         canWrite: canWrite,
+        mostraAtalhoNoDashboard: mostraAtalhoNoDashboard,
         canWriteExitPermissions: canWriteExitPermissions,
         canWriteMealEntitlements: canWriteMealEntitlements
     };

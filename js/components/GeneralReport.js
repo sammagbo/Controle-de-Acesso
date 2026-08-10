@@ -19,7 +19,7 @@ function JournalTab({ active = true }) {
     // Idem: vazio = TUDO. O Journal mostra a repetição de quem está postado num
     // ponto como mostra qualquer outra linha — é a única tela que nunca a
     // esconde. A lente serve para conferir quanto ruído a marcação absorveu.
-    const [postoFixo, setPostoFixo] = React.useState('');
+    const [repeticoes, setRepeticoes] = React.useState('');
     const [aluno, setAluno] = React.useState('');
     const [alunoQuery, setAlunoQuery] = React.useState('');
     const [logs, setLogs] = React.useState([]);
@@ -51,7 +51,7 @@ function JournalTab({ active = true }) {
         if (!silent) setLoading(true);
         try {
             const data = await window.api.fetchAllLogs({
-                dateFrom, dateTo, pointId, action, tipo, postoFixo,
+                dateFrom, dateTo, pointId, action, tipo, repeticoes,
                 eleve: alunoQuery, limit: 500
             });
             setLogs(Array.isArray(data) ? data : []);
@@ -65,7 +65,7 @@ function JournalTab({ active = true }) {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [dateFrom, dateTo, pointId, action, tipo, postoFixo, alunoQuery]);
+    }, [dateFrom, dateTo, pointId, action, tipo, repeticoes, alunoQuery]);
 
     // ⚠️ REGRESSÃO DE 03/08/2026 — não voltar a carregar só na montagem.
     // O Journal buscava UMA vez, quando a tela do Rapport era aberta, e nunca
@@ -111,7 +111,7 @@ function JournalTab({ active = true }) {
     // a cada 30 s (`filtered` é um array novo a cada carga).
     React.useEffect(() => {
         setPage(1);
-    }, [dateFrom, dateTo, pointId, action, tipo, postoFixo, alunoQuery, classe, sortDir]);
+    }, [dateFrom, dateTo, pointId, action, tipo, repeticoes, alunoQuery, classe, sortDir]);
     // Uma atualização pode encurtar a lista com o leitor numa página alta.
     React.useEffect(() => {
         if (page > totalPages) setPage(totalPages);
@@ -194,16 +194,16 @@ function JournalTab({ active = true }) {
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Poste fixe</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Répétitions</label>
                     <select
-                        value={postoFixo}
-                        onChange={e => setPostoFixo(e.target.value)}
-                        title="Passages répétés de qui tient un poste (portail, accueil). Enregistrés toujours ; masqués des autres écrans, jamais d'ici."
+                        value={repeticoes}
+                        onChange={e => setRepeticoes(e.target.value)}
+                        title="Passages qui n'ouvrent pas de nouvelle visite : poste fixe, et entrée de qui était déjà à l'intérieur. Toujours enregistrés ; masqués des autres écrans, jamais d'ici."
                         className={inputCls}
                     >
                         <option value="">Tous</option>
-                        <option value="SANS">Sans les postes fixes</option>
-                        <option value="SEULEMENT">Postes fixes seulement</option>
+                        <option value="SANS">Sans les répétitions</option>
+                        <option value="SEULEMENT">Répétitions seulement</option>
                     </select>
                 </div>
                 <div>
@@ -299,12 +299,12 @@ function JournalTab({ active = true }) {
                                                 as outras telas não a mostram. Sem a etiqueta, o operador
                                                 veria aqui um número de passagens que não bate com o do
                                                 Portail e não teria como explicar a diferença. */}
-                                            {l.flag === 'POSTO_FIXO' && (
+                                            {window.MagboPostoFixo?.ehRepeticao(l) && (
                                                 <span
-                                                    title="Passage répété de qui tient ce poste — enregistré, hors des compteurs"
+                                                    title="Répétition — enregistrée, hors des compteurs"
                                                     className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
                                                 >
-                                                    Poste fixe
+                                                    {l.flag === 'POSTO_FIXO' ? 'Poste fixe' : 'Déjà présent'}
                                                 </span>
                                             )}
                                         </td>

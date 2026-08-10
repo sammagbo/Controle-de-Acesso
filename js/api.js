@@ -140,7 +140,7 @@ const api = {
             // repetições de quem está de serviço no ponto, 'SANS' = tudo menos
             // elas. Vazio nunca vira parâmetro — filtro em branco não pode
             // estreitar a visão de auditoria.
-            if (filters.postoFixo) params.set('postoFixo', filters.postoFixo);
+            if (filters.repeticoes) params.set('repeticoes', filters.repeticoes);
             const res = await fetch(`${API_BASE_URL}/access/logs/all?${params}`, { headers: authHeaders() });
             const data = await this.handleResponse(res);
             return Array.isArray(data) ? data : [];

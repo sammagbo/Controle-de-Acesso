@@ -40,9 +40,14 @@ class HikCentralCsvServiceTest {
     }
 
     private static User aluno(String id, String nome, String hikId, boolean ativo) {
+        return aluno(id, nome, hikId, ativo, null);
+    }
+
+    /** Sobrecarga com TURMA — a coluna nova do arquivo. */
+    private static User aluno(String id, String nome, String hikId, boolean ativo, String turma) {
         return User.builder()
                 .id(id).nome(nome).tipo(UserType.ALUNO)
-                .hikvisionEmployeeId(hikId).ativo(ativo)
+                .hikvisionEmployeeId(hikId).ativo(ativo).turma(turma)
                 .build();
     }
 
@@ -72,11 +77,11 @@ class HikCentralCsvServiceTest {
         @Test
         @DisplayName("★ TODO campo sai entre aspas, nao so os que 'precisam'")
         void todosOsCamposSaoCitados() {
-            String csv = service().escrever(List.of(aluno("0004486", "Jean Martin", null, true)));
+            String csv = service().escrever(List.of(aluno("0004486", "Jean Martin", null, true, "1E1")));
             String linha = csv.split("\r\n")[1];
 
             assertThat(linha).isEqualTo(
-                    "\"0004486\";\"Jean\";\"Martin\";\"All Departments/ALUNOS\"");
+                    "\"0004486\";\"Jean\";\"Martin\";\"All Departments/ALUNOS\";\"1E1\"");
         }
 
         @Test
@@ -84,6 +89,69 @@ class HikCentralCsvServiceTest {
         void muitosZeros() {
             assertThat(service().escrever(List.of(aluno("0000007", "Ana Silva", null, true))))
                     .contains("\"0000007\"");
+        }
+    }
+
+    // ───────────────────── Turma ─────────────────────
+
+    @Nested
+    @DisplayName("coluna da TURMA")
+    class Turma {
+
+        @Test
+        @DisplayName("★ a turma sai na coluna Classe, como texto entre aspas")
+        void turmaSai() {
+            String csv = service().escrever(List.of(aluno("0003535", "Ana Silva", null, true, "1E1")));
+
+            assertThat(csv.split("\r\n")[0]).endsWith("\"Classe\"");
+            assertThat(csv.split("\r\n")[1]).endsWith(";\"1E1\"");
+        }
+
+        @Test
+        @DisplayName("aluno SEM turma sai com campo vazio, nunca com marcador humano")
+        void semTurma() {
+            String linha = service()
+                    .escrever(List.of(aluno("0003535", "Ana Silva", null, true, null)))
+                    .split("\r\n")[1];
+
+            assertThat(linha).endsWith(";\"\"");
+            assertThat(linha)
+                    .as("um '—' viraria uma turma chamada '—' dentro do HCP")
+                    .doesNotContain("—").doesNotContain("N/A");
+        }
+
+        @Test
+        @DisplayName("turma em branco e tratada como ausente")
+        void turmaEmBranco() {
+            assertThat(service()
+                    .escrever(List.of(aluno("0003535", "Ana Silva", null, true, "   ")))
+                    .split("\r\n")[1])
+                    .endsWith(";\"\"");
+        }
+
+        @Test
+        @DisplayName("★ turma que comece por zero nao perde o zero")
+        void turmaComZero() {
+            // Nenhuma turma da escola comeca por zero hoje; o campo sai entre
+            // aspas para que uma futura que comece nao dependa de alguem
+            // lembrar disso na hora.
+            assertThat(service()
+                    .escrever(List.of(aluno("0003535", "Ana Silva", null, true, "01A"))))
+                    .contains("\"01A\"")
+                    .doesNotContain("\"1A\"");
+        }
+
+        @Test
+        @DisplayName("a turma nao desalinha as quatro colunas provadas")
+        void naoDesalinhaAsAnteriores() {
+            String[] campos = service()
+                    .escrever(List.of(aluno("0001764", "Marie Dupont", null, true, "CE2A")))
+                    .split("\r\n")[1].split(";");
+
+            assertThat(campos).hasSize(5);
+            assertThat(campos[0]).isEqualTo("\"0001764\"");
+            assertThat(campos[3]).isEqualTo("\"All Departments/ALUNOS\"");
+            assertThat(campos[4]).isEqualTo("\"CE2A\"");
         }
     }
 
@@ -186,10 +254,10 @@ class HikCentralCsvServiceTest {
     class Formato {
 
         @Test
-        @DisplayName("★ cabecalho com os MESMOS nomes que o importador le")
+        @DisplayName("★ cabecalho com os MESMOS nomes que o importador le, + a turma")
         void cabecalho() {
             assertThat(service().escrever(List.of()))
-                    .isEqualTo("\"ID\";\"Prénom\";\"Nom de famille\";\"Service\"\r\n");
+                    .isEqualTo("\"ID\";\"Prénom\";\"Nom de famille\";\"Service\";\"Classe\"\r\n");
         }
 
         @Test
@@ -235,12 +303,12 @@ class HikCentralCsvServiceTest {
         void separadorInterno() {
             // O nome quebra no ESPACO, entao o ";" fica dentro do sobrenome —
             // e as aspas impedem que ele vire um separador de coluna.
-            String csv = service().escrever(List.of(aluno("0001111", "Ana Silva;Souza", null, true)));
+            String csv = service().escrever(List.of(aluno("0001111", "Ana Silva;Souza", null, true, "3B")));
 
             assertThat(csv).contains("\"Silva;Souza\"");
             assertThat(csv.split("\r\n")[1])
-                    .as("continua sendo UMA linha de 4 campos")
-                    .isEqualTo("\"0001111\";\"Ana\";\"Silva;Souza\";\"All Departments/ALUNOS\"");
+                    .as("continua sendo UMA linha de 5 campos — o ';' do nome nao vira separador")
+                    .isEqualTo("\"0001111\";\"Ana\";\"Silva;Souza\";\"All Departments/ALUNOS\";\"3B\"");
         }
 
         @Test

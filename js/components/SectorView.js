@@ -3,7 +3,7 @@
 // =====================================================================
 
 function SectorView({ point, accessLogs, onProcess, activeTimers,
-                      incluirPostoFixo = false, onTogglePostoFixo }) {
+                      incluirRepeticoes = false, onToggleRepeticoes }) {
       const [searchQuery, setSearchQuery] = React.useState('');
       const [searchResults, setSearchResults] = React.useState([]);
       const [isSearching, setIsSearching] = React.useState(false);
@@ -72,11 +72,11 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
 
       const colors = CATEGORY_COLORS[point.category];
 
-      // Quantas das linhas em tela são repetição de quem está POSTADO aqui.
+      // Quantas das linhas em tela são REPETIÇÃO (posto fixo ou já presente).
       // Só faz sentido quando o botão está ligado — desligado, o servidor nem
       // as mandou, e o número seria sempre zero.
-      const postoFixoEmTela = React.useMemo(
-            () => window.MagboPostoFixo ? window.MagboPostoFixo.contarPostoFixo(pointLogs) : 0,
+      const repeticoesEmTela = React.useMemo(
+            () => window.MagboPostoFixo ? window.MagboPostoFixo.contarRepeticoes(pointLogs) : 0,
             [pointLogs]
       );
 
@@ -195,20 +195,20 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                     ponto sai da lista por padrão. O botão existe porque
                                                     esconder sem dizer é o mesmo que apagar aos olhos de
                                                     quem opera — e nada aqui é apagado. */}
-                                                {onTogglePostoFixo && (
+                                                {onToggleRepeticoes && (
                                                       <label
-                                                            title="Quem fica postado neste ponto (porteiro, plantão) passa dezenas de vezes por dia. A primeira passagem conta normalmente; as seguintes ficam gravadas mas fora desta lista."
-                                                            className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-colors ${incluirPostoFixo ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-soft-100 text-slate-500 border border-transparent hover:bg-soft-200'}`}
+                                                            title="Repetições que não abrem visita nova: quem fica postado neste ponto (porteiro, plantão) e quem entra estando já dentro. Ficam gravadas, mas fora desta lista e das contagens."
+                                                            className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-colors ${incluirRepeticoes ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-soft-100 text-slate-500 border border-transparent hover:bg-soft-200'}`}
                                                       >
                                                             <input
                                                                   type="checkbox"
-                                                                  checked={incluirPostoFixo}
-                                                                  onChange={(e) => onTogglePostoFixo(e.target.checked)}
+                                                                  checked={incluirRepeticoes}
+                                                                  onChange={(e) => onToggleRepeticoes(e.target.checked)}
                                                                   className="w-3 h-3 rounded accent-accent-500"
                                                             />
-                                                            Posto fixo
-                                                            {incluirPostoFixo && postoFixoEmTela > 0 && (
-                                                                  <span className="tabular-nums">({postoFixoEmTela})</span>
+                                                            Repetições
+                                                            {incluirRepeticoes && repeticoesEmTela > 0 && (
+                                                                  <span className="tabular-nums">({repeticoesEmTela})</span>
                                                             )}
                                                       </label>
                                                 )}
@@ -237,12 +237,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                 // Só aparece quando o operador ligou o botão — e aí precisa
                                                 // ficar claro POR QUE aquela linha voltou, senão ela se
                                                 // confunde com uma passagem comum.
-                                                const ehPostoFixo = window.MagboPostoFixo
-                                                      ? window.MagboPostoFixo.ehPostoFixo(log) : false;
+                                                const ehRepeticao = window.MagboPostoFixo
+                                                      ? window.MagboPostoFixo.ehRepeticao(log) : false;
+                                                const rotuloRepeticao = window.MagboPostoFixo
+                                                      ? window.MagboPostoFixo.rotuloDaFlag(log && log.flag) : '';
                                                 return (
                                                       <div
                                                             key={log.id}
-                                                            className={`flex items-center gap-4 px-5 py-3.5 border-b border-soft-50 hover:bg-soft-50/50 transition-colors animate-slide-in-right ${ehPostoFixo ? 'bg-soft-50/60' : ''}`}
+                                                            className={`flex items-center gap-4 px-5 py-3.5 border-b border-soft-50 hover:bg-soft-50/50 transition-colors animate-slide-in-right ${ehRepeticao ? 'bg-soft-50/60' : ''}`}
                                                             style={{ animationDelay: `${idx * 0.03}s` }}
                                                       >
                                                             <div className="relative flex-shrink-0">
@@ -261,12 +263,12 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                         {user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
                                                                         )}
-                                                                        {ehPostoFixo && (
+                                                                        {ehRepeticao && (
                                                                               <span
-                                                                                    title="Repetição do dia de quem está postado neste ponto — gravada, mas fora das contagens"
+                                                                                    title="Repetição — gravada, mas fora das contagens"
                                                                                     className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
                                                                               >
-                                                                                    Posto fixo
+                                                                                    {rotuloRepeticao}
                                                                               </span>
                                                                         )}
                                                                   </div>

@@ -58,11 +58,51 @@ class AccessLogRepositoryQueryGuardTest {
                 .as("sem o `OR action <> 'ENTRADA'`, a saida real de quem tem posto fixo some do "
                         + "DISTINCT ON e a pessoa consta \"dentro\" ate a meia-noite — ver a secao 6-bis "
                         + "do frontend-smoke-checklist.md, com a medicao de 10/08/2026")
-                .contains("(flag IS NULL OR flag <> 'POSTO_FIXO' OR action <> 'ENTRADA')");
+                .contains("(flag IS NULL OR flag NOT IN " + AccessLogRepository.REPETICOES
+                        + " OR action <> 'ENTRADA')");
 
         assertThat(sql)
                 .as("a variante `NOT (flag = ...)` parece equivalente e devolve ZERO linhas "
                         + "(NULL na flag nula engole a base inteira) — verificada e proibida")
                 .doesNotContain("NOT (flag");
+    }
+
+    /**
+     * ★ A LISTA DE FLAGS E UMA SO.
+     *
+     * Dez consultas repetindo literais e como uma flag nova entra em nove delas
+     * e some da decima — e a que ficou de fora nao falha, so conta errado.
+     * Aqui se cobra que toda consulta que exclui repeticao use a MESMA lista,
+     * a de {@link AccessLogRepository#REPETICOES}.
+     */
+    @Test
+    @DisplayName("★ toda exclusao de repeticao usa a lista unica, e ela tem as DUAS flags")
+    void listaDeRepeticoesEUnica() {
+        assertThat(AccessLogRepository.REPETICOES)
+                .contains("POSTO_FIXO")
+                .contains("JA_PRESENTE");
+
+        long comLista = 0, comFlagSolta = 0;
+        for (Method m : AccessLogRepository.class.getMethods()) {
+            Query q = m.getAnnotation(Query.class);
+            if (q == null) continue;
+            String sql = q.value().replaceAll("\\s+", " ");
+            if (!sql.contains("flag")) continue;
+            if (sql.contains("NOT IN " + AccessLogRepository.REPETICOES)
+                    || sql.contains("IN " + AccessLogRepository.REPETICOES)) {
+                comLista++;
+            } else if (sql.contains("'POSTO_FIXO'") || sql.contains("'JA_PRESENTE'")) {
+                // Consulta que cita uma flag SEM passar pela lista: ou e um
+                // caso legitimo e novo, ou e a decima que vai contar errado.
+                comFlagSolta++;
+                assertThat(sql)
+                        .as("%s cita uma flag de repeticao sem usar AccessLogRepository.REPETICOES", m.getName())
+                        .isNull();
+            }
+        }
+        assertThat(comLista)
+                .as("nenhuma consulta usa a lista — o guarda deixou de guardar alguma coisa")
+                .isGreaterThan(0);
+        assertThat(comFlagSolta).isZero();
     }
 }

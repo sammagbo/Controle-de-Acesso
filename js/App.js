@@ -63,6 +63,21 @@ function App() {
             return () => { vivo = false; };
       }, [currentUser]);
 
+      /**
+       * Liga o cache de fotos à camada HTTP, uma vez.
+       *
+       * Fica aqui e não dentro do módulo porque o módulo é puro (e testável
+       * sem rede) de propósito: ele sabe cachear, não sabe buscar. E a busca
+       * PRECISA passar por window.api, que é quem põe o token — o endpoint da
+       * foto é autenticado, e essa é a única coisa que impede a foto de um
+       * aluno de estar a um GET de distância na rede da escola.
+       */
+      React.useEffect(() => {
+            if (window.MagboPhotoCache && window.api) {
+                  window.MagboPhotoCache.configure((userId) => window.api.fetchUserPhoto(userId));
+            }
+      }, []);
+
       React.useEffect(() => {
             const handleOpenSettings = () => setShowSettings(true);
             window.addEventListener('open-settings', handleOpenSettings);

@@ -141,7 +141,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                             className="w-full flex items-center gap-4 p-4 hover:bg-soft-50 border-b border-soft-100 transition-colors text-left group animate-fade-in"
                                                             style={{ animationDelay: `${idx * 0.05}s` }}
                                                       >
-                                                            <img src={user.foto_url || DEFAULT_AVATAR} alt="" className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0" onError={handleImgError} />
+                                                            <PersonPhoto userId={user.id} nome={user.nome} fotoUrl={user.foto_url}
+                                                                  className="w-12 h-12 rounded-xl shadow-sm flex-shrink-0 object-cover" />
                                                             <div className="flex-1 min-w-0">
                                                                   <p className="text-sm font-bold text-navy-500 truncate">{user.nome}</p>
                                                                   <div className="flex items-center gap-2 mt-1">
@@ -208,7 +209,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers }) {
                                                             style={{ animationDelay: `${idx * 0.03}s` }}
                                                       >
                                                             <div className="relative flex-shrink-0">
-                                                                  <img src={user.foto_url || DEFAULT_AVATAR} alt="" className="w-11 h-11 rounded-xl shadow-sm" onError={handleImgError} />
+                                                                  <PersonPhoto userId={user.id} nome={user.nome} fotoUrl={user.foto_url}
+                                                                        className="w-11 h-11 rounded-xl shadow-sm object-cover" />
                                                                   <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${isEntrada ? 'bg-success-500' : 'bg-danger-500'}`}>
                                                                         <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={10} className="text-white" />
                                                                   </span>

@@ -37,6 +37,7 @@ public class StaffAdminService {
 
     private final UserRepository userRepository;
     private final AccessLogRepository accessLogRepository;
+    private final com.magbo.access.repositories.UserPhotoRepository userPhotoRepository;
 
     /** Falha com mensagem pronta para a tela. */
     public static class StaffAdminException extends RuntimeException {
@@ -148,6 +149,14 @@ public class StaffAdminService {
                     "Este registro tem " + passagens + " passagem(ns) registrada(s) e não pode ser "
                             + "removido — apagá-lo deixaria esse histórico órfão. Use \"inativar\".");
         }
+        // A foto sai JUNTO, na mesma transação. Apagar a pessoa e deixar o
+        // retrato para trás guardaria a imagem de alguém — possivelmente de um
+        // menor — presa a um id que já não existe: ninguém a encontraria para
+        // apagar depois, e ela sobreviveria a cada backup dali em diante.
+        // existsById antes: deleteById de um id ausente é silencioso no Spring
+        // Data 3.x mas lançava em versões anteriores, e este é um caminho que
+        // ninguém quer ver falhar por causa de uma troca de versão.
+        if (userPhotoRepository.existsById(id)) userPhotoRepository.deleteById(id);
         userRepository.delete(servidor);
         log.info("Servidor removido (sem histórico): id={}", id);
     }

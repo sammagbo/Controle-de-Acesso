@@ -256,7 +256,16 @@ function JournalTab({ active = true }) {
                                 return (
                                     <tr key={l.id || i} className="border-b border-soft-50 hover:bg-soft-50/50 transition-colors">
                                         <td className="px-4 py-2 text-slate-500 font-mono text-xs">{fmtDateTime(l.timestamp)}</td>
-                                        <td className="px-4 py-2 font-bold text-navy-500">{u?.nome || l.userId}</td>
+                                        <td className="px-4 py-2 font-bold text-navy-500">
+                                            <span className="flex items-center gap-2">
+                                                {/* Retrato pequeno: no Journal o operador está
+                                                    conferindo QUEM passou, e o nome sozinho não
+                                                    distingue dois homônimos de turmas diferentes. */}
+                                                <PersonPhoto userId={l.userId} nome={u?.nome || l.userId} fotoUrl={u?.foto_url}
+                                                    className="w-7 h-7 rounded-full object-cover bg-soft-100 shrink-0" />
+                                                <span className="truncate">{u?.nome || l.userId}</span>
+                                            </span>
+                                        </td>
                                         {/* Servidor não tem turma: cai para o
                                             departamento, que é o equivalente
                                             útil na coluna "Classe". */}
@@ -413,7 +422,6 @@ function ParEleveTab() {
 
     const u = selected?.user || selected;
     const lastMove = logs.length > 0 ? logs[0] : null;
-    const foto = u?.foto_url || window.localAvatar(u?.nome || 'U');
     const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 bg-white';
     const periodBtns = [
         { id: 'today', label: "Aujourd'hui" },
@@ -449,10 +457,8 @@ function ParEleveTab() {
                                     onClick={() => { setSelected(hit); setQuery(''); setResults([]); setSearched(false); }}
                                     className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-soft-50 transition-colors text-left"
                                 >
-                                    <img src={hFoto} alt=""
-                                        className="w-8 h-8 rounded-full object-cover bg-soft-100 shrink-0"
-                                        onError={e => { e.target.onerror = null; e.target.src = window.localAvatar(hu.nome || 'U'); }}
-                                    />
+                                    <PersonPhoto userId={hu.id} nome={hu.nome} fotoUrl={hu.foto_url}
+                                        className="w-8 h-8 rounded-full object-cover bg-soft-100 shrink-0" />
                                     <span className="font-bold text-sm text-navy-500 flex-1 truncate">{hu.nome}</span>
                                     <span className="text-xs text-slate-400 shrink-0">{hu.turma || '—'}</span>
                                 </button>
@@ -475,10 +481,8 @@ function ParEleveTab() {
                 <>
                     {/* Card */}
                     <div className="flex items-center gap-4 bg-soft-50 rounded-2xl p-4 mb-4 border border-soft-200">
-                        <img src={foto} alt=""
-                            className="w-14 h-14 rounded-2xl object-cover bg-soft-200 shrink-0"
-                            onError={e => { e.target.onerror = null; e.target.src = window.localAvatar(u.nome || 'U'); }}
-                        />
+                        <PersonPhoto userId={u.id} nome={u.nome} fotoUrl={u.foto_url}
+                            className="w-14 h-14 rounded-2xl object-cover bg-soft-200 shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-navy-500 text-base truncate">{u.nome}</p>
                             <p className="text-xs text-slate-400">{u.turma || '—'} &middot; <span className="font-mono">{u.id}</span></p>

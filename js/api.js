@@ -18,6 +18,19 @@ if (typeof window !== 'undefined') {
   window.authHeaders = authHeaders;
 }
 
+/**
+ * Só o Authorization — para envio de FormData e de corpo binário.
+ *
+ * authHeaders() sempre declara Content-Type: application/json. Com FormData
+ * isso substitui o multipart/form-data + boundary que o navegador geraria, e o
+ * servidor recebe um corpo que não sabe separar em partes: o upload chega
+ * vazio, sem erro visível. Com corpo binário, declara o tipo errado.
+ */
+function somenteAutorizacao() {
+  const token = window.auth?.getToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
 const api = {
     /**
      * Helper para lidar com falhas de rede (ex: servidor offline)
@@ -506,6 +519,86 @@ const api = {
             }
             throw err;
         }
+    },
+
+    // ── Fotos de identificação ───────────────────────────────────────
+    // ⚠️ São fotos de MENORES. Três coisas que não podem mudar aqui:
+    // o endpoint de leitura é autenticado (por isso o fetch com cabeçalho, e
+    // não um <img src> direto); não existe rota de exportação em massa; e
+    // nenhum byte de imagem é logado.
+
+    /**
+     * A foto de uma pessoa, como Blob — ou null quando não há.
+     *
+     * null é resposta normal e frequente (404): a tela cai no avatar de
+     * iniciais, que é o que ela já fazia. Erro de rede também devolve null —
+     * uma foto que não carregou nunca pode impedir a linha de aparecer.
+     */
+    async fetchUserPhoto(userId) {
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/users/${encodeURIComponent(userId)}/photo`,
+                { headers: authHeaders() });
+            if (res.status === 404) return null;
+            if (!res.ok) return null;
+            return await res.blob();
+        } catch (e) {
+            return null;
+        }
+    },
+
+    /** Quantas pessoas já têm foto. */
+    async fetchPhotoSummary() {
+        const res = await fetch(`${API_BASE_URL}/admin/photos/summary`, { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * SIMULAÇÃO da importação de arquivos soltos (a pasta escolhida na tela).
+     * Não grava nada. `aplicar=true` executa, com o plano REFEITO no servidor.
+     */
+    async importPhotos(files, aplicar) {
+        const form = new FormData();
+        // Nome do arquivo passado explicitamente: com uma pasta escolhida, o
+        // navegador manda o caminho relativo (webkitRelativePath) e o nome da
+        // part perderia a subpasta — o backend corta o diretório de qualquer
+        // forma, mas o nome tem que chegar inteiro para o relatório por linha.
+        files.forEach(f => form.append('files', f, f.webkitRelativePath || f.name));
+        const res = await fetch(
+            `${API_BASE_URL}/admin/photos/import${aplicar ? '' : '/preview'}`,
+            // ⚠️ SEM Content-Type. authHeaders() sempre põe application/json;
+            // com FormData, qualquer Content-Type declarado à mão substitui o
+            // multipart/form-data + boundary que o navegador gera, e o servidor
+            // recebe um corpo que não sabe separar. Só o Authorization.
+            { method: 'POST', headers: somenteAutorizacao(), body: form });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * O mesmo, a partir de um ZIP, enviado como CORPO CRU.
+     *
+     * Não é multipart de propósito: os limites de multipart do projeto (10MB
+     * por parte) existem para proteger o webhook das câmeras da portaria, e um
+     * ZIP de 1200 fotos passa deles. Afrouxá-los por causa desta tela seria
+     * mexer no número errado.
+     */
+    async importPhotosZip(file, aplicar) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/photos/import${aplicar ? '' : '/preview'}/zip`,
+            {
+                method: 'POST',
+                headers: { ...somenteAutorizacao(), 'Content-Type': 'application/zip' },
+                body: file
+            });
+        return await this.handleResponse(res);
+    },
+
+    /** Apaga a foto de uma pessoa — DELETE de verdade, sem lixeira. */
+    async deleteUserPhoto(userId) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/photos/${encodeURIComponent(userId)}`,
+            { method: 'DELETE', headers: authHeaders() });
+        return await this.handleResponse(res);
     }
 };
 

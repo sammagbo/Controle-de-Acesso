@@ -69,6 +69,7 @@
            window.MagboReport / MagboHikSheet / MagboListPaging aqui e
            module.exports no Node. Carregam ANTES dos componentes, que as usam. -->
       <script type="text/babel" src="js/utils/reportFilters.js?v=1"></script>
+      <script type="text/babel" src="js/utils/photoCache.js?v=1"></script>
       <script type="text/babel" src="js/utils/reportConfig.js?v=1"></script>
       <script type="text/babel" src="js/utils/importPlan.js?v=1"></script>
       <script type="text/babel" src="js/utils/hikcentralSheet.js?v=1"></script>
@@ -87,6 +88,9 @@
       <!-- ListaLimitada é usada pela aba HikCentral E pela importação de direitos
            de refeição: carrega antes das duas. -->
       <script type="text/babel" src="js/components/ListaLimitada.js?v=1"></script>
+      <!-- PersonPhoto antes de qualquer tela que mostre gente: SectorView, o
+           Rapport e o CDI o consomem. -->
+      <script type="text/babel" src="js/components/PersonPhoto.js?v=1"></script>
       <script type="text/babel" src="js/components/ConnectionStatus.js?v=1"></script>
       <script type="text/babel" src="js/components/Toast.js?v=10"></script>
       <script type="text/babel" src="js/components/ActiveTimers.js?v=8"></script>

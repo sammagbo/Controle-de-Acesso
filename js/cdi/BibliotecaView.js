@@ -378,9 +378,18 @@ function BibliotecaView({ onBack }) {
                                                 <div key={s.id} onClick={() => setVerified(p => { const n = new Set(p); n.has(s.id) ? n.delete(s.id) : n.add(s.id); return n; })}
                                                       className={`p-5 rounded-xl flex justify-between items-center cursor-pointer border-2 ${isV ? 'bg-green-900/30 border-green-500' : 'bg-gray-900 border-gray-700'}`}>
                                                       <div className="flex items-center gap-4">
-                                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${isV ? 'bg-green-500' : 'bg-gray-700'} text-white`}>
-                                                                  {isV ? <CdiIcon name="check" size={24} /> : s.name[0]}
-                                                            </div>
+                                                            {/* Na chamada de emergência o visto VENCE o
+                                                                retrato: quem está conferindo precisa ver,
+                                                                de longe, quem já foi contado — a foto ali
+                                                                atrapalharia a única coisa que importa. */}
+                                                            {isV ? (
+                                                                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-500 text-white">
+                                                                        <CdiIcon name="check" size={24} />
+                                                                  </div>
+                                                            ) : (
+                                                                  <PersonPhoto userId={s.id} nome={s.name}
+                                                                        className="w-12 h-12 rounded-full object-cover bg-gray-700 shrink-0" />
+                                                            )}
                                                             <div>
                                                                   <div className="text-2xl font-bold text-white">{s.name}</div>
                                                                   <div className="text-lg text-yellow-400">{s.class}</div>
@@ -499,7 +508,11 @@ function BibliotecaView({ onBack }) {
                                     ) : presentList.map(s => (
                                           <div key={s.id} className={`p-3 bg-slate-50 rounded-lg flex justify-between items-center group ${flash.id === s.id && flash.type === 'out' ? 'flash-out' : ''}`}>
                                                 <div className="flex items-center gap-3">
-                                                      <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold">{s.name[0]}</div>
+                                                      {/* Retrato quando há; a inicial em círculo azul
+                                                          continua sendo a queda — é o que o CDI sempre
+                                                          mostrou, e funciona sem rede (risco R1). */}
+                                                      <PersonPhoto userId={s.id} nome={s.name}
+                                                            className="w-10 h-10 rounded-full object-cover bg-blue-600 shrink-0" />
                                                       <div><div className="font-semibold text-slate-800">{s.name}</div><div className="text-xs text-slate-400">{s.class}</div></div>
                                                 </div>
                                                 <button onClick={() => togglePresence(s.id)} className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100">

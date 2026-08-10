@@ -56,6 +56,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const [staffLoading, setStaffLoading] = React.useState(false);
     const [staffQuery, setStaffQuery] = React.useState('');
     const [staffEdit, setStaffEdit] = React.useState(null);   // { id, tipo, departamento }
+    // Importação de FOTOS: arquivos escolhidos, plano simulado e trava do "gravando".
+    // ⚠️ São fotos de menores — nada aqui é enviado antes da confirmação
+    // explícita, e o plano mostrado é uma SIMULAÇÃO que não grava um byte.
+    const [fotoArquivos, setFotoArquivos] = React.useState([]);
+    const [fotoZip, setFotoZip] = React.useState(null);
+    const [fotoPlan, setFotoPlan] = React.useState(null);
+    const [fotoBusy, setFotoBusy] = React.useState(false);
+    const [fotoResumo, setFotoResumo] = React.useState(null);
     // "É na verdade um aluno": reaproveita a busca e a prévia lado a lado do
     // CONFERIR, partindo do registro de SERVIDOR em vez do identificador.
     const [reclassRow, setReclassRow] = React.useState(null);
@@ -687,6 +695,212 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
                             Escolher outro
                         </button>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // ── Aba "Fotos": importação em lote ──────────────────────────────────
+    // Mesma disciplina do import do HikCentral: SIMULA primeiro, mostra o que
+    // aconteceria linha a linha, e só grava com confirmação explícita. Aqui a
+    // disciplina pesa mais — são retratos de crianças, e uma foto no cadastro
+    // errado é a portaria liberando a saída no nome de outro.
+
+    const carregarResumoDeFotos = React.useCallback(async () => {
+        try {
+            setFotoResumo(await window.api.fetchPhotoSummary());
+        } catch (e) {
+            setFotoResumo(null);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (activeTab === 'photos') carregarResumoDeFotos();
+    }, [activeTab, carregarResumoDeFotos]);
+
+    const limparEscolhaDeFotos = () => {
+        setFotoArquivos([]);
+        setFotoZip(null);
+        setFotoPlan(null);
+    };
+
+    const escolherFotos = (e) => {
+        const lista = Array.from(e.target.files || []);
+        setFotoZip(null);
+        setFotoArquivos(lista);
+        setFotoPlan(null);
+    };
+
+    const escolherZipDeFotos = (e) => {
+        const arquivo = (e.target.files || [])[0] || null;
+        setFotoArquivos([]);
+        setFotoZip(arquivo);
+        setFotoPlan(null);
+    };
+
+    /** @param aplicar false = simulação (não grava nada) */
+    const rodarImportacaoDeFotos = async (aplicar) => {
+        if (fotoBusy) return;
+        if (!fotoZip && fotoArquivos.length === 0) return;
+        setFotoBusy(true);
+        try {
+            const plano = fotoZip
+                ? await window.api.importPhotosZip(fotoZip, aplicar)
+                : await window.api.importPhotos(fotoArquivos, aplicar);
+            setFotoPlan(plano);
+            if (aplicar) {
+                onShowToast({
+                    title: 'Fotos importadas',
+                    message: `${plano.totais.CRIAR || 0} nova(s), ${plano.totais.ATUALIZAR || 0} atualizada(s), `
+                        + `${plano.totais.SEM_CORRESPONDENCIA || 0} sem correspondência.`,
+                    type: 'success'
+                });
+                // O cache guarda objectURLs por pessoa: sem esta limpeza, quem
+                // acabou de receber foto continuaria com o avatar de iniciais
+                // até o app reiniciar.
+                if (window.MagboPhotoCache) window.MagboPhotoCache.clear();
+                await carregarResumoDeFotos();
+            }
+        } catch (e) {
+            onShowToast({ title: 'Importação não realizada', message: e.message, type: 'error' });
+        } finally {
+            setFotoBusy(false);
+        }
+    };
+
+    const FOTO_ACAO_LABEL = {
+        CRIAR: { label: 'Nova', cor: 'text-success-700 bg-success-100' },
+        ATUALIZAR: { label: 'Substitui', cor: 'text-accent-700 bg-accent-100' },
+        PULAR: { label: 'Já igual', cor: 'text-slate-600 bg-soft-100' },
+        SEM_CORRESPONDENCIA: { label: 'Sem dono', cor: 'text-amber-700 bg-amber-100' },
+        CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
+        RECUSADO: { label: 'Recusado', cor: 'text-danger-700 bg-danger-100' }
+    };
+
+    const renderPhotoImport = () => {
+        const escolhidos = fotoZip ? 1 : fotoArquivos.length;
+        const t = fotoPlan?.totais || {};
+        return (
+            <div className="space-y-4 animate-fade-in">
+                <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
+                    <h3 className="text-lg font-bold text-navy-500 mb-1">Fotos de identificação</h3>
+                    <p className="text-xs text-slate-500">
+                        Cada arquivo precisa se chamar como a <strong>matrícula</strong> (0004048.jpg)
+                        ou como o <strong>identificador Hikvision</strong> (1234567890.jpg). Os zeros à
+                        esquerda contam. JPEG, PNG ou WebP.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-2">
+                        <strong>Nada é gravado antes de você confirmar.</strong> A simulação mostra,
+                        arquivo por arquivo, o que aconteceria — inclusive os que não acharem dono.
+                    </p>
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                        São fotos de menores. Elas ficam no banco (entram no backup junto com o resto),
+                        só saem por requisição autenticada, uma por vez, e não há exportação em massa.
+                    </p>
+                    {fotoResumo && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            Hoje há <strong className="text-navy-500">{fotoResumo.comFoto}</strong> pessoa(s) com foto cadastrada.
+                        </p>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="border-2 border-dashed border-soft-300 rounded-2xl p-5 text-center cursor-pointer hover:border-accent-400 hover:bg-accent-50/40 transition-colors">
+                        <input type="file" accept=".zip,application/zip" className="hidden" onChange={escolherZipDeFotos} />
+                        <LucideIcon name="file-archive" size={26} className="text-slate-400 mx-auto mb-2" />
+                        <p className="font-bold text-navy-500 text-sm">Escolher um arquivo ZIP</p>
+                        <p className="text-[11px] text-slate-400 mt-1">Um zip com todas as fotos dentro</p>
+                    </label>
+                    <label className="border-2 border-dashed border-soft-300 rounded-2xl p-5 text-center cursor-pointer hover:border-accent-400 hover:bg-accent-50/40 transition-colors">
+                        {/* webkitdirectory: escolher a PASTA inteira. O caminho
+                            relativo vem junto e o backend corta — a matrícula
+                            está no nome do arquivo, nunca na pasta. */}
+                        <input type="file" accept="image/*" multiple webkitdirectory=""
+                            className="hidden" onChange={escolherFotos} />
+                        <LucideIcon name="folder-open" size={26} className="text-slate-400 mx-auto mb-2" />
+                        <p className="font-bold text-navy-500 text-sm">Escolher uma pasta</p>
+                        <p className="text-[11px] text-slate-400 mt-1">Todas as imagens da pasta</p>
+                    </label>
+                </div>
+
+                {escolhidos > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 bg-white border border-soft-200 rounded-2xl p-3">
+                        <span className="text-sm text-navy-500 font-semibold flex-1 min-w-[180px]">
+                            {fotoZip ? fotoZip.name : `${fotoArquivos.length} arquivo(s) selecionado(s)`}
+                        </span>
+                        <button onClick={() => rodarImportacaoDeFotos(false)} disabled={fotoBusy}
+                            className="px-4 py-2 rounded-xl bg-navy-500 text-white text-sm font-bold hover:bg-navy-600 disabled:opacity-50">
+                            {fotoBusy ? 'Verificando...' : 'Simular'}
+                        </button>
+                        {/* Só depois da simulação: confirmar sem ter visto o
+                            plano é exatamente o que a disciplina existe para
+                            impedir. */}
+                        <button onClick={() => rodarImportacaoDeFotos(true)}
+                            disabled={fotoBusy || !fotoPlan || fotoPlan.aplicado}
+                            className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Confirmar e gravar
+                        </button>
+                        <button onClick={limparEscolhaDeFotos} disabled={fotoBusy}
+                            className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
+                            Limpar
+                        </button>
+                    </div>
+                )}
+
+                {fotoPlan && (
+                    <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                            {Object.entries(FOTO_ACAO_LABEL).map(([chave, info]) => (
+                                <span key={chave} className={`px-3 py-1 rounded-full text-xs font-bold ${info.cor}`}>
+                                    {info.label}: {t[chave] || 0}
+                                </span>
+                            ))}
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-navy-500/10 text-navy-500">
+                                Total: {t.TOTAL || 0}
+                            </span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${fotoPlan.aplicado ? 'bg-success-100 text-success-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {fotoPlan.aplicado ? 'Gravado' : 'Simulação — nada gravado'}
+                            </span>
+                        </div>
+
+                        <ListaLimitada
+                            titulo={`${fotoPlan.linhas.length} arquivo(s)`}
+                            total={fotoPlan.linhas.length}
+                            alturaMax="max-h-[46vh]"
+                        >
+                            {(visiveis) => (
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-white shadow-sm">
+                                        <tr className="text-left text-slate-400 uppercase font-bold">
+                                            <th className="py-2 px-2">Arquivo</th>
+                                            <th className="py-2 px-2">Ação</th>
+                                            <th className="py-2 px-2">Pessoa</th>
+                                            <th className="py-2 px-2">Casou por</th>
+                                            <th className="py-2 px-2">Detalhe</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fotoPlan.linhas.slice(0, visiveis).map(l => {
+                                            const info = FOTO_ACAO_LABEL[l.acao] || { label: l.acao, cor: 'bg-soft-100 text-slate-600' };
+                                            return (
+                                                <tr key={l.linha} className="border-t border-soft-100">
+                                                    <td className="py-1.5 px-2 font-mono text-slate-500">{l.nomeArquivo}</td>
+                                                    <td className="py-1.5 px-2">
+                                                        <span className={`px-2 py-0.5 rounded-full font-bold ${info.cor}`}>{info.label}</span>
+                                                    </td>
+                                                    <td className="py-1.5 px-2 text-navy-500 font-semibold">
+                                                        {l.nome || '—'}{l.userId && <span className="ml-1 font-mono text-slate-400">({l.userId})</span>}
+                                                    </td>
+                                                    <td className="py-1.5 px-2 text-slate-500">{l.casouPor || '—'}</td>
+                                                    <td className="py-1.5 px-2 text-slate-500">{l.detalhe || '—'}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </ListaLimitada>
                     </div>
                 )}
             </div>
@@ -1668,6 +1882,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             Importar Servidores
                         </button>
                         <button
+                            onClick={() => setActiveTab('photos')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'photos' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="image" size={18} className={activeTab === 'photos' ? 'text-accent-500' : 'text-slate-400'} />
+                            Fotos
+                        </button>
+                        <button
                             onClick={() => setActiveTab('manual')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'manual' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
@@ -1690,6 +1911,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             {activeTab === 'hikcentral' && renderHikCentralImport()}
                             {activeTab === 'staff-list' && renderStaffList()}
                             {activeTab === 'staff-import' && renderStaffImport()}
+                            {activeTab === 'photos' && renderPhotoImport()}
                             {activeTab === 'manual' && renderManualRegistration()}
                             {activeTab === 'general' && renderGeneralSettings()}
                         </div>

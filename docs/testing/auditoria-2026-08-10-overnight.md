@@ -181,9 +181,18 @@ token, não persiste) imprime no log o corpo textual das parts — em bancada é
 propósito dele, mas se usado com câmera real em produção, nomes lidos pela
 câmera entram no log. Manter o uso restrito à bancada, como hoje.
 
-## Eixo 6 — Docs × código
+## Eixo 6 — Docs × código ✅ (4 afirmações falsas encontradas)
 
-_Pendente._
+| afirmação | onde | realidade |
+|---|---|---|
+| **"React/Tailwind/Babel/lucide/jspdf vêm de CDN — kiosk sem internet não renderiza (risco aberto R1)"** | `CLAUDE.md` §Stack; eco em `.claude/rules/frontend.md` ("Tailwind CDN") e `deploy-seguranca.md` ("vendorizar antes do piloto") | **R1 está RESOLVIDO.** `libs/` contém todos vendorizados (react, react-dom, babel, tailwind-play, lucide, jspdf×2, xlsx) e o `index.html` tem **0 referências a CDN**. Todos os percursos kiosk desta sessão: `externos: []`. Alguém pode queimar um dia "resolvendo" R1 de novo |
+| **`endpoints.md` está 23 rotas atrás do código** | `docs/architecture/endpoints.md` (39 linhas de rota vs **59 reais**) | faltam TODAS as rotas de fotos (7), meal bulk/import (3), exit-permissions active/user/revoke (3), hikvision-mapping export-csv/import-match (2), users search/all/bulk/students (4), staff bulk/reactivate (2), webhook `/t/{token}` (1) |
+| **"Encerramento" do smoke checklist espera `350 testes / 58 npm`** | `docs/frontend-smoke-checklist.md` §Encerramento | duas gerações atrás — o real na `main` é **603 / 279** |
+| **Checklist 1.5: "Recarregar → continua logado (token persistido)"** | `docs/frontend-smoke-checklist.md` §1 | o token é de **memória por design** (`auth.js`, comentário explícito; nunca houve persistência na história). F5 = login de novo, de propósito |
+
+Corretos e em dia (conferidos): contagens de teste em `CLAUDE.md`/`backend.md`
+(603/279 ✓), README das migrations cita V008–V011 e a ordem ✓, as regras novas
+de posto fixo/`JA_PRESENTE`/fotos descrevem o código como ele é ✓.
 
 ## Eixo 7 — Pacote de release
 

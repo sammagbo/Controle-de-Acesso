@@ -259,7 +259,84 @@
         };
     }
 
+    /** Períodos que a tela do CDI oferece, na ordem em que aparecem. */
+    const PERIODOS = ['today', 'week', 'month'];
+
+    const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+    function emMilissegundos(valor) {
+        if (valor == null) return null;
+        if (valor instanceof Date) return valor.getTime();
+        const n = typeof valor === 'number' ? valor : new Date(valor).getTime();
+        return isNaN(n) ? null : n;
+    }
+
+    /**
+     * A janela de tempo de um período: `[desde, ate)`, `ate` nulo = sem teto.
+     *
+     * ⚠️ "AUJOURD'HUI" É DIA DE CALENDÁRIO, as outras duas são JANELAS
+     * MÓVEIS — e a assimetria é deliberada, não descuido.
+     *
+     * "Cette Semaine" e "Ce Mois" sempre foram `agora - 7 dias` e `agora - 30
+     * dias`, e mudá-las para semana/mês de calendário mudaria em silêncio os
+     * números que a documentalista já compara de uma semana para a outra. Não
+     * é o que se pediu, então ficam exatamente como estavam.
+     *
+     * Já "Aujourd'hui" só tem uma leitura honesta: da meia-noite de hoje até a
+     * meia-noite de amanhã. Se fosse "últimas 24 horas", às 9h da manhã a tela
+     * mostraria metade de ontem sob o rótulo "hoje" — que é precisamente o
+     * tipo de número que alguém lê de relance e leva para uma reunião.
+     *
+     * O teto existe (e as janelas móveis não têm) porque um evento com data no
+     * futuro — relógio de terminal errado, fila offline reentregue — apareceria
+     * dentro de "hoje" sem ter acontecido hoje.
+     *
+     * As datas saem do construtor `new Date(ano, mês, dia + 1)` e não de uma
+     * soma de 24h: assim viram o mês e o ano sozinhas, e sobreviveriam ao
+     * horário de verão se ele voltar (hoje o Brasil não tem).
+     */
+    function periodRange(range, now) {
+        const base = emMilissegundos(now) == null ? Date.now() : emMilissegundos(now);
+        const d = new Date(base);
+
+        if (range === 'today') {
+            return {
+                desde: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(),
+                ate: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime()
+            };
+        }
+        const dias = range === 'month' ? 30 : 7;
+        return { desde: base - dias * UM_DIA_MS, ate: null };
+    }
+
+    /**
+     * Mantém as passagens dentro do período.
+     *
+     * Passagem sem hora legível fica FORA: não dá para afirmar que caiu no
+     * período, e incluí-la inflaria justamente o número que se foi conferir.
+     */
+    function filterLogsByPeriod(logs, range, now) {
+        const janela = periodRange(range, now);
+        return (Array.isArray(logs) ? logs : []).filter(function (l) {
+            const t = l ? emMilissegundos(l.timestamp) : null;
+            if (t == null) return false;
+            if (t < janela.desde) return false;
+            return janela.ate == null || t < janela.ate;
+        });
+    }
+
+    /** Título do relatório impresso, por período. */
+    function periodLabel(range) {
+        if (range === 'today') return 'Rapport du Jour';
+        if (range === 'month') return 'Rapport Mensuel';
+        return 'Rapport Hebdomadaire';
+    }
+
     return {
+        PERIODOS: PERIODOS,
+        periodRange: periodRange,
+        filterLogsByPeriod: filterLogsByPeriod,
+        periodLabel: periodLabel,
         FALLBACK_MIN_VISIT_SECONDS: FALLBACK_MIN_VISIT_SECONDS,
         describeScope: describeScope,
         configure: configure,

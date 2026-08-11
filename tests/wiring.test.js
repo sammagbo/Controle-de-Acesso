@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import indexAssets from '../scripts/indexAssets.js';
 
 /**
  * A FIAÇÃO DO index.html.
@@ -55,25 +56,20 @@ function ler(relPath) {
  *
  * Posição no texto, e não índice num array, para poder comparar com um
  * `<script>` inline — que também consome globais e também depende da ordem.
+ *
+ * A leitura do HTML vive em scripts/indexAssets.js e é a MESMA que o portão de
+ * release usa. Enquanto havia dois parsers, os dois podiam discordar sobre o
+ * que a página carrega — e o que o portão não enxergasse, ele não exigiria.
+ * Aqui filtra-se para `js/` porque as três invariantes abaixo são sobre os
+ * módulos do app; as bibliotecas de `libs/` não publicam window.Magbo*.
  */
-const SCRIPT_SRC = /<script[^>]*\ssrc="(js\/[^"?]+)(?:\?[^"]*)?"/g;
-
 function scriptsDoHtml() {
-    const out = [];
-    for (const m of HTML.matchAll(SCRIPT_SRC)) {
-        out.push({ arquivo: m[1], pos: m.index });
-    }
-    return out;
+    return indexAssets.scriptSources(HTML).filter(s => s.arquivo.startsWith('js/'));
 }
 
 /** Blocos `<script>` sem src — código escrito dentro do próprio index.html. */
 function scriptsInline() {
-    const out = [];
-    const re = /<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g;
-    for (const m of HTML.matchAll(re)) {
-        out.push({ conteudo: m[1], pos: m.index });
-    }
-    return out;
+    return indexAssets.inlineScripts(HTML);
 }
 
 /** Nome do global que cada módulo UMD publica: `root.MagboX = api`. */

@@ -694,4 +694,106 @@ class CameraIdentityServiceTest {
             assertThat(id.similaridade()).isEqualTo(0.95);
         }
     }
+
+    // ───────────────── Acento transliterado pela câmera ─────────────────
+
+    @Nested
+    @DisplayName("★ acento transliterado (producao, 11/08/2026)")
+    class AcentoTransliterado {
+
+        /** Payload com um candidato acima do limiar e o nome que a camera leu. */
+        private CameraAlarmDto lido(String nome) throws Exception {
+            String escapado = nome.replace("\\", "\\\\").replace("\"", "\\\"");
+            return dto("{\"alarmResult\":[{\"faces\":[{\"identify\":[{\"candidate\":["
+                    + "{\"similarity\":0.95,\"FDLibThreshold\":70,"
+                    + "\"reserve_field\":{\"name\":\"" + escapado + "\"}}"
+                    + "]}]}]}]}");
+        }
+
+        @Test
+        @DisplayName("★ nome transliterado casa com o cadastro acentuado quando e UNICO")
+        void casaQuandoUnico() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-101", "Ana BRANDÃO", null)));
+
+            var id = service.resolver(lido("Ana BRAND~AO"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-101");
+        }
+
+        @Test
+        @DisplayName("★★ dois cadastros que so diferem pelo ACENTO continuam AMBIGUOS")
+        void soDiferemPeloAcenteContinuamAmbiguos() throws Exception {
+            // A correcao amplia o que ALCANCA, nunca o que se ACEITA. As duas
+            // pessoas passam a ser alcancadas pelo mesmo nome lido — e por isso
+            // mesmo o sistema recusa. Escolher uma delas seria atribuir a
+            // passagem, e a saida, a pessoa errada.
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-101", "Ana BRANDÃO", null),
+                    pessoa("FUNC-102", "Ana BRANDAO", null)));
+
+            var id = service.resolver(lido("Ana BRAND~AO"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.AMBIGUO);
+            assertThat(id.user()).isNull();
+            assertThat(id.motivoDeNegacao()).isEqualTo(DenialReason.AMBIGUOUS_NAME);
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("★★ as duas LEITURAS alcancando pessoas DIFERENTES tambem e AMBIGUO")
+        void leiturasDiferentesAlcancamPessoasDiferentes() throws Exception {
+            // O caso mais fino: "D'AVILA" tem duas leituras legitimas, e cada
+            // uma casa com uma pessoa distinta — "avila" (apostrofo separando,
+            // o "D" cai como inicial) e "davila" (apostrofo como acento). O
+            // sistema nao tem como saber qual, e nao inventa.
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-201", "AVILA", null),
+                    pessoa("FUNC-202", "DAVILA", null)));
+
+            var id = service.resolver(lido("D'AVILA"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.AMBIGUO);
+            assertThat(id.user()).isNull();
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("★ apostrofo legitimo: cadastro D'ÁVILA e leitura D'AVILA continuam casando")
+        void apostrofoLegitimo() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-203", "Ana D'ÁVILA", null)));
+
+            var id = service.resolver(lido("Ana D'AVILA"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-203");
+        }
+
+        @Test
+        @DisplayName("★ nome transliterado E truncado em 32 casa por prefixo")
+        void transliteradoETruncado() throws Exception {
+            String daCamera = "Jo~ao Fernando FIGUEIREDO DOS S";
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-204", "João Fernando FIGUEIREDO DOS SANTOS", null)));
+
+            var id = service.resolver(lido(daCamera));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.IDENTIFICADO);
+            assertThat(id.user().getId()).isEqualTo("FUNC-204");
+        }
+
+        @Test
+        @DisplayName("★ nome que nao existe no cadastro continua DESCONHECIDO")
+        void naoFabricaCasamento() throws Exception {
+            when(userRepository.findByAtivoTrue()).thenReturn(List.of(
+                    pessoa("FUNC-101", "Ana BRANDÃO", null)));
+
+            var id = service.resolver(lido("Ana C^ORTE"));
+
+            assertThat(id.resultado()).isEqualTo(CameraIdentityService.Resultado.DESCONHECIDO);
+            assertThat(id.motivoDeNegacao()).isEqualTo(DenialReason.UNKNOWN_FACE);
+        }
+    }
 }

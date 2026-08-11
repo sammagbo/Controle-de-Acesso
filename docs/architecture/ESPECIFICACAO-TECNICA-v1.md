@@ -856,7 +856,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 | R1 | **Ciclo grande sem validação incremental** (mudança de estratégia) | **Alta** | Fase I (testes automatizados) é obrigatória e bloqueante; bateria §13.5 com hardware; rollback por política sem reverter código |
 | R2 | Refatoração do webhook quebra o caminho validado | **Alta** | `EntryWindowRegressionTest` + `ExitTimeRegressionTest` + `LegacyRegressionIT` + V01–V03 blindam byte a byte |
 | R3 | HikCentral: 1 controlador com porta em anomalia + **34 pessoas pendentes de envio** (visto no painel em 08/07) | Média | Fora do escopo de código. **Pauta obrigatória com o Fabiano** antes do piloto |
-| R4 | Frontend depende de CDNs (React/Tailwind/Babel/lucide/jspdf) → kiosk offline não renderiza | **Alta (bloqueia piloto)** | Não é escopo deste ciclo. **Vendorizar em `libs/` antes do piloto** (risco R1 do relatório de auditoria) |
+| R4 | ~~Frontend depende de CDNs → kiosk offline não renderiza~~ | ~~**Alta (bloqueia piloto)**~~ | ✅ **RESOLVIDO em `4e73147`**: react, react-dom, babel, tailwind, lucide, jspdf(+autotable), xlsx e as fontes vendorizados em `libs/`; `index.html` sem nenhuma URL externa |
 | R5 | `?token=` na URL fica em logs de proxy/servidor | Baixa (rede interna) | Aceito: o terminal não suporta header customizado. Documentado |
 | R6 | Descompasso de fuso Postgres × Java observado no PC (~1h) | Média | Invariante §10.2-5: timestamp sempre do Java. **Na VM: garantir mesmo fuso nos dois containers** |
 | R7 | Payload real das câmeras DeepinView **nunca capturado** (VLAN isola) | Média | `WebhookJsonCameraIT` cobre o ramo JSON por simulação; captura real depende da VM |

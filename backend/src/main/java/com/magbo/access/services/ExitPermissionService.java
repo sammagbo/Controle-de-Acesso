@@ -115,8 +115,13 @@ public class ExitPermissionService {
         if (!userRepository.existsById(req.getUserId())) {
             throw new IllegalArgumentException("Aluno não encontrado: " + req.getUserId());
         }
-        if (req.getReason() == null || req.getReason().isBlank()) {
-            throw new IllegalArgumentException("reason é obrigatório");
+        // PELO MENOS UMA DAS DUAS AUTORIDADES. Uma saida pode ser autorizada
+        // so pela familia (o responsavel ligou), so pela escola (decisao da
+        // Vie Scolaire), ou pelas duas. O que nao pode e nao ter nenhuma:
+        // seria uma crianca autorizada a sair sem ninguem tendo autorizado.
+        if (isBlank(req.getAuthorizedByFamily()) && isBlank(req.getAuthorizedBySchool())) {
+            throw new IllegalArgumentException(
+                    "Informe quem autorizou: a família, a escola, ou as duas");
         }
         if (req.getPermissionType() == ExitPermissionType.DATE_RANGE) {
             if (req.getValidFrom() == null || req.getValidUntil() == null) {
@@ -162,7 +167,8 @@ public class ExitPermissionService {
                 .endTime(req.getEndTime())
                 .daysOfWeek(req.getDaysOfWeek())
                 .status(ExitPermissionStatus.ACTIVE)
-                .reason(req.getReason())
+                .authorizedByFamily(trimOuNulo(req.getAuthorizedByFamily()))
+                .authorizedBySchool(trimOuNulo(req.getAuthorizedBySchool()))
                 .note(req.getNote())
                 .createdBy(createdBy)
                 .build();
@@ -196,5 +202,15 @@ public class ExitPermissionService {
         StudentExitPermission saved = permissionRepository.save(p);
         log.info("Revoked exit permission id={} by={}", saved.getId(), revokedBy);
         return saved;
+    }
+
+    /** Vazio, so espacos, ou ausente — tudo conta como nao informado. */
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    /** Guarda sem espaco sobrando; campo em branco vira NULL e nao "". */
+    private static String trimOuNulo(String s) {
+        return isBlank(s) ? null : s.trim();
     }
 }

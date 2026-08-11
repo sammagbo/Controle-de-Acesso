@@ -23,7 +23,8 @@ public class ExitPermissionDto {
     private LocalTime endTime;
     private String daysOfWeek;
     private ExitPermissionStatus status;
-    private String reason;
+    private String authorizedByFamily;
+    private String authorizedBySchool;
     private String note;
     private String createdBy;
     private LocalDateTime createdAt;

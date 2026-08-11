@@ -122,7 +122,7 @@ public final class TestFixtures {
                 .userId(userId)
                 .permissionType(type)
                 .status(status)
-                .reason("Fixture")
+                .authorizedByFamily("Fixture")
                 .createdBy("fixture")
                 .build();
     }

@@ -22,12 +22,37 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 
 - **PC de desenvolvimento** (`ddl-auto=update`, perfil `dev`/`prod` local): **não precisa**
   destes SQLs — o Hibernate cria o schema sozinho. Eles existem para **auditoria e controle**.
+  ⚠️ **Exceção: a V012.** Ver abaixo.
 - **VM de produção** (Ubuntu 24.04, `deploy/docker-compose.yml`): **precisa**. A migração na
   VM deve ser controlada e revisável — é aqui que estes arquivos são aplicados, na ordem.
 
+### ⚠️ A V012 é obrigatória NO PC TAMBÉM — a primeira que é
+
+A regra acima vale porque toda migração até aqui foi **aditiva**, e `ddl-auto=update` entrega
+o que é aditivo sozinho. A **V012 remove** a coluna `student_exit_permissions.reason`, e
+`ddl-auto` **nunca remove**.
+
+Consequência mecânica: ao tirar o campo `reason` da entidade Java, o Hibernate para de
+incluí-lo no INSERT — e a coluna continua `NOT NULL` em qualquer banco que não tenha recebido
+o arquivo. **Todo INSERT em `student_exit_permissions` passa a falhar**, no PC e na VM, com
+erro de driver e não com mensagem de validação.
+
+```bash
+# PC (container magbo-postgres), ANTES de subir o backend novo:
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
+```
+
+Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
+`authorized_by_school`, e **não** mostra `reason`.
+
+Por que a exceção foi aceita: a tabela tinha **uma** linha em produção, com `reason = 'teste'`
+(conferido em 12/08/2026) — a funcionalidade nunca foi usada. E a coluna nunca significou
+"motivo": o formulário gravava nela o nome de quem autorizou. Detalhe do raciocínio no
+cabeçalho do próprio V012.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V011. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V012. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -44,6 +69,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V008_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V009__denial_reason_camera.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010__app_users_posto_fixo.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -59,6 +85,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011_
 | `V009__denial_reason_camera.sql` | amplia o CHECK de `access_attempts.denial_reason` (`UNKNOWN_FACE`, `AMBIGUOUS_NAME`) | Câmeras da portaria |
 | `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 | `V011__user_photos.sql` | tabela `user_photos` (`bytea`) — fotos de identificação | Fotos |
+| `V012__exit_permission_two_authorities.sql` | `student_exit_permissions`: +`authorized_by_family`, +`authorized_by_school`, **−`reason`** | Duas autoridades |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

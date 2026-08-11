@@ -17,9 +17,16 @@ public class ExitPermissionRequest {
     @NotNull
     private ExitPermissionType permissionType;
 
-    @NotBlank
+    /**
+     * As duas autoridades. Pelo menos UMA tem de vir preenchida — a checagem
+     * e no ExitPermissionService e nao aqui, porque bean validation nao
+     * expressa "um destes dois" sem uma anotacao de classe propria.
+     */
     @Size(max = 255)
-    private String reason;
+    private String authorizedByFamily;
+
+    @Size(max = 255)
+    private String authorizedBySchool;
 
     private LocalDate validFrom;
     private LocalDate validUntil;

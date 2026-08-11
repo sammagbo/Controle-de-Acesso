@@ -80,7 +80,7 @@ describe('exitPermission — validação antes de salvar', () => {
 
     const formSingle = (over) => Object.assign({
         aluno: ALUNO,
-        autorizadoPor: 'Mme Gonçalves',
+        autorizadoFamilia: 'Mme Gonçalves',
         tipo: 'SINGLE',
         validFrom: '2026-08-10T12:00',
         validUntil: '2026-08-10T14:00',
@@ -89,7 +89,7 @@ describe('exitPermission — validação antes de salvar', () => {
 
     const formRecurring = (over) => Object.assign({
         aluno: ALUNO,
-        autorizadoPor: 'Mme Gonçalves',
+        autorizadoFamilia: 'Mme Gonçalves',
         tipo: 'RECURRING',
         startTime: '12:00',
         endTime: '14:00',
@@ -120,7 +120,7 @@ describe('exitPermission — validação antes de salvar', () => {
 
     describe('os outros campos continuam obrigatórios', () => {
         it('quem autorizou é obrigatório', () => {
-            const r = E.validar(formSingle({ autorizadoPor: '   ' }));
+            const r = E.validar(formSingle({ autorizadoFamilia: '   ' }));
             expect(r.ok).toBe(false);
             expect(r.motivo).toContain('autorizou');
         });
@@ -149,7 +149,7 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
 
     describe('★ saída única', () => {
         const p = () => E.montarPayload({
-            aluno: ALUNO, autorizadoPor: 'Mme Gonçalves', tipo: 'SINGLE',
+            aluno: ALUNO, autorizadoFamilia: 'Mme Gonçalves', tipo: 'SINGLE',
             validFrom: '2026-08-10T12:30', validUntil: '2026-08-10T14:45',
             observacoes: 'RDV médical'
         });
@@ -166,7 +166,8 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
         it('datetime-local vira LocalDate + LocalTime, como o backend espera', () => {
             expect(p()).toMatchObject({
                 permissionType: 'SINGLE',
-                reason: 'Mme Gonçalves',
+                authorizedByFamily: 'Mme Gonçalves',
+                authorizedBySchool: null,
                 note: 'RDV médical',
                 validFrom: '2026-08-10',
                 validUntil: '2026-08-10',
@@ -177,7 +178,7 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
 
         it('observação vazia vira null, não string vazia', () => {
             const semNota = E.montarPayload({
-                aluno: ALUNO, autorizadoPor: 'X', tipo: 'SINGLE',
+                aluno: ALUNO, autorizadoFamilia: 'X', tipo: 'SINGLE',
                 validFrom: '2026-08-10T12:00', validUntil: '2026-08-10T14:00'
             });
             expect(semNota.note).toBeNull();
@@ -186,7 +187,7 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
 
     describe('★ recorrente', () => {
         const p = () => E.montarPayload({
-            aluno: ALUNO, autorizadoPor: 'Mme Gonçalves', tipo: 'RECURRING',
+            aluno: ALUNO, autorizadoFamilia: 'Mme Gonçalves', tipo: 'RECURRING',
             startTime: '12:00', endTime: '14:00',
             dias: { MONDAY: true, TUESDAY: false, WEDNESDAY: true, THURSDAY: false, FRIDAY: true }
         }, new Date(2026, 7, 6));   // 06/08/2026
@@ -204,7 +205,7 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
             // 06/08 às 22h no BRT é 07/08 em UTC. O dia da autorização é o da
             // escola, não o de Greenwich.
             const tarde = E.montarPayload({
-                aluno: ALUNO, autorizadoPor: 'X', tipo: 'RECURRING',
+                aluno: ALUNO, autorizadoFamilia: 'X', tipo: 'RECURRING',
                 startTime: '12:00', endTime: '14:00', dias: { MONDAY: true }
             }, new Date(2026, 7, 6, 22, 30));
             expect(tarde.validFrom).toBe('2026-08-06');
@@ -212,7 +213,7 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
 
         it('nenhum dia marcado devolve CSV vazio (a validação já barrou antes)', () => {
             const vazio = E.montarPayload({
-                aluno: ALUNO, autorizadoPor: 'X', tipo: 'RECURRING',
+                aluno: ALUNO, autorizadoFamilia: 'X', tipo: 'RECURRING',
                 startTime: '12:00', endTime: '14:00', dias: {}
             }, new Date(2026, 7, 6));
             expect(vazio.daysOfWeek).toBe('');
@@ -222,22 +223,87 @@ describe('exitPermission — payload (contrato do backend inalterado)', () => {
     describe('o contrato não mudou', () => {
         it('★ os campos são os mesmos do ExitPermissionRequest de sempre', () => {
             const p = E.montarPayload({
-                aluno: ALUNO, autorizadoPor: 'X', tipo: 'SINGLE',
+                aluno: ALUNO, autorizadoFamilia: 'X', tipo: 'SINGLE',
                 validFrom: '2026-08-10T12:00', validUntil: '2026-08-10T14:00'
             });
             expect(Object.keys(p).sort()).toEqual(
-                ['endTime', 'note', 'permissionType', 'reason', 'startTime',
+                ['authorizedByFamily', 'authorizedBySchool', 'endTime', 'note', 'permissionType', 'startTime',
                  'userId', 'validFrom', 'validUntil'].sort());
         });
 
         it('nenhum campo novo escapou para o corpo (nada de nome/turma)', () => {
             const p = E.montarPayload({
-                aluno: ALUNO, autorizadoPor: 'X', tipo: 'SINGLE',
+                aluno: ALUNO, autorizadoFamilia: 'X', tipo: 'SINGLE',
                 validFrom: '2026-08-10T12:00', validUntil: '2026-08-10T14:00'
             });
             expect(p).not.toHaveProperty('nome');
             expect(p).not.toHaveProperty('turma');
             expect(p).not.toHaveProperty('aluno');
         });
+    });
+});
+
+/**
+ * DUAS AUTORIDADES — família e escola.
+ *
+ * A realidade tem duas autoridades distintas e o registro precisa dizer QUAL
+ * agiu: o responsável da família (pai, mãe, guardião) e o membro da Vie
+ * Scolaire. Antes havia um campo de texto livre só, "Autorizado por
+ * (Responsável)", que o front gravava na coluna `reason` — uma coluna cujo
+ * nome nunca correspondeu ao que ela guardava.
+ */
+describe('duas autoridades de saída', () => {
+    const E = window.MagboExitPermission || require('../js/utils/exitPermission.js');
+    const ALUNO = { id: '0003535', nome: 'Marie DUPONT', turma: '2nde A' };
+    const base = (extra) => Object.assign({
+        aluno: ALUNO, tipo: 'SINGLE',
+        validFrom: '2026-08-12T10:00', validUntil: '2026-08-12T12:00'
+    }, extra || {});
+
+    it('★ só a família basta', () => {
+        expect(E.validar(base({ autorizadoFamilia: 'Mme Gonçalves' })).ok).toBe(true);
+    });
+
+    it('★ só a escola basta', () => {
+        expect(E.validar(base({ autorizadoEscola: 'Sam MAGBO' })).ok).toBe(true);
+    });
+
+    it('★ as duas juntas', () => {
+        const r = E.montarPayload(base({
+            autorizadoFamilia: 'Mme Gonçalves', autorizadoEscola: 'Sam MAGBO'
+        }));
+        expect(r.authorizedByFamily).toBe('Mme Gonçalves');
+        expect(r.authorizedBySchool).toBe('Sam MAGBO');
+    });
+
+    it('★★ NENHUMA das duas é recusado — e o motivo é dito', () => {
+        // Seria uma criança autorizada a sair sem ninguém ter autorizado.
+        const r = E.validar(base({}));
+        expect(r.ok).toBe(false);
+        expect(r.motivo).toMatch(/família/i);
+    });
+
+    it('★ campo só com espaços não conta como autoridade', () => {
+        expect(E.validar(base({ autorizadoFamilia: '   ', autorizadoEscola: '' })).ok).toBe(false);
+    });
+
+    it('★ campo em branco vira NULL no payload, não ""', () => {
+        // O banco guarda ausência como NULL; "" faria a coluna parecer
+        // preenchida em toda consulta que testasse IS NOT NULL.
+        const r = E.montarPayload(base({ autorizadoFamilia: 'Mme Gonçalves', autorizadoEscola: '  ' }));
+        expect(r.authorizedBySchool).toBeNull();
+        expect(r.authorizedByFamily).toBe('Mme Gonçalves');
+    });
+
+    it('★ o payload não fala mais em reason', () => {
+        // A coluna foi removida na V012; um payload que ainda a mandasse
+        // passaria despercebido no backend e sumiria em silêncio.
+        const r = E.montarPayload(base({ autorizadoFamilia: 'X' }));
+        expect(Object.keys(r)).not.toContain('reason');
+    });
+
+    it('espaços são aparados nos dois lados', () => {
+        const r = E.montarPayload(base({ autorizadoFamilia: '  Mme Gonçalves  ' }));
+        expect(r.authorizedByFamily).toBe('Mme Gonçalves');
     });
 });

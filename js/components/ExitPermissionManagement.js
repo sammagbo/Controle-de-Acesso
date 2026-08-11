@@ -135,7 +135,21 @@ function ExitPermissionManagement() {
                                                                         </div>
                                                                   </td>
                                                                   <td className="px-6 py-3">
-                                                                        <div className="text-xs font-medium text-slate-700">{perm.reason}</div>
+                                                                        {/* Cada autoridade com o SEU rótulo: a lista
+                                                                            precisa dizer qual delas agiu, e a linha
+                                                                            só com um nome não diria. */}
+                                                                        {perm.authorizedByFamily && (
+                                                                              <div className="text-xs font-medium text-slate-700">
+                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">Família</span>
+                                                                                    {perm.authorizedByFamily}
+                                                                              </div>
+                                                                        )}
+                                                                        {perm.authorizedBySchool && (
+                                                                              <div className="text-xs font-medium text-slate-700">
+                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">Escola</span>
+                                                                                    {perm.authorizedBySchool}
+                                                                              </div>
+                                                                        )}
                                                                         {perm.note && <div className="text-[10px] text-slate-500 italic mt-0.5">{perm.note}</div>}
                                                                   </td>
                                                                   <td className="px-6 py-3 text-right">
@@ -173,7 +187,15 @@ function ExitPermissionManagement() {
 
 function NewExitPermissionModal({ onClose, onSaved }) {
       const [type, setType] = React.useState('SINGLE');
-      const [authorizedBy, setAuthorizedBy] = React.useState('');
+      // DUAS AUTORIDADES, e o registro precisa dizer qual agiu.
+      // A da escola nasce preenchida com o operador logado — acerta na maioria
+      // e poupa digitação — mas fica EDITÁVEL, porque quem autoriza nem sempre
+      // é quem digita (a CPE autoriza de viva voz, a secretaria registra).
+      // `created_by` continua guardando quem digitou, separadamente.
+      const nomeDoOperador = (window.auth?.getUser?.() || {}).nome
+            || (window.auth?.getUser?.() || {}).username || '';
+      const [authorizedFamily, setAuthorizedFamily] = React.useState('');
+      const [authorizedSchool, setAuthorizedSchool] = React.useState(nomeDoOperador);
       const [notes, setNotes] = React.useState('');
 
       // ── Escolha do aluno pelo NOME ────────────────────────────────────
@@ -241,7 +263,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
             // teste. O payload é o MESMO ExitPermissionRequest de sempre — o
             // que mudou é de onde vem o userId.
             const form = {
-                  aluno, autorizadoPor: authorizedBy, tipo: type,
+                  aluno, autorizadoFamilia: authorizedFamily, autorizadoEscola: authorizedSchool, tipo: type,
                   validFrom, validUntil, startTime, endTime, dias: days,
                   observacoes: notes
             };
@@ -347,9 +369,30 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                     )}
                               </div>
 
-                              <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Autorizado por (Responsável)</label>
-                                    <input required type="text" value={authorizedBy} onChange={e => setAuthorizedBy(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" />
+                              {/* As duas autoridades, lado a lado e ROTULADAS —
+                                  a tela tem de deixar claro qual é qual. */}
+                              <div className="rounded-2xl border border-soft-200 bg-soft-50/60 p-4 space-y-3">
+                                    <p className="text-xs font-black text-navy-500 uppercase tracking-wide">Quem autorizou</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                          <div className="space-y-1">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">Família (responsável)</label>
+                                                <input type="text" value={authorizedFamily}
+                                                      onChange={e => setAuthorizedFamily(e.target.value)}
+                                                      placeholder="Pai, mãe ou guardião"
+                                                      className="w-full px-4 py-2 bg-white border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" />
+                                          </div>
+                                          <div className="space-y-1">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">Escola (Vie Scolaire)</label>
+                                                <input type="text" value={authorizedSchool}
+                                                      onChange={e => setAuthorizedSchool(e.target.value)}
+                                                      placeholder="Membro da Vie Scolaire"
+                                                      className="w-full px-4 py-2 bg-white border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" />
+                                          </div>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400">
+                                          Preencha <strong>pelo menos uma</strong> das duas. As duas juntas
+                                          quando a família autorizou e a Vie Scolaire referendou.
+                                    </p>
                               </div>
 
                               <div className="space-y-1">

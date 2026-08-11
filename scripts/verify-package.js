@@ -15,6 +15,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const indexAssets = require('./indexAssets');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_ASAR = path.join(REPO_ROOT, 'dist', 'win-unpacked', 'resources', 'app.asar');
@@ -41,35 +42,22 @@ const FORBIDDEN = [
       { label: 'certificado / chave', re: /\.(pem|key|p12|pfx)$/i },
 ];
 
-// O app não sobe sem estes. Se algum sumir, o allowlist apertou demais.
-const REQUIRED = [
-      'main.js',
-      'preload.js',
-      'index.html',
-      'package.json',
-      'css/styles.css',
-      'js/App.js',
-      'js/api.js',
-      'js/utils/api.js',
-      'js/utils/auth.js',
-      'js/utils/helpers.js',
-      'js/utils/reportFilters.js',
-      'js/utils/hikcentralSheet.js',
-      'js/utils/listPaging.js',
-      'js/data/constants.js',
-      'js/components/LoginScreen.js',
-      'js/components/AdminDashboard.js',
-      'js/cdi/BibliotecaView.js',
-      'libs/react-18.3.1.min.js',
-      'libs/react-dom-18.3.1.min.js',
-      'libs/babel-standalone-8.0.4.min.js',
-      'libs/tailwindcss-play-3.4.17.js',
-      'libs/lucide-1.24.0.min.js',
-      'libs/jspdf-2.5.1.umd.min.js',
-      'libs/jspdf-autotable-3.5.28.min.js',
-      'libs/xlsx.min.js',
-      'libs/fonts.css',
-];
+// O app não sobe sem estes — e a lista é DERIVADA do index.html, não escrita
+// à mão.
+//
+// ⚠️ NÃO VOLTE A ESCREVER ESTA LISTA. Ela era estática e conhecia 26 arquivos,
+// nomeados antes de postoFixo.js, photoCache.js e PersonPhoto.js existirem: um
+// pacote sem esses três era APROVADO pelo portão. Uma lista à mão só sabe do
+// que existia no dia em que foi escrita, e o modo de falhar é silencioso —
+// aprova o pacote incompleto e o defeito aparece na tela do operador.
+//
+// Sem bundler, o index.html JÁ É a lista de dependências do app; derivar dele
+// é ler a única fonte que não pode ficar desatualizada, porque é ela que faz o
+// arquivo existir em runtime. Mesmo parser do tests/wiring.test.js
+// (scripts/indexAssets.js) — uma leitura, uma implementação.
+function arquivosObrigatorios() {
+      return indexAssets.requiredPackageFiles();
+}
 
 function loadAsar() {
       try {
@@ -99,6 +87,36 @@ function listFiles(asarPath) {
       return normalized.filter((entry) => !dirs.has(entry)).sort();
 }
 
+/**
+ * O veredito, sobre uma lista de caminhos — sem tocar em disco.
+ *
+ * Separado do main() para que os testes possam exercer o portão sem construir
+ * um app.asar de verdade (o build leva minutos e exige o electron-builder).
+ * O que se testa aqui é a REGRA; o main() só lê o pacote e imprime.
+ *
+ * @param arquivos      caminhos dentro do pacote, com barra normal
+ * @param obrigatorios  o que tem de estar lá (default: derivado do index.html)
+ * @returns {{leaks: Array, missing: string[], obrigatorios: string[]}}
+ */
+function analisar(arquivos, obrigatorios) {
+      const lista = Array.isArray(arquivos) ? arquivos : [];
+      const exigidos = obrigatorios || arquivosObrigatorios();
+
+      const leaks = [];
+      lista.forEach((f) => {
+            FORBIDDEN.forEach((rule) => {
+                  if (rule.re.test(f)) leaks.push({ file: f, label: rule.label });
+            });
+      });
+
+      const present = new Set(lista);
+      return {
+            leaks,
+            missing: exigidos.filter((f) => !present.has(f)),
+            obrigatorios: exigidos,
+      };
+}
+
 function main() {
       const asarPath = process.argv[2] ? path.resolve(process.argv[2]) : DEFAULT_ASAR;
 
@@ -117,15 +135,17 @@ function main() {
       files.forEach((f) => console.log(`  ${f}`));
       console.log('');
 
-      const leaks = [];
-      files.forEach((f) => {
-            FORBIDDEN.forEach((rule) => {
-                  if (rule.re.test(f)) leaks.push({ file: f, label: rule.label });
-            });
-      });
+      const { leaks, missing, obrigatorios } = analisar(files);
 
-      const present = new Set(files);
-      const missing = REQUIRED.filter((f) => !present.has(f));
+      // Informativo, NÃO altera o veredito: a página não deveria citar nenhum
+      // endereço remoto (risco R1 — o kiosk roda sem internet). Fica visível
+      // aqui porque é o momento em que alguém está olhando o pacote.
+      const remotas = indexAssets.referenciasRemotas(indexAssets.readIndexHtml());
+      if (remotas.length > 0) {
+            console.log(`AVISO  o index.html cita ${remotas.length} endereço(s) REMOTO(s) — o kiosk offline não os carrega:`);
+            remotas.forEach((u) => console.log(`   ${u}`));
+            console.log('');
+      }
 
       console.log('-'.repeat(70));
       if (leaks.length === 0) {
@@ -136,9 +156,11 @@ function main() {
       }
 
       if (missing.length === 0) {
-            console.log(`OK  arquivos obrigatórios: ${REQUIRED.length}/${REQUIRED.length} presentes`);
+            console.log(`OK  arquivos obrigatórios: ${obrigatorios.length}/${obrigatorios.length} presentes`
+                  + '  (derivados do index.html)');
       } else {
-            console.log(`FALHA  arquivos obrigatórios ausentes: ${missing.length}`);
+            console.log(`FALHA  arquivos obrigatórios ausentes: ${missing.length} de ${obrigatorios.length}`
+                  + '  (a lista vem do index.html — o pacote está DESATUALIZADO ou incompleto)');
             missing.forEach((m) => console.log(`   ${m}`));
       }
       console.log('-'.repeat(70));
@@ -150,4 +172,8 @@ function main() {
       console.log('RESULTADO: APROVADO — pacote limpo.');
 }
 
-main();
+// Roda como CLI; exporta a regra para o teste. `require.main === module` é o
+// que impede o `require` do teste de disparar o process.exit do main().
+if (require.main === module) main();
+
+module.exports = { analisar, arquivosObrigatorios, FORBIDDEN, listFiles, DEFAULT_ASAR };

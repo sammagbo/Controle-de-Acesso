@@ -230,8 +230,17 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                           )}
                                           {pointLogs.slice(0, 50).map((log, idx) => {
                                                 const user = (window.userCache?.byId(log.userId)) || null;
-                                                if (!user) return null;
-                                                const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
+                                                // ⚠️ ERA `if (!user) return null` — a passagem DESAPARECIA
+                                                // da tela quando a pessoa não estava no cache (cache ainda
+                                                // carregando, ou cadastro removido). Mesma família da
+                                                // sub-reportagem do Journal de 03/08: a tela parece
+                                                // funcionar e mostra menos do que aconteceu, que é pior
+                                                // que mostrar uma linha sem nome — o operador não tem como
+                                                // desconfiar do que não vê. A linha agora aparece sempre;
+                                                // quem falta é o NOME, e ele é dito em palavras.
+                                                const quem = window.MagboIdentity.resolver(
+                                                      { pessoa: user, userId: log.userId }, { lang: 'fr' });
+                                                const tipoInfo = (user && TIPO_LABELS[user.tipo]) || TIPO_LABEL_FALLBACK;
                                                 const isEntrada = log.status === 'ENTRADA';
                                                 const time = new Date(safeDateParse(log.timestamp));
                                                 // Só aparece quando o operador ligou o botão — e aí precisa
@@ -248,20 +257,30 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                             style={{ animationDelay: `${idx * 0.03}s` }}
                                                       >
                                                             <div className="relative flex-shrink-0">
-                                                                  <PersonPhoto userId={user.id} nome={user.nome} fotoUrl={user.foto_url}
+                                                                  <PersonPhoto userId={log.userId} nome={quem.nome} fotoUrl={user && user.foto_url}
                                                                         className="w-11 h-11 rounded-xl shadow-sm object-cover" />
                                                                   <span className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${isEntrada ? 'bg-success-500' : 'bg-danger-500'}`}>
                                                                         <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={10} className="text-white" />
                                                                   </span>
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                  <p className="text-sm font-bold text-navy-500 truncate">{user.nome}</p>
+                                                                  <p className={`text-sm font-bold truncate ${quem.reconhecido ? 'text-navy-500' : 'text-slate-500 italic'}`}>
+                                                                        {quem.nome}
+                                                                  </p>
                                                                   <div className="flex items-center gap-2 mt-0.5">
-                                                                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${tipoInfo.color} ${tipoInfo.textColor}`}>
-                                                                              {tipoInfo.label}
-                                                                        </span>
-                                                                        {user.turma && (
+                                                                        {user && (
+                                                                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${tipoInfo.color} ${tipoInfo.textColor}`}>
+                                                                                    {tipoInfo.label}
+                                                                              </span>
+                                                                        )}
+                                                                        {user && user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
+                                                                        )}
+                                                                        {/* Matrícula só quando o nome falta: é o
+                                                                            único apoio que sobra para identificar
+                                                                            a passagem depois. */}
+                                                                        {!quem.reconhecido && quem.matricula && (
+                                                                              <span className="text-xs font-mono text-slate-400">{quem.matricula}</span>
                                                                         )}
                                                                         {ehRepeticao && (
                                                                               <span

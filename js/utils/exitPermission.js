@@ -60,6 +60,12 @@
         };
     }
 
+    /** Campo em branco vira null, e não "" — o banco guarda ausência como NULL. */
+    function limparCampo(v) {
+        const s = String(v == null ? '' : v).trim();
+        return s === '' ? null : s;
+    }
+
     /**
      * O formulário pode ser salvo?
      *
@@ -67,15 +73,22 @@
      * diz por quê é o que faz o operador clicar cinco vezes e concluir que o
      * sistema travou.
      *
-     * @param f { aluno, autorizadoPor, tipo, validFrom, validUntil, startTime, endTime, dias }
+     * @param f { aluno, autorizadoFamilia, autorizadoEscola, tipo, validFrom, validUntil, startTime, endTime, dias }
      */
     function validar(f) {
         const form = f || {};
         if (!form.aluno || !form.aluno.id) {
             return { ok: false, motivo: 'Selecione o aluno pelo nome antes de salvar.' };
         }
-        if (!String(form.autorizadoPor || '').trim()) {
-            return { ok: false, motivo: 'Informe quem autorizou a saída.' };
+        // PELO MENOS UMA DAS DUAS AUTORIDADES. Uma saída pode ser autorizada
+        // só pela família (o responsável ligou), só pela escola (decisão da
+        // Vie Scolaire), ou pelas duas. O que não pode é nenhuma: seria uma
+        // criança autorizada a sair sem ninguém ter autorizado. Espelha a
+        // checagem do ExitPermissionService — as duas existem porque a tela
+        // avisa antes de enviar e o servidor não confia na tela.
+        if (!String(form.autorizadoFamilia || '').trim()
+            && !String(form.autorizadoEscola || '').trim()) {
+            return { ok: false, motivo: 'Informe quem autorizou: a família, a escola, ou as duas.' };
         }
         if (form.tipo === 'SINGLE') {
             if (!form.validFrom || !form.validUntil) {
@@ -107,7 +120,8 @@
         const payload = {
             userId: form.aluno.id,
             permissionType: form.tipo,
-            reason: form.autorizadoPor,
+            authorizedByFamily: limparCampo(form.autorizadoFamilia),
+            authorizedBySchool: limparCampo(form.autorizadoEscola),
             note: form.observacoes || null
         };
 
@@ -144,6 +158,7 @@
         MINIMO_BUSCA: MINIMO_BUSCA,
         DIA_ISO: DIA_ISO,
         buscaValida: buscaValida,
+        limparCampo: limparCampo,
         apenasAlunos: apenasAlunos,
         descreverAluno: descreverAluno,
         validar: validar,

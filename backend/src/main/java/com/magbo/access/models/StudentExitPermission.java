@@ -49,8 +49,26 @@ public class StudentExitPermission {
     @Column(nullable = false, length = 16)
     private ExitPermissionStatus status;
 
-    @Column(nullable = false, length = 255)
-    private String reason;
+    /**
+     * Quem autorizou pela FAMILIA (pai, mae, guardiao).
+     *
+     * Nulavel: a regra e "pelo menos uma das duas autoridades", e isso um
+     * NOT NULL nao expressa. A exigencia vive no ExitPermissionService.
+     */
+    @Column(name = "authorized_by_family", length = 255)
+    private String authorizedByFamily;
+
+    /**
+     * Quem autorizou pela ESCOLA (membro da Vie Scolaire).
+     *
+     * ⚠️ NAO E `createdBy`, e a diferenca e real: createdBy e quem DIGITOU o
+     * registro. Na pratica divergem — a CPE autoriza de viva voz e a
+     * secretaria registra. A tela preenche este campo com o operador logado
+     * (acerta na maioria) mas deixa editar, porque fundi-los apagaria a
+     * distincao entre quem decidiu e quem teclou.
+     */
+    @Column(name = "authorized_by_school", length = 255)
+    private String authorizedBySchool;
 
     @Column(length = 255)
     private String note;

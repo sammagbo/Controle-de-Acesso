@@ -148,23 +148,29 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                         ) : (
                               <div className="space-y-2">
                                     {attempts.map(attempt => {
-                                          let userName = attempt.employeeNoRaw;
-                                          let userTurma = null;
-                                          let isUnknown = true;
-                                          let photoUrl = localAvatar(attempt.employeeNoRaw || 'U');
+                                          // ⚠️ ERA `userName = attempt.employeeNoRaw` — o
+                                          // identificador CRU. Na portaria isso mostrava
+                                          // "CAM:SEM-IDENTIDADE" e "CAM:HID:69205" como se
+                                          // fossem nomes de gente, e o operador não tinha o
+                                          // que fazer com aquilo. Pior: o backend JÁ manda
+                                          // `nome` (o do cadastro quando casou, senão o que
+                                          // a câmera leu) — a informação estava ali e a tela
+                                          // a ignorava.
+                                          const user = attempt.userId
+                                                ? window.userCache?.byId(attempt.userId)
+                                                : null;
+                                          const quem = window.MagboIdentity.resolver({
+                                                pessoa: user,
+                                                userId: attempt.userId,
+                                                employeeNoRaw: attempt.employeeNoRaw,
+                                                nome: attempt.nome
+                                          }, { lang: 'pt' });
 
-                                          if (attempt.userId) {
-                                                const user = window.userCache?.byId(attempt.userId);
-                                                if (user) {
-                                                      userName = user.nome;
-                                                      userTurma = user.turma;
-                                                      isUnknown = false;
-                                                      photoUrl = user.foto_url;
-                                                } else {
-                                                      userName = attempt.userId;
-                                                }
-                                          }
-                                          
+                                          const userName = quem.nome;
+                                          const userTurma = user ? user.turma : (attempt.turma || null);
+                                          const isUnknown = !quem.reconhecido;
+                                          const photoUrl = (user && user.foto_url) || localAvatar(quem.nome);
+
                                           const pointInfo = window.ACCESS_POINTS?.find(p => p.id === attempt.pointId);
                                           const pointName = pointInfo ? pointInfo.nome : attempt.pointId;
 
@@ -177,8 +183,14 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                                             <div className="flex items-start justify-between gap-2">
                                                                   <p className={`text-sm font-bold truncate ${isUnknown ? 'text-slate-500 italic' : 'text-navy-600'}`}>
                                                                         {userName}
-                                                                        {isUnknown && <span className="ml-1 text-[10px] font-normal text-slate-400">(Não cadastrado)</span>}
+                                                                        {quem.etiqueta && <span className="ml-1 text-[10px] font-normal text-slate-400">({quem.etiqueta})</span>}
                                                                   </p>
+                                                                  {/* A matrícula desce para informação
+                                                                      SECUNDÁRIA — presente para quem
+                                                                      precisa dela, nunca no lugar do nome. */}
+                                                                  {quem.matricula && (
+                                                                        <p className="text-[10px] font-mono text-slate-400 leading-tight">{quem.matricula}</p>
+                                                                  )}
                                                                   <span className="text-[10px] font-mono font-medium text-slate-400 flex-shrink-0">
                                                                         {formatTimeOnly(attempt.timestamp)}
                                                                   </span>

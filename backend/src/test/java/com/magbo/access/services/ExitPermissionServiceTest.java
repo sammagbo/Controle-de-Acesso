@@ -373,8 +373,95 @@ class ExitPermissionServiceTest {
                 .userId(USER)
                 .permissionType(tipo)
                 .status(ExitPermissionStatus.ACTIVE)
-                .reason("Teste")
+                .authorizedByFamily("Teste")
                 .createdBy("fixture")
                 .build();
+    }
+
+    // ───────────────── Duas autoridades (V012) ─────────────────
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("★ duas autoridades: familia e escola")
+    class DuasAutoridades {
+
+        private com.magbo.access.dto.ExitPermissionRequest pedido(String familia, String escola) {
+            com.magbo.access.dto.ExitPermissionRequest r = new com.magbo.access.dto.ExitPermissionRequest();
+            r.setUserId(USER);
+            r.setPermissionType(ExitPermissionType.SINGLE);
+            r.setAuthorizedByFamily(familia);
+            r.setAuthorizedBySchool(escola);
+            return r;
+        }
+
+        private void alunoExiste() {
+            when(userRepository.existsById(USER)).thenReturn(true);
+            when(permissionRepository.save(org.mockito.ArgumentMatchers.any(StudentExitPermission.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+        }
+
+        @Test
+        @DisplayName("★ so a FAMILIA basta")
+        void soFamilia() {
+            alunoExiste();
+            StudentExitPermission p = service.create(pedido("Mme Goncalves", null), "operador");
+            assertThat(p.getAuthorizedByFamily()).isEqualTo("Mme Goncalves");
+            assertThat(p.getAuthorizedBySchool()).isNull();
+        }
+
+        @Test
+        @DisplayName("★ so a ESCOLA basta")
+        void soEscola() {
+            alunoExiste();
+            StudentExitPermission p = service.create(pedido(null, "Sam MAGBO"), "operador");
+            assertThat(p.getAuthorizedBySchool()).isEqualTo("Sam MAGBO");
+            assertThat(p.getAuthorizedByFamily()).isNull();
+        }
+
+        @Test
+        @DisplayName("★★ NENHUMA das duas e recusado")
+        void nenhumaEhRecusado() {
+            when(userRepository.existsById(USER)).thenReturn(true);
+
+            org.assertj.core.api.Assertions
+                    .assertThatThrownBy(() -> service.create(pedido(null, null), "operador"))
+                    .as("uma crianca autorizada a sair sem ninguem ter autorizado")
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("família");
+
+            org.mockito.Mockito.verify(permissionRepository, org.mockito.Mockito.never())
+                    .save(org.mockito.ArgumentMatchers.any());
+        }
+
+        @Test
+        @DisplayName("★ campo so com espacos nao conta como autoridade")
+        void soEspacosNaoConta() {
+            when(userRepository.existsById(USER)).thenReturn(true);
+
+            org.assertj.core.api.Assertions
+                    .assertThatThrownBy(() -> service.create(pedido("   ", ""), "operador"))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("★ espacos aparados; branco vira NULL e nao string vazia")
+        void aparaEspacos() {
+            alunoExiste();
+            StudentExitPermission p = service.create(pedido("  Mme Goncalves  ", "   "), "operador");
+            assertThat(p.getAuthorizedByFamily()).isEqualTo("Mme Goncalves");
+            assertThat(p.getAuthorizedBySchool())
+                    .as("string vazia faria a coluna parecer preenchida em todo IS NOT NULL")
+                    .isNull();
+        }
+
+        @Test
+        @DisplayName("★ createdBy continua sendo quem DIGITOU, nao quem autorizou")
+        void createdByNaoEhAutoridade() {
+            alunoExiste();
+            StudentExitPermission p = service.create(pedido(null, "CPE Martin"), "secretaria");
+            assertThat(p.getCreatedBy())
+                    .as("a CPE autoriza de viva voz e a secretaria registra")
+                    .isEqualTo("secretaria");
+            assertThat(p.getAuthorizedBySchool()).isEqualTo("CPE Martin");
+        }
     }
 }

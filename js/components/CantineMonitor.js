@@ -118,7 +118,11 @@ function CantineMonitor() {
             } ${dim ? 'opacity-30' : 'opacity-100'} transition-opacity`}>
                 <img src={(user && user.foto_url) || DEFAULT_AVATAR} alt="" className="w-12 h-12 rounded-xl shadow flex-shrink-0" onError={handleImgError} />
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-navy-500 truncate">{(user && user.nome) || ev.userId}</p>
+                    {/* Nome, nunca a matrícula sozinha — o operador da cantina
+                        precisa saber QUEM está na fila, e 0003535 não diz. */}
+                    <p className="text-sm font-black text-navy-500 truncate">
+                        {window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome}
+                    </p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {user && user.turma && (
                             <span className="text-xs font-bold text-slate-500 bg-soft-100 px-1.5 py-0.5 rounded">{user.turma}</span>
@@ -186,14 +190,14 @@ function CantineMonitor() {
                             type="text"
                             value={query}
                             onChange={e => setQuery(e.target.value)}
-                            placeholder="Rechercher un élève (nom, classe ou ID)..."
+                            placeholder="Rechercher une personne (nom, classe ou ID)..."
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300"
                         />
                     </div>
                     {query.trim() && (
                         <p className="text-xs font-semibold mt-2 px-1 text-slate-500">
                             {foundColumn === 'introuvable'
-                                ? "Aucun élève trouvé"
+                                ? "Aucune personne trouvée"
                                 : <>Trouvé dans : <span className="text-accent-600">{foundColumn}</span></>}
                         </p>
                     )}

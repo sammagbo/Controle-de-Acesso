@@ -110,6 +110,9 @@ function CdiSettingsModal({ open, onClose, onImport, onRestore, onExport, count,
                                     }} className="hidden" />
                               </div>
                               <textarea value={text} onChange={e => setText(e.target.value)} className="w-full h-20 p-2 border rounded font-mono text-sm" placeholder={"ID,Nom,Classe\n2024001,Dupont Marie,2nde A"} />
+                              {/* Os três são obrigatórios e a leitura é POSICIONAL —
+                                  a linha com menos de 3 campos é ignorada em silêncio. */}
+                              <ImportColumnList doc={window.MagboImportColumns.CSV_CDI} />
                               <button onClick={() => { const d = parse(); if (d.length) { onImport(d); setText(''); alert(`${d.length} élèves importés!`); onClose(); } else { alert('Aucun élève détecté. Vérifiez le format: ID, Nom, Classe'); } }} className="mt-2 px-4 py-2 bg-blue-600 text-white rounded text-sm w-full">Importer {text ? `(${parse().length} élèves)` : ''}</button>
                         </div>
                         <div className="py-3 border-b">

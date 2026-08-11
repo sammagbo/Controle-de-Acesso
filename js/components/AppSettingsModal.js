@@ -299,13 +299,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
         <div className="space-y-6 animate-fade-in">
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
                 <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Cadastro via Excel</h3>
-                <p className="text-sm text-slate-500 mb-6">
+                <div className="text-sm text-slate-500 mb-6">
                     Envie planilha <strong>.xlsx</strong> com as colunas:
-                    <br/>
-                    <code className="text-xs bg-soft-100 px-2 py-1 rounded">ID, Nome, Tipo, Turma, ResponsavelId, Parentesco, Telefone, Foto</code>
-                    <br/>
-                    <span className="text-xs">Use o template oficial. Tipos aceitos: ALUNO, PROFESSOR, FUNCIONARIO, RESPONSAVEL (sempre maiúsculas).</span>
-                </p>
+                    <ImportColumnList doc={window.MagboImportColumns.ALUNOS} />
+                    <p className="text-xs mt-2">Use o template oficial. Tipos aceitos: ALUNO, PROFESSOR, FUNCIONARIO, RESPONSAVEL (sempre maiúsculas).</p>
+                </div>
 
                 <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
                     <input
@@ -789,11 +787,10 @@ function AppSettingsModal({ onClose, onShowToast }) {
             <div className="space-y-4 animate-fade-in">
                 <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
                     <h3 className="text-lg font-bold text-navy-500 mb-1">Fotos de identificação</h3>
-                    <p className="text-xs text-slate-500">
-                        Cada arquivo precisa se chamar como a <strong>matrícula</strong> (0004048.jpg)
-                        ou como o <strong>identificador Hikvision</strong> (1234567890.jpg). Os zeros à
-                        esquerda contam. JPEG, PNG ou WebP.
-                    </p>
+                    <div className="text-xs text-slate-500">
+                        Não há planilha aqui — o que precisa estar certo é o arquivo:
+                        <ImportColumnList doc={window.MagboImportColumns.FOTOS} />
+                    </div>
                     <p className="text-xs text-slate-500 mt-2">
                         <strong>Nada é gravado antes de você confirmar.</strong> A simulação mostra,
                         arquivo por arquivo, o que aconteceria — inclusive os que não acharem dono.
@@ -1253,11 +1250,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
             <div className="space-y-6 animate-fade-in">
                 <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
                     <h3 className="text-lg font-bold text-navy-500 mb-2">Importar do HikCentral</h3>
-                    <p className="text-sm text-slate-500 mb-4">
+                    <div className="text-sm text-slate-500 mb-4">
                         Export <strong>Renseignements personnels</strong> (.xlsx), com o cabeçalho na
                         linha 9. As colunas são lidas pelo nome:
-                        <code className="text-xs bg-soft-100 px-2 py-1 rounded ml-1">ID, Prénom, Nom de famille, Service</code>
-                    </p>
+                        <ImportColumnList doc={window.MagboImportColumns.HIKCENTRAL} />
+                    </div>
                     <ul className="text-xs text-slate-500 space-y-1 mb-6 list-disc pl-5">
                         <li><strong>Alunos já cadastrados</strong> apenas recebem o identificador
                             Hikvision e o departamento — nome e turma continuam vindo do Pronote.</li>
@@ -1421,22 +1418,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
         <div className="space-y-6 animate-fade-in">
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
                 <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Servidores via Excel</h3>
-                <p className="text-sm text-slate-500 mb-6">
+                <div className="text-sm text-slate-500 mb-6">
                     Planilha <strong>.xlsx</strong> com as colunas:
-                    <br />
-                    <code className="text-xs bg-soft-100 px-2 py-1 rounded">nome, hikvision_employee_id, tipo, departamento, matricula</code>
-                    <br />
-                    <span className="text-xs">
-                        <strong>nome</strong> é obrigatório · <strong>matricula</strong> em branco recebe a próxima
-                        FUNC-### · <strong>tipo</strong> aceita PROFESSOR ou FUNCIONARIO (em branco assume
-                        FUNCIONARIO) · <strong>departamento</strong> é texto livre (Vie Scolaire, Serviços Gerais,
-                        Administração, Direção…).
-                    </span>
-                    <br />
-                    <span className="text-xs text-slate-400">
+                    <ImportColumnList doc={window.MagboImportColumns.SERVIDORES} />
+                    <p className="text-xs text-slate-400 mt-2">
                         Alunos não entram por aqui — continuam vindo da importação Pronote.
-                    </span>
-                </p>
+                    </p>
+                </div>
 
                 <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
                     <input

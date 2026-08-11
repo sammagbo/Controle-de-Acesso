@@ -131,7 +131,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   const time = new Date(safeDateParse(log.timestamp));
                   const formattedTime = formatTime(time);
                   const user = (window.userCache?.byId(log.userId)) || null;
-                  const userName = user ? (user.nome || 'Desconhecido') : (log.userId || 'Desconhecido');
+                  const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
                   const point = ACCESS_POINTS.find(p => p.id === log.pointId);
                   const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
                   const action = log.status || log.action || 'N/A';
@@ -187,7 +187,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         const time = new Date(safeDateParse(log.timestamp));
                         const formattedTime = formatTime(time);
                         const user = (window.userCache?.byId(log.userId)) || null;
-                        const userName = user ? (user.nome || 'Desconhecido') : (log.userId || 'Desconhecido');
+                        const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
                         const point = ACCESS_POINTS.find(p => p.id === log.pointId);
                         const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
                         const action = log.status || log.action || 'N/A';
@@ -217,9 +217,12 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
       };
 
       // ── Resolve display helpers ──
+      // Nome, nunca a matrícula sozinha: era `log.userId || '—'`, e a lista de
+      // últimos acessos mostrava 0003535 quando o cache ainda não tinha chegado.
       const resolveUserName = (log) => {
             const user = (window.userCache?.byId(log.userId)) || null;
-            return user ? (user.nome || 'Sem nome') : (log.userId || '—');
+            return window.MagboIdentity.resolver(
+                  { pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
       };
 
       const resolvePointName = (log) => {
@@ -431,7 +434,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <div>
                                                 <h3 className="text-base font-bold text-navy-500">Rapport Général</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Vue consolidée — KPIs, par élève, journal
+                                                      Vue consolidée — KPIs, par personne, journal
                                                 </p>
                                           </div>
                                     </div>

@@ -136,8 +136,13 @@ function JournalTab({ active = true }) {
         const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const rows = filtered.map(l => {
             const u = window.userCache?.byId(l.userId);
+            // A coluna Nom vinha VAZIA quando o cache não tinha a pessoa, e o
+            // CSV é a cópia que circula por e-mail: quem recebia via só a
+            // matrícula na coluna ID e nada na que deveria dizer quem é.
+            const quem = window.MagboIdentity.resolver(
+                { pessoa: u, userId: l.userId }, { lang: 'fr' });
             return [
-                esc(fmtDateTime(l.timestamp)), esc(l.userId), esc(u?.nome || ''),
+                esc(fmtDateTime(l.timestamp)), esc(quem.matricula || l.userId), esc(quem.nome),
                 esc(u?.turma || u?.departamento || ''), esc(pointName(l.pointId)), esc(l.action),
                 esc(l.flag || '')
             ].join(',');
@@ -217,7 +222,7 @@ function JournalTab({ active = true }) {
                     />
                 </div>
                 <div className="flex-1 min-w-[160px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Élève</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Personne</label>
                     <input
                         type="text"
                         value={aluno}
@@ -259,7 +264,10 @@ function JournalTab({ active = true }) {
                                         <LucideIcon name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={12} />
                                     </button>
                                 </th>
-                                <th className="px-4 py-2">Élève</th>
+                                {/* "Personne" e não "Élève": o filtro Type ao lado
+                                    oferece Professeurs e Personnel, então esta
+                                    lista contém servidores por construção. */}
+                                <th className="px-4 py-2">Personne</th>
                                 <th className="px-4 py-2">Classe</th>
                                 <th className="px-4 py-2">Zone</th>
                                 <th className="px-4 py-2">Action</th>
@@ -275,6 +283,14 @@ function JournalTab({ active = true }) {
                             )}
                             {pageRows.map((l, i) => {
                                 const u = window.userCache?.byId(l.userId);
+                                // ⚠️ NUNCA a matrícula sozinha no lugar do nome.
+                                // Era `{u?.nome || l.userId}`: com o cache ainda
+                                // carregando, a coluna inteira virava 0003535 — e
+                                // quem lê o Journal está justamente tentando saber
+                                // QUEM passou. Agora vem a palavra, com o número
+                                // ao lado como apoio.
+                                const quem = window.MagboIdentity.resolver(
+                                    { pessoa: u, userId: l.userId }, { lang: 'fr' });
                                 const isEntrada = l.action === 'ENTRADA';
                                 return (
                                     <tr key={l.id || i} className="border-b border-soft-50 hover:bg-soft-50/50 transition-colors">
@@ -284,9 +300,18 @@ function JournalTab({ active = true }) {
                                                 {/* Retrato pequeno: no Journal o operador está
                                                     conferindo QUEM passou, e o nome sozinho não
                                                     distingue dois homônimos de turmas diferentes. */}
-                                                <PersonPhoto userId={l.userId} nome={u?.nome || l.userId} fotoUrl={u?.foto_url}
+                                                <PersonPhoto userId={l.userId} nome={quem.nome} fotoUrl={u?.foto_url}
                                                     className="w-7 h-7 rounded-full object-cover bg-soft-100 shrink-0" />
-                                                <span className="truncate">{u?.nome || l.userId}</span>
+                                                <span className="min-w-0">
+                                                    <span className={`block truncate ${quem.reconhecido ? '' : 'italic text-slate-500'}`}>
+                                                        {quem.nome}
+                                                    </span>
+                                                    {quem.matricula && (
+                                                        <span className="block text-[10px] font-normal font-mono text-slate-400">
+                                                            {quem.matricula}
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </span>
                                         </td>
                                         {/* Servidor não tem turma: cai para o
@@ -746,13 +771,19 @@ function OverviewTab() {
             const lastLog = Array.isArray(lastLogArr) && lastLogArr.length > 0 ? lastLogArr[0] : null;
             setLastEvent(lastLog && lastLog.timestamp ? fmtHHmm(new Date(lastLog.timestamp)) : null);
             // ── Construir lista de alertas client-side ──────────────────
+            // O nome de quem está no alerta: era `v.nome || v.userId`, e um
+            // alerta que diz "0003535 está há 50 min na enfermaria" obriga
+            // quem lê a ir procurar de quem se trata — justamente quando o
+            // alerta existe para alguém agir depressa.
+            const quemE = (r) => window.MagboIdentity.resolver(
+                { userId: r.userId, nome: r.nome }, { lang: 'fr' }).nome;
             const alerts = [];
             (Array.isArray(visits) ? visits : []).forEach(v => {
                 if (!v.exitRegistered) {
                     alerts.push({
                         severite: 'critique',
                         type: 'Sans sortie (infirmerie)',
-                        nome: v.nome || v.userId,
+                        nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
                         detail: 'Pas de sortie enregistrée',
@@ -761,7 +792,7 @@ function OverviewTab() {
                     alerts.push({
                         severite: 'critique',
                         type: 'Séjour prolongé',
-                        nome: v.nome || v.userId,
+                        nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
                         detail: v.durationMinutes + ' min',
@@ -770,7 +801,7 @@ function OverviewTab() {
                     alerts.push({
                         severite: 'attention',
                         type: 'Séjour prolongé',
-                        nome: v.nome || v.userId,
+                        nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
                         detail: v.durationMinutes + ' min',
@@ -782,7 +813,7 @@ function OverviewTab() {
                     alerts.push({
                         severite: 'attention',
                         type: 'Sans sortie (cantine)',
-                        nome: m.nome || m.userId,
+                        nome: quemE(m),
                         turma: m.turma || '—',
                         heure: m.entryTime || '—',
                         detail: 'Pas de sortie enregistrée',
@@ -791,7 +822,7 @@ function OverviewTab() {
                     alerts.push({
                         severite: 'info',
                         type: 'Repas hors horaire',
-                        nome: m.nome || m.userId,
+                        nome: quemE(m),
                         turma: m.turma || '—',
                         heure: m.entryTime || '—',
                         detail: 'Hors créneau',
@@ -1353,7 +1384,11 @@ function GeneralReport({ onBack }) {
             {/* ── Tab Bar ── */}
             <div className="flex flex-wrap gap-2 mb-6">
                 {tabBtn('overview', "Vue d'ensemble", 'bar-chart-3')}
-                {tabBtn('student', 'Par élève', 'user-search')}
+                {/* "Par personne" e não "Par élève": a busca usa
+                    userCache.search, que devolve TODO o cadastro — professor e
+                    personnel inclusive. Só a tela de Sorties filtra para aluno
+                    (MagboExitPermission.apenasAlunos), e esta não. */}
+                {tabBtn('student', 'Par personne', 'user-search')}
                 {tabBtn('journal', 'Journal', 'list')}
             </div>
 

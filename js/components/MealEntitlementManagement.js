@@ -247,7 +247,13 @@ function MealEntitlementManagement() {
                                                 <tbody>
                                                       {window.MagboMealSheet.documentacaoDeColunas().map(c => (
                                                             <tr key={c.campo} className="border-t border-soft-200">
-                                                                  <td className="py-1.5 pr-3 font-bold text-navy-500 whitespace-nowrap">{c.campo}</td>
+                                                                  {/* O PESO DA FONTE É A INFORMAÇÃO: obrigatória
+                                                                em negrito e escura, opcional em peso normal.
+                                                                Antes as duas vinham em negrito e só a coluna
+                                                                ao lado as separava. */}
+                                                            <td className={`py-1.5 pr-3 whitespace-nowrap ${c.obrigatorio
+                                                                  ? 'font-bold text-navy-500'
+                                                                  : 'font-normal text-slate-500'}`}>{c.campo}</td>
                                                                   <td className="py-1.5 pr-3">
                                                                         {c.obrigatorio
                                                                               ? <span className="text-danger-700 font-bold">sim</span>

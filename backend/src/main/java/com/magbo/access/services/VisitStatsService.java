@@ -120,6 +120,34 @@ public class VisitStatsService {
      * visita com a saída de outra e produziria durações absurdas — inclusive
      * negativas, que foi o que apareceu nos relatórios.
      */
+    /**
+     * ENTRADAs de REPETICAO nao abrem visita — auditoria de 10/08/2026.
+     *
+     * As flags POSTO_FIXO e JA_PRESENTE foram ligadas as consultas e as telas,
+     * mas o PAREAMENTO ficou de fora: cada ENTRADA marcada virava uma "visita
+     * aberta" fantasma na pilha, e a fechada media do reconhecimento repetido
+     * ate a saida, nao da entrada real. Medido com o incidente do aluno
+     * 0003053 (E12:49 · E12:51 JP · E12:54 JP · S13:10): o card do CDI dizia
+     * 4 visitas com media de 16 min onde a verdade e 1 visita de 21 (+1 aberta).
+     *
+     * ⚠️ ASSIMETRICO como as consultas: pula ENTRADA marcada, NUNCA uma SAIDA.
+     * A saida marcada (a do posto fixo, p.ex.) continua FECHANDO a visita —
+     * esconde-la reabriria o defeito de ocupacao de 10/08 dentro do pareador.
+     *
+     * Espelha AccessLogRepository.REPETICOES via as constantes dos services —
+     * uma flag nova de repeticao exige entrar aqui tambem, e o teste de guarda
+     * do repositorio nao alcanca este Set (e Java, nao @Query).
+     */
+    private static final Set<String> FLAGS_DE_REPETICAO = Set.of(
+            PostoFixoService.FLAG_POSTO_FIXO,
+            PresencaAbertaService.FLAG_JA_PRESENTE);
+
+    private static boolean entradaDeRepeticao(AccessLog log) {
+        return log.getAction() == AccessAction.ENTRADA
+                && log.getFlag() != null
+                && FLAGS_DE_REPETICAO.contains(log.getFlag());
+    }
+
     public List<Visit> visits(List<String> pointIds, LocalDateTime from, LocalDateTime to,
                               boolean incluirFuncionarios) {
         if (pointIds == null || pointIds.isEmpty()) return List.of();
@@ -147,6 +175,11 @@ public class VisitStatsService {
 
             AccessLog entradaAberta = null;
             for (AccessLog e : eventos) {
+                // Repeticao marcada nao abre visita — a pessoa ja esta dentro
+                // (JA_PRESENTE) ou trabalha ali (POSTO_FIXO). Pular ANTES do
+                // ramo de ENTRADA e o que impede a visita fantasma; a SAIDA
+                // nunca e pulada (assimetria — ver o comentario do Set).
+                if (entradaDeRepeticao(e)) continue;
                 if (e.getAction() == AccessAction.ENTRADA) {
                     // Duas ENTRADAs seguidas: a anterior ficou sem saída.
                     if (entradaAberta != null) {

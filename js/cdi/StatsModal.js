@@ -2,17 +2,34 @@
 // CDI Stats Dashboard Modal
 // =====================================================================
 
+// Ordem de desenho dos dois gráficos, FORA do componente: a geometria das
+// barras é memoizada e um objeto recriado a cada render invalidaria o memo
+// toda vez. Também é a ordem literal — não se confia em Object.keys, que para
+// chaves numéricas não devolve a ordem de inserção.
+const CDI_DIAS = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven' };
+const CDI_CHAVES_DIA = ['1', '2', '3', '4', '5'];
+const CDI_HORAS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+
+// Alturas máximas em pixels, medidas contra os contêineres.
+// Tela  (h-28 = 112px): rótulo do valor ~20px + barra + nome do dia ~20px.
+// Horas (h-28 = 112px): sem rótulo de valor em cima, sobra mais para a barra.
+// Print (h-40 = 160px): rótulos maiores.
+const ALTURA_BARRA_DIA = 72;
+const ALTURA_BARRA_HORA = 88;
+const ALTURA_BARRA_IMPRESSAO = 112;
+
 function CdiStatsModal({ open, onClose, logs, students }) {
       const [timeRange, setTimeRange] = React.useState('week');
       const [showReport, setShowReport] = React.useState(false);
 
-      const filteredLogs = React.useMemo(() => {
-            const now = new Date();
-            const cutoff = timeRange === 'week'
-                  ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-                  : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            return logs.filter(l => l.timestamp >= cutoff.getTime());
-      }, [logs, timeRange]);
+      // A janela de cada período vive em js/utils/reportFilters.js, com teste.
+      // "Aujourd'hui" é DIA DE CALENDÁRIO (meia-noite a meia-noite); semana e
+      // mês continuam sendo as janelas móveis de 7 e 30 dias que sempre foram
+      // — mudá-las alteraria em silêncio números que já são comparados de uma
+      // semana para a outra.
+      const filteredLogs = React.useMemo(
+            () => window.MagboReport.filterLogsByPeriod(logs, timeRange),
+            [logs, timeRange]);
 
       const hourCounts = React.useMemo(() => {
             const counts = {};
@@ -22,7 +39,6 @@ function CdiStatsModal({ open, onClose, logs, students }) {
             });
             return counts;
       }, [filteredLogs]);
-      const maxHour = Math.max(...Object.values(hourCounts), 1);
 
       const dayCounts = React.useMemo(() => {
             const days = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -32,8 +48,30 @@ function CdiStatsModal({ open, onClose, logs, students }) {
             });
             return days;
       }, [filteredLogs]);
-      const maxDay = Math.max(...Object.values(dayCounts), 1);
-      const dayNames = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven' };
+      const dayNames = CDI_DIAS;
+
+      // GEOMETRIA DAS BARRAS — em pixels, calculada em js/utils/barChart.js.
+      //
+      // Antes era `height: ${valor / max * 80}%` no style. A conta estava
+      // certa e a barra saía errada: porcentagem de altura só resolve contra um
+      // pai de altura DEFINIDA, e o `items-end` do contêiner não estica a
+      // coluna — a altura dela é `auto`, a porcentagem virava `auto`, a barra
+      // colapsava e o `min-height` assumia. TODAS saíam do mesmo tamanho: 86 e
+      // 2 iguais no gráfico por dia, e todas idênticas no de horas.
+      const barrasDia = React.useMemo(
+            () => window.MagboBarChart.series(dayCounts, CDI_CHAVES_DIA,
+                  { alturaMaxima: ALTURA_BARRA_DIA }),
+            [dayCounts]);
+
+      const barrasHora = React.useMemo(
+            () => window.MagboBarChart.series(hourCounts, CDI_HORAS,
+                  { alturaMaxima: ALTURA_BARRA_HORA }),
+            [hourCounts]);
+
+      const barrasDiaImpressao = React.useMemo(
+            () => window.MagboBarChart.series(dayCounts, CDI_CHAVES_DIA,
+                  { alturaMaxima: ALTURA_BARRA_IMPRESSAO }),
+            [dayCounts]);
 
       const classDistribution = React.useMemo(() => {
             const counts = {};
@@ -104,7 +142,7 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                         <div className="max-w-3xl mx-auto">
                               <header className="text-center border-b-2 pb-4 mb-6">
                                     <h1 className="text-2xl font-bold">CDI - Rapport de Fréquentation</h1>
-                                    <p className="text-gray-600">{timeRange === 'week' ? 'Rapport Hebdomadaire' : 'Rapport Mensuel'}</p>
+                                    <p className="text-gray-600">{window.MagboReport.periodLabel(timeRange)}</p>
                                     <p className="text-sm text-gray-500">Généré le {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                               </header>
                               <section className="mb-6">
@@ -125,11 +163,11 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                               <section className="mb-6">
                                     <h2 className="font-bold text-lg border-b pb-2 mb-3">Fréquentation par Jour</h2>
                                     <div className="flex items-end gap-4 h-40 border-b pb-2 mb-4">
-                                          {Object.entries(dayNames).map(([d, name]) => (
-                                                <div key={d} className="flex-1 flex flex-col items-center">
-                                                      <div className="text-xs font-bold text-slate-600 mb-1">{dayCounts[d] || 0}</div>
-                                                      <div className="w-full bg-edu-blue rounded-t border border-blue-700" style={{ height: `${(dayCounts[d] || 0) / maxDay * 100}%`, minHeight: '2px', backgroundColor: '#0055FF' }}></div>
-                                                      <span className="text-sm text-slate-800 mt-1 font-medium">{name}</span>
+                                          {barrasDiaImpressao.map(b => (
+                                                <div key={b.chave} className="flex-1 flex flex-col items-center">
+                                                      <div className="text-xs font-bold text-slate-600 mb-1">{b.valor}</div>
+                                                      <div className="w-full bg-edu-blue rounded-t border border-blue-700" style={{ height: `${b.altura}px`, backgroundColor: '#0055FF', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}></div>
+                                                      <span className="text-sm text-slate-800 mt-1 font-medium">{dayNames[b.chave]}</span>
                                                 </div>
                                           ))}
                                     </div>
@@ -168,6 +206,7 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                               <button onClick={onClose}><CdiIcon name="x" size={24} /></button>
                         </div>
                         <div className="flex gap-2 mb-6">
+                              <button onClick={() => setTimeRange('today')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${timeRange === 'today' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Aujourd'hui</button>
                               <button onClick={() => setTimeRange('week')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${timeRange === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Cette Semaine</button>
                               <button onClick={() => setTimeRange('month')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${timeRange === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Ce Mois</button>
                         </div>
@@ -212,23 +251,29 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                           <div className="bg-slate-50 rounded-xl p-4">
                                                 <h3 className="font-semibold mb-3 text-sm">Fréquentation par Jour</h3>
-                                                <div className="flex items-end gap-2 h-28">
-                                                      {Object.entries(dayNames).map(([d, name]) => (
-                                                            <div key={d} className="flex-1 flex flex-col items-center">
-                                                                  <div className="text-xs font-medium text-slate-600 mb-1">{dayCounts[d] || 0}</div>
-                                                                  <div className="w-full rounded-t transition-all" style={{ height: `${(dayCounts[d] || 0) / maxDay * 80}%`, minHeight: dayCounts[d] ? '8px' : '2px', opacity: dayCounts[d] ? 1 : 0.2, backgroundColor: '#0055FF' }}></div>
-                                                                  <span className="text-xs text-slate-500 mt-1">{name}</span>
+                                                <div className="flex items-end gap-2 h-28 border-b border-slate-200">
+                                                      {barrasDia.map(b => (
+                                                            <div key={b.chave} className="flex-1 flex flex-col items-center">
+                                                                  <div className="text-xs font-medium text-slate-600 mb-1">{b.valor}</div>
+                                                                  {/* Altura 0 quando o valor é 0: barra ausente significa
+                                                                      zero, e nada mais — é a garantia que o piso de
+                                                                      MINIMO_VISIVEL existe para não estragar. */}
+                                                                  <div className="w-full rounded-t transition-all" title={`${dayNames[b.chave]} : ${b.valor}`} style={{ height: `${b.altura}px`, backgroundColor: '#0055FF' }}></div>
+                                                                  <span className="text-xs text-slate-500 mt-1">{dayNames[b.chave]}</span>
                                                             </div>
                                                       ))}
                                                 </div>
                                           </div>
                                           <div className="bg-slate-50 rounded-xl p-4">
                                                 <h3 className="font-semibold mb-3 text-sm">Affluence par Heure</h3>
-                                                <div className="flex items-end gap-1 h-28">
-                                                      {Array.from({ length: 10 }, (_, i) => i + 8).map(h => (
-                                                            <div key={h} className="flex-1 flex flex-col items-center">
-                                                                  <div className="w-full bg-green-500 rounded-t transition-all" style={{ height: `${(hourCounts[h] || 0) / maxHour * 80}%`, minHeight: hourCounts[h] ? '4px' : '2px', opacity: hourCounts[h] ? 1 : 0.2 }}></div>
-                                                                  <span className="text-xs text-slate-400 mt-1">{h}h</span>
+                                                <div className="flex items-end gap-1 h-28 border-b border-slate-200">
+                                                      {barrasHora.map(b => (
+                                                            <div key={b.chave} className="flex-1 flex flex-col items-center">
+                                                                  {/* Este gráfico não imprime o número acima da barra —
+                                                                      daí o title: passar o mouse é a única forma de ler
+                                                                      o valor exato de uma hora. */}
+                                                                  <div className="w-full bg-green-500 rounded-t transition-all" title={`${b.chave}h : ${b.valor}`} style={{ height: `${b.altura}px` }}></div>
+                                                                  <span className="text-xs text-slate-400 mt-1">{b.chave}h</span>
                                                             </div>
                                                       ))}
                                                 </div>

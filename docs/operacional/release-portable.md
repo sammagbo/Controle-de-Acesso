@@ -9,6 +9,38 @@ decisão e execução do Sam.
 
 ---
 
+> # ⛔ NÃO DISTRIBUA O QUE ESTÁ EM `dist/` HOJE
+>
+> **Estado em 11/08/2026:** o `dist/win-unpacked/resources/app.asar` foi
+> construído em **06/08/2026** e a `main` recebeu **20 merges** desde então. O
+> pacote **não contém** posto fixo, fotos de identificação, `JA_PRESENTE`, o
+> casamento por matrícula das câmeras, nem o atalho das Sorties para o
+> operador — e **não contém** os módulos `js/utils/postoFixo.js`,
+> `js/utils/photoCache.js` e `js/components/PersonPhoto.js`.
+>
+> **Reverificar antes de qualquer publicação:**
+> ```bash
+> ls -l dist/win-unpacked/resources/app.asar          # data do artefato
+> git log --oneline --merges --since="<essa data>" | wc -l   # merges depois dela
+> npx @electron/asar list dist/win-unpacked/resources/app.asar | grep -c postoFixo
+> ```
+> Se a contagem de merges for > 0, ou o `grep` devolver 0, **rebuild antes de
+> distribuir** (`npm run dist` e depois `npm run verify:package`).
+>
+> ⚠️ **`npm run verify:package` passando NÃO garante que o pacote está
+> atualizado.** Ele responde duas perguntas — "vazou algo interno?" e "os
+> obrigatórios estão presentes?" — e a lista de obrigatórios é **estática**
+> (`scripts/verify-package.js`), escrita antes destes módulos existirem. Um
+> pacote velho, ou um build novo que perdesse `postoFixo.js`/`photoCache.js`/
+> `PersonPhoto.js`, **passa no portão**. É a mesma classe de acidente das tags
+> perdidas no `index.html`, que já mordeu duas vezes.
+>
+> **Melhoria sugerida (não feita):** derivar a lista de `js/` obrigatórios do
+> próprio `index.html`, que o `tests/wiring.test.js` já garante completo, em vez
+> de manter uma segunda lista à mão.
+
+---
+
 ## 1. O que mudou no empacotamento (v2.0.0 → v2.1.0)
 
 A v2.0.0 foi empacotada com uma **lista de exclusão** (`"**/*"` + `!alguns`).

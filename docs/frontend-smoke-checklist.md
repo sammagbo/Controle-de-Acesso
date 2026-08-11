@@ -32,8 +32,27 @@ Anotar: **data/hora**, versão do backend, e se o banco é o de produção ou um
 | 1.1 | Abrir o app | Tela de login, sem erro no console (F12) |
 | 1.2 | Usuário/senha errados | Mensagem de erro; **não** entra |
 | 1.3 | Login correto (admin) | Entra no Dashboard; nome do operador no cabeçalho |
-| 1.4 | F12 → Network | Nenhuma requisição a domínio externo (kiosk offline não pode depender de CDN) |
-| 1.5 | Recarregar (Ctrl+R) | Continua logado (token persistido) |
+| 1.4 | F12 → Network | Nenhuma requisição a domínio externo (as bibliotecas são locais — ver a nota de R1 no fim desta página) |
+| 1.5 | Recarregar (Ctrl+R) | ★ **Volta para a tela de login** — e isto é o comportamento CORRETO |
+
+> ★ **1.5 — o token NÃO sobrevive a um reload, por decisão de projeto.**
+> Até 11/08/2026 esta linha dizia "continua logado (token persistido)", e a
+> promessa era falsa desde sempre: `js/utils/auth.js` guarda o JWT em **memória**
+> (`let _token = null`), com o comentário "não localStorage por segurança em
+> Electron". Um F5 no kiosk exige login de novo — de propósito, para que uma
+> máquina deixada aberta não continue autenticada.
+>
+> A afirmação errada custou caro: numa passagem de aceitação, o passo 1.5
+> "falhou", o roteiro foi tratado como quebrado e metade do percurso foi
+> investigada à toa antes de alguém abrir o `auth.js`.
+>
+> **Reverificar em 10 segundos:**
+> ```bash
+> grep -n "_token" js/utils/auth.js          # let _token = null  → memória
+> git log -S "localStorage.setItem" -- js/utils/auth.js   # vazio = nunca persistiu
+> ```
+> Se um dia a decisão mudar, os dois comandos acima mudam junto — e aí esta
+> linha é que passa a estar errada.
 
 ---
 
@@ -419,9 +438,32 @@ escrito no `@Query`, não o que uma consulta nova faça em código Java.
 ## Encerramento
 
 ```
-mvn test    →  esperado: Tests run: 350, Failures: 0, Errors: 0, Skipped: 2
-npm test    →  esperado: Test Files 3 passed, Tests 58 passed
+mvn test    →  Tests run: N, Failures: 0, Errors: 0, Skipped: 2
+npm test    →  Tests: M passed
 ```
+
+**O que importa é `Failures: 0` e `Errors: 0`, não o valor de N e M.** Eles
+crescem a cada entrega, e um número fixo escrito aqui envelhece em dias — esta
+seção já disse "350 / 58" por duas gerações, o que é pior que não dizer nada:
+quem executa vê 603, acha que quebrou alguma coisa e vai investigar o nada.
+
+**Referência de quando esta página foi conferida:** `main` @ `8fef0f9`,
+11/08/2026 → **backend 603** (2 `@Disabled`) e **npm 279**.
+
+- Se o seu número for **maior**, é porque houve entrega com testes novos —
+  normal, siga.
+- Se for **menor**, alguém apagou teste: descubra qual antes de continuar.
+- `Skipped` tem de ser **exatamente 2** (as duas nativas PostgreSQL-only). Se
+  virar 3, alguém desligou um teste — a seção 6-bis explica por que isso é grave
+  neste projeto.
+
+⚠️ **Rode o backend do zero antes de acreditar no número:**
+```bash
+cd backend && rm -rf target && mvn -o test
+```
+`mvn test` incremental já deu **BUILD SUCCESS falso** quando só a assinatura de
+um construtor mudou (Lombok `@RequiredArgsConstructor` + `target/test-classes`
+obsoleto): três testes quebrados passaram despercebidos em 10/08/2026.
 
 ### Piso de visita curta — fonte única
 

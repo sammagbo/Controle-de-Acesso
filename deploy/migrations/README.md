@@ -27,7 +27,7 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V010. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V011. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -42,8 +42,8 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V006_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V007__app_users_departamento.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V008__app_users_camera_person_id.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V009__denial_reason_camera.sql
-docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010__app_users_posto_fixo.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -57,18 +57,14 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010_
 | `V007__app_users_departamento.sql` | `ALTER TABLE app_users ADD COLUMN departamento` (nullable) | Servidores |
 | `V008__app_users_camera_person_id.sql` | `ALTER TABLE app_users ADD COLUMN camera_person_id` (nullable, UNIQUE) | Câmeras da portaria |
 | `V009__denial_reason_camera.sql` | amplia o CHECK de `access_attempts.denial_reason` (`UNKNOWN_FACE`, `AMBIGUOUS_NAME`) | Câmeras da portaria |
+| `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 | `V011__user_photos.sql` | tabela `user_photos` (`bytea`) — fotos de identificação | Fotos |
-
-> ⚠️ **`V010` não está nesta lista de propósito:** ela vem da branch do *posto fixo*,
-> entregue em paralelo. Quando as duas forem integradas, aplicar **V010 antes de V011**
-> (a ordem numérica). Nenhuma das duas depende da outra — são tabelas/colunas distintas.
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —
 > ver o cabeçalho do arquivo). Isso é uma vantagem: elas entram no `pg_dump` como qualquer
 > coluna. Mas o rollback `R011` **apaga as imagens**, e restaurá-las exige o dump anterior
 > ou reimportar os arquivos de origem. Backup antes, sempre.
-| `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 
 ## 4. Procedimento completo na VM
 
@@ -160,3 +156,94 @@ comparando com o `\d` real quando o banco estiver de pé (idealmente no teste em
   auto-gerados pelo Hibernate 6 podem ter nomes diferentes, mas **os valores permitidos são os
   mesmos** (listam todos os constantes do enum). Como os CHECKs manuais nunca são **mais**
   restritivos que o enum, não há risco de rejeitar valor válido.
+
+---
+
+## 8. LIMITAÇÕES CONHECIDAS
+
+Três coisas medidas em PostgreSQL 16 local na auditoria de 10–11/08/2026
+(`docs/testing/auditoria-2026-08-10-overnight.md`, eixo 3). Nenhuma quebra a
+produção atual — todas mordem **na próxima instalação do zero**.
+
+### 8.1 As migrations NÃO são autossuficientes num banco vazio
+
+Aplicadas em ordem sobre um banco **vazio**, quatro delas falham:
+
+```
+V005__system_users_permissoes.sql   ERROR: relation "system_users" does not exist
+V007__app_users_departamento.sql    ERROR: relation "app_users"    does not exist
+V008__app_users_camera_person_id.sql ERROR: relation "app_users"   does not exist
+V010__app_users_posto_fixo.sql      ERROR: relation "app_users"    does not exist
+```
+
+Elas são `ALTER TABLE` sobre tabelas que **nunca são criadas por SQL neste
+diretório**: `app_users`, `system_users`, `access_logs`, `door_mappings`,
+`class_schedules` e `responsaveis` nasceram do `ddl-auto` do Hibernate, antes
+de este diretório existir. Só V001–V004, V006, V009 e V011 são autônomas.
+
+**Consequência prática:** `psql < V001..V011` **não** reconstrói o banco. Quem
+tentar montar um ambiente novo só com este diretório terá metade do schema.
+
+**Para reconstruir do zero, em ordem:**
+
+1. **Se houver dump da produção** (caminho preferido — é o que o
+   `deploy/backup.sh` produz):
+   `pg_restore -U magbo -d magbodb <dump>` e **pronto** — o dump já traz tudo,
+   as migrations não são necessárias.
+2. **Se não houver dump** (base nova, escola nova):
+   a. subir o backend com `ddl-auto=update` contra o banco vazio e **deixá-lo
+      criar o schema-base** (ele cria todas as tabelas e os CHECKs de enum);
+   b. derrubar o backend;
+   c. aplicar V001..V011 na ordem — aqui elas só **acrescentam** o que o
+      Hibernate não gera (índices da V006, CHECK de `source` da V003, o CHECK
+      ampliado da V009);
+   d. subir o backend de novo.
+
+**Reverificar:** criar um banco vazio e rodar as 11 na ordem; as quatro linhas
+de erro acima têm de aparecer. Se **não** aparecerem, alguém tornou as
+migrations autônomas — ótimo, e então esta seção é que está velha.
+
+### 8.2 Índice UNIQUE duplicado se as migrations rodarem DEPOIS do Hibernate
+
+No caminho 2 acima (Hibernate primeiro, migrations depois),
+`app_users.camera_person_id` termina com **dois** índices únicos:
+
+```
+uk_5iw58kgrgk932dsp7gkphkp8k        ← gerado pelo Hibernate (@Column(unique=true))
+app_users_camera_person_id_key      ← criado pela V008
+```
+
+O bloco `DO $$ … EXCEPTION WHEN duplicate_object` da V008 só engole a exceção
+de **um constraint com o mesmo nome** — ele não enxerga o índice do Hibernate,
+que tem nome gerado. **A produção está limpa** (só o da V008), o que indica que
+lá a V008 rodou antes do primeiro boot.
+
+**Efeito:** custo de escrita redundante em `app_users` e um índice a mais no
+`\d`. Sem risco funcional — os dois impõem a mesma regra.
+
+**Reverificar:** `\d app_users` e contar os índices únicos sobre
+`camera_person_id`. Se houver dois, remover o do Hibernate é seguro
+(`DROP INDEX uk_…`), mas é decisão do Sam: o `ddl-auto` pode recriá-lo no boot
+seguinte, e aí a limpeza precisa virar rotina, não gesto único.
+
+### 8.3 O PC de desenvolvimento roda SEM os índices da V006
+
+A seção 2 diz que o PC "não precisa destes SQLs" — verdade para o **schema**,
+mas não para os **índices**. Um PC que só usou `ddl-auto` não tem nenhum dos
+sete da V006:
+
+```
+idx_attempts_timestamp · idx_attempts_user_ts · idx_attempts_reason_ts
+idx_attempts_point_ts  · idx_ment_events_user_ts
+idx_exitperm_user_status · idx_exitperm_validity
+```
+
+**Efeito:** consultas de `access_attempts` (feeds de negadas, agregados do
+Rapport) fazem seq scan no PC e index scan na VM. Medições de desempenho feitas
+no PC **não representam** a VM — para pior, o que é o lado seguro do engano.
+Nenhum deles é sobre `access_logs` (deliberado: a tabela tem ~440 mil linhas e
+criar índice nela é operação à parte).
+
+**Reverificar no PC:** `\di idx_*` — se vier vazio, é este o caso.
+**Para igualar ao da VM:** aplicar só a V006 (`IF NOT EXISTS`, idempotente e
+segura de repetir).

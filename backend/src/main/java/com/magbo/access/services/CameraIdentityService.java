@@ -174,8 +174,15 @@ public class CameraIdentityService {
         }
 
         // ── 2. Nome, e so se for unico ──
-        String alvo = PersonNameMatcher.normalize(nome);
-        if (alvo == null) {
+        //
+        // O nome da camera chega com o acento TRANSLITERADO ("LABB'E" por
+        // "LABBÉ"), entao ele tem DUAS leituras possiveis e ambas sao
+        // comparadas — ver PersonNameMatcher.normalizeRecebido. Acrescentar a
+        // segunda leitura amplia o que casa, e NAO o que se aceita: a decisao
+        // continua exigindo casamento UNICO logo abaixo, e um nome que agora
+        // alcanca dois cadastros vira AMBIGUO, nao um chute.
+        List<String> alvos = PersonNameMatcher.normalizeRecebido(nome);
+        if (alvos.isEmpty()) {
             log.info("Camera: candidato sem nome utilizavel (biblioteca={}, similaridade={})",
                     biblioteca, similaridade);
             return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
@@ -188,11 +195,18 @@ public class CameraIdentityService {
         List<User> exatos = new ArrayList<>();
         List<User> prefixos = new ArrayList<>();
         for (User u : userRepository.findByAtivoTrue()) {
+            // ⚠️ normalize, e NAO normalizeRecebido: o cadastro nunca e
+            // decodificado. A assimetria com a linha do alvo, acima, e
+            // deliberada — o texto da camera e ambiguo e o do cadastro esta
+            // certo. Igualar os dois lados "por simetria" faria "N'Diaye"
+            // virar "ndiaye" e parar de casar com o "N Diaye" que a biblioteca
+            // facial manda. O porque completo esta no javadoc de
+            // PersonNameMatcher.matchesRecebido.
             String doCadastro = PersonNameMatcher.normalize(u.getNome());
             if (doCadastro == null) continue;
-            if (alvo.equals(doCadastro)) {
+            if (alvos.contains(doCadastro)) {
                 exatos.add(u);
-            } else if (PersonNameMatcher.isTruncatedPrefixNormalizado(alvo, doCadastro)) {
+            } else if (prefixoDeAlgumaLeitura(alvos, doCadastro)) {
                 prefixos.add(u);
             }
         }
@@ -231,9 +245,9 @@ public class CameraIdentityService {
             return new Identidade(Resultado.IDENTIFICADO, unico, nome, biblioteca, similaridade, documento);
         }
         if (prefixos.size() > 1) {
-            log.info("Camera: nome truncado ambiguo, {} cadastros ativos comecam por '{}' "
+            log.info("Camera: nome truncado ambiguo, {} cadastros ativos comecam por {} "
                             + "(recebido='{}', biblioteca={}, similaridade={}, ids={})",
-                    prefixos.size(), alvo, nome, biblioteca, similaridade,
+                    prefixos.size(), alvos, nome, biblioteca, similaridade,
                     prefixos.stream().map(User::getId).toList());
             return new Identidade(Resultado.AMBIGUO, null, nome, biblioteca, similaridade, documento);
         }
@@ -241,6 +255,21 @@ public class CameraIdentityService {
         log.info("Camera: nome nao encontrado no cadastro (nome='{}', biblioteca={}, similaridade={})",
                 nome, biblioteca, similaridade);
         return new Identidade(Resultado.DESCONHECIDO, null, nome, biblioteca, similaridade, documento);
+    }
+
+    /**
+     * O nome do cadastro comeca por ALGUMA das leituras do nome recebido?
+     *
+     * Basta uma. O piso de comprimento e a exigencia de casamento unico
+     * continuam valendo por leitura, dentro de isTruncatedPrefixNormalizado —
+     * a lista de leituras nao afrouxa nenhum dos dois, so oferece o nome
+     * transliterado tambem na forma que a pessoa realmente tem no Pronote.
+     */
+    private static boolean prefixoDeAlgumaLeitura(List<String> alvos, String doCadastro) {
+        for (String alvo : alvos) {
+            if (PersonNameMatcher.isTruncatedPrefixNormalizado(alvo, doCadastro)) return true;
+        }
+        return false;
     }
 
     /**

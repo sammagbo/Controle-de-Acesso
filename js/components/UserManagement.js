@@ -42,7 +42,12 @@ function UserManagement() {
   React.useEffect(() => { load(); }, [load]);
 
   const handleDeactivate = async (id) => {
-    if (!confirm('Desativar este operador?')) return;
+    // O confirm diz O QUE acontece — "Desativar este operador?" não dizia
+    // nem o que se perde nem o que fica.
+    if (!confirm('Desativar este operador?\n\n'
+          + 'Ele deixa de conseguir entrar no sistema imediatamente. '
+          + 'Nada é apagado: o histórico e os registros feitos por ele permanecem, '
+          + 'e a conta pode ser reativada depois pelo lápis de edição.')) return;
     await fetch(`${API_BASE_URL}/system-users/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${window.auth.getToken()}` }

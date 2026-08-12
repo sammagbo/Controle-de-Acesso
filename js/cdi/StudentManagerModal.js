@@ -41,17 +41,15 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
       };
 
       const handleDelete = async (id) => {
-            if (!confirm('Supprimer cet élève ?')) return;
-            try {
-                  // Local Backend Call
-                  await CdiBackend.deleteStudent(id);
-
-                  setStudents(students.filter(s => s.id !== id));
-                  setToast({ message: 'Élève supprimé', type: 'success' });
-            } catch (e) {
-                  console.error(e);
-                  setToast({ message: "Erreur suppression", type: 'error' });
-            }
+            // ⚠️ Não há confirm aqui DE PROPÓSITO: CdiBackend.deleteStudent
+            // sempre lança ('Não suportado.') — a base de élèves vem do
+            // Pronote e a exclusão se faz na aplicação principal. O confirm
+            // antigo ('Supprimer cet élève ?') prometia uma exclusão que
+            // nunca acontecia: pedia coragem para um botão que só falhava.
+            setToast({
+                  message: "La base élèves vient du Pronote — la suppression se fait dans les Réglages de l'application principale.",
+                  type: 'error'
+            });
       };
 
       const handleEdit = (s) => setEditing({ ...s });

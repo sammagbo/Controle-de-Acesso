@@ -25,24 +25,33 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     </div>
                               </div>
 
+                              {/* ── VOLTAR, sempre AQUI e sempre NOMEADO ──
+                                  Uma seta sem destino obriga o operador a
+                                  adivinhar; e sem este botão, voltar de
+                                  qualquer tela era refazer o caminho inteiro
+                                  desde o Dashboard (PIN incluso, quando o
+                                  caminho passava pelo painel).
+                                  ⚠️ FORA do <nav> escondido de propósito: o
+                                  breadcrumb some abaixo do breakpoint `sm`, e
+                                  uma janela estreita ficava SEM navegação
+                                  nenhuma — o voltar existe em qualquer
+                                  largura; só o rótulo encolhe. */}
+                              {voltar && (
+                                    <button
+                                          onClick={voltar.acao}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-accent-300 hover:bg-white/15 hover:text-accent-200 transition-all font-semibold text-sm"
+                                          title={`Retour : ${voltar.label}`}
+                                          aria-label={`Retour : ${voltar.label}`}
+                                    >
+                                          <LucideIcon name="arrow-left" size={14} />
+                                          {/* O destino SEMPRE nomeado — em janela estreita
+                                              trunca, mas não vira seta muda. */}
+                                          <span className="max-w-[38vw] truncate">{voltar.label}</span>
+                                    </button>
+                              )}
+
                               {/* Breadcrumb */}
                               <nav className="hidden sm:flex items-center gap-2 text-sm">
-                                    {/* ── VOLTAR, sempre AQUI e sempre NOMEADO ──
-                                        Uma seta sem destino obriga o operador a
-                                        adivinhar; e sem este botão, voltar de
-                                        qualquer tela era refazer o caminho
-                                        inteiro desde o Dashboard (PIN incluso,
-                                        quando o caminho passava pelo painel). */}
-                                    {voltar && (
-                                          <button
-                                                onClick={voltar.acao}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-accent-300 hover:bg-white/15 hover:text-accent-200 transition-all font-semibold"
-                                                title={`Retour : ${voltar.label}`}
-                                          >
-                                                <LucideIcon name="arrow-left" size={14} />
-                                                <span>{voltar.label}</span>
-                                          </button>
-                                    )}
                                     <button
                                           onClick={onBack}
                                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${

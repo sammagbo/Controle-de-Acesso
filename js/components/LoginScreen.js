@@ -10,6 +10,28 @@ function LoginScreen({ onLoginSuccess }) {
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  // "Mot de passe oublié": sistema offline — vira um PEDIDO REGISTRADO que o
+  // admin vê na área administrativa, nunca um e-mail. null = fechado,
+  // 'form' = pedindo, 'sent' = confirmação genérica (o servidor responde
+  // igual exista ou não o username — anti-enumeração).
+  const [esqueci, setEsqueci] = React.useState(null);
+  const [esqueciNome, setEsqueciNome] = React.useState('');
+
+  const enviarPedidoDeSenha = async () => {
+    const nome = esqueciNome.trim() || username.trim();
+    if (!nome) return;
+    try {
+      await fetch(`${window.magboConfig?.MAGBO_API_URL || 'http://localhost:8080'}/api/auth/password-reset-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: nome })
+      });
+    } catch (e) {
+      // A confirmação é genérica de propósito — inclusive em falha de rede:
+      // o pedido é um recado, e o remédio de verdade é falar com o admin.
+    }
+    setEsqueci('sent');
+  };
 
   // ÚNICA tela migrada para o i18n (js/utils/i18n.js). As outras continuam
   // com os literais de sempre de propósito: migrar é revisão de texto com
@@ -179,8 +201,7 @@ function LoginScreen({ onLoginSuccess }) {
                      style={{ color: '#0C1B3A' }}>
                 {t('login.senha')}
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
@@ -216,6 +237,47 @@ function LoginScreen({ onLoginSuccess }) {
                 </>
               )}
             </button>
+
+            {/* ── Mot de passe oublié ── */}
+            <div className="pt-1">
+              {esqueci === null && (
+                <button type="button" onClick={() => { setEsqueciNome(username); setEsqueci('form'); }}
+                  className="font-serif italic text-xs underline hover:opacity-70 transition"
+                  style={{ color: '#1F2D52' }}>
+                  Mot de passe oublié ?
+                </button>
+              )}
+              {esqueci === 'form' && (
+                <div className="border p-3 space-y-2" style={{ borderColor: '#0C1B3A', background: '#FFFFFF' }}>
+                  <p className="font-serif text-xs" style={{ color: '#0C1B3A' }}>
+                    Votre demande sera transmise à l'administrateur, qui réinitialisera
+                    votre mot de passe. Indiquez votre nom d'utilisateur :
+                  </p>
+                  <input type="text" value={esqueciNome} onChange={e => setEsqueciNome(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border font-serif text-sm focus:outline-none"
+                    style={{ borderColor: '#0C1B3A', color: '#0C1B3A' }} />
+                  <div className="flex gap-2">
+                    <button type="button" onClick={enviarPedidoDeSenha}
+                      disabled={!(esqueciNome.trim())}
+                      className="px-3 py-1.5 font-serif text-xs disabled:opacity-40"
+                      style={{ background: '#0C1B3A', color: '#F7F4ED' }}>
+                      Envoyer la demande
+                    </button>
+                    <button type="button" onClick={() => setEsqueci(null)}
+                      className="px-3 py-1.5 font-serif text-xs underline" style={{ color: '#1F2D52' }}>
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              )}
+              {esqueci === 'sent' && (
+                <p className="font-serif text-xs px-3 py-2 border-l-2"
+                  style={{ background: '#F0FDF4', borderColor: '#16A34A', color: '#166534' }}>
+                  Demande enregistrée. L'administrateur la verra à sa prochaine connexion —
+                  en cas d'urgence, contactez la Vie Scolaire directement.
+                </p>
+              )}
+            </div>
           </form>
 
           {/* Footer direito */}

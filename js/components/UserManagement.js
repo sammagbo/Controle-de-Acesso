@@ -9,6 +9,9 @@ function UserManagement() {
   const [loading, setLoading] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
+  // Pedidos de "esqueci a senha" (tela de login → aqui). O admin redefine a
+  // senha pelo formulário de edição que já existe e fecha o bilhete.
+  const [resetRequests, setResetRequests] = React.useState([]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -17,12 +20,24 @@ function UserManagement() {
         headers: { Authorization: `Bearer ${window.auth.getToken()}` }
       });
       setUsers(await res.json());
+      const rr = await fetch(`${API_BASE_URL}/admin/password-reset-requests`, {
+        headers: { Authorization: `Bearer ${window.auth.getToken()}` }
+      });
+      if (rr.ok) setResetRequests(await rr.json());
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const marcarTratado = async (id) => {
+    await fetch(`${API_BASE_URL}/admin/password-reset-requests/${id}/handle`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${window.auth.getToken()}` }
+    });
+    load();
+  };
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -50,6 +65,35 @@ function UserManagement() {
           'Novo Operador'
         )
       ),
+
+      // ── Pedidos de senha pendentes — em cima, porque são a razão de o
+      // admin ter aberto esta tela quando existem. Tratado some da urgência
+      // mas fica no histórico do servidor (o endpoint devolve os 100 últimos).
+      (() => {
+        const pendentes = resetRequests.filter(r => r.status === 'PENDING');
+        if (pendentes.length === 0) return null;
+        return React.createElement('div', { className: 'mb-6 bg-warning-50 border border-warning-200 rounded-2xl p-4' },
+          React.createElement('div', { className: 'flex items-center gap-2 mb-3' },
+            React.createElement(LucideIcon, { name: 'key-round', size: 18, className: 'text-warning-600' }),
+            React.createElement('h3', { className: 'text-sm font-black text-warning-800' },
+              `Pedidos de redefinição de senha (${pendentes.length})`),
+          ),
+          pendentes.map(r =>
+            React.createElement('div', { key: r.id, className: 'flex items-center gap-3 bg-white rounded-xl px-3 py-2 mb-1.5 border border-warning-100' },
+              React.createElement('span', { className: 'font-mono text-sm font-bold text-navy-500' }, r.username),
+              React.createElement('span', { className: 'text-xs text-slate-400 flex-1' },
+                new Date(r.requestedAt).toLocaleString('pt-BR')),
+              React.createElement('button', {
+                onClick: () => marcarTratado(r.id),
+                title: 'Redefina a senha do operador no lápis da lista abaixo e então marque o pedido como tratado',
+                className: 'text-xs font-bold text-warning-700 bg-warning-100 hover:bg-warning-200 px-3 py-1.5 rounded-lg transition-colors'
+              }, 'Marcar tratado')
+            )
+          ),
+          React.createElement('p', { className: 'text-[11px] text-warning-700 mt-2' },
+            'Redefina a senha pelo lápis do operador na lista abaixo; um nome que não existe na lista é alguém que errou o nome da conta.')
+        );
+      })(),
 
       loading && React.createElement('div', { className: 'flex items-center justify-center py-12' },
         React.createElement(LucideIcon, { name: 'loader-2', size: 24, className: 'text-slate-300 animate-spin' }),
@@ -274,10 +318,13 @@ function UserFormModal({ user, onClose, onSaved }) {
             React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' },
               user ? 'Nova senha (opcional)' : 'Senha'
             ),
-            React.createElement('input', {
-              type: 'password',
+            // O olho (PasswordInput): a senha que se define aqui vai ser
+            // ditada ou conferida com o operador do lado — ver o que se
+            // digitou é parte do fluxo, não um luxo.
+            React.createElement(PasswordInput, {
               value: form.password,
               onChange: (e) => setForm({ ...form, password: e.target.value }),
+              autoComplete: 'new-password',
               className: 'w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 text-navy-500'
             })
           ),

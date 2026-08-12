@@ -44,6 +44,10 @@ function App() {
       const [accessModal, setAccessModal] = React.useState(null);
       const [showSettings, setShowSettings] = React.useState(false);
       const [adminView, setAdminView] = React.useState(false);
+      // De ONDE a tela atual foi aberta — é o que faz o "voltar" do header
+      // devolver ao Painel Administrativo quem veio dele, em vez de jogar
+      // todo mundo no Dashboard e obrigar a refazer o caminho (PIN incluso).
+      const [origemAdmin, setOrigemAdmin] = React.useState(false);
       const [showAdminPinModal, setShowAdminPinModal] = React.useState(false);
 
       const handleAdminToggle = React.useCallback((enabled) => {
@@ -362,9 +366,22 @@ function App() {
             <div className="min-h-screen bg-soft-100 pb-12">
                   <Header
                   currentPoint={currentPoint}
-                  onBack={() => { setCurrentPoint(null); setAdminView(false); }}
+                  onBack={() => { setCurrentPoint(null); setAdminView(false); setOrigemAdmin(false); }}
                   adminView={adminView}
                   onAdminToggle={handleAdminToggle}
+                  voltar={
+                        // O destino NOMEADO do botão voltar — null no Dashboard
+                        // (raiz, não há para onde voltar). Quem veio do painel
+                        // volta ao PAINEL, sem redigitar o PIN: a sessão admin
+                        // é a mesma, só a tela mudou.
+                        adminView
+                              ? { label: 'Dashboard', acao: () => { setAdminView(false); setOrigemAdmin(false); } }
+                              : currentPoint && origemAdmin
+                                    ? { label: 'Painel Administrativo', acao: () => { setCurrentPoint(null); setAdminView(true); } }
+                                    : currentPoint
+                                          ? { label: 'Dashboard', acao: () => setCurrentPoint(null) }
+                                          : null
+                  }
             />
 
             {adminView ? (
@@ -379,18 +396,20 @@ function App() {
                         }}
                         onNavigateToMeal={() => {
                               setAdminView(false);
+                              setOrigemAdmin(true);
                               const pt = ACCESS_POINTS.find(p => p.id === 'MEAL_ENTITLEMENT_MANAGEMENT');
                               if (pt) setCurrentPoint(pt);
                         }}
                         onNavigateToExit={() => {
                               setAdminView(false);
+                              setOrigemAdmin(true);
                               const pt = ACCESS_POINTS.find(p => p.id === 'EXIT_PERMISSION_MANAGEMENT');
                               if (pt) setCurrentPoint(pt);
                         }}
                   />
             ) : !currentPoint ? (
                         <Dashboard
-                              onSelectPoint={setCurrentPoint}
+                              onSelectPoint={(pt) => { setOrigemAdmin(false); setCurrentPoint(pt); }}
                               accessLogs={accessLogs}
                         />
                   ) : currentPoint && currentPoint.id === 'CANTINA_MONITOR' ? (

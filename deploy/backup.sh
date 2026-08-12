@@ -14,7 +14,13 @@
 set -euo pipefail
 
 # ─── Configuration ───
-DB_NAME="${DB_NAME:-magbo_db}"
+# ⚠️ O default do DB_NAME dizia "magbo_db" — um nome que NÃO é nenhum dos dois
+# bancos reais (canônico: magbodb · legado: magbo_access). Rodado sem env vars,
+# o script falharia com "database does not exist" — descoberto no drill de
+# restauração de 12/08/2026, nunca em produção, porque o script da VM define as
+# suas próprias variáveis. ⚠️ O script que RODA na VM é /home/magbo/backup-magbo.sh,
+# que NÃO é este arquivo (retenção 14 dias lá, 30 aqui) — ao mudar um, conferir o outro.
+DB_NAME="${DB_NAME:-magbodb}"
 DB_USER="${DB_USER:-magbo}"
 BACKUP_DIR="${MAGBO_BACKUP_DIR:-/var/backups/magbo}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)

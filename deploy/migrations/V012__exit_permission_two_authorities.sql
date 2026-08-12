@@ -64,10 +64,23 @@ COMMENT ON COLUMN student_exit_permissions.authorized_by_school IS
 -- Única linha da tabela em produção (conferida em 12/08/2026). Sem ela, o
 -- passo 3 deixaria uma autorização de saída sem autoridade nenhuma — um
 -- registro que a validação nova nunca teria aceitado.
-DELETE FROM student_exit_permissions
- WHERE reason = 'teste'
-   AND authorized_by_family IS NULL
-   AND authorized_by_school IS NULL;
+--
+-- ⚠️ Dentro de um DO $$ porque num banco NOVO (schema nascido do Hibernate
+-- atual) a coluna `reason` nunca existiu — um DELETE direto quebraria na
+-- compilação do comando, e este arquivo promete ser idempotente TAMBÉM na
+-- reconstrução do zero (defeito real, apanhado no drill de 12/08/2026: o
+-- arquivo passava no banco velho e falhava no virgem).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'student_exit_permissions'
+                 AND column_name = 'reason') THEN
+        DELETE FROM student_exit_permissions
+         WHERE reason = 'teste'
+           AND authorized_by_family IS NULL
+           AND authorized_by_school IS NULL;
+    END IF;
+END $$;
 
 -- ── 3. Fora a coluna que nunca teve o significado do seu nome ────────
 ALTER TABLE student_exit_permissions

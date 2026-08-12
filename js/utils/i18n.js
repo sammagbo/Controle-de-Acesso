@@ -59,6 +59,31 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            'acao.cancelar': 'Annuler',
+
+            'status.online': 'Système opérationnel',
+            'status.offline': 'Serveur hors ligne',
+
+            'timers.titulo': 'Temps de présence',
+            'toast.responsavel': 'Responsable lié',
+            'toast.aluno': 'Élève :',
+
+            'pin.titulo': 'Accès administratif',
+            'pin.subtitulo': 'Saisissez le PIN pour entrer dans le panneau administratif.',
+            'pin.rotulo': 'PIN administratif',
+            'pin.validando': 'Validation...',
+            'pin.entrar': 'Entrer',
+            'pin.erro': 'PIN incorrect',
+
+            'dashboard.movimentacoes': "Mouvements aujourd'hui",
+            'dashboard.cadastrados': 'Personnes enregistrées',
+            'dashboard.pontos': "Points d'accès",
+            'dashboard.titulo': 'Choisissez le poste de travail',
+            'dashboard.subtitulo': "Sélectionnez le secteur pour démarrer le contrôle d'accès",
+            'dashboard.abrir': 'Ouvrir le secteur',
+            'dashboard.pessoa': '{n} personne',
+            'dashboard.pessoas': '{n} personnes',
+
             'header.dashboard': 'Tableau de bord',
             'header.painel': 'Panneau administratif',
             'header.admin': 'Administration',
@@ -96,6 +121,31 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'acao.cancelar': 'Cancelar',
+
+            'status.online': 'Sistema operacional',
+            'status.offline': 'Servidor offline',
+
+            'timers.titulo': 'Tempo de permanência',
+            'toast.responsavel': 'Responsável vinculado',
+            'toast.aluno': 'Aluno:',
+
+            'pin.titulo': 'Acesso administrativo',
+            'pin.subtitulo': 'Digite o PIN para entrar no Painel Administrativo.',
+            'pin.rotulo': 'PIN administrativo',
+            'pin.validando': 'Validando...',
+            'pin.entrar': 'Entrar',
+            'pin.erro': 'PIN incorreto',
+
+            'dashboard.movimentacoes': 'Movimentações hoje',
+            'dashboard.cadastrados': 'Cadastrados',
+            'dashboard.pontos': 'Pontos de acesso',
+            'dashboard.titulo': 'Selecione o ponto de trabalho',
+            'dashboard.subtitulo': 'Escolha o setor para iniciar o controle de acesso',
+            'dashboard.abrir': 'Abrir setor',
+            'dashboard.pessoa': '{n} pessoa',
+            'dashboard.pessoas': '{n} pessoas',
 
             'header.dashboard': 'Painel',
             'header.painel': 'Painel Administrativo',

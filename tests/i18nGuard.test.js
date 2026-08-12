@@ -31,6 +31,12 @@ const MIGRADAS = [
     'js/components/LoginScreen.js',
     'js/components/Header.js',
     'js/components/LanguageSelector.js',
+    // Caminho DIÁRIO do operador — o que ele vê em toda passagem.
+    'js/components/Dashboard.js',
+    'js/components/AdminPinModal.js',
+    'js/components/ConnectionStatus.js',
+    'js/components/ActiveTimers.js',
+    'js/components/Toast.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

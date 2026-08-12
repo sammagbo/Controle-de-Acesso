@@ -8,6 +8,7 @@
 // =====================================================================
 
 function ConnectionStatus() {
+      const t = useI18n();
       const [online, setOnline] = React.useState(true);
       const [recovering, setRecovering] = React.useState(false);
 
@@ -56,11 +57,11 @@ function ConnectionStatus() {
             animate = 'animate-pulse';
       } else if (online) {
             dotColor = 'bg-success-500';
-            label = 'Sistema Operacional';
+            label = t('status.online');
             animate = 'animate-pulse';
       } else {
             dotColor = 'bg-danger-500';
-            label = 'Servidor Offline';
+            label = t('status.offline');
             animate = 'animate-ping';
       }
 

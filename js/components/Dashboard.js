@@ -3,6 +3,7 @@
 // =====================================================================
 
 function Dashboard({ onSelectPoint, accessLogs }) {
+      const t = useI18n();
       const [, setCacheTick] = React.useState(0);
       React.useEffect(() => {
             const handler = () => setCacheTick(t => t + 1);
@@ -59,7 +60,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                                     <LucideIcon name="activity" size={20} className="text-accent-500" />
                               </div>
                               <div>
-                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Movimentações Hoje</p>
+                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.movimentacoes')}</p>
                                     <p className="text-2xl font-bold text-navy-500">{todayCount == null ? '—' : todayCount.toLocaleString('pt-BR')}</p>
                               </div>
                         </div>
@@ -68,7 +69,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                                     <LucideIcon name="users" size={20} className="text-success-500" />
                               </div>
                               <div>
-                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Cadastrados</p>
+                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.cadastrados')}</p>
                                     <p className="text-2xl font-bold text-navy-500">{(window.userCache?.all().length || 0)}</p>
                               </div>
                         </div>
@@ -77,7 +78,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                                     <LucideIcon name="map-pin" size={20} className="text-warning-500" />
                               </div>
                               <div>
-                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Pontos de Acesso</p>
+                                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.pontos')}</p>
                                     <p className="text-2xl font-bold text-navy-500">{ACCESS_POINTS.length}</p>
                               </div>
                         </div>
@@ -85,8 +86,8 @@ function Dashboard({ onSelectPoint, accessLogs }) {
 
                   {/* Section Title */}
                   <div className="mb-6">
-                        <h2 className="text-xl font-bold text-navy-500">Selecione o Ponto de Trabalho</h2>
-                        <p className="text-sm text-slate-400 mt-1">Escolha o setor para iniciar o controle de acesso</p>
+                        <h2 className="text-xl font-bold text-navy-500">{t('dashboard.titulo')}</h2>
+                        <p className="text-sm text-slate-400 mt-1">{t('dashboard.subtitulo')}</p>
                   </div>
 
                   {/* Access Point Grid */}
@@ -125,14 +126,14 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                                                 {count > 0 && (
                                                       <span className="flex items-center gap-1.5 text-xs font-bold text-success-600 bg-success-50 px-2.5 py-1 rounded-full">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-success-500 animate-pulse" />
-                                                            {count} {count === 1 ? 'pessoa' : 'pessoas'}
+                                                            {t(count === 1 ? 'dashboard.pessoa' : 'dashboard.pessoas', { n: count })}
                                                       </span>
                                                 )}
                                           </div>
                                           <h3 className="text-lg font-bold text-navy-500 mb-1">{point.nome}</h3>
                                           <p className="text-sm text-slate-400">{point.description}</p>
                                           <div className="mt-4 flex items-center text-xs text-accent-500 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span>Abrir setor</span>
+                                                <span>{t('dashboard.abrir')}</span>
                                                 <LucideIcon name="arrow-right" size={14} className="ml-1" />
                                           </div>
                                     </button>

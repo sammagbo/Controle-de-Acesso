@@ -3,6 +3,8 @@
 // =====================================================================
 
 function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null }) {
+      const t = useI18n();
+      const locale = useLocale();
       const [clock, setClock] = React.useState(new Date());
 
       React.useEffect(() => {
@@ -40,8 +42,8 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     <button
                                           onClick={voltar.acao}
                                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-accent-300 hover:bg-white/15 hover:text-accent-200 transition-all font-semibold text-sm"
-                                          title={`Retour : ${voltar.label}`}
-                                          aria-label={`Retour : ${voltar.label}`}
+                                          title={t('header.voltar.para', { destino: voltar.label })}
+                                          aria-label={t('header.voltar.para', { destino: voltar.label })}
                                     >
                                           <LucideIcon name="arrow-left" size={14} />
                                           {/* O destino SEMPRE nomeado — em janela estreita
@@ -61,14 +63,14 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                           }`}
                                     >
                                           <LucideIcon name="layout-grid" size={14} />
-                                          <span>Dashboard</span>
+                                          <span>{t('header.dashboard')}</span>
                                     </button>
                                     {adminView && (
                                           <>
                                                 <LucideIcon name="chevron-right" size={14} className="text-white/30" />
                                                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white">
                                                       <LucideIcon name="shield" size={14} />
-                                                      Painel Administrativo
+                                                      {t('header.painel')}
                                                 </span>
                                           </>
                                     )}
@@ -87,12 +89,17 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                               <div className="flex items-center gap-4">
                                     <div className="text-right">
                                           <p className="text-xs text-white/50 font-medium">
-                                                {clock.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                                {clock.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                                           </p>
                                           <p className="text-sm font-bold font-mono tracking-wider">{formatTime(clock)}</p>
                                     </div>
                                     <div className="flex items-center gap-3 border-l border-white/10 pl-4">
-                                          <div className="w-2.5 h-2.5 rounded-full bg-success-500 animate-pulse" title="Sistema Online" />
+                                          <div className="w-2.5 h-2.5 rounded-full bg-success-500 animate-pulse" title={t('header.online')} />
+                                          {/* O seletor de idioma fica AQUI, ao lado do
+                                              cadeado e da engrenagem — a língua é a
+                                              primeira coisa de que alguém precisa ao
+                                              sentar no posto, não uma opção avançada. */}
+                                          <LanguageSelector />
                                           {/* ── Administração: elemento NOMEADO, não um cadeado
                                               solto — um ícone sem palavra é um destino que só
                                               quem já sabe encontra. O cadeado continua, mas
@@ -110,15 +117,15 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                                       ? 'bg-accent-500/20 text-accent-400 hover:bg-accent-500/30'
                                                       : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white'
                                           }`}
-                                          title={adminView ? 'Fechar o Painel Administrativo' : 'Painel Administrativo (PIN)'}
+                                          title={adminView ? t('header.admin.fechar') : t('header.admin.abrir')}
                                     >
                                           <LucideIcon name={adminView ? 'lock-open' : 'lock'} size={14} />
-                                          <span className="hidden md:inline">Administração</span>
+                                          <span className="hidden md:inline">{t('header.admin')}</span>
                                     </button>
                                     <button
                                           onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                           className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
-                                          title="Configurações e Cadastros"
+                                          title={t('header.config')}
                                     >
                                           <LucideIcon name="cog" size={16} />
                                     </button>
@@ -133,7 +140,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                                 <button
                                                       onClick={() => { window.auth.logout(); window.location.reload(); }}
                                                       className="w-8 h-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center transition-colors text-white/70 hover:text-red-400"
-                                                      title="Sair"
+                                                      title={t('header.sair')}
                                                 >
                                                       <LucideIcon name="log-out" size={16} />
                                                 </button>
@@ -148,7 +155,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                               <div className="sm:hidden flex items-center gap-2 pb-3 text-sm">
                                     <button onClick={onBack} className="text-white/60 hover:text-white flex items-center gap-1">
                                           <LucideIcon name="arrow-left" size={14} />
-                                          <span>Voltar</span>
+                                          <span>{t('header.voltar')}</span>
                                     </button>
                                     <LucideIcon name="chevron-right" size={14} className="text-white/30" />
                                     <span className="font-semibold text-white">{currentPoint.nome}</span>

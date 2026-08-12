@@ -59,7 +59,28 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            'header.dashboard': 'Tableau de bord',
+            'header.painel': 'Panneau administratif',
+            'header.admin': 'Administration',
+            'header.admin.abrir': 'Panneau administratif (PIN)',
+            'header.admin.fechar': 'Fermer le panneau administratif',
+            'header.config': 'Réglages et enregistrements',
+            'header.sair': 'Se déconnecter',
+            'header.online': 'Système en ligne',
+            'header.voltar': 'Retour',
+            'header.voltar.para': 'Retour : {destino}',
+
             'login.tag': "CONTRÔLE D'ACCÈS",
+            'login.marca.produto': 'Access Control',
+            'login.rodape.escola': 'LYCÉE MOLIÈRE · RIO DE JANEIRO',
+            'login.rodape.ano': 'Anno MMXXVI · v1.0',
+            'login.rodape.autor': 'sammagbo.com',
+            'login.usuario.exemplo': 'admin',
+            'login.esqueci': 'Mot de passe oublié ?',
+            'login.esqueci.explicacao': "Votre demande sera transmise à l'administrateur, qui réinitialisera votre mot de passe. Indiquez votre nom d'utilisateur :",
+            'login.esqueci.enviar': 'Envoyer la demande',
+            'login.esqueci.cancelar': 'Annuler',
+            'login.esqueci.enviado': "Demande enregistrée. L'administrateur la verra à sa prochaine connexion — en cas d'urgence, contactez la Vie Scolaire directement.",
             'login.marca.subtitulo': 'Système institutionnel de contrôle',
             'login.marca.subtitulo2': "d'accès multi-secteurs",
             'login.identificacao': 'Identification',
@@ -76,7 +97,28 @@
         pt: {
             'idioma.rotulo': 'Idioma',
 
+            'header.dashboard': 'Painel',
+            'header.painel': 'Painel Administrativo',
+            'header.admin': 'Administração',
+            'header.admin.abrir': 'Painel Administrativo (PIN)',
+            'header.admin.fechar': 'Fechar o Painel Administrativo',
+            'header.config': 'Configurações e Cadastros',
+            'header.sair': 'Sair',
+            'header.online': 'Sistema online',
+            'header.voltar': 'Voltar',
+            'header.voltar.para': 'Voltar: {destino}',
+
             'login.tag': 'CONTROLE DE ACESSO',
+            'login.marca.produto': 'Access Control',
+            'login.rodape.escola': 'LYCÉE MOLIÈRE · RIO DE JANEIRO',
+            'login.rodape.ano': 'Anno MMXXVI · v1.0',
+            'login.rodape.autor': 'sammagbo.com',
+            'login.usuario.exemplo': 'admin',
+            'login.esqueci': 'Esqueci minha senha',
+            'login.esqueci.explicacao': 'Seu pedido será enviado ao administrador, que redefinirá sua senha. Informe seu nome de usuário:',
+            'login.esqueci.enviar': 'Enviar pedido',
+            'login.esqueci.cancelar': 'Cancelar',
+            'login.esqueci.enviado': 'Pedido registrado. O administrador o verá no próximo acesso — se for urgente, procure a Vie Scolaire diretamente.',
             'login.marca.subtitulo': 'Sistema institucional de controle',
             'login.marca.subtitulo2': 'de acesso multissetorial',
             'login.identificacao': 'Identificação',
@@ -122,6 +164,15 @@
             if (store) store.setItem(CHAVE_STORAGE, idiomaAtual);
         } catch (e) {
             // Preferência não persistiu; a sessão atual continua no idioma novo.
+        }
+        // AVISA O APP INTEIRO. Sem isto, trocar o idioma no cabeçalho mudaria
+        // só o componente que chamou setLang, e o resto da tela ficaria na
+        // língua anterior — exatamente a mistura que esta migração existe para
+        // acabar. Quem escuta é o hook useI18n (js/utils/i18nReact.js), e todo
+        // componente migrado passa por ele.
+        // O guarda de `window` mantém o módulo puro para o Vitest.
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('magbo-lang-changed', { detail: idiomaAtual }));
         }
         return idiomaAtual;
     }

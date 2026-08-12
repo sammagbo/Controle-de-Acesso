@@ -81,7 +81,23 @@ const ENTITLEMENT_STATUS_LABELS = {
       PENDING: "En attente" 
 };
 
-const EXIT_PERMISSION_TYPE_LABELS = { 
+// ---------------------------------------------------------------------
+// pointLabel — NOME do ponto, nunca o código sozinho
+// ---------------------------------------------------------------------
+// Varredura de 11/08/2026: várias telas escreviam `p ? p.nome : id`, e um
+// ponto fora de ACCESS_POINTS aparecia como "PORT1" seco — para o leitor,
+// mesma classe de problema da matrícula no lugar do nome, só que mais raro
+// (ponto novo comissionado antes de entrar aqui). O fallback continua
+// trazendo o código, porque é o único identificador que existe — mas
+// rotulado como ponto, para não parecer sigla que o leitor deveria saber.
+function pointLabel(pointId, lang) {
+      const p = ACCESS_POINTS.find(pt => pt.id === pointId);
+      if (p) return p.nome;
+      const id = (pointId == null || String(pointId).trim() === '') ? '?' : String(pointId);
+      return (lang === 'pt' ? 'Ponto ' : 'Point ') + id;
+}
+
+const EXIT_PERMISSION_TYPE_LABELS = {
       PERMANENT: "Permanent", 
       RECURRING: "Récurrent", 
       DATE_RANGE: "Période", 

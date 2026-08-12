@@ -29,7 +29,7 @@ public class AdminBootstrap implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (repo.existsByUsername(adminUsername)) {
+        if (repo.existsByUsernameIgnoreCase(adminUsername)) {
             log.info("Admin '{}' já existe, pulando bootstrap.", adminUsername);
             return;
         }

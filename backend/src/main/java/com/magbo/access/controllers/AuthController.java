@@ -46,7 +46,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(error);
         }
 
-        SystemUser user = userRepo.findByUsername(req.getUsername()).orElseThrow();
+        SystemUser user = userRepo.findByUsernameFlexivel(req.getUsername()).orElseThrow();
         user.setLastLogin(LocalDateTime.now());
         userRepo.save(user);
 

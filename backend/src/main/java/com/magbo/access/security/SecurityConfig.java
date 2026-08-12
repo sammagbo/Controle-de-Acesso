@@ -38,6 +38,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/login",
+                    // "Esqueci a senha": quem pede é quem NÃO consegue entrar.
+                    // O controller responde genérico sempre, deduplica e tem
+                    // teto de pendentes — ver PasswordResetRequestController.
+                    "/api/auth/password-reset-request",
                     "/api/health",
                     "/api/hikvision/webhook",
                     "/api/hikvision/webhook/capture",

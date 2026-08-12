@@ -40,6 +40,7 @@ erro de driver e não com mensagem de validação.
 ```bash
 # PC (container magbo-postgres), ANTES de subir o backend novo:
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -52,7 +53,7 @@ cabeçalho do próprio V012.
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V012. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V013. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -70,6 +71,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V009_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010__app_users_posto_fixo.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -86,6 +88,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012_
 | `V010__app_users_posto_fixo.sql` | `ALTER TABLE app_users ADD COLUMN posto_fixo_point_id` (nullable) | Posto fixo |
 | `V011__user_photos.sql` | tabela `user_photos` (`bytea`) — fotos de identificação | Fotos |
 | `V012__exit_permission_two_authorities.sql` | `student_exit_permissions`: +`authorized_by_family`, +`authorized_by_school`, **−`reason`** | Duas autoridades |
+| `V013__password_reset_requests.sql` | tabela `password_reset_requests` + CHECK de status | Esqueci a senha |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

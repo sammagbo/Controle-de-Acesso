@@ -128,6 +128,12 @@ async function fetchLogs(pointId, opts = {}) {
       try {
             const params = new URLSearchParams();
             if (opts.incluirRepeticoes) params.set('incluirRepeticoes', 'true');
+            // Janela explícita (dateFrom/dateTo): o caminho do Rapport do CDI.
+            // Sem ela o servidor devolve as últimas 24h — e foi assim que
+            // "Cette Semaine" e "Ce Mois" mostraram só um dia durante meses.
+            if (opts.dateFrom) params.set('dateFrom', opts.dateFrom);
+            if (opts.dateTo) params.set('dateTo', opts.dateTo);
+            if (opts.limit) params.set('limit', String(opts.limit));
             const qs = params.toString();
             const res = await fetch(
                   `${API_BASE}/access/logs/${encodeURIComponent(pointId)}${qs ? '?' + qs : ''}`, {
@@ -140,6 +146,37 @@ async function fetchLogs(pointId, opts = {}) {
       } catch (err) {
             console.error('[API] fetchLogs error:', err);
             throw err;
+      }
+}
+
+// ─────────────────────────────────────────────────────────────
+// fetchLogsCount(filters?) — GET /api/access/logs/count
+// O TOTAL do banco com os MESMOS filtros de fetchAllLogs. Um contador NUNCA
+// mede o comprimento de uma lista paginada: em 12/08/2026 o banco tinha 612
+// movimentos do dia e o card dizia 500 — o teto da lista, não o total.
+// ─────────────────────────────────────────────────────────────
+async function fetchLogsCount(filters = {}) {
+      try {
+            const params = new URLSearchParams();
+            if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+            if (filters.dateTo) params.set('dateTo', filters.dateTo);
+            if (filters.pointId) params.set('pointId', filters.pointId);
+            if (filters.action) params.set('action', filters.action);
+            if (filters.eleve) params.set('eleve', filters.eleve);
+            if (filters.tipo) params.set('tipo', filters.tipo);
+            if (filters.repeticoes) params.set('repeticoes', filters.repeticoes);
+            const res = await fetch(`${API_BASE}/access/logs/count?${params.toString()}`, {
+                  headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            checkAuthError(res);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const n = data && Number(data.total);
+            return (typeof n === 'number' && isFinite(n) && n >= 0) ? n : null;
+      } catch (e) {
+            // null, nunca 0: "não sei" e "zero movimento" são respostas
+            // diferentes, e o card trata cada uma como o que é.
+            return null;
       }
 }
 

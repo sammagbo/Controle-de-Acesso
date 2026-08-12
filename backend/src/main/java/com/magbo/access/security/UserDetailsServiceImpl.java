@@ -20,7 +20,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        SystemUser user = repo.findByUsername(username)
+        SystemUser user = repo.findByUsernameFlexivel(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
 
         if (!Boolean.TRUE.equals(user.getAtivo())) {

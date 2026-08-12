@@ -47,14 +47,27 @@ function JournalTab({ active = true }) {
         return () => window.removeEventListener('user-cache-updated', onCache);
     }, []);
 
+    // Total do BANCO para os mesmos filtros — a lista tem teto de 500 e o
+    // cabeçalho não pode medi-la (612 no banco, "500" na tela, 12/08/2026).
+    // null = desconhecido (endpoint fora): o cabeçalho volta ao comportamento
+    // antigo em vez de mentir um zero.
+    const [totalServidor, setTotalServidor] = React.useState(null);
+
     const load = React.useCallback(async ({ silent = false } = {}) => {
         if (!silent) setLoading(true);
         try {
-            const data = await window.api.fetchAllLogs({
-                dateFrom, dateTo, pointId, action, tipo, repeticoes,
-                eleve: alunoQuery, limit: 500
-            });
+            const [data, total] = await Promise.all([
+                window.api.fetchAllLogs({
+                    dateFrom, dateTo, pointId, action, tipo, repeticoes,
+                    eleve: alunoQuery, limit: 500
+                }),
+                fetchLogsCount({
+                    dateFrom, dateTo, pointId, action, tipo, repeticoes,
+                    eleve: alunoQuery
+                })
+            ]);
             setLogs(Array.isArray(data) ? data : []);
+            setTotalServidor(total);
             setError(null);
         } catch (e) {
             // Numa atualização silenciosa, mantém as linhas que já estavam na
@@ -249,7 +262,17 @@ function JournalTab({ active = true }) {
             {/* ── Tabela ── */}
             <div className="border border-soft-200 rounded-xl overflow-hidden">
                 <div className="px-4 py-2 border-b border-soft-100 flex items-center justify-between">
-                    <span className="text-sm font-bold text-navy-500">{filtered.length} mouvements</span>
+                    {/* O total é do SERVIDOR. O filtro de Classe roda no
+                        cliente (userCache), então com ele ativo o total do
+                        banco não corresponde ao que está na tela — aí o
+                        cabeçalho volta a contar as linhas visíveis, e diz. */}
+                    <span className="text-sm font-bold text-navy-500">
+                        {classe.trim()
+                            ? `${filtered.length} mouvements (filtre classe, sur ${logs.length} chargés)`
+                            : totalServidor != null && totalServidor > logs.length
+                                ? `${totalServidor.toLocaleString('fr-FR')} mouvements · ${logs.length} affichés`
+                                : `${filtered.length} mouvements`}
+                    </span>
                     {loading && <span className="text-xs text-slate-400 flex items-center gap-1"><LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...</span>}
                 </div>
                 <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
@@ -1104,24 +1127,33 @@ function OverviewTab() {
                         <>
                             {/* ── Affluence par Heure ── */}
                             {(() => {
-                                const maxHourCount = Math.max(...(data?.byHour || []).map(h => h.count), 1);
+                                // ⚠️ ALTURA EM PIXELS, via MagboBarChart — o MESMO defeito já
+                                // consertado no CDI (StatsModal): `height: %` só resolve contra
+                                // pai de altura definida, e o `items-end` não estica a coluna —
+                                // a porcentagem virava `auto`, a barra colapsava e o minHeight
+                                // de 4px assumia. 2, 13, 21, 29, 6 e 11 saíam IDÊNTICOS.
+                                // Reusa js/utils/barChart.js; segunda implementação, jamais.
+                                const porHora = data?.byHour || [];
+                                const contagens = Object.fromEntries(porHora.map(h => [h.hour, h.count]));
+                                const barras = window.MagboBarChart.series(
+                                    contagens, porHora.map(h => h.hour), { alturaMaxima: 88 });
+                                const maxHourCount = Math.max(...porHora.map(h => h.count), 1);
                                 return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
                                     React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
-                                    React.createElement("div", { className: "flex items-end gap-1 h-32" },
-                                        (data?.byHour || []).map(function (h) {
-                                            const count = h.count;
-                                            const isMax = count === maxHourCount && count > 0;
-                                            return React.createElement("div", { key: h.hour, className: "flex-1 flex flex-col items-center" },
-                                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, count > 0 ? (count >= 1000 ? (count / 1000).toFixed(1) + "k" : count) : ""),
+                                    React.createElement("div", { className: "flex items-end gap-1 h-32 border-b border-slate-200" },
+                                        barras.map(function (b) {
+                                            const isMax = b.valor === maxHourCount && b.valor > 0;
+                                            return React.createElement("div", { key: b.chave, className: "flex-1 flex flex-col items-center" },
+                                                React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, b.valor > 0 ? (b.valor >= 1000 ? (b.valor / 1000).toFixed(1) + "k" : b.valor) : ""),
                                                 React.createElement("div", {
                                                     className: "w-full rounded-t",
+                                                    title: b.chave + "h : " + b.valor,
                                                     style: {
-                                                        height: (count / maxHourCount * 100) + "%",
-                                                        minHeight: "4px",
+                                                        height: b.altura + "px",
                                                         backgroundColor: isMax ? "#F59E0B" : "#0055FF"
                                                     }
                                                 }),
-                                                React.createElement("span", { className: "text-[10px] text-slate-400 mt-1" }, h.hour + "h")
+                                                React.createElement("span", { className: "text-[10px] text-slate-400 mt-1" }, b.chave + "h")
                                             );
                                         })
                                     )

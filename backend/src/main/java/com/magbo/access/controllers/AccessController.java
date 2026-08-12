@@ -208,7 +208,33 @@ public class AccessController {
     public ResponseEntity<List<AccessLog>> getLogsByPoint(
             @PathVariable String pointId,
             @RequestParam(required = false) String tipo,
-            @RequestParam(required = false, defaultValue = "false") boolean incluirRepeticoes) {
+            @RequestParam(required = false, defaultValue = "false") boolean incluirRepeticoes,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) Integer limit) {
+        // ── Janela EXPLÍCITA de datas (o caminho do Rapport do CDI) ──
+        //
+        // Descoberto em 12/08/2026: o Dashboard do CDI filtrava "Cette
+        // Semaine" e "Ce Mois" sobre ESTA resposta — que era sempre as últimas
+        // 24 horas. Os botões de período funcionavam, os dados não: semana e
+        // mês mostravam o mesmo dia, e nada acusava, porque números de escala
+        // diária são plausíveis. Com dateFrom/dateTo o chamador pede a janela
+        // que o relatório realmente cobre; o teto sobe porque um mês do CDI
+        // (~100 eventos/dia) não cabe em 500 — e teto estourado em silêncio é
+        // exatamente o defeito que motivou este parâmetro.
+        if ((dateFrom != null && !dateFrom.isBlank()) || (dateTo != null && !dateTo.isBlank())) {
+            int teto = Math.max(1, Math.min(limit == null ? 5000 : limit, 5000));
+            // incluirRepeticoes=false → FALSE (sem as marcadas), true → null
+            // (tudo): mesma semântica do caminho de 24h logo abaixo.
+            List<AccessLog> logs = accessLogRepository.findFilteredLogs(
+                    parseDia(dateFrom), parseFimDoDia(dateTo), pointId, null, null,
+                    incluirRepeticoes ? null : Boolean.FALSE, PageRequest.of(0, teto));
+            return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
+        }
+
+        // ── Caminho original, INALTERADO: últimas 24h, teto 500 ──
+        // É o que as telas de setor (portaria, enfermaria, cantina) e a
+        // presença do CDI continuam consumindo.
         LocalDateTime start = LocalDateTime.now().minusHours(24);
         List<AccessLog> logs = accessLogRepository.findRecentesDoPonto(
                 pointId, start, incluirRepeticoes, PageRequest.of(0, 500));
@@ -278,40 +304,90 @@ public class AccessController {
         int safeLimit = Math.max(1, Math.min(limit, 500));
         Pageable pageable = PageRequest.of(0, safeLimit);
 
-        LocalDateTime start = null;
-        LocalDateTime end = null;
-        if (dateFrom != null && !dateFrom.isBlank()) {
-            start = java.time.LocalDate.parse(dateFrom).atStartOfDay();
-        }
-        if (dateTo != null && !dateTo.isBlank()) {
-            // Fim do DIA, nao o comeco do ultimo segundo: com atTime(23,59,59)
-            // uma passagem as 23:59:59.7 existia no banco, era contada pela
-            // "Vue d'ensemble" (BETWEEN nativo) e sumia do Journal.
-            end = java.time.LocalDate.parse(dateTo).atTime(java.time.LocalTime.MAX);
-        }
-
-        com.magbo.access.models.AccessAction actionEnum = null;
-        if (action != null && !action.isBlank()) {
-            try {
-                actionEnum = com.magbo.access.models.AccessAction.valueOf(action.toUpperCase());
-            } catch (Exception ignored) {}
-        }
-
-        // Termo pronto para o LIKE: minusculas + '%' nas pontas. Em branco vira
-        // null, que a consulta le como "sem filtro" — filtro vazio nunca pode
-        // virar uma busca por string vazia.
-        String elevePattern = null;
-        if (eleve != null && !eleve.isBlank()) {
-            elevePattern = "%" + eleve.trim().toLowerCase() + "%";
-        }
-
         List<AccessLog> logs = accessLogRepository.findFilteredLogs(
-                start, end, pointId, actionEnum, elevePattern,
-                lenteRepeticoes(repeticoes), pageable);
+                parseDia(dateFrom), parseFimDoDia(dateTo), pointId, parseAction(action),
+                termoEleve(eleve), lenteRepeticoes(repeticoes), pageable);
         // O Journal é a visão de AUDITORIA: sem filtro ele mostra tudo, e é
         // assim que continua por padrão. O tipo é uma lente que o operador
         // escolhe, nunca um recorte silencioso.
         return ResponseEntity.ok(filtrarPorTipo(logs, tipo));
+    }
+
+    /**
+     * O TOTAL que corresponde a /logs/all — para contadores de tela.
+     *
+     * Medido em 12/08/2026: 612 movimentos no banco desde a meia-noite, "500"
+     * na tela — o card contava as linhas de uma lista que o servidor tinha
+     * truncado no teto. Um contador NUNCA pode medir o comprimento de uma
+     * lista paginada; ele pergunta ao banco, e este endpoint é a pergunta.
+     *
+     * MESMOS parâmetros e MESMO parsing de /logs/all (métodos privados
+     * compartilhados — uma leitura, uma implementação): os dois respondem
+     * sobre o mesmo universo ou o total não corresponde à lista. `limit` não
+     * existe aqui de propósito: o total é do banco, não da página.
+     *
+     * isAuthenticated, e não admin: o card "Movimentações Hoje" fica na tela
+     * inicial do OPERADOR. Um número agregado de movimentos, sem nome e sem
+     * matrícula — nada aqui é dado pessoal.
+     */
+    @GetMapping("/logs/count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> countAllLogs(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) String pointId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String eleve,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String repeticoes) {
+        com.magbo.access.models.UserType tipoEnum = null;
+        if (tipo != null && !tipo.isBlank()) {
+            try {
+                tipoEnum = com.magbo.access.models.UserType.valueOf(tipo.trim().toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // tipo desconhecido não estreita nada — mesma tolerância de
+                // filtrarPorTipo, senão lista e total divergem.
+            }
+        }
+        long total = accessLogRepository.countFilteredLogs(
+                parseDia(dateFrom), parseFimDoDia(dateTo), pointId, parseAction(action),
+                termoEleve(eleve), lenteRepeticoes(repeticoes), tipoEnum);
+        return ResponseEntity.ok(Map.of("total", total));
+    }
+
+    /** Começo do dia, ou null quando o filtro está vazio. */
+    private LocalDateTime parseDia(String dateFrom) {
+        if (dateFrom == null || dateFrom.isBlank()) return null;
+        return java.time.LocalDate.parse(dateFrom).atStartOfDay();
+    }
+
+    /**
+     * Fim do DIA, nao o comeco do ultimo segundo: com atTime(23,59,59) uma
+     * passagem as 23:59:59.7 existia no banco, era contada pela "Vue
+     * d'ensemble" (BETWEEN nativo) e sumia do Journal.
+     */
+    private LocalDateTime parseFimDoDia(String dateTo) {
+        if (dateTo == null || dateTo.isBlank()) return null;
+        return java.time.LocalDate.parse(dateTo).atTime(java.time.LocalTime.MAX);
+    }
+
+    private com.magbo.access.models.AccessAction parseAction(String action) {
+        if (action == null || action.isBlank()) return null;
+        try {
+            return com.magbo.access.models.AccessAction.valueOf(action.toUpperCase());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Termo pronto para o LIKE: minusculas + '%' nas pontas. Em branco vira
+     * null, que a consulta le como "sem filtro" — filtro vazio nunca pode
+     * virar uma busca por string vazia.
+     */
+    private String termoEleve(String eleve) {
+        if (eleve == null || eleve.isBlank()) return null;
+        return "%" + eleve.trim().toLowerCase() + "%";
     }
 
     /**
@@ -512,7 +588,8 @@ public class AccessController {
             }
 
             long areaUniques = pts.isEmpty() ? 0 : accessLogRepository.countUniqueStudentsByPoints(from, to, pts);
-            Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(from, to, pts);
+            Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(
+                    from, to, pts, visitStatsService.minVisitSeconds());
             areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
                     .area(e.getKey())
                     .movements(e.getValue()[0])

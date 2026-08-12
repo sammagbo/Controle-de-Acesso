@@ -53,7 +53,10 @@ public class SystemUserController {
 
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody CreateUserDto dto) {
-        if (repo.existsByUsername(dto.getUsername())) {
+        // IgnoreCase: com o login agora aceitando qualquer caixa, dois operadores
+        // que so diferem por ela ("Sam" e "sam") seriam indistinguiveis ao
+        // entrar — o gemeo de caixa e recusado na porta.
+        if (repo.existsByUsernameIgnoreCase(dto.getUsername())) {
             return ResponseEntity.status(409).body(Map.of("error", "Username já existe"));
         }
         try {

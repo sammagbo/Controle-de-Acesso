@@ -153,6 +153,36 @@ const CdiBackend = {
       // Logs mapped from Java API
       getLogs: async () => CdiBackend._logsFrom(await CdiBackend._fetchBiblioLogs()),
 
+      /**
+       * Eventos do BIBLIO numa JANELA EXPLÍCITA — a fonte do Dashboard &
+       * Rapports.
+       *
+       * ⚠️ Existe porque o snapshot da tela vem de /access/logs/BIBLIO, que
+       * devolve as últimas 24 HORAS (teto 500) — e era ele que alimentava o
+       * relatório: "Cette Semaine" e "Ce Mois" filtravam uma lista que só
+       * tinha um dia dentro. Os botões funcionavam; os dados não. Descoberto
+       * em 12/08/2026 na varredura dos contadores.
+       *
+       * Passa pelo MESMO _logsFrom do snapshot: mesmo filtro de tipo, mesma
+       * forma, mesma flag viajando — duas fontes, uma normalização.
+       *
+       * @returns lista no formato do CDI, ou null quando a busca falhou —
+       *          null e não []: "não consegui" deixa a tela usar o snapshot
+       *          de 24h como degradação anunciada; [] diria "não houve
+       *          movimento", que é outra afirmação.
+       */
+      getLogsRange: async (dateFrom, dateTo) => {
+            try {
+                  if (typeof fetchLogs === 'function') {
+                        const brutos = await fetchLogs('BIBLIO', { dateFrom, dateTo, limit: 5000 });
+                        return CdiBackend._logsFrom(brutos);
+                  }
+            } catch (e) {
+                  console.error('Failed to fetch BIBLIO logs for range', e);
+            }
+            return null;
+      },
+
       // Bulk Import
       // Bulk Import (Disabled natively, handled by Master App)
       importStudents: async (newStudents) => {

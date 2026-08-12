@@ -2,7 +2,7 @@
 // HEADER COMPONENT
 // =====================================================================
 
-function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
+function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null }) {
       const [clock, setClock] = React.useState(new Date());
 
       React.useEffect(() => {
@@ -24,6 +24,31 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
                                           <p className="text-[11px] text-white/50 font-medium">Lycée Molière</p>
                                     </div>
                               </div>
+
+                              {/* ── VOLTAR, sempre AQUI e sempre NOMEADO ──
+                                  Uma seta sem destino obriga o operador a
+                                  adivinhar; e sem este botão, voltar de
+                                  qualquer tela era refazer o caminho inteiro
+                                  desde o Dashboard (PIN incluso, quando o
+                                  caminho passava pelo painel).
+                                  ⚠️ FORA do <nav> escondido de propósito: o
+                                  breadcrumb some abaixo do breakpoint `sm`, e
+                                  uma janela estreita ficava SEM navegação
+                                  nenhuma — o voltar existe em qualquer
+                                  largura; só o rótulo encolhe. */}
+                              {voltar && (
+                                    <button
+                                          onClick={voltar.acao}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-accent-300 hover:bg-white/15 hover:text-accent-200 transition-all font-semibold text-sm"
+                                          title={`Retour : ${voltar.label}`}
+                                          aria-label={`Retour : ${voltar.label}`}
+                                    >
+                                          <LucideIcon name="arrow-left" size={14} />
+                                          {/* O destino SEMPRE nomeado — em janela estreita
+                                              trunca, mas não vira seta muda. */}
+                                          <span className="max-w-[38vw] truncate">{voltar.label}</span>
+                                    </button>
+                              )}
 
                               {/* Breadcrumb */}
                               <nav className="hidden sm:flex items-center gap-2 text-sm">
@@ -68,6 +93,10 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
                                     </div>
                                     <div className="flex items-center gap-3 border-l border-white/10 pl-4">
                                           <div className="w-2.5 h-2.5 rounded-full bg-success-500 animate-pulse" title="Sistema Online" />
+                                          {/* ── Administração: elemento NOMEADO, não um cadeado
+                                              solto — um ícone sem palavra é um destino que só
+                                              quem já sabe encontra. O cadeado continua, mas
+                                              como adjetivo (exige PIN), não como nome. */}
                                           <button
                                           onClick={() => {
                                                 if (adminView) {
@@ -76,14 +105,15 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle }) {
                                                       window.dispatchEvent(new CustomEvent('open-admin-pin'));
                                                 }
                                           }}
-                                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                          className={`h-8 px-3 rounded-lg flex items-center gap-1.5 transition-colors text-xs font-semibold ${
                                                 adminView
                                                       ? 'bg-accent-500/20 text-accent-400 hover:bg-accent-500/30'
                                                       : 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white'
                                           }`}
-                                          title="Painel Administrativo"
+                                          title={adminView ? 'Fechar o Painel Administrativo' : 'Painel Administrativo (PIN)'}
                                     >
-                                          <LucideIcon name={adminView ? 'lock-open' : 'lock'} size={16} />
+                                          <LucideIcon name={adminView ? 'lock-open' : 'lock'} size={14} />
+                                          <span className="hidden md:inline">Administração</span>
                                     </button>
                                     <button
                                           onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}

@@ -31,7 +31,11 @@ function ExitPermissionManagement() {
       }, []);
 
       const handleRevoke = async (id) => {
-            if (!confirm('Deseja realmente revogar esta autorização de saída?')) return;
+            if (!confirm('Revogar esta autorização de saída?\n\n'
+                  + 'O aluno passa a ser barrado na saída imediatamente. '
+                  + 'A revogação não pode ser desfeita — para autorizar de novo, '
+                  + 'crie uma nova autorização. O registro revogado permanece no '
+                  + 'histórico, com quem revogou e quando.')) return;
             try {
                   await window.api.revokeExitPermission(id, 'Revogado manualmente pela portaria');
                   loadPermissions();

@@ -37,7 +37,9 @@ function CdiSettingsModal({ open, onClose, onImport, onRestore, onExport, count,
                         }
                         const data = JSON.parse(content);
                         if (!data.students || !data.presentStudents) { alert('Format de sauvegarde invalide'); return; }
-                        if (!confirm('⚠️ Ceci va remplacer toutes les données actuelles. Continuer?')) return;
+                        if (!confirm('⚠️ Restaurer cette sauvegarde REMPLACE les préférences locales du CDI '
+                              + '(réglages de cet écran) par celles du fichier. Les passages et la base '
+                              + 'élèves ne sont PAS touchés — ils vivent sur le serveur. Continuer ?')) return;
                         onRestore(data);
                         onClose();
                   } catch (err) {

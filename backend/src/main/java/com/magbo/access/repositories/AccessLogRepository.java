@@ -199,6 +199,52 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     );
 
     /**
+     * O TOTAL da consulta do Journal — o gemeo de COUNT de findFilteredLogs.
+     *
+     * Existe porque contar as linhas de uma lista paginada NAO conta o banco:
+     * medido em producao em 12/08/2026, o banco tinha 612 movimentos do dia e
+     * a tela dizia 500 — o comprimento do teto, nao o total. O numero esteve
+     * "certo" por meses, ate o trafego passar do teto; e a classe de defeito
+     * que so aparece quando a escola cresce.
+     *
+     * ⚠️ MESMAS CLAUSULAS de findFilteredLogs, na mesma ordem — quem alterar
+     * uma consulta ALTERA A OUTRA JUNTO, senao a tela volta a mostrar um total
+     * que nao corresponde a lista. Unica diferenca alem do COUNT: o filtro de
+     * TIPO, que na listagem roda em memoria (filtrarPorTipo, que preserva a
+     * ordem e o teto), aqui entra como EXISTS — em memoria nao ha como contar
+     * o que o teto ja cortou. Id sem cadastro e descartado pelos DOIS caminhos
+     * quando ha filtro de tipo (mesma semantica; o EXISTS nao acha a linha).
+     */
+    @Query("""
+        SELECT COUNT(a) FROM AccessLog a
+        WHERE (:#{#dateFrom == null} = true OR a.timestamp >= :dateFrom)
+          AND (:#{#dateTo == null} = true OR a.timestamp <= :dateTo)
+          AND (:#{#pointId == null} = true OR a.pointId = :pointId)
+          AND (:#{#action == null} = true OR a.action = :action)
+          AND (:#{#eleve == null} = true
+               OR LOWER(a.userId) LIKE :eleve
+               OR EXISTS (SELECT 1 FROM User u
+                          WHERE u.id = a.userId AND LOWER(u.nome) LIKE :eleve))
+          AND (:#{#somenteRepeticoes == null} = true
+               OR (:#{#somenteRepeticoes == true} = true
+                   AND a.flag IN ('POSTO_FIXO','JA_PRESENTE'))
+               OR (:#{#somenteRepeticoes == false} = true
+                   AND (a.flag IS NULL OR a.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))))
+          AND (:#{#tipo == null} = true
+               OR EXISTS (SELECT 1 FROM User u2
+                          WHERE u2.id = a.userId AND u2.tipo = :tipo))
+    """)
+    long countFilteredLogs(
+        @Param("dateFrom") LocalDateTime dateFrom,
+        @Param("dateTo") LocalDateTime dateTo,
+        @Param("pointId") String pointId,
+        @Param("action") com.magbo.access.models.AccessAction action,
+        @Param("eleve") String eleve,
+        @Param("somenteRepeticoes") Boolean somenteRepeticoes,
+        @Param("tipo") com.magbo.access.models.UserType tipo
+    );
+
+    /**
      * Conta TODOS os eventos de acesso a partir de um instante — inclusive as
      * repeticoes de posto fixo.
      *

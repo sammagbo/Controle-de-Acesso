@@ -21,7 +21,12 @@ function CantineMonitor() {
     React.useEffect(() => {
         let active = true;
         const poll = async () => {
-            const data = await fetchRefectoryLogs();
+            // dateFrom=hoje: o monitor descarta tudo antes da meia-noite de
+            // qualquer forma (o floor abaixo) — pedir 30 dias só gastava o
+            // teto de 500 com passado inútil, e num almoço cheio (250 pessoas
+            // × 2 eventos) o teto estourava DENTRO do dia, sumindo gente que
+            // ainda estava na fila. Mesma classe do contador preso em 500.
+            const data = await fetchRefectoryLogs({ dateFrom: new Date().toISOString().slice(0, 10) });
             if (active && Array.isArray(data)) {
                 setLogs(data);
                 setLastUpdate(new Date());

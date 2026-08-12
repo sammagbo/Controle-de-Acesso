@@ -22,14 +22,39 @@ function CdiStatsModal({ open, onClose, logs, students }) {
       const [timeRange, setTimeRange] = React.useState('week');
       const [showReport, setShowReport] = React.useState(false);
 
+      // ── A FONTE do relatório: uma busca com a JANELA do período ──
+      //
+      // ⚠️ O prop `logs` é o snapshot da tela — /access/logs/BIBLIO, últimas
+      // 24 HORAS. Durante meses "Cette Semaine" e "Ce Mois" filtraram essa
+      // lista: os botões mudavam o filtro, os dados só tinham um dia dentro,
+      // e ninguém percebia porque números de escala diária são plausíveis.
+      // Agora cada período busca a própria janela (getLogsRange); o snapshot
+      // fica de DEGRADAÇÃO quando a rede falha — anunciada na tela, abaixo.
+      const [logsJanela, setLogsJanela] = React.useState(null);
+      React.useEffect(() => {
+            if (!open) return undefined;
+            let vivo = true;
+            const fmt = (d) => d.toISOString().slice(0, 10);
+            const hoje = new Date();
+            const de = new Date(hoje);
+            if (timeRange === 'week') de.setDate(hoje.getDate() - 7);
+            else if (timeRange === 'month') de.setDate(hoje.getDate() - 30);
+            CdiBackend.getLogsRange(fmt(de), fmt(hoje)).then(r => {
+                  if (vivo) setLogsJanela(r); // null = falhou → degrada p/ snapshot
+            });
+            return () => { vivo = false; };
+      }, [open, timeRange]);
+
+      const fonteDoRelatorio = logsJanela != null ? logsJanela : logs;
+
       // A janela de cada período vive em js/utils/reportFilters.js, com teste.
       // "Aujourd'hui" é DIA DE CALENDÁRIO (meia-noite a meia-noite); semana e
       // mês continuam sendo as janelas móveis de 7 e 30 dias que sempre foram
-      // — mudá-las alteraria em silêncio números que já são comparados de uma
-      // semana para a outra.
+      // — o filtro continua rodando mesmo sobre a janela já buscada, porque é
+      // ele que corta "hoje" na meia-noite e blinda contra evento futuro.
       const filteredLogs = React.useMemo(
-            () => window.MagboReport.filterLogsByPeriod(logs, timeRange),
-            [logs, timeRange]);
+            () => window.MagboReport.filterLogsByPeriod(fonteDoRelatorio, timeRange),
+            [fonteDoRelatorio, timeRange]);
 
       const hourCounts = React.useMemo(() => {
             const counts = {};
@@ -210,6 +235,15 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                               <button onClick={() => setTimeRange('week')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${timeRange === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Cette Semaine</button>
                               <button onClick={() => setTimeRange('month')} className={`flex-1 py-2 rounded-lg text-sm font-medium ${timeRange === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>Ce Mois</button>
                         </div>
+                        {/* Degradação ANUNCIADA: sem a busca da janela, o que
+                            há é o snapshot de 24h — e semana/mês estariam
+                            incompletos. Dizer é o mínimo; esconder foi o que
+                            manteve o defeito invisível por meses. */}
+                        {logsJanela == null && timeRange !== 'today' && (
+                              <div className="mb-3 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                                    Données limitées aux dernières 24 h (serveur injoignable pour la période complète).
+                              </div>
+                        )}
                         {filteredLogs.length === 0 ? (
                               <div className="text-center py-12 text-slate-400">
                                     <CdiIcon name="calendar-x" size={48} />

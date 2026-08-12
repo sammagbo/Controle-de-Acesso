@@ -28,7 +28,27 @@ function Dashboard({ onSelectPoint, accessLogs }) {
             return counts;
       }, [accessLogs]);
 
-      const todayCount = accessLogs.length;
+      // ⚠️ O TOTAL vem do SERVIDOR, nunca de accessLogs.length. Medido em
+      // 12/08/2026: 612 movimentos no banco, "500" no card — accessLogs é uma
+      // lista com teto de 500, e pior: só carrega ao ABRIR um setor, e contém
+      // os logs DAQUELE ponto. O card mostrava 0 antes do primeiro setor e o
+      // comprimento truncado do último setor visitado depois. null = "não
+      // sei" (rede fora), e a tela mostra travessão — "não sei" e "zero" são
+      // respostas diferentes.
+      const [todayCount, setTodayCount] = React.useState(null);
+      React.useEffect(() => {
+            let vivo = true;
+            const hoje = () => new Date().toISOString().slice(0, 10);
+            const carregar = async () => {
+                  // Mesma doutrina de toda tela padrão: repetições de posto
+                  // fixo / já-presente fora da contagem (repeticoes=SANS).
+                  const n = await fetchLogsCount({ dateFrom: hoje(), dateTo: hoje(), repeticoes: 'SANS' });
+                  if (vivo && n != null) setTodayCount(n);
+            };
+            carregar();
+            const id = setInterval(carregar, 30000);
+            return () => { vivo = false; clearInterval(id); };
+      }, []);
 
       return (
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
@@ -40,7 +60,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               </div>
                               <div>
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Movimentações Hoje</p>
-                                    <p className="text-2xl font-bold text-navy-500">{todayCount}</p>
+                                    <p className="text-2xl font-bold text-navy-500">{todayCount == null ? '—' : todayCount.toLocaleString('pt-BR')}</p>
                               </div>
                         </div>
                         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 shadow-sm border border-soft-200">

@@ -588,7 +588,8 @@ public class AccessController {
             }
 
             long areaUniques = pts.isEmpty() ? 0 : accessLogRepository.countUniqueStudentsByPoints(from, to, pts);
-            Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(from, to, pts);
+            Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(
+                    from, to, pts, visitStatsService.minVisitSeconds());
             areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
                     .area(e.getKey())
                     .movements(e.getValue()[0])

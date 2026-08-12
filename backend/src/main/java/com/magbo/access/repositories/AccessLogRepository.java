@@ -422,6 +422,24 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     // esconder a saída inventaria um problema; aqui o LAG emparelha vizinhos, e
     // deixar as repetições de quem está de serviço no meio produziria pares
     // ENTRADA→SAIDA de segundos que puxariam a permanência média para baixo.
+    // ⚠️ Duas exclusões a mais desde 12/08/2026, e cada uma tem um porquê:
+    //
+    // FECHAMENTO_AUTO sai do WINDOW (não só do resultado): a SAIDA das 17:00
+    // é sintética — carimbada na hora do fechamento, não na hora em que
+    // alguém saiu — e formava par ENTRADA→17:00 de dia inteiro. Era ela que
+    // fazia a "Durée moyenne" CRESCER com o período: "hoje" antes das 17h
+    // ainda não tem fechamentos (visita aberta não tem par), e cada dia
+    // completo da janela carregava os seus. Medido: o mesmo padrão de
+    // visitas dava 35 min como "hoje" e 203 min como dia completo. Tirar do
+    // WINDOW (e não filtrar depois) também acerta o caso raro da pessoa que
+    // badgeia a saída real DEPOIS do fechamento: o par volta a ser
+    // ENTRADA→saída real, que é o que aconteceu.
+    //
+    // O piso :minVisitSeconds e a MESMA régua do Rapport CDI
+    // (magbo.report.min-visit-seconds, via VisitStatsService): passagem
+    // rápida não é permanência. Antes desta linha, o card do CDI no MESMO
+    // painel aplicava as duas regras e cantina/enfermaria não aplicavam
+    // nenhuma — dois números com réguas diferentes lado a lado.
     @Query(value = "SELECT AVG(EXTRACT(EPOCH FROM (ts - prev_ts)) / 60.0) FROM (" +
            "  SELECT action, timestamp AS ts, " +
            "    LAG(action) OVER w AS prev_action, " +
@@ -429,9 +447,17 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "  FROM access_logs " +
            "  WHERE timestamp BETWEEN :from AND :to AND point_id IN (:points) " +
            "    AND (flag IS NULL OR flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
+           // Predicado PROPRIO, fora da lista de repeticoes — o guarda de
+           // queries reprovou a versao que os misturava, e com razao:
+           // FECHAMENTO_AUTO nao e repeticao (linha que nao abre visita), e
+           // uma SAIDA sintetica; a lista canonica REPETICOES e espelhada em
+           // postoFixo.js e nao pode ganhar um terceiro membro por acidente.
+           "    AND (flag IS NULL OR flag <> 'FECHAMENTO_AUTO') " +
            "  WINDOW w AS (PARTITION BY user_id, point_id, CAST(timestamp AS date) ORDER BY timestamp)" +
-           ") t WHERE t.action = 'SAIDA' AND t.prev_action = 'ENTRADA'", nativeQuery = true)
+           ") t WHERE t.action = 'SAIDA' AND t.prev_action = 'ENTRADA' " +
+           "  AND EXTRACT(EPOCH FROM (ts - prev_ts)) >= :minVisitSeconds", nativeQuery = true)
     Double avgStayMinutesByPoints(@Param("from") java.time.LocalDateTime from,
                                   @Param("to") java.time.LocalDateTime to,
-                                  @Param("points") java.util.Collection<String> points);
+                                  @Param("points") java.util.Collection<String> points,
+                                  @Param("minVisitSeconds") long minVisitSeconds);
 }

@@ -112,6 +112,15 @@ Cabeçalho → **Rapport Général**.
 
 ### 4.1 Vue d'ensemble
 
+> ⚠️ **A "Durée moyenne" de semana/mês CAIU visivelmente em 12/08/2026, e a
+> queda foi DELIBERADA — não é defeito.** Até então a média incluía os pares
+> `ENTRADA→SAIDA(FECHAMENTO_AUTO)` das 17:00 (dia inteiro sintético) e as
+> passagens-relâmpago; era por isso que ela *crescia* de hoje→semana→mês
+> ("hoje" antes das 17h ainda não tem fechamentos). Desde 12/08 a query aplica
+> as **mesmas réguas do Rapport do CDI**: fechamento automático fora, piso de
+> `min-visit-seconds`. Contrato em `AvgStayRulesIT` (4 testes). Se alguém
+> reportar "a média despencou em agosto", a resposta é esta nota.
+
 | # | Ação | Esperado |
 |---|---|---|
 | 4.1.1 | Abrir a aba | KPIs e cards por área carregam |

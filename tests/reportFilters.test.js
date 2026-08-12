@@ -359,3 +359,70 @@ describe('reportFilters — o caminho completo do CDI', () => {
         expect(s.avgDurationMin).toBe(45);
     });
 });
+
+/**
+ * O TETO DE DURAÇÃO — par longo demais é SAÍDA PERDIDA, não visita longa.
+ *
+ * Medido em produção em 12/08/2026 no CDI: 121 ENTRADA contra 70 SAIDA. Quando
+ * a saída se perde e a pessoa REENTRA, a regra JA_PRESENTE tira a reentrada do
+ * emparelhamento — e o par vai da entrada ORIGINAL até a saída de horas depois.
+ *
+ * ⚠️ Os números (2h / 1h) são uma AFIRMAÇÃO SOBRE ESTA ESCOLA, dita por quem
+ * dirige o CDI — não uma lei. Vivem em properties do backend e chegam aqui por
+ * /api/access/report-config.
+ */
+describe('teto de duração de visita', () => {
+    const R = require('../js/utils/reportFilters.js');
+    const v = (seconds, extra) => Object.assign({ personId: 'A', seconds: seconds, open: false, autoClosed: false }, extra || {});
+
+    it('★ o par de 6h fica FORA da média, e a visita continua CONTADA', () => {
+        // 8:00 entra · saída perdida · 10:00 reentra (JA_PRESENTE, fora do
+        // pareamento) · 14:00 sai → par de 6h que ninguém passou no CDI.
+        const r = R.summariseVisits([v(6 * 3600), v(40 * 60)], 60, 7200);
+        expect(r.avgDurationMin).toBe(40);          // sem o teto seria 200
+        expect(r.implausibleIgnored).toBe(1);
+        expect(r.visits).toBe(2);                   // aconteceu; só a duração não é evidência
+    });
+
+    it('★ o número de excluídos é DITO, nunca silencioso', () => {
+        const r = R.summariseVisits([v(9 * 3600), v(8 * 3600)], 60, 7200);
+        expect(r.implausibleIgnored).toBe(2);
+        expect(r.avgDurationMin).toBeNull();        // "não sei", não zero
+    });
+
+    it('★ exatamente no teto ENTRA; um segundo acima SAI', () => {
+        expect(R.summariseVisits([v(7200)], 60, 7200).avgDurationMin).toBe(120);
+        expect(R.summariseVisits([v(7201)], 60, 7200).avgDurationMin).toBeNull();
+    });
+
+    it('★ o teto NÃO altera nem apaga a visita — só a média', () => {
+        const r = R.summariseVisits([v(9 * 3600)], 60, 7200);
+        expect(r.visits).toBe(1);
+        expect(r.uniquePeople).toBe(1);
+    });
+
+    it('as regras antigas seguem, e são exclusões de naturezas diferentes', () => {
+        // Fechamento automático já sai antes do teto; visita curta idem.
+        const auto = R.summariseVisits([v(9 * 3600, { autoClosed: true })], 60, 7200);
+        expect(auto.avgDurationMin).toBeNull();
+        expect(auto.implausibleIgnored).toBe(0);
+
+        const curta = R.summariseVisits([v(20)], 60, 7200);
+        expect(curta.shortVisitsIgnored).toBe(1);
+        expect(curta.implausibleIgnored).toBe(0);
+    });
+
+    it('o teto do BACKEND vence o fallback local', () => {
+        R.configure({ minVisitSeconds: 60, maxVisitSeconds: 1800 });   // 30 min
+        expect(R.effectiveMaxVisitSeconds()).toBe(1800);
+        expect(R.summariseVisits([v(40 * 60)]).avgDurationMin).toBeNull();
+        R.configure({ minVisitSeconds: 60 });                          // sem teto na resposta
+        expect(R.effectiveMaxVisitSeconds()).toBe(R.FALLBACK_MAX_VISIT_SECONDS);
+    });
+
+    it('visita aberta continua sem duração e não vira implausível', () => {
+        const r = R.summariseVisits([v(null, { open: true })], 60, 7200);
+        expect(r.openVisits).toBe(1);
+        expect(r.implausibleIgnored).toBe(0);
+    });
+});

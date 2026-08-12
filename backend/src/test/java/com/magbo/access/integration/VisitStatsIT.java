@@ -268,7 +268,16 @@ class VisitStatsIT extends AbstractIT {
                 .as("a SAÍDA marcada fecha a visita — pular saída reabriria o defeito "
                         + "de ocupação de 10/08 dentro do pareador")
                 .isZero();
-        assertThat(stats.avgDurationMin()).isEqualTo(540);   // 08:00→17:00
+        // ⚠️ 08:00→17:00 = 540 min. Este teste afirmava a MÉDIA de 540 até
+        // 12/08/2026; com o TETO de duração plausível (2h), o par sai da média
+        // — e sair é o comportamento certo: nove horas seguidas no CDI é o
+        // retrato de uma saída perdida, exatamente o que o teto existe para não
+        // ler como permanência. O que o teste prova continua sendo a
+        // ASSIMETRIA (visita fechada, não aberta), que é o acima.
+        assertThat(stats.avgDurationMin())
+                .as("540 min > teto de 2h -> fora da média, mas a visita segue contada")
+                .isNull();
+        assertThat(stats.implausibleIgnored()).isEqualTo(1);
     }
 
     private void visita(String userId, LocalTime entrada, LocalTime saida) {

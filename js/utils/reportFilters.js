@@ -31,12 +31,26 @@
      */
     const FALLBACK_MIN_VISIT_SECONDS = 60;
 
+    /**
+     * TETO de duração plausível — fallback, como o piso acima.
+     *
+     * ⚠️ Afirmação sobre ESTA escola, não lei: "ninguém fica mais de duas horas
+     * no CDI" (12/08/2026). O valor em vigor vem do backend
+     * (magbo.report.max-visit-seconds) via /api/access/report-config; este
+     * número só entra se o servidor não responder, para a tela não passar a
+     * contar como permanência um par de nove horas quando a rede pisca.
+     */
+    const FALLBACK_MAX_VISIT_SECONDS = 7200;
+
     let minVisitSecondsDoBackend = null;
+    let maxVisitSecondsDoBackend = null;
 
     /** Recebe os parâmetros vindos de GET /api/access/report-config. */
     function configure(config) {
         const n = config && Number(config.minVisitSeconds);
         minVisitSecondsDoBackend = (typeof n === 'number' && isFinite(n) && n >= 0) ? n : null;
+        const x = config && Number(config.maxVisitSeconds);
+        maxVisitSecondsDoBackend = (typeof x === 'number' && isFinite(x) && x > 0) ? x : null;
         return effectiveMinVisitSeconds();
     }
 
@@ -45,6 +59,13 @@
         return minVisitSecondsDoBackend == null
             ? FALLBACK_MIN_VISIT_SECONDS
             : minVisitSecondsDoBackend;
+    }
+
+    /** Teto em vigor: o do backend quando já chegou, o fallback enquanto não. */
+    function effectiveMaxVisitSeconds() {
+        return maxVisitSecondsDoBackend == null
+            ? FALLBACK_MAX_VISIT_SECONDS
+            : maxVisitSecondsDoBackend;
     }
 
     /** true quando o valor em uso veio mesmo do servidor. */
@@ -207,8 +228,9 @@
      * • média só sobre visitas FECHADAS por saída REAL: visita aberta não tem
      *   duração, e o fechamento das 17:00 não é hora de saída de ninguém.
      */
-    function summariseVisits(visits, minVisitSeconds) {
+    function summariseVisits(visits, minVisitSeconds, maxVisitSeconds) {
         const piso = typeof minVisitSeconds === 'number' ? minVisitSeconds : effectiveMinVisitSeconds();
+        const teto = typeof maxVisitSeconds === 'number' ? maxVisitSeconds : effectiveMaxVisitSeconds();
         const lista = Array.isArray(visits) ? visits : [];
 
         const curtas = lista.filter(function (v) {
@@ -221,10 +243,18 @@
             return v.seconds != null && !v.autoClosed;
         });
 
-        const media = comDuracao.length === 0 ? null
-            : Math.round(comDuracao.reduce(function (soma, v) {
+        // ── TETO: o par longo demais é SAÍDA PERDIDA, não visita longa ──
+        // O leitor facial perde saídas; com a reentrada tirada do pareamento
+        // pelo JA_PRESENTE, o par formado vai da entrada ORIGINAL até a saída
+        // de horas depois. Ele CONTA como visita (aconteceu), mas a DURAÇÃO
+        // dele não é evidência de permanência — a mesma assimetria do piso.
+        const implausiveis = comDuracao.filter(function (v) { return v.seconds > teto; });
+        const plausiveis = comDuracao.filter(function (v) { return v.seconds <= teto; });
+
+        const media = plausiveis.length === 0 ? null
+            : Math.round(plausiveis.reduce(function (soma, v) {
                 return soma + v.seconds / 60;
-            }, 0) / comDuracao.length);
+            }, 0) / plausiveis.length);
 
         const pessoas = {};
         contam.forEach(function (v) { pessoas[v.personId] = true; });
@@ -234,6 +264,10 @@
             uniquePeople: Object.keys(pessoas).length,
             avgDurationMin: media,
             shortVisitsIgnored: curtas.length,
+            // Devolvido para a tela poder DIZER quantos ficaram de fora:
+            // excluir em silêncio é o defeito que estas regras existem para
+            // não repetir.
+            implausibleIgnored: implausiveis.length,
             openVisits: contam.filter(function (v) { return v.open; }).length
         };
     }
@@ -338,6 +372,8 @@
         filterLogsByPeriod: filterLogsByPeriod,
         periodLabel: periodLabel,
         FALLBACK_MIN_VISIT_SECONDS: FALLBACK_MIN_VISIT_SECONDS,
+        FALLBACK_MAX_VISIT_SECONDS: FALLBACK_MAX_VISIT_SECONDS,
+        effectiveMaxVisitSeconds: effectiveMaxVisitSeconds,
         describeScope: describeScope,
         configure: configure,
         effectiveMinVisitSeconds: effectiveMinVisitSeconds,

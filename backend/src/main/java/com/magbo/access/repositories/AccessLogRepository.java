@@ -455,9 +455,16 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "    AND (flag IS NULL OR flag <> 'FECHAMENTO_AUTO') " +
            "  WINDOW w AS (PARTITION BY user_id, point_id, CAST(timestamp AS date) ORDER BY timestamp)" +
            ") t WHERE t.action = 'SAIDA' AND t.prev_action = 'ENTRADA' " +
-           "  AND EXTRACT(EPOCH FROM (ts - prev_ts)) >= :minVisitSeconds", nativeQuery = true)
+           // Piso e TETO: passagem rapida nao e permanencia, e par acima do
+           // teto e SAIDA PERDIDA (o leitor facial perde saidas; com a
+           // reentrada tirada da janela pelo JA_PRESENTE, o par vai da
+           // entrada original ate a saida de horas depois). Nenhuma linha e
+           // apagada — so a media deixa de ler o que nao e evidencia.
+           "  AND EXTRACT(EPOCH FROM (ts - prev_ts)) >= :minVisitSeconds " +
+           "  AND EXTRACT(EPOCH FROM (ts - prev_ts)) <= :maxVisitSeconds", nativeQuery = true)
     Double avgStayMinutesByPoints(@Param("from") java.time.LocalDateTime from,
                                   @Param("to") java.time.LocalDateTime to,
                                   @Param("points") java.util.Collection<String> points,
-                                  @Param("minVisitSeconds") long minVisitSeconds);
+                                  @Param("minVisitSeconds") long minVisitSeconds,
+                                  @Param("maxVisitSeconds") long maxVisitSeconds);
 }

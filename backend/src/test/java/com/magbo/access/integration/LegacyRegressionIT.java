@@ -147,7 +147,7 @@ class LegacyRegressionIT extends AbstractIT {
 
         // avgStayMinutesByPoints: LAG(...) OVER w + WINDOW nomeado + EXTRACT EPOCH
         assertThat(accessLogRepository.avgStayMinutesByPoints(
-                janelaDe, janelaAte, List.of("REFEI1"), 60))
+                janelaDe, janelaAte, List.of("REFEI1"), 60, 7200))
                 .as("aluno A ficou ~40 min na cantina")
                 .isNotNull()
                 .satisfies(avg -> assertThat(avg).isBetween(39.0, 41.0));

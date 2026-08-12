@@ -57,9 +57,31 @@ public class VisitStatsService {
     @Value("${magbo.report.min-visit-seconds:60}")
     private long minVisitSeconds;
 
+    /**
+     * TETO de duração plausível. Par acima disto é SAÍDA PERDIDA, não visita.
+     *
+     * ⚠️ Afirmação sobre ESTA escola, não lei: "ninguém fica mais de duas horas
+     * no CDI" (12/08/2026). Ver o comentário da property.
+     */
+    @Value("${magbo.report.max-visit-seconds:7200}")
+    private long maxVisitSeconds;
+
+    /**
+     * Permanência contínua máxima antes de a pessoa normalmente sair e voltar.
+     * NÃO exclui — só conta, para a tela poder dizer quanto da média está na
+     * faixa que o CDI afirma não existir.
+     */
+    @Value("${magbo.report.max-continuous-presence-seconds:3600}")
+    private long maxContinuousPresenceSeconds;
+
     /** Piso de duração, em segundos, para uma visita contar. */
     public long minVisitSeconds() {
         return minVisitSeconds;
+    }
+
+    /** Teto de duração, em segundos, acima do qual o par não é evidência. */
+    public long maxVisitSeconds() {
+        return maxVisitSeconds;
     }
 
     /** Uma visita emparelhada. `saida` null = pessoa não saiu (ou não passou o rosto). */
@@ -71,9 +93,19 @@ public class VisitStatsService {
         }
     }
 
-    /** Números prontos para a tela. */
+    /**
+     * Números prontos para a tela.
+     *
+     * @param implausibleIgnored pares acima do TETO — saídas perdidas, fora da
+     *        média. Devolvido para a tela poder DIZER quantos foram: um número
+     *        que exclui em silêncio é o defeito que estas regras existem para
+     *        não repetir.
+     * @param longVisits pares entre a permanência contínua máxima e o teto —
+     *        CONTAM na média, mas estão na faixa que o CDI diz não existir.
+     */
     public record VisitStats(long visits, long uniquePeople, Integer avgDurationMin,
-                             long shortVisitsIgnored, long openVisits) {
+                             long shortVisitsIgnored, long openVisits,
+                             long implausibleIgnored, long longVisits) {
     }
 
     /**
@@ -99,15 +131,28 @@ public class VisitStatsService {
                 .filter(v -> v.saida() != null && !v.fechamentoAutomatico())
                 .toList();
 
-        Integer media = comDuracaoConfiavel.isEmpty() ? null
-                : (int) Math.round(comDuracaoConfiavel.stream()
+        // ── TETO: o par longo demais não é evidência ──
+        // Ele CONTA como visita (aconteceu: alguém entrou e alguém saiu), mas
+        // a DURAÇÃO dele é a de uma saída perdida, não a de uma permanência.
+        // Por isso a exclusão é só da média — a assimetria de sempre.
+        List<Visit> plausiveis = comDuracaoConfiavel.stream()
+                .filter(v -> v.segundos() <= maxVisitSeconds)
+                .toList();
+        long implausiveis = comDuracaoConfiavel.size() - plausiveis.size();
+        long longas = plausiveis.stream()
+                .filter(v -> v.segundos() > maxContinuousPresenceSeconds)
+                .count();
+
+        Integer media = plausiveis.isEmpty() ? null
+                : (int) Math.round(plausiveis.stream()
                         .mapToLong(v -> v.segundos() / 60L).average().orElse(0));
 
         Set<String> pessoas = new HashSet<>();
         contam.forEach(v -> pessoas.add(v.userId()));
 
         return new VisitStats(contam.size(), pessoas.size(), media, curtas,
-                contam.stream().filter(v -> v.saida() == null).count());
+                contam.stream().filter(v -> v.saida() == null).count(),
+                implausiveis, longas);
     }
 
     /**

@@ -41,7 +41,7 @@ class AvgStayRulesIT extends AbstractIT {
 
     private Double media() {
         return accessLogRepository.avgStayMinutesByPoints(
-                DIA.atStartOfDay(), DIA.atTime(23, 59), List.of("REFEI1"), 60);
+                DIA.atStartOfDay(), DIA.atTime(23, 59), List.of("REFEI1"), 60, 7200);
     }
 
     @Test
@@ -88,7 +88,14 @@ class AvgStayRulesIT extends AbstractIT {
         evento("A", "SAIDA", 17, 0, "FECHAMENTO_AUTO");
         evento("A", "SAIDA", 17, 5, null);
 
-        assertThat(media()).isBetween(544.0, 546.0);
+        // 8:00→17:05 = 545 min, ACIMA do teto de 2h: com o teto em vigor
+        // (12/08/2026) este par sai da media — 9 horas no refeitorio nao e
+        // permanencia, e saida perdida. O que o teste continua provando e o
+        // PAREAMENTO: sem tirar o sintetico do WINDOW, o par seria
+        // ENTRADA→17:00 e o de 17:05 ficaria orfao.
+        assertThat(media())
+                .as("545 min > teto de 7200s -> fora da media")
+                .isNull();
     }
 
     @Test

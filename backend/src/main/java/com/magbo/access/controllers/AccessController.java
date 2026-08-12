@@ -405,7 +405,12 @@ public class AccessController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> reportConfig() {
         return ResponseEntity.ok(Map.of(
-                "minVisitSeconds", visitStatsService.minVisitSeconds()));
+                "minVisitSeconds", visitStatsService.minVisitSeconds(),
+                // O TETO viaja pelo mesmo caminho e pela mesma razão: o
+                // Rapport do CDI é calculado no cliente, e um teto espelhado
+                // como constante no JS faria a mesma tela mostrar dois
+                // números para o mesmo dia assim que a property mudasse.
+                "maxVisitSeconds", visitStatsService.maxVisitSeconds()));
     }
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;
@@ -589,7 +594,8 @@ public class AccessController {
 
             long areaUniques = pts.isEmpty() ? 0 : accessLogRepository.countUniqueStudentsByPoints(from, to, pts);
             Double avgStay = pts.isEmpty() ? null : accessLogRepository.avgStayMinutesByPoints(
-                    from, to, pts, visitStatsService.minVisitSeconds());
+                    from, to, pts, visitStatsService.minVisitSeconds(),
+                    visitStatsService.maxVisitSeconds());
             areas.add(com.magbo.access.dto.OverviewStats.AreaStat.builder()
                     .area(e.getKey())
                     .movements(e.getValue()[0])

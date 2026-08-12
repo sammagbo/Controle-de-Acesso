@@ -171,8 +171,9 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                           const isUnknown = !quem.reconhecido;
                                           const photoUrl = (user && user.foto_url) || localAvatar(quem.nome);
 
-                                          const pointInfo = window.ACCESS_POINTS?.find(p => p.id === attempt.pointId);
-                                          const pointName = pointInfo ? pointInfo.nome : attempt.pointId;
+                                          // Nome do ponto, nunca o código seco (pointLabel resolve
+                                          // e rotula o desconhecido como "Ponto X").
+                                          const pointName = pointLabel(attempt.pointId, 'pt');
 
                                           const isNew = newIds.has(attempt.id); // F7a — destaque ~8s
 

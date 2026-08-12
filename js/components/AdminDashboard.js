@@ -132,8 +132,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   const formattedTime = formatTime(time);
                   const user = (window.userCache?.byId(log.userId)) || null;
                   const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
-                  const point = ACCESS_POINTS.find(p => p.id === log.pointId);
-                  const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
+                  const pointName = pointLabel(log.pointId, 'pt');
                   const action = log.status || log.action || 'N/A';
 
                   // Escape CSV values
@@ -188,8 +187,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         const formattedTime = formatTime(time);
                         const user = (window.userCache?.byId(log.userId)) || null;
                         const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
-                        const point = ACCESS_POINTS.find(p => p.id === log.pointId);
-                        const pointName = point ? (point.nome || log.pointId) : (log.pointId || 'Desconhecido');
+                        const pointName = pointLabel(log.pointId, 'pt');
                         const action = log.status || log.action || 'N/A';
                         
                         tableRows.push([formattedTime, userName, pointName, action]);
@@ -225,10 +223,8 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   { pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
       };
 
-      const resolvePointName = (log) => {
-            const point = ACCESS_POINTS.find(p => p.id === log.pointId);
-            return point ? (point.nome || log.pointId) : (log.pointId || '—');
-      };
+      // Nome do ponto, nunca o código seco — mesma regra do nome de pessoa.
+      const resolvePointName = (log) => pointLabel(log.pointId, 'pt');
 
       const resolvePointIcon = (log) => {
             const point = ACCESS_POINTS.find(p => p.id === log.pointId);

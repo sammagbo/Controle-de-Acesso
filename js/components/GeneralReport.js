@@ -117,10 +117,9 @@ function JournalTab({ active = true }) {
         if (page > totalPages) setPage(totalPages);
     }, [page, totalPages]);
 
-    const pointName = (id) => {
-        const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === id);
-        return p ? p.nome : id;
-    };
+    // Nome do ponto, nunca o código seco — pointLabel (js/data/constants.js)
+    // resolve pelo ACCESS_POINTS e rotula o desconhecido como "Point X".
+    const pointName = (id) => pointLabel(id);
 
     const fmtDateTime = (ts) => {
         const d = new Date(safeDateParse(ts));
@@ -418,10 +417,9 @@ function ParEleveTab() {
         if (u) loadLogs(u);
     }, [loadLogs, selected]);
 
-    const pointName = (id) => {
-        const p = (typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : []).find(pt => pt.id === id);
-        return p ? p.nome : id;
-    };
+    // Nome do ponto, nunca o código seco — pointLabel (js/data/constants.js)
+    // resolve pelo ACCESS_POINTS e rotula o desconhecido como "Point X".
+    const pointName = (id) => pointLabel(id);
     const tsMs = (ts) => typeof ts === 'number' ? ts : new Date(ts).getTime();
     const fmtTime = (ts) => new Date(tsMs(ts)).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const fmtDayHeader = (dateStr) => {
@@ -672,8 +670,13 @@ function DeniedAttemptStats() {
     }, []);
 
     const sorted = obj => Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+    // `labels` aceita um MAPA (enums, como DENIAL_REASON_LABELS) ou uma
+    // FUNÇÃO (pontos, cuja lista vive em ACCESS_POINTS e tem fallback
+    // próprio). Antes "Par point" recebia null e imprimia PORT1/REFEI1 cru —
+    // código onde o leitor espera um lugar.
     const block = (title, obj, labels) => {
         const rows = sorted(obj);
+        const rotulo = (k) => typeof labels === 'function' ? labels(k) : ((labels && labels[k]) || k);
         return (
             <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
                 <h4 className="text-sm font-black text-navy-500 mb-2">{title}</h4>
@@ -683,7 +686,7 @@ function DeniedAttemptStats() {
                     <div className="space-y-1">
                         {rows.map(([k, v]) => (
                             <div key={k} className="flex justify-between text-xs">
-                                <span className="text-slate-600">{(labels && labels[k]) || k}</span>
+                                <span className="text-slate-600">{rotulo(k)}</span>
                                 <span className="font-bold text-navy-700">{v}</span>
                             </div>
                         ))}
@@ -709,9 +712,10 @@ function DeniedAttemptStats() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {block('Par motif', stats.byReason, window.DENIAL_REASON_LABELS)}
-                    {block('Par point', stats.byPoint, null)}
+                    {block('Par point', stats.byPoint, (k) => pointLabel(k))}
                     {block('Par méthode', stats.byMethod, window.AUTH_METHOD_LABELS)}
-                    {block('Par classe', stats.byTurma, null)}
+                    {block('Par classe (élèves)', stats.byTurma,
+                        (k) => k === 'UNKNOWN' ? 'Personnel / sans classe' : k)}
                 </div>
             )}
         </div>
@@ -1002,7 +1006,11 @@ function OverviewTab() {
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
                                 React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString('fr-FR')),
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Élèves uniques"),
+                                // "Personnes uniques", e não "Élèves": countUniqueStudents
+                                // é COUNT(DISTINCT user_id) SEM filtro de tipo — professor e
+                                // personnel entram. A query é legada e não muda de resultado
+                                // (regra do projeto); o rótulo é que estava errado.
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Personnes uniques"),
                                 React.createElement("p", { className: "text-[11px] text-slate-400" }, "sur la période")
                             )
                         ),
@@ -1080,7 +1088,7 @@ function OverviewTab() {
                             <p className="text-sm text-slate-600 mt-1">
                                 {grandTotal === 0
                                     ? 'Aucune activité sur la période.'
-                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} élève{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).{attention.total > 0 ? (<> Principal point d'attention&nbsp;: <b>{attention.sortiesNonEnreg >= attention.repasHorsHoraire && attention.sortiesNonEnreg >= attention.sejoursLongs ? 'sorties non enregistrées' : (attention.repasHorsHoraire >= attention.sejoursLongs ? 'repas hors horaire' : 'séjours prolongés \u00e0 l\'infirmerie')}</b> ({Math.max(attention.sejoursLongs, attention.repasHorsHoraire, attention.sortiesNonEnreg)} cas).</>) : null}</>)
+                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} personne{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).{attention.total > 0 ? (<> Principal point d'attention&nbsp;: <b>{attention.sortiesNonEnreg >= attention.repasHorsHoraire && attention.sortiesNonEnreg >= attention.sejoursLongs ? 'sorties non enregistrées' : (attention.repasHorsHoraire >= attention.sejoursLongs ? 'repas hors horaire' : 'séjours prolongés \u00e0 l\'infirmerie')}</b> ({Math.max(attention.sejoursLongs, attention.repasHorsHoraire, attention.sortiesNonEnreg)} cas).</>) : null}</>)
                                 }
                             </p>
                         </div>
@@ -1291,7 +1299,7 @@ function OverviewTab() {
                                     </div>
                                     <div>
                                         <p className={`text-2xl font-black ${a.uniques > 0 ? 'text-accent-600' : 'text-slate-300'}`}>{a.uniques > 0 ? a.uniques : '—'}</p>
-                                        <p className="text-xs text-slate-400">Élèves uniques</p>
+                                        <p className="text-xs text-slate-400">{a.key === 'cdi' && !incluirFuncionarios ? 'Élèves uniques' : 'Personnes uniques'}</p>
                                     </div>
                                     <div>
                                         <p className={`font-black ${a.dureeMoy != null ? 'text-2xl text-navy-500' : 'text-lg text-slate-300'}`}>{a.dureeMoy != null ? a.dureeMoy + ' min' : 'Indispo.'}</p>

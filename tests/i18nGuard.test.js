@@ -37,6 +37,18 @@ const MIGRADAS = [
     'js/components/ConnectionStatus.js',
     'js/components/ActiveTimers.js',
     'js/components/Toast.js',
+    // Leva 1 — OPERAÇÃO (ordem acordada: operação → gestão → relatórios →
+    // AppSettingsModal por último e sozinho).
+    'js/components/PasswordInput.js',
+    'js/components/ListaLimitada.js',
+    'js/components/DeniedAttemptsFeed.js',
+    'js/cdi/LockScreen.js',
+    'js/cdi/HistoryModal.js',
+    'js/components/SectorView.js',
+    'js/components/AccessModals.js',
+    'js/components/CantineMonitor.js',
+    'js/cdi/StudentManagerModal.js',
+    'js/cdi/HelpModal.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */
@@ -56,6 +68,11 @@ const NAO_SE_TRADUZ = [
     /^(FUNC|PROF)-/,               // matrículas de servidor
     /^[\d\s.,:/·%+()-]*$/,         // pontuação, números, separadores
     /^[·:/|—–-]$/,
+    // Combinação de teclas: 'Alt + L', 'Ctrl + S' — o que está escrito na
+    // tecla física, igual nos dois idiomas.
+    /^(Alt|Ctrl|Shift|Cmd|Tab|F\d+)( ?\+ ?\w+)*$/,
+    /^[\w.+-]+@[\w.-]+\.\w+$/,   // e-mail de contato
+    /^v\d+\.\d+/,                 // versão
 ];
 
 function podeFicarCru(texto) {

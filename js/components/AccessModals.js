@@ -3,6 +3,7 @@
 // =====================================================================
 
 function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
+    const t = useI18n();
     if (!responsavel) return null;
 
     return (
@@ -16,17 +17,17 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                             <img src={aluno.foto_url || DEFAULT_AVATAR} alt={aluno.nome || ''} className="w-24 h-24 rounded-full shadow-md border-4 border-white flex-shrink-0" onError={handleImgError} />
                             <div className="flex-1 space-y-3 min-w-0">
                                 <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Aluno(a)</p>
-                                    <h2 className="text-xl font-black text-navy-500 truncate">{aluno.nome || 'Sem nome'}</h2>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t('modal.nome.aluno')}</p>
+                                    <h2 className="text-xl font-black text-navy-500 truncate">{aluno.nome || t('comum.sem.nome')}</h2>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turma</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.turma')}</p>
                                         <p className="text-sm font-bold text-navy-500 truncate">{aluno.turma || '-'}</p>
                                     </div>
                                     <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm flex flex-col justify-center">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
-                                        <p className="text-sm font-bold text-success-600">Liberado ✅</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.status')}</p>
+                                        <p className="text-sm font-bold text-success-600">{t('modal.liberado')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -39,12 +40,12 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                         <img src={responsavel.foto_url || DEFAULT_AVATAR} alt={responsavel.nome || ''} className="w-28 h-28 rounded-full shadow-md border-4 border-white flex-shrink-0 relative z-10" onError={handleImgError} />
                         <div className="flex-1 space-y-3 relative z-10 min-w-0">
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
-                                <p className="text-[10px] font-bold text-accent-600 uppercase tracking-wider mb-1">Responsável pela Retirada</p>
-                                <h2 className="text-2xl font-black text-navy-500 truncate">{responsavel.nome || 'Sem responsável cadastrado'}</h2>
+                                <p className="text-[10px] font-bold text-accent-600 uppercase tracking-wider mb-1">{t('modal.responsavel')}</p>
+                                <h2 className="text-2xl font-black text-navy-500 truncate">{responsavel.nome || t('modal.sem.responsavel')}</h2>
                             </div>
                             <div className="grid grid-cols-1 gap-3">
                                 <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parentesco</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.parentesco')}</p>
                                     <p className="text-sm font-bold text-navy-500 truncate">{responsavel.parentesco || 'Responsável'}</p>
                                 </div>
                             </div>
@@ -65,7 +66,7 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                         onClick={onConfirm}
                         className="py-4 rounded-2xl bg-success-500 text-white font-bold text-lg hover:bg-success-600 transition-colors shadow-lg shadow-success-500/30"
                     >
-                        CONFIRMAR SAÍDA
+                        {t('modal.confirmar.saida')}
                     </button>
                 </div>
             </div>
@@ -74,10 +75,11 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
 }
 
 function PermanenciaModal({ user, bannerProps, onClose }) {
+    const t = useI18n();
     if (!user) return null;
 
     // Safe defaults for bannerProps
-    const safeBanner = bannerProps || { text: 'ACESSO REGISTRADO', type: 'success' };
+    const safeBanner = bannerProps || { text: t('modal.registrado'), type: 'success' };
 
     // Auto-close after 5 seconds if not an error alert that needs manual dismissal
     React.useEffect(() => {
@@ -116,16 +118,16 @@ function PermanenciaModal({ user, bannerProps, onClose }) {
 
                     <div className="w-full space-y-3">
                         <div className="bg-soft-50 border border-soft-200 rounded-2xl px-6 py-4 shadow-sm w-full">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Aluno</p>
-                            <h3 className="text-2xl font-black text-navy-500">{user.nome || 'Sem nome'}</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t('modal.nome.aluno')}</p>
+                            <h3 className="text-2xl font-black text-navy-500">{user.nome || t('comum.sem.nome')}</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turma</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.turma')}</p>
                                 <p className="text-base font-bold text-navy-500">{user.turma || '-'}</p>
                             </div>
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tipo</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.tipo')}</p>
                                 <p className="text-base font-bold text-navy-500">{user.tipo}</p>
                             </div>
                         </div>
@@ -139,7 +141,7 @@ function PermanenciaModal({ user, bannerProps, onClose }) {
                         onClick={onClose}
                         className="w-full py-4 rounded-2xl bg-white text-navy-500 font-bold text-lg hover:bg-soft-100 transition-colors border border-soft-200 shadow-sm"
                     >
-                        OK
+                        {t('acao.ok')}
                     </button>
                 </div>
             </div>

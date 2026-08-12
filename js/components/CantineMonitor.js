@@ -12,6 +12,7 @@ const STAY_LIMIT_MS = 60 * 60 * 1000;      // 1h max stay
 const EXIT_VISIBLE_MS = 40 * 60 * 1000;    // sortis visible 40 min
 
 function CantineMonitor() {
+    const t = useI18n();
     const [logs, setLogs] = React.useState([]);
     const [lastUpdate, setLastUpdate] = React.useState(null);
     const [now, setNow] = React.useState(Date.now());
@@ -106,7 +107,7 @@ function CantineMonitor() {
 
     const elapsedLabel = (ev) => {
         const mins = Math.floor((now - ev._t) / 60000);
-        if (mins < 1) return "à l'instant";
+        if (mins < 1) return t('cantina.agora');
         if (mins < 60) return `il y a ${mins} min`;
         const h = Math.floor(mins / 60);
         const m = mins % 60;
@@ -134,7 +135,7 @@ function CantineMonitor() {
                         )}
                         <span className="text-xs text-slate-400">{elapsedLabel(ev)}</span>
                         {horsHoraire && variant !== 'doit' && (
-                            <span className="text-xs font-bold text-danger-600 bg-danger-50 px-1.5 py-0.5 rounded">hors horaire</span>
+                            <span className="text-xs font-bold text-danger-600 bg-danger-50 px-1.5 py-0.5 rounded">{t('cantina.fora.horario')}</span>
                         )}
                     </div>
                 </div>
@@ -166,17 +167,17 @@ function CantineMonitor() {
                             <LucideIcon name="utensils" size={26} className="text-white" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-navy-500">Monitor Cantine</h2>
-                            <p className="text-sm text-slate-400">Surveillance en temps réel — actualisé toutes les 3s</p>
+                            <h2 className="text-2xl font-black text-navy-500">{t('cantina.titulo')}</h2>
+                            <p className="text-sm text-slate-400">{t('cantina.subtitulo')}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => { if (confirm("Vider l'écran ? (les données restent enregistrées)")) setCutoff(Date.now()); }}
+                            onClick={() => { if (confirm(t('cantina.limpar.confirma'))) setCutoff(Date.now()); }}
                             className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-soft-100 hover:bg-soft-200 px-3 py-2 rounded-full transition-colors"
-                            title="Masque les passages actuels, sans rien supprimer"
+                            title={t('cantina.limpar.ajuda')}
                         >
-                            <LucideIcon name="eraser" size={14} /> Vider l'écran
+                            <LucideIcon name="eraser" size={14} /> {t('cantina.limpar')}
                         </button>
                         <div className="flex items-center gap-2 text-xs font-semibold text-success-600 bg-success-50 px-3 py-2 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-success-500 animate-pulse" />
@@ -195,15 +196,15 @@ function CantineMonitor() {
                             type="text"
                             value={query}
                             onChange={e => setQuery(e.target.value)}
-                            placeholder="Rechercher une personne (nom, classe ou ID)..."
+                            placeholder={t('cantina.busca')}
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300"
                         />
                     </div>
                     {query.trim() && (
                         <p className="text-xs font-semibold mt-2 px-1 text-slate-500">
                             {foundColumn === 'introuvable'
-                                ? "Aucune personne trouvée"
-                                : <>Trouvé dans : <span className="text-accent-600">{foundColumn}</span></>}
+                                ? t('cantina.sem.pessoa')
+                                : <>{t('cantina.achado.em')} <span className="text-accent-600">{foundColumn}</span></>}
                         </p>
                     )}
                 </div>
@@ -212,27 +213,27 @@ function CantineMonitor() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Column 1 */}
                     <div className="bg-soft-50/50 rounded-2xl p-3">
-                        <ColumnHeader icon="log-in" title="Dans la cantine" count={columns.dans.length} color="bg-accent-500" />
+                        <ColumnHeader icon="log-in" title={t('cantina.col.dentro')} count={columns.dans.length} color="bg-accent-500" />
                         <div className="space-y-2">
-                            {columns.dans.length === 0 && <p className="text-xs text-slate-300 text-center py-6">Personne</p>}
+                            {columns.dans.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
                             {columns.dans.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="dans" />)}
                         </div>
                     </div>
 
                     {/* Column 2 */}
                     <div className="bg-soft-50/50 rounded-2xl p-3">
-                        <ColumnHeader icon="log-out" title="Sortis" count={columns.sortis.length} color="bg-success-500" />
+                        <ColumnHeader icon="log-out" title={t('cantina.col.sairam')} count={columns.sortis.length} color="bg-success-500" />
                         <div className="space-y-2">
-                            {columns.sortis.length === 0 && <p className="text-xs text-slate-300 text-center py-6">Personne</p>}
+                            {columns.sortis.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
                             {columns.sortis.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="sortis" />)}
                         </div>
                     </div>
 
                     {/* Column 3 */}
                     <div className="bg-warning-50/40 rounded-2xl p-3 border border-warning-200">
-                        <ColumnHeader icon="alert-triangle" title="Doit sortir" count={columns.doitSortir.length} color="bg-warning-500" />
+                        <ColumnHeader icon="alert-triangle" title={t('cantina.col.deve.sair')} count={columns.doitSortir.length} color="bg-warning-500" />
                         <div className="space-y-2">
-                            {columns.doitSortir.length === 0 && <p className="text-xs text-slate-300 text-center py-6">Personne</p>}
+                            {columns.doitSortir.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
                             {columns.doitSortir.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="doit" />)}
                         </div>
                     </div>
@@ -242,8 +243,8 @@ function CantineMonitor() {
             {/* Sidebar: Denied Attempts Feed */}
             <div className="w-full xl:w-96 flex-shrink-0 h-[600px] xl:h-[calc(100vh-120px)] xl:sticky xl:top-6">
                 <DeniedAttemptsFeed 
-                    title="Tentatives Refusées" 
-                    emptyMessage="Aucune tentative refusée" 
+                    title={t('feed.titulo')} 
+                    emptyMessage={t('feed.vazio')} 
                     fetchFn={window.api?.getRefectoryAttempts || (async () => [])} 
                     pollingMs={3000} 
                 />

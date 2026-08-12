@@ -4,6 +4,7 @@
 
 function SectorView({ point, accessLogs, onProcess, activeTimers,
                       incluirRepeticoes = false, onToggleRepeticoes }) {
+      const t = useI18n();
       const [searchQuery, setSearchQuery] = React.useState('');
       const [searchResults, setSearchResults] = React.useState([]);
       const [isSearching, setIsSearching] = React.useState(false);
@@ -112,7 +113,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       value={searchQuery}
                                                       onChange={(e) => { setSearchQuery(e.target.value); setSearchResults([]); }}
                                                       onKeyDown={handleKeyDown}
-                                                      placeholder="Ler Cartão ou buscar nome... (Enter para buscar)"
+                                                      placeholder={t('setor.busca')}
                                                       className="w-full pl-12 pr-4 py-3.5 bg-white rounded-xl text-sm font-medium text-navy-500 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg animate-pulse-glow"
                                                 />
                                                 {searchQuery && (
@@ -132,13 +133,13 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                           {isSearching && (
                                                 <div className="p-6 text-center">
                                                       <div className="w-6 h-6 border-2 border-accent-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                                                      <p className="text-xs text-slate-400">Buscando na base de dados...</p>
+                                                      <p className="text-xs text-slate-400">{t('setor.buscando')}</p>
                                                 </div>
                                           )}
                                           {!isSearching && searchQuery.trim() && displayResults.length === 0 && (
                                                 <div className="p-8 text-center">
                                                       <LucideIcon name="search-x" size={40} className="text-slate-300 mx-auto mb-3" />
-                                                      <p className="text-sm text-slate-400">Nenhum resultado para "{searchQuery}"</p>
+                                                      <p className="text-sm text-slate-400">{t('setor.sem.resultado')}{' '}"{searchQuery}"</p>
                                                 </div>
                                           )}
                                           {!isSearching && displayResults.map((user, idx) => {
@@ -174,8 +175,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       <div className="w-16 h-16 rounded-2xl bg-soft-100 flex items-center justify-center mx-auto mb-4">
                                                             <LucideIcon name="scan-line" size={32} className="text-slate-300" />
                                                       </div>
-                                                      <p className="text-sm font-semibold text-slate-400 mb-1">Aguardando leitura</p>
-                                                      <p className="text-xs text-slate-300">Escaneie o cartão ou digite o nome do usuário</p>
+                                                      <p className="text-sm font-semibold text-slate-400 mb-1">{t('setor.aguardando')}</p>
+                                                      <p className="text-xs text-slate-300">{t('setor.aguardando.dica')}</p>
                                                 </div>
                                           )}
                                     </div>
@@ -188,7 +189,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                     <div className="px-5 py-4 border-b border-soft-100 flex items-center justify-between gap-3">
                                           <div className="flex items-center gap-2">
                                                 <LucideIcon name="radio" size={18} className="text-accent-500" />
-                                                <h3 className="text-sm font-bold text-navy-500 uppercase tracking-wider">Últimos Acessos</h3>
+                                                <h3 className="text-sm font-bold text-navy-500 uppercase tracking-wider">{t('setor.ultimos')}</h3>
                                           </div>
                                           <div className="flex items-center gap-2">
                                                 {/* Posto fixo: a repetição do dia de quem TRABALHA neste
@@ -197,7 +198,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                     quem opera — e nada aqui é apagado. */}
                                                 {onToggleRepeticoes && (
                                                       <label
-                                                            title="Repetições que não abrem visita nova: quem fica postado neste ponto (porteiro, plantão) e quem entra estando já dentro. Ficam gravadas, mas fora desta lista e das contagens."
+                                                            title={t('setor.repeticoes.ajuda')}
                                                             className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-colors ${incluirRepeticoes ? 'bg-accent-50 text-accent-700 border border-accent-200' : 'bg-soft-100 text-slate-500 border border-transparent hover:bg-soft-200'}`}
                                                       >
                                                             <input
@@ -206,14 +207,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                   onChange={(e) => onToggleRepeticoes(e.target.checked)}
                                                                   className="w-3 h-3 rounded accent-accent-500"
                                                             />
-                                                            Repetições
+                                                            {t('setor.repeticoes')}
                                                             {incluirRepeticoes && repeticoesEmTela > 0 && (
                                                                   <span className="tabular-nums">({repeticoesEmTela})</span>
                                                             )}
                                                       </label>
                                                 )}
                                                 <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full whitespace-nowrap">
-                                                      {pointLogs.length} acessos (24h)
+                                                      {pointLogs.length} {t('setor.acessos24h')}
                                                 </span>
                                           </div>
                                     </div>
@@ -224,8 +225,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       <div className="w-16 h-16 rounded-2xl bg-soft-100 flex items-center justify-center mx-auto mb-4">
                                                             <LucideIcon name="clipboard-list" size={32} className="text-slate-300" />
                                                       </div>
-                                                      <p className="text-sm font-semibold text-slate-400 mb-1">Nenhum registro</p>
-                                                      <p className="text-xs text-slate-300">Os acessos aparecerão aqui em tempo real</p>
+                                                      <p className="text-sm font-semibold text-slate-400 mb-1">{t('setor.sem.registro')}</p>
+                                                      <p className="text-xs text-slate-300">{t('setor.sem.registro.dica')}</p>
                                                 </div>
                                           )}
                                           {pointLogs.slice(0, 50).map((log, idx) => {
@@ -284,7 +285,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                         )}
                                                                         {ehRepeticao && (
                                                                               <span
-                                                                                    title="Repetição — gravada, mas fora das contagens"
+                                                                                    title={t('setor.repeticao.etiqueta')}
                                                                                     className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
                                                                               >
                                                                                     {rotuloRepeticao}
@@ -295,7 +296,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                             <div className="flex-shrink-0 text-right">
                                                                   <p className="text-sm font-bold font-mono text-navy-500">{formatTime(time)}</p>
                                                                   <span className={`inline-flex items-center gap-1 text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full ${isEntrada ? 'text-success-600 bg-success-50' : 'text-danger-600 bg-danger-50'}`}>
-                                                                        {isEntrada ? '✅ Entrada' : '🔴 Saída'}
+                                                                        {isEntrada ? t('acao.entrada.emoji') : t('acao.saida.emoji')}
                                                                   </span>
                                                             </div>
                                                             {log.duration && (

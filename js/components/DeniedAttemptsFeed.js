@@ -64,7 +64,10 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
       };
 
       const getReasonBadge = (reason) => {
-            const label = window.DENIAL_REASON_LABELS?.[reason] || reason;
+            // tEnum: rótulo no idioma atual, código cru se o enum for novo.
+            // (O mapa antigo era lido de window e NUNCA esteve lá — o feed
+            // mostrou códigos crus desde a Fase H sem ninguém notar.)
+            const label = window.MagboI18n.tEnum('denial', reason);
             let color = 'bg-slate-100 text-slate-700'; // DEFAULT
             
             switch (reason) {
@@ -96,7 +99,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
       };
 
       const getMethodBadge = (method) => {
-            const label = window.AUTH_METHOD_LABELS?.[method] || method;
+            const label = window.MagboI18n.tEnum('authMethod', method);
             if (method === 'FACE') return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"><LucideIcon name="scan-face" size={12}/> {label}</span>;
             if (method === 'CARD') return <span className="inline-flex items-center gap-1 text-[11px] font-bold text-lycee-600 bg-lycee-50 px-2 py-0.5 rounded"><LucideIcon name="credit-card" size={12}/> {label}</span>;
             return <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded">{label}</span>;

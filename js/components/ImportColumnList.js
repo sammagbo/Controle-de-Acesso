@@ -9,6 +9,7 @@
 // aceitação continua inteiramente no backend. Este componente não valida nada.
 
 function ImportColumnList({ doc, legenda = true }) {
+    const t = useI18n();
     if (!doc || !Array.isArray(doc.colunas)) return null;
     const M = window.MagboImportColumns;
 
@@ -29,15 +30,15 @@ function ImportColumnList({ doc, legenda = true }) {
                                 {c.campo}
                             </code>
                             {obrigatoria && (
-                                <span className="text-[10px] font-bold uppercase text-danger-600">obrigatória</span>
+                                <span className="text-[10px] font-bold uppercase text-danger-600">{t('importcol.obrigatoria')}</span>
                             )}
                             {condicional && (
                                 <span className="text-[10px] font-bold uppercase text-warning-600">
-                                    {c.obrigatorio === 'conjunto' ? 'em conjunto' : 'condicional'}
+                                    {c.obrigatorio === 'conjunto' ? t('importcol.conjunto') : t('importcol.condicional')}
                                 </span>
                             )}
                             {c.aceitos && c.aceitos.length > 0 && (
-                                <span className="text-slate-400">aceita: {c.aceitos.join(' · ')}</span>
+                                <span className="text-slate-400">{t('importcol.aceita')} {c.aceitos.join(' · ')}</span>
                             )}
                             {c.nota && <span className="text-slate-400">— {c.nota}</span>}
                         </li>
@@ -46,9 +47,8 @@ function ImportColumnList({ doc, legenda = true }) {
             </ul>
             {legenda && (
                 <p className="text-[11px] text-slate-400 mt-2">
-                    Em <strong className="text-navy-600">negrito</strong>, o que precisa estar
-                    preenchido em toda linha. O resto é opcional.
-                    {doc.posicional && ' As colunas são lidas pela POSIÇÃO, não pelo nome.'}
+                    {t('importcol.legenda.a')} <strong className="text-navy-600">{t('importcol.legenda.negrito')}</strong>{t('importcol.legenda.b')}
+                    {doc.posicional && t('importcol.posicional')}
                 </p>
             )}
         </div>

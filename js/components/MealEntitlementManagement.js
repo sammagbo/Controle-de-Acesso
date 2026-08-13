@@ -476,7 +476,7 @@ function MealEntitlementManagement() {
                                                                               } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                         >
                                                                               <div className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-success-500' : isPending ? 'bg-warning-500' : 'bg-danger-500'}`}></div>
-                                                                              {window.ENTITLEMENT_STATUS_LABELS?.[status] || status}
+                                                                              {window.MagboI18n.tEnum('entitlement', status)}
                                                                         </button>
                                                                   </td>
                                                                   <td className="px-6 py-3">

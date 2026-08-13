@@ -6,6 +6,7 @@
 // KPIs, table with duration & status, CSV + PDF export.
 
 function RefectoryReport() {
+    const t = useI18n();
     const todayStr = () => new Date().toISOString().slice(0, 10);
 
     const [dateFrom, setDateFrom] = React.useState(todayStr());
@@ -78,9 +79,9 @@ function RefectoryReport() {
     }, [filtered]);
 
     const statusBadge = (m) => {
-        if (!m.exitRegistered) return { label: 'Sortie non enregistrée', cls: 'text-slate-600 bg-slate-100' };
-        if (!m.onTime) return { label: 'Hors horaire', cls: 'text-danger-700 bg-danger-100' };
-        return { label: 'À l\'heure', cls: 'text-success-700 bg-success-100' };
+        if (!m.exitRegistered) return { label: t('rap.status.sem.saida'), cls: 'text-slate-600 bg-slate-100' };
+        if (!m.onTime) return { label: t('rap.status.fora.horario'), cls: 'text-danger-700 bg-danger-100' };
+        return { label: t('rap.status.na.hora'), cls: 'text-success-700 bg-success-100' };
     };
 
     const fmtDuration = (min) => {
@@ -90,7 +91,8 @@ function RefectoryReport() {
     };
 
     const exportCSV = () => {
-        const header = 'Date,ID,Nom,Classe,Entrée,Sortie,Durée (min),Statut\n';
+        // O CSV sai no idioma da tela — quem exporta lê o arquivo na língua em que trabalha.
+        const header = t('rap.cantina.csv.header') + '\n';
         const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const rows = filtered.map(m => [
             esc(m.date), esc(m.userId), esc(m.nome), esc(m.turma),
@@ -125,18 +127,18 @@ function RefectoryReport() {
         return (
             <div className="fixed inset-0 bg-white z-50 p-8 overflow-auto" id="cantine-report-view">
                 <style>{`@media print { body * { visibility: hidden; } #cantine-report-view, #cantine-report-view * { visibility: visible; } #cantine-report-view { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
-                <h1 className="text-2xl font-black mb-1">Rapport Cantine — Lycée Molière</h1>
-                <p className="text-sm text-slate-500 mb-4">Période : {dateFrom} → {dateTo} · {filtered.length} repas</p>
+                <h1 className="text-2xl font-black mb-1">{t('rap.cantina.print.titulo')}</h1>
+                <p className="text-sm text-slate-500 mb-4">{t('rap.periodo')} {dateFrom} → {dateTo} · {t('rap.cantina.refeicoes', { n: filtered.length })}</p>
                 <div className="grid grid-cols-5 gap-3 mb-5 text-center text-sm">
-                    <div><b className="block text-xl">{kpis.total}</b>Repas</div>
-                    <div><b className="block text-xl">{kpis.uniques}</b>Élèves</div>
-                    <div><b className="block text-xl">{kpis.late}</b>Hors horaire</div>
-                    <div><b className="block text-xl">{kpis.noExit}</b>Sans sortie</div>
-                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>Durée moy.</div>
+                    <div><b className="block text-xl">{kpis.total}</b>{t('rap.cantina.kpi.refeicoes')}</div>
+                    <div><b className="block text-xl">{kpis.uniques}</b>{t('rap.kpi.alunos')}</div>
+                    <div><b className="block text-xl">{kpis.late}</b>{t('rap.status.fora.horario')}</div>
+                    <div><b className="block text-xl">{kpis.noExit}</b>{t('rap.status.sem.saida')}</div>
+                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>{t('cdi.stats.duracao.curta')}</div>
                 </div>
                 <table className="w-full text-xs border-collapse">
                     <thead><tr className="border-b-2 border-slate-800 text-left">
-                        <th className="py-1">Date</th><th>Nom</th><th>Classe</th><th>Entrée</th><th>Sortie</th><th>Durée</th><th>Statut</th>
+                        <th className="py-1">{t('rap.col.data')}</th><th>{t('comum.nome')}</th><th>{t('comum.turma')}</th><th>{t('rap.col.entrada')}</th><th>{t('rap.col.saida')}</th><th>{t('rap.col.duracao')}</th><th>{t('comum.status')}</th>
                     </tr></thead>
                     <tbody>
                         {filtered.map((m, i) => (
@@ -160,17 +162,17 @@ function RefectoryReport() {
                     <LucideIcon name="clipboard-list" size={24} className="text-white" />
                 </div>
                 <div>
-                    <h2 className="text-xl font-black text-navy-500">Rapport Cantine</h2>
-                    <p className="text-sm text-slate-400">Repas, durée de présence et ponctualité</p>
+                    <h2 className="text-xl font-black text-navy-500">{t('rap.cantina.titulo')}</h2>
+                    <p className="text-sm text-slate-400">{t('rap.cantina.subtitulo')}</p>
                 </div>
             </div>
 
             {/* Period quick-select */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
-                {periodBtn('today', "Aujourd'hui")}
-                {periodBtn('week', '7 derniers jours')}
-                {periodBtn('month', '30 derniers jours')}
-                {periodBtn('custom', 'Personnalisé')}
+                {periodBtn('today', t('periodo.hoje'))}
+                {periodBtn('week', t('periodo.7dias'))}
+                {periodBtn('month', t('periodo.30dias'))}
+                {periodBtn('custom', t('periodo.personalizado'))}
                 {period === 'custom' && (
                     <div className="flex items-center gap-2 ml-2">
                         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} />
@@ -183,11 +185,11 @@ function RefectoryReport() {
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                 {[
-                    { label: 'Repas servis', value: kpis.total, color: 'text-navy-500' },
-                    { label: 'Élèves uniques', value: kpis.uniques, color: 'text-accent-600' },
-                    { label: 'Hors horaire', value: kpis.late, color: 'text-danger-600' },
-                    { label: 'Sans sortie', value: kpis.noExit, color: 'text-slate-500' },
-                    { label: 'Durée moyenne', value: fmtDuration(kpis.avg), color: 'text-success-600' },
+                    { label: t('rap.cantina.kpi.servidos'), value: kpis.total, color: 'text-navy-500' },
+                    { label: t('rap.kpi.alunos.unicos'), value: kpis.uniques, color: 'text-accent-600' },
+                    { label: t('rap.status.fora.horario'), value: kpis.late, color: 'text-danger-600' },
+                    { label: t('rap.status.sem.saida'), value: kpis.noExit, color: 'text-slate-500' },
+                    { label: t('rap.kpi.duracao'), value: fmtDuration(kpis.avg), color: 'text-success-600' },
                 ].map((k, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
                         <p className="text-xs font-bold text-slate-400 uppercase">{k.label}</p>
@@ -199,23 +201,24 @@ function RefectoryReport() {
             {/* Filters */}
             <div className="bg-white rounded-2xl border border-soft-200 p-4 mb-5 shadow-sm flex flex-wrap items-end gap-3">
                 <div className="flex-1 min-w-[180px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Élève (nom/ID)</label>
-                    <input type="text" value={aluno} onChange={e => setAluno(e.target.value)} placeholder="Rechercher..." className={inputCls + " w-full mt-1"} />
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('rap.filtro.aluno')}</label>
+                    <input type="text" value={aluno} onChange={e => setAluno(e.target.value)} placeholder={t('rap.filtro.busca')} className={inputCls + " w-full mt-1"} />
                 </div>
                 <div className="min-w-[140px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Classe</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('comum.turma')}</label>
                     <select value={turma} onChange={e => setTurma(e.target.value)} className={inputCls + " w-full mt-1"}>
-                        <option value="">Toutes</option>
-                        {turmas.map(t => <option key={t} value={t}>{t}</option>)}
+                        <option value="">{t('rap.filtro.todas')}</option>
+                        {/* ⚠️ o parâmetro chamava-se `t` e sombreava a função de tradução */}
+                        {turmas.map(tu => <option key={tu} value={tu}>{tu}</option>)}
                     </select>
                 </div>
                 <div className="min-w-[160px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Statut</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('comum.status')}</label>
                     <select value={statut} onChange={e => setStatut(e.target.value)} className={inputCls + " w-full mt-1"}>
-                        <option value="">Tous</option>
-                        <option value="ontime">À l'heure</option>
-                        <option value="late">Hors horaire</option>
-                        <option value="noexit">Sans sortie</option>
+                        <option value="">{t('rap.filtro.todos')}</option>
+                        <option value="ontime">{t('rap.status.na.hora')}</option>
+                        <option value="late">{t('rap.status.fora.horario')}</option>
+                        <option value="noexit">{t('rap.status.sem.saida')}</option>
                     </select>
                 </div>
                 <button onClick={exportCSV} className="px-4 py-2 rounded-xl bg-success-500 text-white font-bold text-sm hover:bg-success-600 flex items-center gap-2">
@@ -229,25 +232,25 @@ function RefectoryReport() {
             {/* Table */}
             <div className="bg-white rounded-2xl border border-soft-200 overflow-hidden shadow-sm">
                 <div className="px-5 py-3 border-b border-soft-100 flex items-center justify-between">
-                    <span className="text-sm font-bold text-navy-500">{filtered.length} repas</span>
-                    {loading && <span className="text-xs text-slate-400">Chargement...</span>}
+                    <span className="text-sm font-bold text-navy-500">{t('rap.cantina.refeicoes', { n: filtered.length })}</span>
+                    {loading && <span className="text-xs text-slate-400">{t('comum.carregando')}</span>}
                 </div>
                 <div className="overflow-x-auto max-h-[calc(100vh-440px)] overflow-y-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-soft-50 sticky top-0">
                             <tr className="text-left text-xs font-bold text-slate-400 uppercase">
-                                <th className="px-4 py-2">Date</th>
-                                <th className="px-4 py-2">Élève</th>
-                                <th className="px-4 py-2">Classe</th>
-                                <th className="px-4 py-2">Entrée</th>
-                                <th className="px-4 py-2">Sortie</th>
-                                <th className="px-4 py-2">Durée</th>
-                                <th className="px-4 py-2">Statut</th>
+                                <th className="px-4 py-2">{t('rap.col.data')}</th>
+                                <th className="px-4 py-2">{t('rap.filtro.aluno.curto')}</th>
+                                <th className="px-4 py-2">{t('comum.turma')}</th>
+                                <th className="px-4 py-2">{t('rap.col.entrada')}</th>
+                                <th className="px-4 py-2">{t('rap.col.saida')}</th>
+                                <th className="px-4 py-2">{t('rap.col.duracao')}</th>
+                                <th className="px-4 py-2">{t('comum.status')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 && !loading && (
-                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">Aucun repas pour cette période</td></tr>
+                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{t('rap.cantina.vazio')}</td></tr>
                             )}
                             {filtered.map((m, i) => {
                                 const b = statusBadge(m);

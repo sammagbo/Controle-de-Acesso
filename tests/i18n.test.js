@@ -184,3 +184,48 @@ describe('i18n — fundação', () => {
         });
     });
 });
+
+/**
+ * tEnum — rótulos de ENUM do backend no idioma atual (14/08/2026).
+ *
+ * Os mapas estáticos de constants.js eram lidos via window.DENIAL_REASON_LABELS
+ * etc. — e NUNCA estiveram em window (const lexical não vira propriedade):
+ * todo consumidor caía no código cru em silêncio, desde a Fase H. tEnum é o
+ * conserto e a migração num movimento só.
+ */
+describe('tEnum', () => {
+    const I = require('../js/utils/i18n.js');
+
+    it('★ traduz um enum conhecido nos dois idiomas', () => {
+        I.setLang('fr');
+        expect(I.tEnum('denial', 'MEAL_NOT_ENTITLED')).toBe('Pas de droit au repas');
+        expect(I.tEnum('authMethod', 'FACE')).toBe('Visage');
+        I.setLang('pt');
+        expect(I.tEnum('denial', 'MEAL_NOT_ENTITLED')).toBe('Sem direito à refeição');
+        expect(I.tEnum('authMethod', 'FACE')).toBe('Rosto');
+        I.setLang('fr');
+    });
+
+    it('★ enum DESCONHECIDO devolve o código CRU, nunca a chave', () => {
+        // Um DENIAL_REASON novo no backend aparece como código na tela —
+        // feio, legível, e dizendo exatamente o que falta acrescentar.
+        expect(I.tEnum('denial', 'MOTIVO_NOVO_XYZ')).toBe('MOTIVO_NOVO_XYZ');
+        expect(I.tEnum('grupoInexistente', 'FACE')).toBe('FACE');
+    });
+
+    it('★ os grupos são isolados — FACE só é rosto em authMethod', () => {
+        expect(I.tEnum('denial', 'FACE')).toBe('FACE');
+    });
+
+    it('nulo e vazio viram string vazia, não "null"', () => {
+        expect(I.tEnum('denial', null)).toBe('');
+        expect(I.tEnum('denial', '')).toBe('');
+    });
+
+    it('★ todo grupo enum.* tem as MESMAS chaves nos dois dicionários', () => {
+        const fr = Object.keys(I.DICIONARIOS.fr).filter(k => k.startsWith('enum.')).sort();
+        const pt = Object.keys(I.DICIONARIOS.pt).filter(k => k.startsWith('enum.')).sort();
+        expect(pt).toEqual(fr);
+        expect(fr.length).toBeGreaterThan(25);
+    });
+});

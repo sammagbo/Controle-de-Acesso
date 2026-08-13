@@ -7,6 +7,7 @@ const CDI_POLL_MS = 3000;
 
 function BibliotecaView({ onBack }) {
       const { useState, useEffect, useRef, useCallback, useMemo } = React;
+      const t = useI18n();
 
       // Helper: Map Backend Data to View Format
       const mapToView = useCallback((s) => ({
@@ -63,7 +64,7 @@ function BibliotecaView({ onBack }) {
                         await recarregar();
                   } catch (e) {
                         console.error("Init Error:", e);
-                        setToast({ message: "Erreur chargement données", type: "error" });
+                        setToast({ message: t('cdi.erro.carregar'), type: 'error' });
                   } finally { setLoading(false); }
             };
             init();
@@ -182,7 +183,7 @@ function BibliotecaView({ onBack }) {
       const exportBackup = useCallback((silent = false) => {
             let password = null;
             if (encryptBackup && !silent) {
-                  password = prompt("🔐 Définir un mot de passe pour cette sauvegarde (optionnel mais recommandé):");
+                  password = prompt(t('cdi.backup.senha.definir'));
                   if (password === null) return;
             }
             // For backup, we want the raw data or we can assume state is trusted.
@@ -209,7 +210,7 @@ function BibliotecaView({ onBack }) {
                   document.body.appendChild(a); a.click(); document.body.removeChild(a);
                   setLastBackup(new Date().toISOString().slice(0, 10));
                   setUnsavedChanges(false);
-                  if (!silent) setToast({ message: 'Sauvegarde effectuée !', type: 'success' });
+                  if (!silent) setToast({ message: t('cdi.backup.feito'), type: 'success' });
             });
       }, [muted, pin, encryptBackup, backupTime]);
 
@@ -220,7 +221,7 @@ function BibliotecaView({ onBack }) {
                   const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                   const today = now.toISOString().slice(0, 10);
                   if (timeStr === backupTime && lastBackup !== today) {
-                        setToast({ message: '⏳ Sauvegarde automatique...', type: 'in' });
+                        setToast({ message: t('cdi.backup.auto'), type: 'in' });
                         exportBackup(true);
                   }
             };
@@ -253,16 +254,16 @@ function BibliotecaView({ onBack }) {
                   setLogs(prev => [...prev, { studentId: updated.id, action: isEntering ? 'IN' : 'OUT', timestamp: Date.now() }]);
 
                   if (!muted) { isEntering ? CdiSound.success() : CdiSound.exit(); }
-                  if (fromScanner) setToast({ message: `${mapped.name}: ${isEntering ? 'Entré' : 'Sorti'}`, type: isEntering ? 'in' : 'out' });
+                  if (fromScanner) setToast({ message: `${mapped.name}: ${isEntering ? t('cdi.toast.entrou') : t('cdi.toast.saiu')}`, type: isEntering ? 'in' : 'out' });
                   setFlash({ id: updated.id, type: isEntering ? 'in' : 'out' });
                   setTimeout(() => setFlash({ id: null, type: null }), 300);
             } catch (err) {
                   console.error(err);
                   if (err.status === 404 || err.message === 'Carte inconnue') {
                         if (!muted) CdiSound.error();
-                        setToast({ message: 'Carte inconnue', type: 'error' });
+                        setToast({ message: t('cdi.carte.inconnue'), type: 'error' });
                   } else {
-                        setToast({ message: "Erreur interne", type: "error" });
+                        setToast({ message: t('cdi.erro.interno'), type: 'error' });
                   }
             }
             setQuery(''); inputRef.current?.focus();
@@ -342,7 +343,7 @@ function BibliotecaView({ onBack }) {
                   <style>{cdiStyles}</style>
                   <div className="w-7 h-7 bg-blue-600 text-white rounded flex items-center justify-center text-xs font-bold mb-4">CDI</div>
                   <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
-                  <p className="mt-4 text-slate-500 text-sm">Chargement des données...</p>
+                  <p className="mt-4 text-slate-500 text-sm">{t('cdi.carregando.dados')}</p>
             </div>
       );
 
@@ -361,14 +362,14 @@ function BibliotecaView({ onBack }) {
                         <header className="h-14 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 shrink-0">
                               <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-red-600 text-white rounded flex items-center justify-center"><CdiIcon name="shield-alert" size={24} /></div>
-                                    <span className="font-bold text-white text-lg">MODE CONFINEMENT</span>
+                                    <span className="font-bold text-white text-lg">{t('cdi.confinamento')}</span>
                               </div>
                               <span className="font-mono text-white"><CdiClock /></span>
                         </header>
                         <div className="py-6 text-center bg-gray-900/50 border-b border-gray-800">
                               <div className="text-8xl font-bold text-white">{count}</div>
-                              <p className="text-xl text-gray-400 uppercase">PRÉSENTS CONFIRMÉS</p>
-                              <p className="text-green-500 mt-2">{verified.size} / {count} vérifiés</p>
+                              <p className="text-xl text-gray-400 uppercase">{t('cdi.presentes.confirmados')}</p>
+                              <p className="text-green-500 mt-2">{verified.size} / {count} {t('cdi.verificados')}</p>
                         </div>
                         <main className="flex-1 overflow-y-auto p-6">
                               <div className="max-w-3xl mx-auto space-y-3">
@@ -402,10 +403,10 @@ function BibliotecaView({ onBack }) {
                         </main>
                         <footer className="h-14 bg-gray-900 border-t border-gray-800 flex items-center justify-center shrink-0 gap-4">
                               <button onClick={() => window.print()} className="px-6 py-2 bg-slate-700 text-white rounded font-bold flex items-center gap-2 hover:bg-slate-600">
-                                    <CdiIcon name="printer" size={18} /> IMPRIMER LISTE
+                                    <CdiIcon name="printer" size={18} /> {t('cdi.imprimir.lista')}
                               </button>
                               <button onClick={() => setEmergency(false)} className="px-6 py-2 bg-red-600 text-white rounded font-bold flex items-center gap-2 hover:bg-red-500">
-                                    <CdiIcon name="shield-off" size={18} /> DÉSACTIVER
+                                    <CdiIcon name="shield-off" size={18} /> {t('cdi.urgencia.desativar')}
                               </button>
                         </footer>
                   </div>
@@ -423,20 +424,20 @@ function BibliotecaView({ onBack }) {
                   <header className="h-12 bg-white border-b flex items-center justify-between px-5 shrink-0">
                         <div className="flex items-center gap-3">
                               <button onClick={onBack} className="flex items-center gap-1 text-slate-500 hover:text-blue-600 text-sm font-medium">
-                                    <CdiIcon name="arrow-left" size={18} /> Dashboard
+                                    <CdiIcon name="arrow-left" size={18} /> {t('header.dashboard')}
                               </button>
                               <div className="w-px h-6 bg-slate-200"></div>
                               <div className="w-7 h-7 bg-blue-600 text-white rounded flex items-center justify-center text-xs font-bold">CDI</div>
-                              <span className="font-semibold text-slate-700">SafeTrack — Biblioteca</span>
+                              <span className="font-semibold text-slate-700">{t('cdi.marca')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                               <CdiClock />
-                              <button onClick={() => setModal('stats')} title="Statistiques" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="bar-chart-3" size={18} /></button>
-                              <button onClick={() => setModal('students')} title="Base Élèves" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="users" size={18} /></button>
-                              <button onClick={() => setModal('history')} title="Historique" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="history" size={18} /></button>
-                              <button onClick={() => setModal('help')} title="Aide & Support" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="help-circle" size={18} /></button>
-                              <button onClick={() => setLocked(true)} title="Verrouiller (Alt+L)" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="lock" size={18} /></button>
-                              <button onClick={() => setModal('settings')} title="Paramètres" className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="settings" size={18} /></button>
+                              <button onClick={() => setModal('stats')} title={t('cdi.menu.estatisticas')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="bar-chart-3" size={18} /></button>
+                              <button onClick={() => setModal('students')} title={t('cdi.menu.base')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="users" size={18} /></button>
+                              <button onClick={() => setModal('history')} title={t('cdi.menu.historico')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="history" size={18} /></button>
+                              <button onClick={() => setModal('help')} title={t('cdi.menu.ajuda')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="help-circle" size={18} /></button>
+                              <button onClick={() => setLocked(true)} title={t('cdi.menu.travar')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="lock" size={18} /></button>
+                              <button onClick={() => setModal('settings')} title={t('cdi.cfg.titulo')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="settings" size={18} /></button>
                         </div>
                   </header>
 
@@ -447,14 +448,14 @@ function BibliotecaView({ onBack }) {
                               <div className="relative mb-2">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><CdiIcon name="search" size={18} /></span>
                                     <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-                                          className="w-full pl-10 pr-3 py-3 border-2 rounded-lg focus:border-blue-600 outline-none" placeholder="Rechercher... (/)" />
+                                          className="w-full pl-10 pr-3 py-3 border-2 rounded-lg focus:border-blue-600 outline-none" placeholder={t('cdi.busca.exemplo')} />
                               </div>
                               <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
                                     {Object.entries(classGroups).map(([level, cnt]) => (
                                           <button key={level} onClick={() => setClassFilter(classFilter === level ? null : level)}
                                                 className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap flex items-center gap-1
                   ${classFilter === level ? 'bg-blue-600 text-white' : 'bg-white border text-slate-600 hover:border-blue-600'}`}>
-                                                {level} <span className="opacity-60">({cnt})</span>
+                                                {level === 'Tous' ? t('rap.filtro.todos') : level === 'Inconnu' ? t('cdi.nivel.desconhecido') : level} <span className="opacity-60">({cnt})</span>
                                           </button>
                                     ))}
                               </div>
@@ -462,7 +463,7 @@ function BibliotecaView({ onBack }) {
                                     {results.length === 0 ? (
                                           <div className="text-center text-slate-400 mt-10">
                                                 <CdiIcon name="search" size={32} />
-                                                <p className="mt-2">{query.length < 2 && !classFilter ? 'Tapez ou filtrez' : 'Aucun résultat'}</p>
+                                                <p className="mt-2">{query.length < 2 && !classFilter ? t('cdi.busca.digite') : t('poraluno.sem.resultado')}</p>
                                           </div>
                                     ) : results.map(s => {
                                           const isIn = presentStudents.has(s.id);
@@ -485,7 +486,7 @@ function BibliotecaView({ onBack }) {
                         {/* Right Panel — Present Students */}
                         <section className="w-1/2 bg-white flex flex-col p-4">
                               <div className={`text-center mb-4 pb-4 border-b ${isFull ? 'bg-red-50 -mx-4 px-4 pt-4' : ''}`}>
-                                    {isFull && <p className="text-red-600 text-sm font-semibold mb-1">⚠️ CAPACITÉ MAX</p>}
+                                    {isFull && <p className="text-red-600 text-sm font-semibold mb-1">{t('cdi.capacidade.max')}</p>}
                                     <div className={`text-5xl font-bold ${isFull ? 'text-red-600' : 'text-blue-600'}`}>{count}</div>
                                     <div className="text-slate-400 text-sm">/ {CDI_CAPACITY}</div>
                                     {/* O que o número conta, dito na tela. Sem
@@ -499,12 +500,12 @@ function BibliotecaView({ onBack }) {
                                                 onChange={e => aplicarIncluirFuncionarios(e.target.checked)}
                                                 className="w-3.5 h-3.5 accent-blue-600"
                                           />
-                                          Inclure le personnel
+                                          {t('cdi.incluir.pessoal')}
                                     </label>
                               </div>
                               <div className="flex-1 overflow-y-auto space-y-1">
                                     {!presentList.length ? (
-                                          <div className="text-center text-slate-300 mt-10"><CdiIcon name="users" size={40} /><p className="mt-2">Vide</p></div>
+                                          <div className="text-center text-slate-300 mt-10"><CdiIcon name="users" size={40} /><p className="mt-2">{t('cdi.vazio')}</p></div>
                                     ) : presentList.map(s => (
                                           <div key={s.id} className={`p-3 bg-slate-50 rounded-lg flex justify-between items-center group ${flash.id === s.id && flash.type === 'out' ? 'flash-out' : ''}`}>
                                                 <div className="flex items-center gap-3">
@@ -527,11 +528,11 @@ function BibliotecaView({ onBack }) {
                   {/* Footer */}
                   <footer className="h-14 bg-white border-t flex items-center justify-between px-5 shrink-0">
                         <div className="flex flex-col text-xs text-slate-400">
-                              <span>© 2026 SafeTrack. Tous droits réservés.</span>
-                              <span>Developed with <span className="text-red-500">❤️</span> by <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="font-bold text-slate-600 hover:text-blue-600 hover:underline">Magbo Studio</a></span>
+                              <span>{t('cdi.rodape.direitos')}</span>
+                              <span>{t('cdi.rodape.dev.a')} <span className="text-red-500">❤️</span> {t('cdi.rodape.dev.b')} <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="font-bold text-slate-600 hover:text-blue-600 hover:underline">Magbo Studio</a></span>
                         </div>
                         <button onClick={() => setEmergency(true)} className="flex items-center gap-2 text-sm text-slate-500 hover:text-red-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
-                              <CdiIcon name="shield-alert" size={16} /> <span className="font-semibold">MODE URGENCE</span>
+                              <CdiIcon name="shield-alert" size={16} /> <span className="font-semibold">{t('cdi.urgencia')}</span>
                         </button>
                   </footer>
 

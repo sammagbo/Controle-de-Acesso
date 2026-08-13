@@ -144,6 +144,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                           )}
                                           {!isSearching && displayResults.map((user, idx) => {
                                                 const tipoInfo = TIPO_LABELS[user.tipo] || TIPO_LABEL_FALLBACK;
+                                                const tipoRotulo = window.MagboI18n.tEnum('tipo', user.tipo || 'DESCONHECIDO');
                                                 return (
                                                       <button
                                                             key={user.id}
@@ -157,7 +158,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                   <p className="text-sm font-bold text-navy-500 truncate">{user.nome}</p>
                                                                   <div className="flex items-center gap-2 mt-1">
                                                                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${tipoInfo.color} ${tipoInfo.textColor}`}>
-                                                                              {tipoInfo.label}
+                                                                              {tipoRotulo}
                                                                         </span>
                                                                         {user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
@@ -242,6 +243,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                 const quem = window.MagboIdentity.resolver(
                                                       { pessoa: user, userId: log.userId }, { lang: 'fr' });
                                                 const tipoInfo = (user && TIPO_LABELS[user.tipo]) || TIPO_LABEL_FALLBACK;
+                                                const tipoRotulo = window.MagboI18n.tEnum('tipo', (user && user.tipo) || 'DESCONHECIDO');
                                                 const isEntrada = log.status === 'ENTRADA';
                                                 const time = new Date(safeDateParse(log.timestamp));
                                                 // Só aparece quando o operador ligou o botão — e aí precisa
@@ -271,7 +273,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                   <div className="flex items-center gap-2 mt-0.5">
                                                                         {user && (
                                                                               <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${tipoInfo.color} ${tipoInfo.textColor}`}>
-                                                                                    {tipoInfo.label}
+                                                                                    {tipoRotulo}
                                                                               </span>
                                                                         )}
                                                                         {user && user.turma && (

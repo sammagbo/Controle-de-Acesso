@@ -5,6 +5,8 @@
 // Acessível apenas via AdminDashboard quando role === 'ADMIN'.
 
 function UserManagement() {
+  const t = useI18n();
+  const locale = useLocale();
   const [users, setUsers] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
@@ -44,10 +46,9 @@ function UserManagement() {
   const handleDeactivate = async (id) => {
     // O confirm diz O QUE acontece — "Desativar este operador?" não dizia
     // nem o que se perde nem o que fica.
-    if (!confirm('Desativar este operador?\n\n'
-          + 'Ele deixa de conseguir entrar no sistema imediatamente. '
-          + 'Nada é apagado: o histórico e os registros feitos por ele permanecem, '
-          + 'e a conta pode ser reativada depois pelo lápis de edição.')) return;
+    // Traduzido SEM afrouxar: a precisão ("nada é apagado", "reativável") é o
+    // que faz este confirm valer alguma coisa — ver o dicionário.
+    if (!confirm(t('operadores.desativar.confirma'))) return;
     await fetch(`${API_BASE_URL}/system-users/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${window.auth.getToken()}` }
@@ -59,15 +60,15 @@ function UserManagement() {
     React.createElement('div', null,
       React.createElement('div', { className: 'flex items-center justify-between mb-6' },
         React.createElement('div', null,
-          React.createElement('h2', { className: 'text-xl font-bold text-navy-500' }, 'Operadores do Sistema'),
-          React.createElement('p', { className: 'text-xs text-slate-400 mt-0.5' }, 'Gerencie quem pode operar cada setor')
+          React.createElement('h2', { className: 'text-xl font-bold text-navy-500' }, t('operadores.titulo')),
+          React.createElement('p', { className: 'text-xs text-slate-400 mt-0.5' }, t('operadores.subtitulo'))
         ),
         React.createElement('button', {
           onClick: () => { setEditing(null); setShowForm(true); },
           className: 'flex items-center gap-2 px-4 py-2.5 bg-accent-500 hover:bg-accent-600 text-white font-semibold text-sm rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95'
         },
           React.createElement(LucideIcon, { name: 'user-plus', size: 16 }),
-          'Novo Operador'
+          t('operadores.novo')
         )
       ),
 
@@ -81,40 +82,40 @@ function UserManagement() {
           React.createElement('div', { className: 'flex items-center gap-2 mb-3' },
             React.createElement(LucideIcon, { name: 'key-round', size: 18, className: 'text-warning-600' }),
             React.createElement('h3', { className: 'text-sm font-black text-warning-800' },
-              `Pedidos de redefinição de senha (${pendentes.length})`),
+              t('operadores.senha.titulo', { n: pendentes.length })),
           ),
           pendentes.map(r =>
             React.createElement('div', { key: r.id, className: 'flex items-center gap-3 bg-white rounded-xl px-3 py-2 mb-1.5 border border-warning-100' },
               React.createElement('span', { className: 'font-mono text-sm font-bold text-navy-500' }, r.username),
               React.createElement('span', { className: 'text-xs text-slate-400 flex-1' },
-                new Date(r.requestedAt).toLocaleString('pt-BR')),
+                new Date(r.requestedAt).toLocaleString(locale)),
               React.createElement('button', {
                 onClick: () => marcarTratado(r.id),
-                title: 'Redefina a senha do operador no lápis da lista abaixo e então marque o pedido como tratado',
+                title: t('operadores.senha.dica'),
                 className: 'text-xs font-bold text-warning-700 bg-warning-100 hover:bg-warning-200 px-3 py-1.5 rounded-lg transition-colors'
-              }, 'Marcar tratado')
+              }, t('operadores.senha.tratado'))
             )
           ),
           React.createElement('p', { className: 'text-[11px] text-warning-700 mt-2' },
-            'Redefina a senha pelo lápis do operador na lista abaixo; um nome que não existe na lista é alguém que errou o nome da conta.')
+            t('operadores.senha.rodape'))
         );
       })(),
 
       loading && React.createElement('div', { className: 'flex items-center justify-center py-12' },
         React.createElement(LucideIcon, { name: 'loader-2', size: 24, className: 'text-slate-300 animate-spin' }),
-        React.createElement('span', { className: 'ml-3 text-sm text-slate-400' }, 'A carregar operadores...')
+        React.createElement('span', { className: 'ml-3 text-sm text-slate-400' }, t('operadores.carregando'))
       ),
 
       !loading && React.createElement('div', { className: 'overflow-x-auto' },
         React.createElement('table', { className: 'w-full' },
           React.createElement('thead', null,
             React.createElement('tr', { className: 'bg-soft-50 text-left' },
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Usuário'),
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Nome'),
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Role'),
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Setores'),
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Status'),
-              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, 'Último login'),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.usuario')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('comum.nome')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.role')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.setores')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('comum.status')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.ultimo.login')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, '')
             )
           ),
@@ -167,6 +168,7 @@ function UserManagement() {
 }
 
 function UserFormModal({ user, onClose, onSaved }) {
+  const t = useI18n();
   const [form, setForm] = React.useState({
     username: user?.username || '',
     nomeCompleto: user?.nomeCompleto || '',
@@ -206,7 +208,7 @@ function UserFormModal({ user, onClose, onSaved }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window.auth.getToken()}` },
         body: JSON.stringify(body)
       });
-      if (!res.ok) throw new Error((await res.json()).error || 'Erro ao salvar');
+      if (!res.ok) throw new Error((await res.json()).error || t('comum.erro.salvar'));
       onSaved();
     } catch (e) {
       setError(e.message);
@@ -226,8 +228,8 @@ function UserFormModal({ user, onClose, onSaved }) {
               React.createElement(LucideIcon, { name: user ? 'user-cog' : 'user-plus', size: 20, className: 'text-white' })
             ),
             React.createElement('div', null,
-              React.createElement('h2', { className: 'text-lg font-bold text-white' }, user ? 'Editar Operador' : 'Novo Operador'),
-              React.createElement('p', { className: 'text-xs text-white/50' }, user ? `Editando ${user.username}` : 'Preencha os dados do novo operador')
+              React.createElement('h2', { className: 'text-lg font-bold text-white' }, user ? t('operadores.editar') : t('operadores.novo')),
+              React.createElement('p', { className: 'text-xs text-white/50' }, user ? `Editando ${user.username}` : t('operadores.novo.subtitulo'))
             )
           ),
           React.createElement('button', {
@@ -241,19 +243,19 @@ function UserFormModal({ user, onClose, onSaved }) {
 
           // Username (only for new)
           !user && React.createElement('div', null,
-            React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Usuário (login)'),
+            React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, t('operadores.campo.login')),
             React.createElement('input', {
               type: 'text',
               value: form.username,
               onChange: (e) => setForm({ ...form, username: e.target.value }),
               className: 'w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 text-navy-500 font-mono',
-              placeholder: 'ex: biblio1'
+              placeholder: t('operadores.campo.login.exemplo')
             })
           ),
 
           // Nome completo
           React.createElement('div', null,
-            React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Nome completo'),
+            React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, t('operadores.campo.nome')),
             React.createElement('input', {
               type: 'text',
               value: form.nomeCompleto,
@@ -265,7 +267,7 @@ function UserFormModal({ user, onClose, onSaved }) {
           // Role + Setores row
           React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Role'),
+              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, t('operadores.col.role')),
               React.createElement('select', {
                 value: form.role,
                 onChange: (e) => setForm({ ...form, role: e.target.value }),
@@ -276,14 +278,14 @@ function UserFormModal({ user, onClose, onSaved }) {
               )
             ),
             React.createElement('div', null,
-              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, 'Secteurs autorisés'),
+              React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' }, t('operadores.campo.setores')),
               React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
                 [
-                  { val: 'cantine',    label: 'Cantine' },
-                  { val: 'infirmerie', label: 'Infirmerie' },
-                  { val: 'cdi',        label: 'CDI / Bibliothèque' },
-                  { val: 'portail',    label: 'Portail (entrées)' },
-                  { val: '*',          label: 'Tout (admin)' },
+                  { val: 'cantine',    chave: 'operadores.setor.cantine' },
+                  { val: 'infirmerie', chave: 'operadores.setor.infirmerie' },
+                  { val: 'cdi',        chave: 'operadores.setor.cdi' },
+                  { val: 'portail',    chave: 'operadores.setor.portail' },
+                  { val: '*',          chave: 'operadores.setor.tudo' },
                 ].map((area) => {
                   const current  = (form.setoresPermitidos || '').split(',').map(s => s.trim()).filter(Boolean);
                   const isAll    = current.includes('*');
@@ -311,7 +313,7 @@ function UserFormModal({ user, onClose, onSaved }) {
                         setForm({ ...form, setoresPermitidos: next.join(',') });
                       }
                     }),
-                    area.label
+                    t(area.chave)
                   );
                 })
               )
@@ -321,7 +323,7 @@ function UserFormModal({ user, onClose, onSaved }) {
           // Password
           React.createElement('div', null,
             React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' },
-              user ? 'Nova senha (opcional)' : 'Senha'
+              user ? t('operadores.senha.nova') : t('operadores.senha')
             ),
             // O olho (PasswordInput): a senha que se define aqui vai ser
             // ditada ou conferida com o operador do lado — ver o que se
@@ -342,7 +344,7 @@ function UserFormModal({ user, onClose, onSaved }) {
               onChange: (e) => setForm({ ...form, ativo: e.target.checked }),
               className: 'w-4 h-4 rounded accent-accent-500'
             }),
-            React.createElement('span', { className: 'text-sm font-semibold text-navy-500' }, 'Operador ativo')
+            React.createElement('span', { className: 'text-sm font-semibold text-navy-500' }, t('operadores.ativo'))
           ),
 
           // Error display
@@ -353,7 +355,7 @@ function UserFormModal({ user, onClose, onSaved }) {
             React.createElement('button', {
               onClick: onClose,
               className: 'flex-1 px-4 py-3 rounded-xl bg-soft-100 hover:bg-soft-200 text-navy-500 font-bold text-sm transition-colors'
-            }, 'Cancelar'),
+            }, t('acao.cancelar')),
             React.createElement('button', {
               onClick: handleSave,
               disabled: saving,
@@ -362,11 +364,11 @@ function UserFormModal({ user, onClose, onSaved }) {
               saving
                 ? React.createElement(React.Fragment, null,
                     React.createElement(LucideIcon, { name: 'loader-2', size: 16, className: 'animate-spin' }),
-                    'Salvando...'
+                    t('comum.salvando')
                   )
                 : React.createElement(React.Fragment, null,
                     React.createElement(LucideIcon, { name: 'check', size: 16 }),
-                    'Salvar'
+                    t('acao.salvar')
                   )
             )
           )

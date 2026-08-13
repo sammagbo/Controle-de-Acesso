@@ -49,6 +49,12 @@ const MIGRADAS = [
     'js/components/CantineMonitor.js',
     'js/cdi/StudentManagerModal.js',
     'js/cdi/HelpModal.js',
+    // Leva 2 — GESTÃO.
+    'js/components/MealEntitlementManagement.js',
+    'js/components/MealEntitlementHistoryModal.js',
+    'js/components/ExitPermissionManagement.js',
+    'js/components/UserManagement.js',
+    'js/components/UserListPanel.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */
@@ -73,6 +79,11 @@ const NAO_SE_TRADUZ = [
     /^(Alt|Ctrl|Shift|Cmd|Tab|F\d+)( ?\+ ?\w+)*$/,
     /^[\w.+-]+@[\w.-]+\.\w+$/,   // e-mail de contato
     /^v\d+\.\d+/,                 // versão
+    /^[A-Z]\d$/,                  // turma (A1, B2) — dado, não texto
+    /^[A-Z]$/,                     // letra solta (o L de L{linha})
+    // A linha de exemplos de status aceita TODOS os idiomas de uma vez — ela
+    // ensina o que a planilha pode conter, e a planilha não tem idioma.
+    /^Autorizado · Não autorizado · Autorisé · Non autorisé/,
 ];
 
 function podeFicarCru(texto) {
@@ -143,6 +154,31 @@ describe('guarda do i18n', () => {
             return !/useI18n\s*\(/.test(c);
         });
         expect(semHook).toEqual([]);
+    });
+
+    it('★ CADA componente de topo que chama t() tem o PRÓPRIO hook', () => {
+        // Apanhado de verdade em 13/08: o UserFormModal (segundo componente do
+        // UserManagement.js) recebeu t() nas strings mas não o hook — `t` do
+        // componente vizinho não está no escopo dele, e isso é ReferenceError
+        // em RUNTIME, não texto na língua errada. O teste por arquivo passava:
+        // o arquivo tinha "useI18n" em outro componente.
+        // Componentes ANINHADOS (const Card = ... dentro do pai) ficam no
+        // chunk do pai e herdam o t dele pelo closure — corretamente aceitos.
+        const quebrados = [];
+        for (const f of MIGRADAS) {
+            const c = fs.readFileSync(path.join(REPO, f), 'utf8');
+            const chunks = c.split(/^(?=function )/m);
+            for (const chunk of chunks) {
+                const nome = chunk.match(/^function (\w+)/)?.[1];
+                if (!nome) continue;
+                const chamaT = /[^\w.]t\s*\(\s*['"`]/.test(chunk);
+                const temHook = /useI18n\s*\(/.test(chunk) || /\bt\b/.test(chunk.match(/^function \w+\(([^)]*)\)/)?.[1] || '');
+                if (chamaT && !temHook) quebrados.push(`${f} → ${nome}`);
+            }
+        }
+        expect(quebrados,
+            'componente usa t() sem o próprio useI18n() — ReferenceError em runtime')
+            .toEqual([]);
     });
 
     it('★ o guarda PEGA um texto cru (prova de que ele morde)', () => {

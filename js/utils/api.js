@@ -1,4 +1,5 @@
 // =====================================================================
+const T = (k) => (typeof window !== 'undefined' && window.MagboI18n ? window.MagboI18n.t(k) : k);
 // API SERVICE — Centralised HTTP calls to Spring Boot backend
 // =====================================================================
 
@@ -61,7 +62,7 @@ function normaliseLog(raw) {
 function checkAuthError(res) {
       if (res.status === 401 || res.status === 403) {
             window.auth?.logout();
-            throw new Error('Sessão expirada. Faça login novamente.');
+            throw new Error(T('api.sessao.expirada'));
       }
 }
 
@@ -259,8 +260,8 @@ async function getMealEntitlements(filters = {}) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'accéder à ces données.");
-            throw new Error('Erreur lors du chargement des droits de repas.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.droits'));
       }
       return await res.json();
 }
@@ -271,8 +272,8 @@ async function getMealEntitlementSummary() {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'accéder à ces données.");
-            throw new Error('Erreur lors du chargement du résumé.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.resumo'));
       }
       return await res.json();
 }
@@ -284,8 +285,8 @@ async function getMealEntitlement(userId) {
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 404) return null;
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'accéder à ces données.");
-            throw new Error('Erreur lors du chargement du droit de repas.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.droit'));
       }
       return await res.json();
 }
@@ -298,9 +299,9 @@ async function putMealEntitlement(userId, payload) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation de modifier ce droit.");
+            if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || 'Erreur lors de la sauvegarde.');
+            throw new Error(err.error || err.message || T('api.erro.sauvegarde'));
       }
       // O upsert devolve 200 SEM corpo (ok().build()) — tolerar vazio.
       const text = await res.text();
@@ -313,8 +314,8 @@ async function getMealEntitlementHistory(userId) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'accéder à l'historique.");
-            throw new Error('Erreur lors du chargement de l\'historique.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.historico'));
+            throw new Error(T('api.erro.historico'));
       }
       return await res.json();
 }
@@ -343,9 +344,9 @@ async function postImportDeRefeicao(caminho, items) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'importer des données.");
+            if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || "Erreur lors de l'importation.");
+            throw new Error(err.error || err.message || T('api.erro.importacao'));
       }
       return await res.json();
 }
@@ -358,9 +359,9 @@ async function postMealEntitlementBulk(items, overwrite = false) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Vous n'avez pas l'autorisation d'importer des données.");
+            if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || 'Erreur lors de l\'importation en masse.');
+            throw new Error(err.error || err.message || T('api.erro.importacao.massa'));
       }
       return await res.json();
 }
@@ -384,8 +385,8 @@ async function getExitPermissions(filters = {}) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para acessar estes dados.");
-            throw new Error('Erro ao carregar autorizações.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.autorizacoes'));
       }
       return await res.json();
 }
@@ -396,8 +397,8 @@ async function getActiveExitPermissions() {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para acessar estes dados.");
-            throw new Error('Erro ao carregar autorizações ativas.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.autorizacoes.ativas'));
       }
       return await res.json();
 }
@@ -408,8 +409,8 @@ async function getExitPermissionsByUser(userId) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para acessar estes dados.");
-            throw new Error('Erro ao carregar autorizações do usuário.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('api.erro.autorizacoes.usuario'));
       }
       return await res.json();
 }
@@ -422,9 +423,9 @@ async function postExitPermission(payload) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para criar autorizações.");
+            if (res.status === 403) throw new Error(T('api.sem.permissao.criar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || 'Erro ao salvar autorização.');
+            throw new Error(err.error || err.message || T('api.erro.autorizacao.salvar'));
       }
       return await res.json();
 }
@@ -437,9 +438,9 @@ async function revokeExitPermission(id, note) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para revogar autorizações.");
+            if (res.status === 403) throw new Error(T('api.sem.permissao.revogar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || 'Erro ao revogar autorização.');
+            throw new Error(err.error || err.message || T('api.erro.autorizacao.revogar'));
       }
       return await res.json();
 }
@@ -464,8 +465,8 @@ async function getAttempts(filters = {}) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para acessar as tentativas negadas.");
-            throw new Error('Erro ao carregar tentativas.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.tentativas'));
+            throw new Error(T('api.erro.tentativas'));
       }
       return await res.json();
 }
@@ -480,8 +481,8 @@ async function getAttemptStats(filters = {}) {
       });
       checkAuthError(res);
       if (!res.ok) {
-            if (res.status === 403) throw new Error("Você não tem permissão para acessar estatísticas.");
-            throw new Error('Erro ao carregar estatísticas.');
+            if (res.status === 403) throw new Error(T('api.sem.permissao.stats'));
+            throw new Error(T('api.erro.stats'));
       }
       return await res.json();
 }

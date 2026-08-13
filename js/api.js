@@ -13,6 +13,10 @@ function authHeaders(extra = {}) {
     ...extra
   };
 }
+// Mensagens de erro DA CAMADA (as do backend passam cruas — dívida 5-bis).
+// Fallback identidade: sem i18n carregado, a chave ainda é legível no log.
+const T = (k) => (typeof window !== 'undefined' && window.MagboI18n ? window.MagboI18n.t(k) : k);
+
 // Expose for other files
 if (typeof window !== 'undefined') {
   window.authHeaders = authHeaders;
@@ -39,20 +43,24 @@ const api = {
     async handleResponse(response) {
         if (response.status === 401 || response.status === 403) {
             window.auth?.logout();
-            throw new Error('Sessão expirada. Faça login novamente.');
+            throw new Error(T('api.sessao.expirada'));
         }
         if (!response.ok) {
-            let errorMsg = 'Erro de Comunicação com o Servidor';
+            let errorMsg = T('app.erro.comunicacao');
             try {
                 const data = await response.json();
                 if (data && data.message) errorMsg = data.message;
             } catch (e) {
                 // Ignore json parsing error if response is not JSON
-                if (response.status === 404) errorMsg = 'Usuário ou Recurso Não Encontrado';
-                else if (response.status === 409) errorMsg = 'Duplicidade de Registro';
-                else if (response.status >= 500) errorMsg = 'Erro Interno no Servidor Java';
+                if (response.status === 404) errorMsg = T('api.nao.encontrado');
+                else if (response.status === 409) errorMsg = T('api.duplicidade');
+                else if (response.status >= 500) errorMsg = T('api.erro.servidor');
             }
-            throw new Error(errorMsg);
+            const erro = new Error(errorMsg);
+            // O App detecta refeição duplicada pelo code — a mensagem agora
+            // muda de idioma e não serve mais de sentinela sozinha.
+            if (response.status === 409) erro.code = 'DUPLICATE';
+            throw erro;
         }
         // Guard: handle empty response bodies gracefully
         try {
@@ -72,7 +80,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível. Verifique sua conexão.');
+                throw new Error(T('api.indisponivel'));
             }
             throw err;
         }
@@ -95,7 +103,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível. Verifique sua conexão.');
+                throw new Error(T('api.indisponivel'));
             }
             throw err;
         }
@@ -112,7 +120,7 @@ const api = {
             return Array.isArray(data) ? data : [];
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao buscar logs. Verifique a conexão.');
+                throw new Error(T('api.indisponivel.logs'));
             }
             throw err;
         }
@@ -146,7 +154,7 @@ const api = {
             return Array.isArray(data) ? data : [];
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao buscar relatórios.');
+                throw new Error(T('api.indisponivel.relatorios'));
             }
             throw err;
         }
@@ -162,7 +170,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao buscar estatísticas.');
+                throw new Error(T('api.indisponivel.stats'));
             }
             throw err;
         }
@@ -226,7 +234,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível. Sincronização Pronote falhou.');
+                throw new Error(T('api.indisponivel.sync'));
             }
             throw err;
         }
@@ -246,7 +254,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao cadastrar usuário.');
+                throw new Error(T('api.indisponivel.cadastrar'));
             }
             throw err;
         }
@@ -267,7 +275,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao importar planilha.');
+                throw new Error(T('api.indisponivel.importar'));
             }
             throw err;
         }
@@ -297,7 +305,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao cadastrar servidor.');
+                throw new Error(T('api.indisponivel.cadastrar.servidor'));
             }
             throw err;
         }
@@ -489,7 +497,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao importar planilha de servidores.');
+                throw new Error(T('api.indisponivel.importar.servidores'));
             }
             throw err;
         }
@@ -510,7 +518,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao atualizar usuário.');
+                throw new Error(T('api.indisponivel.atualizar'));
             }
             throw err;
         }
@@ -529,7 +537,7 @@ const api = {
             return await this.handleResponse(res);
         } catch (err) {
             if (err.name === 'TypeError') {
-                throw new Error('Servidor indisponível ao desativar usuário.');
+                throw new Error(T('api.indisponivel.desativar'));
             }
             throw err;
         }

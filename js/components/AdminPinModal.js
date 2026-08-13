@@ -35,7 +35,7 @@ function AdminPinModal({ open, onSuccess, onClose }) {
 
       const handleSubmit = async () => {
             if (!pin.trim()) {
-                  setError('Digite o PIN.');
+                  setError(t('pin.digite'));
                   return;
             }
             setLoading(true);
@@ -58,15 +58,15 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                         if (data.message && data.message !== t('pin.erro')) {
                               setError(data.message);
                         } else if (newAttempts >= 3) {
-                              setError(`PIN incorreto. Já errou ${newAttempts} vezes.`);
+                              setError(t('pin.incorreto.n', { n: newAttempts }));
                         } else {
-                              setError(`PIN incorreto. Tentativa ${newAttempts}.`);
+                              setError(t('pin.incorreto.tentativa', { n: newAttempts }));
                         }
                         setPin('');
                         if (inputRef.current) inputRef.current.focus();
                   }
             } catch (e) {
-                  setError('Erro ao validar PIN. Servidor offline?');
+                  setError(t('pin.erro.validar'));
             } finally {
                   setLoading(false);
             }

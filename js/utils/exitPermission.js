@@ -78,7 +78,7 @@
     function validar(f) {
         const form = f || {};
         if (!form.aluno || !form.aluno.id) {
-            return { ok: false, motivo: 'Selecione o aluno pelo nome antes de salvar.' };
+            return { ok: false, motivo: 'saidas.valida.aluno' };
         }
         // PELO MENOS UMA DAS DUAS AUTORIDADES. Uma saída pode ser autorizada
         // só pela família (o responsável ligou), só pela escola (decisão da
@@ -88,16 +88,16 @@
         // avisa antes de enviar e o servidor não confia na tela.
         if (!String(form.autorizadoFamilia || '').trim()
             && !String(form.autorizadoEscola || '').trim()) {
-            return { ok: false, motivo: 'Informe quem autorizou: a família, a escola, ou as duas.' };
+            return { ok: false, motivo: 'saidas.valida.autoridade' };
         }
         if (form.tipo === 'SINGLE') {
             if (!form.validFrom || !form.validUntil) {
-                return { ok: false, motivo: 'Informe a saída e o retorno máximo.' };
+                return { ok: false, motivo: 'saidas.valida.datas' };
             }
         } else {
             const marcados = Object.keys(form.dias || {}).filter(function (d) { return form.dias[d]; });
             if (marcados.length === 0) {
-                return { ok: false, motivo: 'Marque ao menos um dia da semana.' };
+                return { ok: false, motivo: 'saidas.valida.dias' };
             }
         }
         return { ok: true, motivo: null };

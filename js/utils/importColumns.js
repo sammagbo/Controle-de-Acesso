@@ -7,6 +7,10 @@
 // preenchido — e descobria pelo erro, depois de montar a planilha inteira.
 //
 // ⚠️ ISTO É DOCUMENTAÇÃO, NÃO VALIDAÇÃO. Nenhuma regra de aceitação passa por
+// aqui. `campo` é o NOME REAL da coluna na planilha — nunca se traduz.
+// `nota` é prosa e guarda uma CHAVE i18n (o ImportColumnList traduz na
+// renderização; este módulo roda no Vitest sem window e fica puro).
+// Entrada com `rotulo: true` (FOTOS) não é coluna: o `campo` é chave i18n.
 // aqui: cada entrada diz, no campo `regra`, ONDE a exigência de verdade mora.
 // Se as duas divergirem, quem está errado é este arquivo — e o teste que
 // compara os dois lados existe para isso doer cedo.
@@ -31,14 +35,14 @@
     const ALUNOS = {
         regra: 'backend UserController.createUsersBulk',
         colunas: [
-            { campo: 'ID', obrigatorio: true, nota: 'matrícula; o formato muda por tipo (aluno: 7 dígitos)' },
+            { campo: 'ID', obrigatorio: true, nota: 'importcol.nota.alunos.id' },
             { campo: 'Nome', obrigatorio: true, nota: null },
-            { campo: 'Tipo', obrigatorio: false, nota: 'em branco assume ALUNO; aceita ALUNO, PROFESSOR, FUNCIONARIO, RESPONSAVEL' },
+            { campo: 'Tipo', obrigatorio: false, nota: 'importcol.nota.alunos.tipo' },
             // Condicional de verdade — nem obrigatória sempre, nem opcional
             // sempre. Marcar como opcional esconderia a recusa que o aluno
             // sofre; marcar como obrigatória mentiria para quem importa só
             // servidores.
-            { campo: 'Turma', obrigatorio: 'condicional', nota: 'obrigatória quando o Tipo é ALUNO' },
+            { campo: 'Turma', obrigatorio: 'condicional', nota: 'importcol.nota.alunos.turma' },
             { campo: 'ResponsavelId', obrigatorio: false, nota: null },
             { campo: 'Parentesco', obrigatorio: false, nota: null },
             { campo: 'Telefone', obrigatorio: false, nota: null },
@@ -57,10 +61,10 @@
         regra: 'backend StaffAdminService (import em lote)',
         colunas: [
             { campo: 'nome', obrigatorio: true, nota: null },
-            { campo: 'matricula', obrigatorio: false, nota: 'em branco recebe a próxima FUNC-###' },
+            { campo: 'matricula', obrigatorio: false, nota: 'importcol.nota.serv.matricula' },
             { campo: 'hikvision_employee_id', obrigatorio: false, nota: null },
-            { campo: 'tipo', obrigatorio: false, nota: 'em branco assume FUNCIONARIO; aceita PROFESSOR ou FUNCIONARIO' },
-            { campo: 'departamento', obrigatorio: false, nota: 'texto livre (Vie Scolaire, Direção…)' }
+            { campo: 'tipo', obrigatorio: false, nota: 'importcol.nota.serv.tipo' },
+            { campo: 'departamento', obrigatorio: false, nota: 'importcol.nota.serv.depto' }
         ]
     };
 
@@ -76,10 +80,10 @@
     const HIKCENTRAL = {
         regra: 'backend HikCentralImportService.planejarLinha',
         colunas: [
-            { campo: 'ID', obrigatorio: true, nota: 'linha sem ID é rodapé do export e é descartada' },
-            { campo: 'Prénom', obrigatorio: 'conjunto', nota: 'com "Nom de famille" formam o nome; pelo menos um preenchido' },
-            { campo: 'Nom de famille', obrigatorio: 'conjunto', nota: 'com "Prénom" formam o nome; pelo menos um preenchido' },
-            { campo: 'Service', obrigatorio: false, nota: 'em branco vira o departamento INDEFINIDO' }
+            { campo: 'ID', obrigatorio: true, nota: 'importcol.nota.hik.id' },
+            { campo: 'Prénom', obrigatorio: 'conjunto', nota: 'importcol.nota.hik.prenom' },
+            { campo: 'Nom de famille', obrigatorio: 'conjunto', nota: 'importcol.nota.hik.nom' },
+            { campo: 'Service', obrigatorio: false, nota: 'importcol.nota.hik.service' }
         ]
     };
 
@@ -94,9 +98,9 @@
         regra: 'js/cdi/SettingsModal.js (parse)',
         posicional: true,
         colunas: [
-            { campo: 'ID', obrigatorio: true, nota: '1ª posição' },
-            { campo: 'Nom', obrigatorio: true, nota: '2ª posição' },
-            { campo: 'Classe', obrigatorio: true, nota: '3ª posição — a linha com menos de 3 campos é ignorada' }
+            { campo: 'ID', obrigatorio: true, nota: 'importcol.nota.cdi.id' },
+            { campo: 'Nom', obrigatorio: true, nota: 'importcol.nota.cdi.nom' },
+            { campo: 'Classe', obrigatorio: true, nota: 'importcol.nota.cdi.classe' }
         ]
     };
 
@@ -128,8 +132,8 @@
     const FOTOS = {
         regra: 'backend PhotoZipReader / UserPhotoService',
         colunas: [
-            { campo: 'Nome do arquivo', obrigatorio: true, nota: 'a matrícula (0004048.jpg) ou o identificador Hikvision (1234567890.jpg) — os zeros à esquerda contam' },
-            { campo: 'Formato', obrigatorio: true, nota: 'JPEG, PNG ou WebP — decidido pelos bytes, não pela extensão' }
+            { campo: 'importcol.fotos.arquivo', rotulo: true, obrigatorio: true, nota: 'importcol.nota.fotos.arquivo' },
+            { campo: 'importcol.fotos.formato', rotulo: true, obrigatorio: true, nota: 'importcol.nota.fotos.formato' }
         ]
     };
 

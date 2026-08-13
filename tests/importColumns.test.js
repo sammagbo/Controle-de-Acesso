@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import C from '../js/utils/importColumns.js';
 import MealSheet from '../js/utils/mealSheet.js';
+
+// As notas viraram CHAVES i18n (campo continua sendo o nome REAL da coluna).
+// Para continuar fixando o CONTEÚDO, o teste resolve a chave nos DOIS
+// dicionários — mesma leitura por fonte que o guarda do i18n faz.
+const I18N_SRC = fs.readFileSync(path.resolve(__dirname, '../js/utils/i18n.js'), 'utf8');
+function valoresDaChave(chave) {
+    const re = new RegExp(`'${chave.replace(/\./g, '\\.')}':\\s*(?:'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)")`, 'g');
+    const valores = [];
+    let m;
+    while ((m = re.exec(I18N_SRC)) !== null) valores.push(m[1] ?? m[2]);
+    return valores; // [fr, pt] — na ordem dos dicionários
+}
 
 /**
  * AS COLUNAS DAS TELAS DE IMPORTAÇÃO.
@@ -28,7 +42,11 @@ describe('colunas das importações', () => {
             const turma = C.ALUNOS.colunas.find(c => c.campo === 'Turma');
             expect(C.ehObrigatorio(turma)).toBe(false);
             expect(C.ehCondicional(turma)).toBe(true);
-            expect(turma.nota).toMatch(/ALUNO/);
+            // A condição tem de citar ALUNO nas DUAS línguas — o valor do
+            // enum não se traduz, e é ele que o operador escreve na planilha.
+            const notas = valoresDaChave(turma.nota);
+            expect(notas).toHaveLength(2);
+            for (const n of notas) expect(n).toMatch(/ALUNO/);
         });
 
         it('★ servidores: só o nome', () => {
@@ -56,7 +74,21 @@ describe('colunas das importações', () => {
 
         it('fotos: nome de arquivo e formato', () => {
             expect(C.obrigatorias(C.FOTOS)).toHaveLength(2);
-            expect(C.FOTOS.colunas[0].nota).toMatch(/zeros à esquerda/);
+            // O aviso dos zeros à esquerda tem de sobreviver nas duas línguas.
+            const [fr, pt] = valoresDaChave(C.FOTOS.colunas[0].nota);
+            expect(fr).toMatch(/zéros de gauche/);
+            expect(pt).toMatch(/zeros à esquerda/);
+        });
+
+        it('★ toda nota (e todo rótulo) resolve nos DOIS dicionários', () => {
+            // nota guarda uma CHAVE; uma chave órfã renderizaria como código
+            // na tela — e só na língua em que faltou, o pior jeito de falhar.
+            for (const t of TELAS) {
+                for (const c of C[t].colunas) {
+                    if (c.nota) expect(valoresDaChave(c.nota), `${t}.${c.campo}.nota`).toHaveLength(2);
+                    if (c.rotulo) expect(valoresDaChave(c.campo), `${t}.${c.campo}`).toHaveLength(2);
+                }
+            }
         });
     });
 

@@ -276,7 +276,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
 
             const check = window.MagboExitPermission.validar(form);
             if (!check.ok) {
-                  setErroForm(check.motivo);
+                  setErroForm(t(check.motivo));
                   return;
             }
             const payload = window.MagboExitPermission.montarPayload(form);

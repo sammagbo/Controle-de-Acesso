@@ -64,6 +64,9 @@ const MIGRADAS = [
     'js/cdi/SettingsModal.js',
     'js/components/ImportColumnList.js',
     'js/App.js',
+    // Leva final.
+    'js/components/AdminDashboard.js',
+    'js/components/AppSettingsModal.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */
@@ -80,6 +83,11 @@ const NAO_SE_TRADUZ = [
     /^MAGBO/,                      // marca
     /^Lycée Molière$/,             // nome da escola, em francês nos dois idiomas
     /^Magbo Studio$/,              // marca (rodapé do CDI), grafia própria
+    /^HikCentral$/,                // produto Hikvision — nome próprio
+    /^Renseignements personnels$/, // nome do export do HCP, francês no produto
+    /^Apply to Device$/,           // item de menu do HCP, inglês no produto
+    /^ID Hikvision$/,              // rótulo técnico, idêntico nos dois idiomas
+    /^\.(xlsx|xls|csv|json|zip)$/, // extensão de arquivo
     /^[A-Z][A-Z0-9_]{2,}$/,        // PORT1, REFEI1, POSTO_FIXO, FECHAMENTO_AUTO…
     /^(FUNC|PROF)-/,               // matrículas de servidor
     /^[\d\s.,:/·%+()-]*$/,         // pontuação, números, separadores

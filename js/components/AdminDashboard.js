@@ -3,6 +3,9 @@
 // =====================================================================
 
 function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit }) {
+      const t = useI18n();
+      const locale = useLocale();
+      const lang = window.MagboI18n.getLang();
       const [, setCacheTick] = React.useState(0);
       React.useEffect(() => {
             const handler = () => setCacheTick(t => t + 1);
@@ -104,14 +107,14 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   const now = new Date();
                   setLastSync(formatTime(now));
                   onShowToast({
-                        title: 'Sincronização Pronote',
-                        message: (result && result.message) || 'Sincronização concluída com sucesso.',
+                        title: t('admin.sync.titulo'),
+                        message: (result && result.message) || t('admin.sync.ok'),
                         type: 'success'
                   });
             } catch (error) {
                   onShowToast({
-                        title: 'Erro na Sincronização',
-                        message: (error && error.message) || 'Falha ao sincronizar com o Pronote.',
+                        title: t('admin.sync.erro'),
+                        message: (error && error.message) || t('admin.sync.falha'),
                         type: 'error'
                   });
             } finally {
@@ -122,17 +125,17 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
       // ── CSV Export ──
       const exportCSV = () => {
             if (!globalLogs.length) {
-                  onShowToast({ title: 'Exportação', message: 'Nenhum registo para exportar.', type: 'error' });
+                  onShowToast({ title: t('admin.export.titulo'), message: t('admin.export.vazio'), type: 'error' });
                   return;
             }
 
-            const header = 'Hora,Nome,Setor,Ação\n';
+            const header = [t('admin.col.hora'), t('comum.nome'), t('admin.col.setor'), t('journal.filtro.acao')].join(',') + '\n';
             const rows = globalLogs.map(log => {
                   const time = new Date(safeDateParse(log.timestamp));
                   const formattedTime = formatTime(time);
                   const user = (window.userCache?.byId(log.userId)) || null;
-                  const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
-                  const pointName = pointLabel(log.pointId, 'pt');
+                  const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang }).nome;
+                  const pointName = pointLabel(log.pointId, lang);
                   const action = log.status || log.action || 'N/A';
 
                   // Escape CSV values
@@ -152,13 +155,13 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            onShowToast({ title: 'Exportação CSV', message: `${globalLogs.length} registos exportados.`, type: 'success' });
+            onShowToast({ title: t('admin.export.csv.titulo'), message: t('admin.export.feito', { n: globalLogs.length }), type: 'success' });
       };
 
       // ── PDF Export ──
       const exportPDF = () => {
             if (!globalLogs.length) {
-                  onShowToast({ title: 'Exportação', message: 'Nenhum registo para exportar.', type: 'error' });
+                  onShowToast({ title: t('admin.export.titulo'), message: t('admin.export.vazio'), type: 'error' });
                   return;
             }
 
@@ -172,22 +175,22 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   
                   doc.setFontSize(11);
                   doc.setTextColor(100);
-                  doc.text("Relatório de Acessos", 14, 30);
+                  doc.text(t('admin.pdf.titulo'), 14, 30);
                   
-                  const today = new Date().toLocaleDateString('pt-BR');
+                  const today = new Date().toLocaleDateString(locale);
                   doc.setFontSize(9);
-                  doc.text(`Gerado em: ${today}`, 14, 36);
+                  doc.text(`${t('cdi.stats.gerado')} ${today}`, 14, 36);
 
                   // Table Data
-                  const tableColumn = ["Hora", "Nome", "Setor", "Ação"];
+                  const tableColumn = [t('admin.col.hora'), t('comum.nome'), t('admin.col.setor'), t('journal.filtro.acao')];
                   const tableRows = [];
 
                   globalLogs.forEach(log => {
                         const time = new Date(safeDateParse(log.timestamp));
                         const formattedTime = formatTime(time);
                         const user = (window.userCache?.byId(log.userId)) || null;
-                        const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
-                        const pointName = pointLabel(log.pointId, 'pt');
+                        const userName = window.MagboIdentity.resolver({ pessoa: user, userId: log.userId }, { lang }).nome;
+                        const pointName = pointLabel(log.pointId, lang);
                         const action = log.status || log.action || 'N/A';
                         
                         tableRows.push([formattedTime, userName, pointName, action]);
@@ -207,10 +210,10 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   const fileNameDate = new Date().toISOString().slice(0, 10);
                   doc.save(`relatorio-acessos-${fileNameDate}.pdf`);
                   
-                  onShowToast({ title: 'Exportação PDF', message: `${globalLogs.length} registos exportados.`, type: 'success' });
+                  onShowToast({ title: t('admin.export.pdf.titulo'), message: t('admin.export.feito', { n: globalLogs.length }), type: 'success' });
             } catch (error) {
                   console.error("PDF Export Error:", error);
-                  onShowToast({ title: 'Erro de Exportação', message: 'Falha ao gerar PDF. Verifique a conexão.', type: 'error' });
+                  onShowToast({ title: t('admin.export.erro'), message: t('admin.export.pdf.falha'), type: 'error' });
             }
       };
 
@@ -220,11 +223,11 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
       const resolveUserName = (log) => {
             const user = (window.userCache?.byId(log.userId)) || null;
             return window.MagboIdentity.resolver(
-                  { pessoa: user, userId: log.userId }, { lang: 'pt' }).nome;
+                  { pessoa: user, userId: log.userId }, { lang }).nome;
       };
 
       // Nome do ponto, nunca o código seco — mesma regra do nome de pessoa.
-      const resolvePointName = (log) => pointLabel(log.pointId, 'pt');
+      const resolvePointName = (log) => pointLabel(log.pointId, lang);
 
       const resolvePointIcon = (log) => {
             const point = ACCESS_POINTS.find(p => p.id === log.pointId);
@@ -254,14 +257,14 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     <LucideIcon name="arrow-left" size={18} className="text-navy-500" />
                               </button>
                               <div>
-                                    <h1 className="text-2xl font-bold text-navy-500 tracking-tight">Painel Administrativo</h1>
-                                    <p className="text-sm text-slate-400 mt-0.5">Relatórios, KPIs e gestão Pronote · Lycée Molière</p>
+                                    <h1 className="text-2xl font-bold text-navy-500 tracking-tight">{t('header.painel')}</h1>
+                                    <p className="text-sm text-slate-400 mt-0.5">{t('admin.subtitulo')}</p>
                               </div>
                         </div>
                         <div className="flex items-center gap-2">
                               <span className="text-xs text-slate-400 font-medium bg-soft-100 px-3 py-1.5 rounded-lg border border-soft-200">
                                     <LucideIcon name="shield-check" size={12} className="inline mr-1 text-accent-500" />
-                                    Acesso Administrativo
+                                    {t('geral.acesso.admin')}
                               </span>
                         </div>
                   </div>
@@ -278,7 +281,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="activity" size={28} className="text-accent-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Acessos Hoje</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.hoje')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.totalToday}</p>
                                     </div>
                               </div>
@@ -291,7 +294,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="check-circle-2" size={28} className="text-success-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Autorizados</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.autorizados')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.authorizedToday}</p>
                                     </div>
                               </div>
@@ -304,7 +307,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="x-circle" size={28} className="text-danger-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Barrados</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.barrados')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.blockedToday}</p>
                                     </div>
                               </div>
@@ -317,7 +320,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="users" size={28} className="text-indigo-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Em Áreas Especiais</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.especiais')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.activeUsers}</p>
                                     </div>
                               </div>
@@ -332,7 +335,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="bell-ring" size={28} className="text-orange-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Alertas Hoje</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.alertas')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.alertasHoje}</p>
                                     </div>
                               </div>
@@ -345,7 +348,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="shield-off" size={28} className="text-danger-500" />
                                     </div>
                                     <div>
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tentativas Negadas</p>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.negadas')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.negadasHoje}</p>
                                     </div>
                               </div>
@@ -359,15 +362,15 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     </div>
                                     <div>
                                           <div className="flex items-center gap-1 cursor-help">
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Divergências</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.divergencias')}</p>
                                                 <LucideIcon name="info" size={12} className="text-slate-300" />
                                           </div>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.divergenciaHoje}</p>
                                     </div>
                               </div>
                               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-navy-800 text-white text-xs p-3 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                    <p className="font-bold mb-1">Qu'est-ce qu'une divergence ?</p>
-                                    <p className="text-navy-100">Le terminal a validé l'identité et laissé passer, mais MAGBO a refusé selon la règle (ex. : droit au repas non accordé). L'élève est entré malgré tout — c'est la charge d'exception que l'opérateur traite dans le flux des tentatives refusées.</p>
+                                    <p className="font-bold mb-1">{t('admin.diverg.pergunta')}</p>
+                                    <p className="text-navy-100">{t('admin.diverg.explica')}</p>
                               </div>
                         </div>
                   </div>
@@ -384,9 +387,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                 <LucideIcon name="shield-check" size={24} className="text-accent-600" />
                                           </div>
                                           <div>
-                                                <h3 className="text-base font-bold text-navy-500">Gestão de Operadores</h3>
+                                                <h3 className="text-base font-bold text-navy-500">{t('admin.card.operadores.titulo')}</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Criar, editar e desativar operadores do sistema
+                                                      {t('admin.card.operadores.sub')}
                                                 </p>
                                           </div>
                                     </div>
@@ -395,7 +398,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-500 text-white hover:bg-accent-600 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="users" size={16} />
-                                          Abrir gestão de operadores
+                                          {t('admin.card.operadores.btn')}
                                     </button>
                               </div>
 
@@ -406,9 +409,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                 <LucideIcon name="users" size={24} className="text-indigo-600" />
                                           </div>
                                           <div>
-                                                <h3 className="text-base font-bold text-navy-500">Gestão de Usuários</h3>
+                                                <h3 className="text-base font-bold text-navy-500">{t('admin.card.usuarios.titulo')}</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Editar ou desativar alunos, professores, funcionários e responsáveis
+                                                      {t('admin.card.usuarios.sub')}
                                                 </p>
                                           </div>
                                     </div>
@@ -417,7 +420,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="edit" size={16} />
-                                          Abrir gestão de usuários
+                                          {t('admin.card.usuarios.btn')}
                                     </button>
                               </div>
 
@@ -428,9 +431,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                 <LucideIcon name="layout-dashboard" size={24} className="text-navy-500" />
                                           </div>
                                           <div>
-                                                <h3 className="text-base font-bold text-navy-500">Rapport Général</h3>
+                                                <h3 className="text-base font-bold text-navy-500">{t('geral.titulo')}</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Vue consolidée — KPIs, par personne, journal
+                                                      {t('admin.card.rapport.sub')}
                                                 </p>
                                           </div>
                                     </div>
@@ -439,7 +442,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-navy-500 text-white hover:bg-navy-600 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="bar-chart-3" size={16} />
-                                          Ouvrir le rapport
+                                          {t('admin.card.rapport.btn')}
                                     </button>
                               </div>
 
@@ -450,9 +453,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                 <LucideIcon name="utensils" size={24} className="text-success-600" />
                                           </div>
                                           <div>
-                                                <h3 className="text-base font-bold text-navy-500">Droits Repas</h3>
+                                                <h3 className="text-base font-bold text-navy-500">{t('admin.card.repas.titulo')}</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Gérer les accès cantine et imports XLSX
+                                                      {t('admin.card.repas.sub')}
                                                 </p>
                                           </div>
                                     </div>
@@ -461,7 +464,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-success-600 text-white hover:bg-success-700 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="utensils" size={16} />
-                                          Gérer les droits
+                                          {t('admin.card.repas.btn')}
                                     </button>
                               </div>
 
@@ -472,9 +475,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                 <LucideIcon name="door-open" size={24} className="text-orange-600" />
                                           </div>
                                           <div>
-                                                <h3 className="text-base font-bold text-navy-500">Autorisations de Sortie</h3>
+                                                <h3 className="text-base font-bold text-navy-500">{t('admin.card.saidas.titulo')}</h3>
                                                 <p className="text-sm text-slate-400">
-                                                      Gérer les permissions de sortie des élèves
+                                                      {t('admin.card.saidas.sub')}
                                                 </p>
                                           </div>
                                     </div>
@@ -483,7 +486,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-orange-500 text-white hover:bg-orange-600 hover:shadow-md active:scale-95"
                                     >
                                           <LucideIcon name="door-open" size={16} />
-                                          Gérer les sorties
+                                          {t('admin.card.saidas.btn')}
                                     </button>
                               </div>
                         </div>
@@ -499,9 +502,9 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           <LucideIcon name="refresh-cw" size={24} className={`text-indigo-600 ${loadingSync ? 'animate-spin' : ''}`} />
                                     </div>
                                     <div>
-                                          <h3 className="text-base font-bold text-navy-500">Integração Pronote</h3>
+                                          <h3 className="text-base font-bold text-navy-500">{t('admin.pronote.titulo')}</h3>
                                           <p className="text-sm text-slate-400">
-                                                Última sincronização automática: <span className="font-semibold text-slate-500">{lastSync}</span>
+                                                {t('admin.pronote.ultima')} <span className="font-semibold text-slate-500">{lastSync}</span>
                                           </p>
                                     </div>
                               </div>
@@ -515,7 +518,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     }`}
                               >
                                     <LucideIcon name={loadingSync ? 'loader-2' : 'upload-cloud'} size={16} className={loadingSync ? 'animate-spin' : ''} />
-                                    {loadingSync ? 'A sincronizar...' : 'Sincronizar Agora'}
+                                    {loadingSync ? t('admin.pronote.sincronizando') : t('admin.pronote.sincronizar')}
                               </button>
                         </div>
                   </div>
@@ -528,8 +531,8 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         {/* Table Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-soft-200">
                               <div>
-                                    <h3 className="text-base font-bold text-navy-500">Relatório de Acessos do Dia</h3>
-                                    <p className="text-xs text-slate-400 mt-0.5">Últimos 50 registos globais</p>
+                                    <h3 className="text-base font-bold text-navy-500">{t('admin.tabela.titulo')}</h3>
+                                    <p className="text-xs text-slate-400 mt-0.5">{t('admin.tabela.sub')}</p>
                               </div>
                               <div className="flex items-center gap-3">
                                     <button
@@ -542,7 +545,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           }`}
                                     >
                                           <LucideIcon name="file-text" size={15} />
-                                          Exportar PDF
+                                          {t('admin.export.pdf')}
                                     </button>
                                     <button
                                           onClick={exportCSV}
@@ -554,7 +557,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           }`}
                                     >
                                           <LucideIcon name="download" size={15} />
-                                          Exportar CSV
+                                          {t('acao.exportar.csv')}
                                     </button>
                               </div>
                         </div>
@@ -562,32 +565,32 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         {/* Filter Bar */}
                         <div className="px-6 py-3 border-b border-soft-200 bg-soft-50 flex flex-wrap items-end gap-3">
                               <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Setor</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('admin.col.setor')}</label>
                                     <select
                                           value={filters.pointId}
                                           onChange={e => setFilters(f => ({ ...f, pointId: e.target.value }))}
                                           className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     >
-                                          <option value="">Todos</option>
+                                          <option value="">{t('rap.filtro.todos')}</option>
                                           {ACCESS_POINTS.map(p => (
                                                 <option key={p.id} value={p.id}>{p.nome}</option>
                                           ))}
                                     </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ação</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('journal.filtro.acao')}</label>
                                     <select
                                           value={filters.action}
                                           onChange={e => setFilters(f => ({ ...f, action: e.target.value }))}
                                           className="h-9 px-3 rounded-xl border border-soft-200 bg-white text-sm text-navy-500 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     >
-                                          <option value="">Todas</option>
-                                          <option value="ENTRADA">ENTRADA</option>
-                                          <option value="SAIDA">SAIDA</option>
+                                          <option value="">{t('rap.filtro.todas')}</option>
+                                          <option value="ENTRADA">{t('rap.col.entrada')}</option>
+                                          <option value="SAIDA">{t('rap.col.saida')}</option>
                                     </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">De</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('journal.filtro.de')}</label>
                                     <input
                                           type="date"
                                           value={filters.dateFrom}
@@ -596,7 +599,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     />
                               </div>
                               <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Até</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('journal.filtro.ate')}</label>
                                     <input
                                           type="date"
                                           value={filters.dateTo}
@@ -609,7 +612,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                           onClick={clearFilters}
                                           className="h-9 px-4 rounded-xl border border-soft-200 bg-white text-sm font-semibold text-slate-500 hover:bg-soft-100 transition-colors"
                                     >
-                                          Limpar
+                                          {t('admin.filtros.limpar')}
                                     </button>
                                     <button
                                           onClick={applyFilters}
@@ -619,7 +622,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                       : 'bg-navy-500 text-white hover:bg-navy-600'
                                           }`}
                                     >
-                                          {isDirty ? '• Aplicar filtros' : 'Aplicar filtros'}
+                                          {isDirty ? '• ' + t('admin.filtros.aplicar') : t('admin.filtros.aplicar')}
                                     </button>
                               </div>
                         </div>
@@ -628,25 +631,25 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         {loadingLogs ? (
                               <div className="flex items-center justify-center py-16">
                                     <LucideIcon name="loader-2" size={24} className="text-slate-300 animate-spin" />
-                                    <span className="ml-3 text-sm text-slate-400">A carregar registos...</span>
+                                    <span className="ml-3 text-sm text-slate-400">{t('admin.tabela.carregando')}</span>
                               </div>
                         ) : sortedLogs.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-16 text-center">
                                     <div className="w-16 h-16 rounded-2xl bg-soft-100 flex items-center justify-center mb-4">
                                           <LucideIcon name="inbox" size={32} className="text-slate-300" />
                                     </div>
-                                    <p className="text-sm text-slate-400 font-medium">Nenhum registo encontrado para hoje</p>
-                                    <p className="text-xs text-slate-300 mt-1">Os registos aparecerão aqui em tempo real</p>
+                                    <p className="text-sm text-slate-400 font-medium">{t('admin.tabela.vazio')}</p>
+                                    <p className="text-xs text-slate-300 mt-1">{t('admin.tabela.vazio.sub')}</p>
                               </div>
                         ) : (
                               <div className="overflow-x-auto">
                                     <table className="w-full">
                                           <thead>
                                                 <tr className="bg-soft-50 text-left">
-                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hora</th>
-                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nome</th>
-                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Setor</th>
-                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ação</th>
+                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('admin.col.hora')}</th>
+                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.nome')}</th>
+                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('admin.col.setor')}</th>
+                                                      <th className="px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('journal.filtro.acao')}</th>
                                                 </tr>
                                           </thead>
                                           <tbody className="divide-y divide-soft-100">
@@ -682,7 +685,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                                         {isBlocked ? (
                                                                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-danger-50 text-danger-600">
                                                                                     <LucideIcon name="shield-alert" size={12} />
-                                                                                    BARRADO: {blockedReason}
+                                                                                    {t('admin.barrado', { flag: blockedReason })}
                                                                               </span>
                                                                         ) : (
                                                                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -691,7 +694,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                                                           : 'bg-indigo-50 text-indigo-600'
                                                                               }`}>
                                                                                     <LucideIcon name={isEntrada ? 'arrow-down-left' : 'arrow-up-right'} size={12} />
-                                                                                    {isEntrada ? 'ENTRADA' : 'SAÍDA'}
+                                                                                    {isEntrada ? t('admin.chip.entrada') : t('admin.chip.saida')}
                                                                               </span>
                                                                         )}
                                                                   </td>
@@ -719,8 +722,8 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                       <LucideIcon name="shield-check" size={20} className="text-white" />
                                                 </div>
                                                 <div>
-                                                      <h2 className="text-xl font-bold text-white">Gestão de Operadores</h2>
-                                                      <p className="text-xs text-white/50">Administrar contas de acesso ao sistema</p>
+                                                      <h2 className="text-xl font-bold text-white">{t('admin.card.operadores.titulo')}</h2>
+                                                      <p className="text-xs text-white/50">{t('admin.modal.operadores.sub')}</p>
                                                 </div>
                                           </div>
                                           <button
@@ -753,8 +756,8 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                       <LucideIcon name="users" size={20} className="text-white" />
                                                 </div>
                                                 <div>
-                                                      <h2 className="text-xl font-bold text-white">Gestão de Usuários</h2>
-                                                      <p className="text-xs text-indigo-100">Administrar cadastro de alunos e equipe</p>
+                                                      <h2 className="text-xl font-bold text-white">{t('admin.card.usuarios.titulo')}</h2>
+                                                      <p className="text-xs text-indigo-100">{t('admin.modal.usuarios.sub')}</p>
                                                 </div>
                                           </div>
                                           <button

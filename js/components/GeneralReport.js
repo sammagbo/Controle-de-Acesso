@@ -8,6 +8,8 @@
 // (as inativas ficam escondidas por CSS), então sem esse sinal o Journal não
 // tem como saber que voltou a ser olhado.
 function JournalTab({ active = true }) {
+    const t = useI18n();
+    const locale = useLocale();
     const todayStr = () => new Date().toISOString().slice(0, 10);
     const [dateFrom, setDateFrom] = React.useState(todayStr());
     const [dateTo, setDateTo] = React.useState(todayStr());
@@ -74,7 +76,7 @@ function JournalTab({ active = true }) {
             // tela: apagar tudo por causa de uma falha de rede passageira é
             // trocar dado velho por dado nenhum.
             if (!silent) setLogs([]);
-            setError('Impossible de charger le journal. Vérifiez la connexion au serveur.');
+            setError(t('journal.erro.carregar'));
         } finally {
             if (!silent) setLoading(false);
         }
@@ -136,7 +138,7 @@ function JournalTab({ active = true }) {
 
     const fmtDateTime = (ts) => {
         const d = new Date(safeDateParse(ts));
-        return d.toLocaleDateString('fr-FR') + ' ' + formatTime(d);
+        return d.toLocaleDateString(locale) + ' ' + formatTime(d);
     };
 
     const exportCSV = () => {
@@ -177,69 +179,69 @@ function JournalTab({ active = true }) {
             {/* ── Filtros ── */}
             <div className="flex flex-wrap items-end gap-3 mb-4">
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Du</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('journal.filtro.de')}</label>
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} />
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Au</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('journal.filtro.ate')}</label>
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputCls} />
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Zone</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('journal.filtro.zona')}</label>
                     <select value={pointId} onChange={e => setPointId(e.target.value)} className={inputCls}>
-                        <option value="">Toutes</option>
+                        <option value="">{t('rap.filtro.todas')}</option>
                         {points.filter(p => p.category !== 'monitor').map(p => (
                             <option key={p.id} value={p.id}>{p.nome}</option>
                         ))}
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Action</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('journal.filtro.acao')}</label>
                     <select value={action} onChange={e => setAction(e.target.value)} className={inputCls}>
-                        <option value="">Toutes</option>
-                        <option value="ENTRADA">Entrée</option>
-                        <option value="SAIDA">Sortie</option>
+                        <option value="">{t('rap.filtro.todas')}</option>
+                        <option value="ENTRADA">{t('rap.col.entrada')}</option>
+                        <option value="SAIDA">{t('rap.col.saida')}</option>
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Type</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('comum.tipo')}</label>
                     <select value={tipo} onChange={e => setTipo(e.target.value)} className={inputCls}>
-                        <option value="">Tous</option>
-                        <option value="ALUNO">Élèves</option>
-                        <option value="PROFESSOR">Professeurs</option>
-                        <option value="FUNCIONARIO">Personnel</option>
+                        <option value="">{t('rap.filtro.todos')}</option>
+                        <option value="ALUNO">{t('journal.tipo.alunos')}</option>
+                        <option value="PROFESSOR">{t('journal.tipo.professores')}</option>
+                        <option value="FUNCIONARIO">{t('journal.tipo.pessoal')}</option>
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Répétitions</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('setor.repeticoes')}</label>
                     <select
                         value={repeticoes}
                         onChange={e => setRepeticoes(e.target.value)}
-                        title="Passages qui n'ouvrent pas de nouvelle visite : poste fixe, et entrée de qui était déjà à l'intérieur. Toujours enregistrés ; masqués des autres écrans, jamais d'ici."
+                        title={t('journal.repeticoes.ajuda')}
                         className={inputCls}
                     >
-                        <option value="">Tous</option>
-                        <option value="SANS">Sans les répétitions</option>
-                        <option value="SEULEMENT">Répétitions seulement</option>
+                        <option value="">{t('rap.filtro.todos')}</option>
+                        <option value="SANS">{t('journal.repeticoes.sem')}</option>
+                        <option value="SEULEMENT">{t('journal.repeticoes.somente')}</option>
                     </select>
                 </div>
                 <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Classe</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('comum.turma')}</label>
                     <input
                         type="text"
                         value={classe}
                         onChange={e => setClasse(e.target.value)}
-                        placeholder="ex: CE1D"
+                        placeholder={t('journal.turma.exemplo')}
                         className={inputCls + ' w-24'}
                     />
                 </div>
                 <div className="flex-1 min-w-[160px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Personne</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t('journal.filtro.pessoa')}</label>
                     <input
                         type="text"
                         value={aluno}
                         onChange={e => setAluno(e.target.value)}
-                        placeholder="Nom ou matricule..."
+                        placeholder={t('journal.filtro.pessoa.exemplo')}
                         className={inputCls + ' w-full'}
                     />
                 </div>
@@ -255,7 +257,7 @@ function JournalTab({ active = true }) {
                 <div className="mb-3 flex items-center gap-2 bg-danger-50 border border-danger-200 text-danger-700 text-sm rounded-xl px-4 py-2.5">
                     <LucideIcon name="wifi-off" size={16} />
                     <span className="flex-1">{error}</span>
-                    <button onClick={() => load()} className="font-bold underline hover:no-underline">Réessayer</button>
+                    <button onClick={() => load()} className="font-bold underline hover:no-underline">{t('acao.reessayer')}</button>
                 </div>
             )}
 
@@ -268,12 +270,12 @@ function JournalTab({ active = true }) {
                         cabeçalho volta a contar as linhas visíveis, e diz. */}
                     <span className="text-sm font-bold text-navy-500">
                         {classe.trim()
-                            ? `${filtered.length} mouvements (filtre classe, sur ${logs.length} chargés)`
+                            ? t('journal.contagem.filtro', { n: filtered.length, total: logs.length })
                             : totalServidor != null && totalServidor > logs.length
-                                ? `${totalServidor.toLocaleString('fr-FR')} mouvements · ${logs.length} affichés`
-                                : `${filtered.length} mouvements`}
+                                ? t('journal.contagem.parcial', { total: totalServidor.toLocaleString(locale), n: logs.length })
+                                : t('journal.contagem', { n: filtered.length })}
                     </span>
-                    {loading && <span className="text-xs text-slate-400 flex items-center gap-1"><LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...</span>}
+                    {loading && <span className="text-xs text-slate-400 flex items-center gap-1"><LucideIcon name="loader-2" size={12} className="animate-spin" /> {t('comum.carregando')}</span>}
                 </div>
                 <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
                     <table className="w-full text-sm">
@@ -282,24 +284,24 @@ function JournalTab({ active = true }) {
                                 <th className="px-4 py-2">
                                     <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
                                         className="flex items-center gap-1 uppercase font-bold hover:text-navy-500 transition-colors">
-                                        Date / Heure
+                                        {t('journal.col.datahora')}
                                         <LucideIcon name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'} size={12} />
                                     </button>
                                 </th>
                                 {/* "Personne" e não "Élève": o filtro Type ao lado
                                     oferece Professeurs e Personnel, então esta
                                     lista contém servidores por construção. */}
-                                <th className="px-4 py-2">Personne</th>
-                                <th className="px-4 py-2">Classe</th>
-                                <th className="px-4 py-2">Zone</th>
-                                <th className="px-4 py-2">Action</th>
+                                <th className="px-4 py-2">{t('journal.filtro.pessoa')}</th>
+                                <th className="px-4 py-2">{t('comum.turma')}</th>
+                                <th className="px-4 py-2">{t('journal.filtro.zona')}</th>
+                                <th className="px-4 py-2">{t('journal.filtro.acao')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 && !loading && (
                                 <tr>
                                     <td colSpan="5" className="px-4 py-10 text-center text-sm text-slate-400">
-                                        Aucun mouvement
+                                        {t('journal.vazio')}
                                     </td>
                                 </tr>
                             )}
@@ -348,10 +350,10 @@ function JournalTab({ active = true }) {
                                                 Portail e não teria como explicar a diferença. */}
                                             {window.MagboPostoFixo?.ehRepeticao(l) && (
                                                 <span
-                                                    title="Répétition — enregistrée, hors des compteurs"
+                                                    title={t('setor.repeticao.etiqueta')}
                                                     className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600"
                                                 >
-                                                    {l.flag === 'POSTO_FIXO' ? 'Poste fixe' : 'Déjà présent'}
+                                                    {l.flag === 'POSTO_FIXO' ? t('journal.flag.posto') : t('journal.flag.presente')}
                                                 </span>
                                             )}
                                         </td>
@@ -372,10 +374,10 @@ function JournalTab({ active = true }) {
                 {totalPages > 1 && (
                     <div className="px-4 py-2 border-t border-soft-100 flex items-center justify-between text-sm">
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">‹ Précédent</button>
-                        <span className="text-xs text-slate-400">Page {page} / {totalPages} · {sorted.length} résultats{logs.length === 500 ? ' (max 500 chargés)' : ''}</span>
+                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">{t('journal.pag.anterior')}</button>
+                        <span className="text-xs text-slate-400">{t('journal.pag.info', { p: page, total: totalPages, n: sorted.length })}{logs.length === 500 ? t('journal.pag.max') : ''}</span>
                         <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">Suivant ›</button>
+                            className="px-3 py-1 rounded-lg bg-soft-100 font-bold text-navy-500 hover:bg-soft-200 disabled:opacity-40 disabled:cursor-not-allowed">{t('journal.pag.proxima')}</button>
                     </div>
                 )}
             </div>
@@ -385,6 +387,8 @@ function JournalTab({ active = true }) {
 
 // ── Par élève Tab ────────────────────────────────────────────────────
 function ParEleveTab() {
+    const t = useI18n();
+    const locale = useLocale();
     const todayStr = () => new Date().toISOString().slice(0, 10);
 
     const [query,    setQuery]    = React.useState('');
@@ -444,10 +448,10 @@ function ParEleveTab() {
     // resolve pelo ACCESS_POINTS e rotula o desconhecido como "Point X".
     const pointName = (id) => pointLabel(id);
     const tsMs = (ts) => typeof ts === 'number' ? ts : new Date(ts).getTime();
-    const fmtTime = (ts) => new Date(tsMs(ts)).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const fmtTime = (ts) => new Date(tsMs(ts)).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     const fmtDayHeader = (dateStr) => {
         const d = new Date(dateStr + 'T12:00:00');
-        return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        return d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
     // Chips de présence derivados dos logs de hoje
@@ -459,19 +463,19 @@ function ParEleveTab() {
 
         const entry = todayLogs.find(l => l.action === 'ENTRADA' && String(l.pointId).startsWith('PORT'));
         const entryChip = entry
-            ? { label: `Entré à ${fmtTime(entry.timestamp)}`, cls: 'bg-success-100 text-success-700' }
-            : { label: 'Pas encore entré', cls: 'bg-slate-100 text-slate-500' };
+            ? { label: t('poraluno.entrou.as', { hora: fmtTime(entry.timestamp) }), cls: 'bg-success-100 text-success-700' }
+            : { label: t('poraluno.nao.entrou'), cls: 'bg-slate-100 text-slate-500' };
 
         const internalPoints = ['REFEI1', 'REFEI2', 'CANTINA1', 'ENFERM', 'BIBLIO'];
         const lastInternal = [...todayLogs].reverse().find(l => internalPoints.includes(l.pointId));
-        let locationChip = { label: 'Actuellement: —', cls: 'bg-slate-100 text-slate-500' };
+        let locationChip = { label: t('poraluno.atualmente') + ' —', cls: 'bg-slate-100 text-slate-500' };
         if (lastInternal && lastInternal.action === 'ENTRADA') {
             const hasExitAfter = todayLogs.some(
                 l => l.pointId === lastInternal.pointId && l.action === 'SAIDA' &&
                     tsMs(l.timestamp) > tsMs(lastInternal.timestamp)
             );
             if (!hasExitAfter) {
-                locationChip = { label: `Actuellement: ${pointName(lastInternal.pointId)}`, cls: 'bg-accent-100 text-accent-700' };
+                locationChip = { label: t('poraluno.atualmente') + ' ' + pointName(lastInternal.pointId), cls: 'bg-accent-100 text-accent-700' };
             }
         }
         return [entryChip, locationChip];
@@ -507,9 +511,9 @@ function ParEleveTab() {
     const lastMove = logs.length > 0 ? logs[0] : null;
     const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 bg-white';
     const periodBtns = [
-        { id: 'today', label: "Aujourd'hui" },
-        { id: 'week',  label: '7 jours' },
-        { id: 'month', label: '30 jours' },
+        { id: 'today', label: t('periodo.hoje') },
+        { id: 'week',  label: t('periodo.7dias.curto') },
+        { id: 'month', label: t('periodo.30dias.curto') },
     ];
 
     return (
@@ -522,12 +526,12 @@ function ParEleveTab() {
                         type="text"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="Rechercher un élève par nom ou ID..."
+                        placeholder={t('poraluno.busca')}
                         className={inputCls + ' pl-9'}
                     />
                 </div>
                 {searched && results.length === 0 && (
-                    <div className="mt-1 text-xs text-slate-400 pl-1">Aucun résultat</div>
+                    <div className="mt-1 text-xs text-slate-400 pl-1">{t('poraluno.sem.resultado')}</div>
                 )}
                 {results.length > 0 && (
                     <div className="absolute z-20 w-full mt-1 bg-white rounded-xl border border-soft-200 shadow-lg overflow-hidden">
@@ -555,7 +559,7 @@ function ParEleveTab() {
             {!u && (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
                     <LucideIcon name="user-search" size={40} className="text-slate-300" />
-                    <p className="text-sm">Recherchez un élève pour voir sa présence et sa timeline</p>
+                    <p className="text-sm">{t('poraluno.instrucao')}</p>
                 </div>
             )}
 
@@ -571,7 +575,7 @@ function ParEleveTab() {
                             <p className="text-xs text-slate-400">{u.turma || '—'} &middot; <span className="font-mono">{u.id}</span></p>
                             {lastMove && (
                                 <p className="text-[11px] text-slate-400 mt-0.5">
-                                    Dernier passage&nbsp;: <b className="text-slate-600">{pointName(lastMove.pointId)}</b> à {fmtTime(lastMove.timestamp)} &middot; {logs.length}{logs.length === 500 ? '+' : ''} mouvement{logs.length > 1 ? 's' : ''} sur la période
+                                    {t('poraluno.ultimo')}&nbsp;: <b className="text-slate-600">{pointName(lastMove.pointId)}</b> {t('poraluno.as')} {fmtTime(lastMove.timestamp)} &middot; {logs.length}{logs.length === 500 ? '+' : ''} {t(logs.length > 1 ? 'poraluno.movimentos' : 'poraluno.movimento')} {t('poraluno.no.periodo')}
                                 </p>
                             )}
                             <div className="flex flex-wrap gap-2 mt-2">
@@ -583,7 +587,7 @@ function ParEleveTab() {
                         <button
                             onClick={() => { setSelected(null); setLogs([]); }}
                             className="shrink-0 p-1 text-slate-400 hover:text-danger-500 transition-colors"
-                            title="Désélectionner"
+                            title={t('poraluno.desselecionar')}
                         >
                             <LucideIcon name="x" size={18} />
                         </button>
@@ -600,7 +604,7 @@ function ParEleveTab() {
                         ))}
                         {loading && (
                             <span className="self-center text-xs text-slate-400 flex items-center gap-1 ml-2">
-                                <LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...
+                                <LucideIcon name="loader-2" size={12} className="animate-spin" /> {t('comum.carregando')}
                             </span>
                         )}
                     </div>
@@ -625,7 +629,7 @@ function ParEleveTab() {
                     {!loading && logs.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
                             <LucideIcon name="calendar-x" size={32} className="text-slate-300" />
-                            <p className="text-sm">Aucun mouvement sur la période</p>
+                            <p className="text-sm">{t('poraluno.vazio')}</p>
                         </div>
                     )}
                     {logs.length > 0 && (
@@ -647,7 +651,7 @@ function ParEleveTab() {
                                                         <span className="flex-1 text-sm text-slate-700 truncate">{pointName(l.pointId)}</span>
                                                         {l._open && (
                                                             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-amber-100 text-amber-700">
-                                                                sans sortie
+                                                                {t('poraluno.sem.saida')}
                                                             </span>
                                                         )}
                                                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
@@ -675,6 +679,8 @@ function ParEleveTab() {
 // Composant autonome (fetch propre) : ajouté à OverviewTab sans toucher son flux de données.
 // N'affiche que les agrégations que le backend renvoie déjà (byReason/byPoint/byMethod/byTurma).
 function DeniedAttemptStats() {
+    const t = useI18n();
+    const locale = useLocale();
     const [stats, setStats] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(false);
@@ -704,7 +710,7 @@ function DeniedAttemptStats() {
             <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
                 <h4 className="text-sm font-black text-navy-500 mb-2">{title}</h4>
                 {rows.length === 0 ? (
-                    <p className="text-xs text-slate-400">Aucune</p>
+                    <p className="text-xs text-slate-400">{t('agregados.nenhuma')}</p>
                 ) : (
                     <div className="space-y-1">
                         {rows.map(([k, v]) => (
@@ -723,22 +729,22 @@ function DeniedAttemptStats() {
         <div className="mt-6">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <LucideIcon name="bar-chart-3" size={18} className="text-navy-500" />
-                <h3 className="text-base font-black text-navy-500">Tentatives refusées — agrégats (aujourd'hui)</h3>
+                <h3 className="text-base font-black text-navy-500">{t('agregados.titulo')}</h3>
                 {stats && (
-                    <span className="text-xs text-slate-400">Total : {stats.total} · Divergences : {stats.divergence}</span>
+                    <span className="text-xs text-slate-400">{t('agregados.total')} {stats.total} · {t('agregados.divergencias')} {stats.divergence}</span>
                 )}
             </div>
             {loading ? (
-                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">Chargement des statistiques…</div>
+                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">{t('agregados.carregando')}</div>
             ) : error || !stats ? (
-                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">Statistiques indisponibles.</div>
+                <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">{t('agregados.indisponivel')}</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {block('Par motif', stats.byReason, (k) => window.MagboI18n.tEnum('denial', k))}
-                    {block('Par point', stats.byPoint, (k) => pointLabel(k))}
-                    {block('Par méthode', stats.byMethod, (k) => window.MagboI18n.tEnum('authMethod', k))}
-                    {block('Par classe (élèves)', stats.byTurma,
-                        (k) => k === 'UNKNOWN' ? 'Personnel / sans classe' : k)}
+                    {block(t('agregados.por.motivo'), stats.byReason, (k) => window.MagboI18n.tEnum('denial', k))}
+                    {block(t('agregados.por.ponto'), stats.byPoint, (k) => pointLabel(k))}
+                    {block(t('agregados.por.metodo'), stats.byMethod, (k) => window.MagboI18n.tEnum('authMethod', k))}
+                    {block(t('agregados.por.turma'), stats.byTurma,
+                        (k) => k === 'UNKNOWN' ? t('agregados.sem.turma') : k)}
                 </div>
             )}
         </div>
@@ -746,6 +752,8 @@ function DeniedAttemptStats() {
 }
 
 function OverviewTab() {
+    const t = useI18n();
+    const locale = useLocale();
     const [period, setPeriod] = React.useState('week'); // 'today' | 'week' | 'month' | 'custom'
     const [customFrom, setCustomFrom] = React.useState(new Date().toISOString().slice(0, 10));
     const [customTo,   setCustomTo]   = React.useState(new Date().toISOString().slice(0, 10));
@@ -775,8 +783,8 @@ function OverviewTab() {
         return { dateFrom: fmt(from), dateTo: fmt(to) };
     }, [period, customFrom, customTo]);
 
-    const fmtHHmm = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const fmtHHmmss = (d) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const fmtHHmm = (d) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    const fmtHHmmss = (d) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     const load = React.useCallback(async () => {
         setLoading(true);
@@ -809,16 +817,16 @@ function OverviewTab() {
                 if (!v.exitRegistered) {
                     alerts.push({
                         severite: 'critique',
-                        type: 'Sans sortie (infirmerie)',
+                        type: t('vue.alerta.sem.saida.enferm'),
                         nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
-                        detail: 'Pas de sortie enregistrée',
+                        detail: t('rap.status.sem.saida'),
                     });
                 } else if (v.durationMinutes != null && v.durationMinutes > 45) {
                     alerts.push({
                         severite: 'critique',
-                        type: 'Séjour prolongé',
+                        type: t('rap.status.estadia.longa'),
                         nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
@@ -827,7 +835,7 @@ function OverviewTab() {
                 } else if (v.durationMinutes != null && v.durationMinutes > 30) {
                     alerts.push({
                         severite: 'attention',
-                        type: 'Séjour prolongé',
+                        type: t('rap.status.estadia.longa'),
                         nome: quemE(v),
                         turma: v.turma || '—',
                         heure: v.entryTime || '—',
@@ -839,20 +847,20 @@ function OverviewTab() {
                 if (!m.exitRegistered) {
                     alerts.push({
                         severite: 'attention',
-                        type: 'Sans sortie (cantine)',
+                        type: t('vue.alerta.sem.saida.cantina'),
                         nome: quemE(m),
                         turma: m.turma || '—',
                         heure: m.entryTime || '—',
-                        detail: 'Pas de sortie enregistrée',
+                        detail: t('rap.status.sem.saida'),
                     });
                 } else if (!m.onTime) {
                     alerts.push({
                         severite: 'info',
-                        type: 'Repas hors horaire',
+                        type: t('vue.alerta.refeicao.fora'),
                         nome: quemE(m),
                         turma: m.turma || '—',
                         heure: m.entryTime || '—',
-                        detail: 'Hors créneau',
+                        detail: t('vue.alerta.fora.faixa'),
                     });
                 }
             });
@@ -877,7 +885,7 @@ function OverviewTab() {
     const trend = (prevTotal == null || prevTotal === 0) ? null
         : Math.round(((grandTotal - prevTotal) / prevTotal) * 100);
 
-    const areaLabels = { cantine: 'Cantine', infirmerie: 'Infirmerie', cdi: 'CDI', portail: 'Portail' };
+    const areaLabels = { cantine: t('vue.area.cantine'), infirmerie: t('vue.area.infirmerie'), cdi: 'CDI', portail: t('vue.area.portail') };
     const areaIcons = { cantine: 'utensils', infirmerie: 'heart-pulse', cdi: 'book-open', portail: 'door-open' };
     const areaStats = (data?.areas || []).map(a => ({
         key: a.area,
@@ -916,19 +924,19 @@ function OverviewTab() {
     };
 
     const periodoLabel = period === 'today' ? "aujourd'hui"
-        : period === 'week' ? '7 derniers jours'
-        : period === 'month' ? '30 derniers jours'
-        : 'période personnalisée';
+        : period === 'week' ? t('periodo.7dias')
+        : period === 'month' ? t('periodo.30dias')
+        : t('vue.periodo.personalizado');
 
     return (
         <div>
             {/* ── Toggle de période ── */}
             <div className="flex flex-wrap items-center gap-2 mb-5">
                 {[
-                    { id: 'today',  label: "Aujourd'hui" },
-                    { id: 'week',   label: 'Cette semaine' },
-                    { id: 'month',  label: 'Ce mois' },
-                    { id: 'custom', label: 'Personnalisé' },
+                    { id: 'today',  label: t('periodo.hoje') },
+                    { id: 'week',   label: t('periodo.semana') },
+                    { id: 'month',  label: t('periodo.mes') },
+                    { id: 'custom', label: t('periodo.personalizado') },
                 ].map(p => (
                     <button key={p.id}
                         onClick={() => setPeriod(p.id)}
@@ -941,7 +949,7 @@ function OverviewTab() {
                     <span className="flex items-center gap-2 ml-1">
                         <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
                             className="px-3 py-1.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300" />
-                        <span className="text-xs text-slate-400">au</span>
+                        <span className="text-xs text-slate-400">{t('vue.au')}</span>
                         <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
                             className="px-3 py-1.5 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300" />
                     </span>
@@ -950,18 +958,18 @@ function OverviewTab() {
                     reage — cantina e enfermaria seguem com as agregações já
                     validadas em produção. */}
                 <label className="ml-auto flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none"
-                       title="Le personnel entre quelques secondes, sort sans badger, et la clôture de 17h transforme ça en journée entière">
+                       title={t('vue.incluir.pessoal.ajuda')}>
                     <input
                         type="checkbox"
                         checked={incluirFuncionarios}
                         onChange={e => setIncluirFuncionarios(e.target.checked)}
                         className="w-3.5 h-3.5 accent-accent-500"
                     />
-                    Inclure le personnel (CDI)
+                    {t('vue.incluir.pessoal')}
                 </label>
                 {loading && (
                     <span className="self-center text-xs text-slate-400 flex items-center gap-1 ml-2">
-                        <LucideIcon name="loader-2" size={12} className="animate-spin" /> Chargement...
+                        <LucideIcon name="loader-2" size={12} className="animate-spin" /> {t('comum.carregando')}
                     </span>
                 )}
             </div>
@@ -999,12 +1007,12 @@ function OverviewTab() {
             {!loading && data === null && (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-4">
                     <LucideIcon name="wifi-off" size={40} className="text-slate-300" />
-                    <p className="text-sm font-semibold text-slate-500">Impossible de charger les données</p>
+                    <p className="text-sm font-semibold text-slate-500">{t('vue.erro.carregar')}</p>
                     <button
                         onClick={load}
                         className="px-5 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 transition-colors"
                     >
-                        Réessayer
+                        {t('acao.reessayer')}
                     </button>
                 </div>
             )}
@@ -1017,9 +1025,9 @@ function OverviewTab() {
                         // 1. Mouvements
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
-                                React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, grandTotal.toLocaleString('fr-FR')),
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Mouvements"),
-                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "secteurs internes")
+                                React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, grandTotal.toLocaleString(locale)),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, t('vue.kpi.movimentos')),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, t('vue.kpi.setores.internos'))
                             ),
                             trend !== null ? React.createElement("p", { className: "text-[11px] font-medium mt-2 text-slate-500" },
                                 (trend >= 0 ? '▲ ' : '▼ ') + Math.abs(trend) + "%"
@@ -1028,37 +1036,37 @@ function OverviewTab() {
                         // 2. Élèves uniques
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
-                                React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString('fr-FR')),
+                                React.createElement("p", { className: "text-2xl font-bold text-blue-600" }, allUniques.toLocaleString(locale)),
                                 // "Personnes uniques", e não "Élèves": countUniqueStudents
                                 // é COUNT(DISTINCT user_id) SEM filtro de tipo — professor e
                                 // personnel entram. A query é legada e não muda de resultado
                                 // (regra do projeto); o rótulo é que estava errado.
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Personnes uniques"),
-                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "sur la période")
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, t('vue.kpi.pessoas.unicas')),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, t('vue.kpi.no.periodo'))
                             )
                         ),
                         // 3. Présents aujourd'hui
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
-                                React.createElement("p", { className: "text-2xl font-bold text-emerald-600" }, (data?.presentToday || 0).toLocaleString('fr-FR')),
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Présents aujourd'hui"),
-                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "entrés dans l'école")
+                                React.createElement("p", { className: "text-2xl font-bold text-emerald-600" }, (data?.presentToday || 0).toLocaleString(locale)),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, t('vue.kpi.presentes')),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, t('vue.kpi.entraram'))
                             )
                         ),
                         // 4. Dans les secteurs
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
-                                React.createElement("p", { className: "text-2xl font-bold text-indigo-600" }, (data?.currentlyInSectors || 0).toLocaleString('fr-FR')),
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Dans les secteurs"),
-                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "en ce moment")
+                                React.createElement("p", { className: "text-2xl font-bold text-indigo-600" }, (data?.currentlyInSectors || 0).toLocaleString(locale)),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, t('vue.kpi.nos.setores')),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, t('vue.kpi.agora'))
                             )
                         ),
                         // 5. Alertes actives
                         React.createElement("div", { className: "bg-white border border-slate-200 rounded-2xl p-4 flex flex-col justify-between" },
                             React.createElement("div", null,
-                                React.createElement("p", { className: "text-2xl font-bold " + (attention.total > 0 ? "text-rose-600" : "text-emerald-600") }, (attention.total || 0).toLocaleString('fr-FR')),
-                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, "Alertes actives"),
-                                React.createElement("p", { className: "text-[11px] text-slate-400" }, "points d'attention")
+                                React.createElement("p", { className: "text-2xl font-bold " + (attention.total > 0 ? "text-rose-600" : "text-emerald-600") }, (attention.total || 0).toLocaleString(locale)),
+                                React.createElement("p", { className: "text-xs font-semibold text-slate-700 mt-1" }, t('vue.kpi.alertas')),
+                                React.createElement("p", { className: "text-[11px] text-slate-400" }, t('vue.kpi.pontos.atencao'))
                             )
                         )
                     )}
@@ -1069,16 +1077,16 @@ function OverviewTab() {
                         return (
                             <div className="grid grid-cols-3 gap-3 mb-5">
                                 <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
-                                    <p className="text-xl font-bold text-emerald-600">{totEntrees.toLocaleString('fr-FR')}</p>
-                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Entrées (secteurs internes)</p>
+                                    <p className="text-xl font-bold text-emerald-600">{totEntrees.toLocaleString(locale)}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{t('vue.entradas.internas')}</p>
                                 </div>
                                 <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
-                                    <p className="text-xl font-bold text-rose-600">{totSorties.toLocaleString('fr-FR')}</p>
-                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Sorties (secteurs internes)</p>
+                                    <p className="text-xl font-bold text-rose-600">{totSorties.toLocaleString(locale)}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{t('vue.saidas.internas')}</p>
                                 </div>
                                 <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
-                                    <p className="text-xl font-bold text-amber-600">{(attention.sortiesNonEnreg || 0).toLocaleString('fr-FR')}</p>
-                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Mouvements incomplets</p>
+                                    <p className="text-xl font-bold text-amber-600">{(attention.sortiesNonEnreg || 0).toLocaleString(locale)}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{t('vue.mov.incompletos')}</p>
                                 </div>
                             </div>
                         );
@@ -1088,18 +1096,18 @@ function OverviewTab() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 mb-5">
                         <span className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${data ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                            {data ? 'Serveur en ligne' : 'Serveur hors ligne'}
+                            {data ? t('vue.servidor.online') : t('vue.servidor.offline')}
                         </span>
                         <span className="text-slate-300">|</span>
-                        <span>Période&nbsp;: {dateFrom.split('-').reverse().join('/')} – {dateTo.split('-').reverse().join('/')}</span>
+                        <span>{t('vue.periodo.rotulo')}&nbsp;: {dateFrom.split('-').reverse().join('/')} – {dateTo.split('-').reverse().join('/')}</span>
                         <span className="text-slate-300">|</span>
-                        <span>Dernier événement&nbsp;: {lastEvent || 'Non disponible'}</span>
+                        <span>{t('vue.ultimo.evento')}&nbsp;: {lastEvent || t('vue.nao.disponivel')}</span>
                         <span className="text-slate-300">|</span>
-                        <span>Mis à jour à {updatedAt || '—'}</span>
+                        <span>{t('vue.atualizado.as')} {updatedAt || '—'}</span>
                         <button onClick={load} disabled={loading}
                             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-soft-100 text-navy-500 font-bold hover:bg-soft-200 transition-colors disabled:opacity-50">
                             <LucideIcon name="refresh-cw" size={12} className={loading ? 'animate-spin' : ''} />
-                            Actualiser
+                            {t('acao.atualizar')}
                         </button>
                     </div>
 
@@ -1107,11 +1115,11 @@ function OverviewTab() {
                     <div className="bg-warning-50 border border-warning-200 rounded-2xl p-4 mb-5 flex gap-3">
                         <LucideIcon name="lightbulb" size={20} className="text-warning-600 flex-shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-bold text-warning-700 text-sm">Analyse de l'Activité</p>
+                            <p className="font-bold text-warning-700 text-sm">{t('vue.analise.titulo')}</p>
                             <p className="text-sm text-slate-600 mt-1">
                                 {grandTotal === 0
-                                    ? 'Aucune activité sur la période.'
-                                    : (<>La zone la plus active est <b>{zonaMaisAtiva.label}</b> ({zonaMaisAtiva.total} mouvements). Le pic d'affluence est observé vers <b>{picoHora}h</b>. {allUniques} personne{allUniques > 1 ? 's' : ''} ont circulé sur la période ({periodoLabel}).{attention.total > 0 ? (<> Principal point d'attention&nbsp;: <b>{attention.sortiesNonEnreg >= attention.repasHorsHoraire && attention.sortiesNonEnreg >= attention.sejoursLongs ? 'sorties non enregistrées' : (attention.repasHorsHoraire >= attention.sejoursLongs ? 'repas hors horaire' : 'séjours prolongés \u00e0 l\'infirmerie')}</b> ({Math.max(attention.sejoursLongs, attention.repasHorsHoraire, attention.sortiesNonEnreg)} cas).</>) : null}</>)
+                                    ? t('vue.analise.vazia')
+                                    : (<>{t('vue.analise.zona.a')} <b>{zonaMaisAtiva.label}</b> ({t('vue.analise.zona.b', { n: zonaMaisAtiva.total })}). {t('vue.analise.pico')} <b>{picoHora}h</b>. {t(allUniques === 1 ? 'vue.analise.circulou' : 'vue.analise.circularam', { n: allUniques, periodo: periodoLabel })}{attention.total > 0 ? (<> {t('vue.analise.atencao')}&nbsp;: <b>{attention.sortiesNonEnreg >= attention.repasHorsHoraire && attention.sortiesNonEnreg >= attention.sejoursLongs ? t('vue.atencao.saidas') : (attention.repasHorsHoraire >= attention.sejoursLongs ? t('vue.atencao.refeicoes') : t('vue.atencao.estadias'))}</b> ({t('vue.analise.casos', { n: Math.max(attention.sejoursLongs, attention.repasHorsHoraire, attention.sortiesNonEnreg) })}).</>) : null}</>)
                                 }
                             </p>
                         </div>
@@ -1121,7 +1129,7 @@ function OverviewTab() {
                     {grandTotal === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2 bg-slate-50 rounded-xl mb-5">
                             <LucideIcon name="bar-chart-2" size={32} className="text-slate-300" />
-                            <p className="text-sm">Aucun mouvement sur la période</p>
+                            <p className="text-sm">{t('poraluno.vazio')}</p>
                         </div>
                     ) : (
                         <>
@@ -1139,7 +1147,7 @@ function OverviewTab() {
                                     contagens, porHora.map(h => h.hour), { alturaMaxima: 88 });
                                 const maxHourCount = Math.max(...porHora.map(h => h.count), 1);
                                 return React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
-                                    React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Affluence par Heure"),
+                                    React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, t('cdi.stats.afluencia')),
                                     React.createElement("div", { className: "flex items-end gap-1 h-32 border-b border-slate-200" },
                                         barras.map(function (b) {
                                             const isMax = b.valor === maxHourCount && b.valor > 0;
@@ -1147,7 +1155,7 @@ function OverviewTab() {
                                                 React.createElement("span", { className: "text-[10px] font-medium text-slate-600 mb-1" }, b.valor > 0 ? (b.valor >= 1000 ? (b.valor / 1000).toFixed(1) + "k" : b.valor) : ""),
                                                 React.createElement("div", {
                                                     className: "w-full rounded-t",
-                                                    title: b.chave + "h : " + b.valor,
+                                                    title: t('vue.tooltip.hora', { h: b.chave, n: b.valor }),
                                                     style: {
                                                         height: b.altura + "px",
                                                         backgroundColor: isMax ? "#F59E0B" : "#0055FF"
@@ -1162,7 +1170,7 @@ function OverviewTab() {
 
                             {/* ── Répartition par Zone ── */}
                             {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
-                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Répartition par Zone"),
+                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, t('vue.grafico.zonas')),
                                 [...areaStats].sort((a, b) => b.total - a.total).map(function (a) {
                                     const areaColorMap = { cantine: "#3B82F6", infirmerie: "#EF4444", cdi: "#F59E0B", portail: "#1E293B" };
                                     return React.createElement("div", { key: a.key, className: "flex items-center gap-3 mb-2" },
@@ -1176,13 +1184,13 @@ function OverviewTab() {
                                                 }
                                             })
                                         ),
-                                        React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString("fr-FR") + " mvt")
+                                        React.createElement("span", { className: "w-20 text-sm text-right text-slate-600" }, a.total.toLocaleString(locale) + " " + t('vue.mvt'))
                                     );
                                 })
                             )}
 
                             {React.createElement("div", { className: "bg-slate-50 rounded-xl p-4 mb-5" },
-                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, "Entrées vs Sorties par zone"),
+                                React.createElement("h3", { className: "font-semibold mb-3 text-sm" }, t('vue.grafico.entradas.saidas')),
                                 [...areaStats].sort((a, b) => b.total - a.total).map(function (a) {
                                     const sorties = Math.max(0, a.total - (a.entradas || 0));
                                     const maxRef = Math.max(maxAreaTotal, 1);
@@ -1191,9 +1199,9 @@ function OverviewTab() {
                                             React.createElement("span", { className: "font-medium text-slate-700" }, a.label),
                                             React.createElement("span", null,
                                                 React.createElement("span", { className: "text-emerald-600 font-bold" }, a.entradas),
-                                                " entrées \u00b7 ",
+                                                " " + t('vue.seg.entradas') + " \u00b7 ",
                                                 React.createElement("span", { className: "text-rose-600 font-bold" }, sorties),
-                                                " sorties"
+                                                " " + t('vue.seg.saidas')
                                             )
                                         ),
                                         React.createElement("div", { className: "flex gap-1" },
@@ -1221,26 +1229,26 @@ function OverviewTab() {
                                 <div className="flex items-center gap-2 mb-3">
                                     <LucideIcon name={hasAlerts ? 'alert-triangle' : 'shield-check'} size={20} className={hasAlerts ? 'text-danger-600' : 'text-success-600'} />
                                     <h3 className={`font-black text-sm ${hasAlerts ? 'text-danger-700' : 'text-success-700'}`}>
-                                        Points d'attention {attention.total > 0 ? `(${attention.total})` : ''}
+                                        {t('vue.atencao.titulo')} {attention.total > 0 ? `(${attention.total})` : ''}
                                     </h3>
                                 </div>
 
                                 {/* ── Contadores do período (mantidos) ── */}
                                 {attention.total === 0 && todayAlerts.length === 0 ? (
-                                    <p className="text-sm text-slate-600 mb-0">Aucune anomalie détectée sur la période.</p>
+                                    <p className="text-sm text-slate-600 mb-0">{t('vue.atencao.nenhuma')}</p>
                                 ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                                         <div className="bg-white rounded-xl p-3 border border-danger-100">
                                             <p className="text-2xl font-black text-danger-600">{attention.sejoursLongs}</p>
-                                            <p className="text-xs text-slate-500 mt-1">Séjours prolongés (infirmerie)</p>
+                                            <p className="text-xs text-slate-500 mt-1">{t('vue.card.estadias')}</p>
                                         </div>
                                         <div className="bg-white rounded-xl p-3 border border-danger-100">
                                             <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
-                                            <p className="text-xs text-slate-500 mt-1">Repas hors horaire</p>
+                                            <p className="text-xs text-slate-500 mt-1">{t('vue.alerta.refeicao.fora')}</p>
                                         </div>
                                         <div className="bg-white rounded-xl p-3 border border-danger-100">
                                             <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
-                                            <p className="text-xs text-slate-500 mt-1">Sorties non enregistrées</p>
+                                            <p className="text-xs text-slate-500 mt-1">{t('vue.card.saidas.nao.enreg')}</p>
                                         </div>
                                     </div>
                                 )}
@@ -1248,12 +1256,12 @@ function OverviewTab() {
                                 {/* ── Alertes récentes (aujourd'hui) ── */}
                                 <div className="mt-1">
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                                        Alertes récentes (aujourd'hui)
+                                        {t('vue.alertas.recentes')}
                                     </p>
                                     {todayAlerts.length === 0 ? (
                                         <div className="flex items-center gap-2 text-success-700 text-sm py-2">
                                             <LucideIcon name="check-circle-2" size={16} className="text-success-500" />
-                                            Aucune alerte aujourd'hui
+                                            {t('vue.alertas.nenhuma')}
                                         </div>
                                     ) : (
                                         <>
@@ -1275,7 +1283,7 @@ function OverviewTab() {
                                             </div>
                                             {todayAlerts.length > 10 && (
                                                 <p className="text-xs text-slate-400 mt-2 text-right">
-                                                    {todayAlerts.length} alertes aujourd'hui au total
+                                                    {t('vue.alertas.total', { n: todayAlerts.length })}
                                                 </p>
                                             )}
                                         </>
@@ -1300,8 +1308,8 @@ function OverviewTab() {
                                 {/* barre de fréquentation CSS (comme le CDI) */}
                                 <div className="mb-3">
                                     <div className="flex justify-between text-xs text-slate-400 mb-1">
-                                        <span>Fréquentation relative</span>
-                                        <span>{a.total} mvt</span>
+                                        <span>{t('vue.freq.relativa')}</span>
+                                        <span>{a.total} {t('vue.mvt')}</span>
                                     </div>
                                     <div className="h-3 bg-soft-100 rounded-full overflow-hidden">
                                         <div
@@ -1315,27 +1323,27 @@ function OverviewTab() {
                                 <div className="grid grid-cols-3 gap-2 text-center">
                                     <div>
                                         <p className="text-2xl font-black text-navy-500">{a.total}</p>
-                                        <p className="text-xs text-slate-400">Mouvements</p>
+                                        <p className="text-xs text-slate-400">{t('vue.kpi.movimentos')}</p>
                                     </div>
                                     <div>
                                         <p className="text-2xl font-black text-success-600">{a.entradas}</p>
-                                        <p className="text-xs text-slate-400">Entrées</p>
+                                        <p className="text-xs text-slate-400">{t('vue.card.entradas')}</p>
                                     </div>
                                     <div>
                                         <p className="text-2xl font-black text-rose-500">{Math.max(0, a.total - (a.entradas || 0))}</p>
-                                        <p className="text-xs text-slate-400">Sorties</p>
+                                        <p className="text-xs text-slate-400">{t('vue.card.saidas')}</p>
                                     </div>
                                     <div>
                                         <p className="text-2xl font-black text-indigo-600">{a.occupation ?? 0}</p>
-                                        <p className="text-xs text-slate-400">Occupation act.</p>
+                                        <p className="text-xs text-slate-400">{t('vue.card.ocupacao')}</p>
                                     </div>
                                     <div>
                                         <p className={`text-2xl font-black ${a.uniques > 0 ? 'text-accent-600' : 'text-slate-300'}`}>{a.uniques > 0 ? a.uniques : '—'}</p>
-                                        <p className="text-xs text-slate-400">{a.key === 'cdi' && !incluirFuncionarios ? 'Élèves uniques' : 'Personnes uniques'}</p>
+                                        <p className="text-xs text-slate-400">{a.key === 'cdi' && !incluirFuncionarios ? t('rap.kpi.alunos.unicos') : t('vue.kpi.pessoas.unicas')}</p>
                                     </div>
                                     <div>
-                                        <p className={`font-black ${a.dureeMoy != null ? 'text-2xl text-navy-500' : 'text-lg text-slate-300'}`}>{a.dureeMoy != null ? a.dureeMoy + ' min' : 'Indispo.'}</p>
-                                        <p className="text-xs text-slate-400">Durée moy.</p>
+                                        <p className={`font-black ${a.dureeMoy != null ? 'text-2xl text-navy-500' : 'text-lg text-slate-300'}`}>{a.dureeMoy != null ? a.dureeMoy + ' min' : t('vue.indisponivel.curto')}</p>
+                                        <p className="text-xs text-slate-400">{t('cdi.stats.duracao.curta')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -1346,18 +1354,18 @@ function OverviewTab() {
                                     <LucideIcon name="door-open" size={20} className="text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-black text-navy-500">Portail</h3>
-                                    <p className="text-[11px] text-slate-400">Flux de bordure — exclu des statistiques internes</p>
+                                    <h3 className="text-base font-black text-navy-500">{t('vue.area.portail')}</h3>
+                                    <p className="text-[11px] text-slate-400">{t('vue.portao.subtitulo')}</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-center">
                                 <div>
-                                    <p className="text-2xl font-black text-emerald-600">{(data?.presentToday || 0).toLocaleString('fr-FR')}</p>
-                                    <p className="text-xs text-slate-400">Entrés aujourd'hui</p>
+                                    <p className="text-2xl font-black text-emerald-600">{(data?.presentToday || 0).toLocaleString(locale)}</p>
+                                    <p className="text-xs text-slate-400">{t('vue.card.entraram.hoje')}</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-black text-indigo-600">{(data?.currentlyInSectors || 0).toLocaleString('fr-FR')}</p>
-                                    <p className="text-xs text-slate-400">Dans les secteurs</p>
+                                    <p className="text-2xl font-black text-indigo-600">{(data?.currentlyInSectors || 0).toLocaleString(locale)}</p>
+                                    <p className="text-xs text-slate-400">{t('vue.kpi.nos.setores')}</p>
                                 </div>
                             </div>
                         </div>
@@ -1366,8 +1374,8 @@ function OverviewTab() {
                     {/* ── Tentatives Refusées ── */}
                     <div className="mt-6">
                         <DeniedAttemptsFeed
-                            title="Tentatives refusées — tous les points"
-                            emptyMessage="Aucune tentative refusée"
+                            title={t('vue.feed.titulo')}
+                            emptyMessage={t('vue.feed.vazio')}
                             fetchFn={window.api?.getAllAttempts || (async () => [])}
                         />
                     </div>
@@ -1382,6 +1390,8 @@ function OverviewTab() {
 
 // ── GeneralReport ─────────────────────────────────────────────────────
 function GeneralReport({ onBack }) {
+    const t = useI18n();
+    const locale = useLocale();
     const [tab, setTab] = React.useState('overview'); // 'overview' | 'student' | 'journal'
 
     const tabBtn = (id, label, icon) => (
@@ -1410,26 +1420,26 @@ function GeneralReport({ onBack }) {
                             <LucideIcon name="layout-dashboard" size={24} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-navy-500 tracking-tight">Rapport Général</h1>
-                            <p className="text-sm text-slate-400 mt-0.5">Vue consolidée de toutes les zones · Lycée Molière</p>
+                            <h1 className="text-2xl font-bold text-navy-500 tracking-tight">{t('geral.titulo')}</h1>
+                            <p className="text-sm text-slate-400 mt-0.5">{t('geral.subtitulo')}</p>
                         </div>
                     </div>
                 </div>
                 <span className="text-xs text-slate-400 font-medium bg-soft-100 px-3 py-1.5 rounded-lg border border-soft-200">
                     <LucideIcon name="shield-check" size={12} className="inline mr-1 text-accent-500" />
-                    Accès Administrateur
+                    {t('geral.acesso.admin')}
                 </span>
             </div>
 
             {/* ── Tab Bar ── */}
             <div className="flex flex-wrap gap-2 mb-6">
-                {tabBtn('overview', "Vue d'ensemble", 'bar-chart-3')}
+                {tabBtn('overview', t('geral.aba.vue'), 'bar-chart-3')}
                 {/* "Par personne" e não "Par élève": a busca usa
                     userCache.search, que devolve TODO o cadastro — professor e
                     personnel inclusive. Só a tela de Sorties filtra para aluno
                     (MagboExitPermission.apenasAlunos), e esta não. */}
-                {tabBtn('student', 'Par personne', 'user-search')}
-                {tabBtn('journal', 'Journal', 'list')}
+                {tabBtn('student', t('geral.aba.pessoa'), 'user-search')}
+                {tabBtn('journal', t('geral.aba.journal'), 'list')}
             </div>
 
             {/* ── Tab Content ── */}

@@ -59,6 +59,7 @@ const MIGRADAS = [
     'js/cdi/StatsModal.js',
     'js/components/RefectoryReport.js',
     'js/components/InfirmaryReport.js',
+    'js/components/GeneralReport.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

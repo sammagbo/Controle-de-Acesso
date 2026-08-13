@@ -35,14 +35,17 @@ describe('importPlan — painel da simulação', () => {
         it('★ simulado: o título PROMETE que nada foi gravado', () => {
             const s = P.planState(plano());
             expect(s.estado).toBe('simulado');
-            expect(s.titulo).toBe('Simulação — nada foi gravado ainda');
+            // O título agora é CHAVE i18n — quem traduz é a tela (mesma
+            // decisão do importColumns: o util decide O QUE dizer, o
+            // dicionário decide COMO).
+            expect(s.titulo).toBe('plano.titulo.simulado');
             expect(s.podeConfirmar).toBe(true);
         });
 
         it('★ aplicado: não dá para confirmar de novo — seria gravar duas vezes', () => {
             const s = P.planState(plano({ aplicado: true }));
             expect(s.estado).toBe('aplicado');
-            expect(s.titulo).toBe('Resultado da importação');
+            expect(s.titulo).toBe('plano.titulo.aplicado');
             expect(s.podeConfirmar).toBe(false);
             expect(s.rotuloConfirmar).toBeNull();
         });
@@ -50,19 +53,21 @@ describe('importPlan — painel da simulação', () => {
 
     describe('rótulo do botão', () => {
         it('★ diz quantos criar e quantos atualizar', () => {
-            expect(P.planState(plano()).rotuloConfirmar)
-                .toBe('CONFIRMAR — 12 criar, 996 atualizar');
+            const s = P.planState(plano());
+            expect(s.rotuloConfirmar).toBe('plano.confirmar');
+            expect(s.confirmarParams).toEqual({ criar: 12, atualizar: 996 });
         });
 
         it('totais ausentes viram zero, não NaN nem undefined', () => {
-            expect(P.planState({ totais: {} }).rotuloConfirmar)
-                .toBe('CONFIRMAR — 0 criar, 0 atualizar');
+            expect(P.planState({ totais: {} }).confirmarParams)
+                .toEqual({ criar: 0, atualizar: 0 });
         });
 
         it('plano sem totais nenhum não estoura', () => {
             const s = P.planState({});
             expect(s.total).toBe(0);
-            expect(s.rotuloConfirmar).toBe('CONFIRMAR — 0 criar, 0 atualizar');
+            expect(s.rotuloConfirmar).toBe('plano.confirmar');
+            expect(s.confirmarParams).toEqual({ criar: 0, atualizar: 0 });
         });
     });
 
@@ -185,12 +190,12 @@ describe('importPlan — máquina de estados da reclassificação', () => {
         it('★ gravando: trava para não gravar duas vezes', () => {
             const s = st({ query: 'Marie', escolhido: ALUNO, previa: PREVIA, salvando: true });
             expect(s.podeConfirmar).toBe(false);
-            expect(s.rotuloConfirmar).toBe('GRAVANDO...');
+            expect(s.rotuloConfirmar).toBe('comum.gravando');
         });
 
         it('parado: rótulo normal', () => {
             expect(st({ escolhido: ALUNO, previa: PREVIA }).rotuloConfirmar)
-                .toBe('CONFIRMAR — é um aluno');
+                .toBe('plano.confirmar.aluno');
         });
     });
 

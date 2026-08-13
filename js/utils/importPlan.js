@@ -64,15 +64,16 @@
             estado: aplicado ? 'aplicado' : 'simulado',
             // O título é a promessa que a tela faz ao operador. Enquanto a
             // simulação não for aplicada ele PRECISA ler "nada foi gravado".
-            titulo: aplicado ? 'Resultado da importação' : 'Simulação — nada foi gravado ainda',
+            titulo: aplicado ? 'plano.titulo.aplicado' : 'plano.titulo.simulado',
             totais: totais,
             total: numero(totais.TOTAL),
             revisao: revisao,
             problemas: problemas,
             // Confirmar só existe entre simular e aplicar.
             podeConfirmar: !aplicado,
-            rotuloConfirmar: aplicado ? null
-                : 'CONFIRMAR — ' + numero(totais.CRIAR) + ' criar, ' + numero(totais.ATUALIZAR) + ' atualizar',
+            rotuloConfirmar: aplicado ? null : 'plano.confirmar',
+            confirmarParams: aplicado ? null
+                : { criar: numero(totais.CRIAR), atualizar: numero(totais.ATUALIZAR) },
             precisaConferencia: revisao.length > 0
         };
     }
@@ -130,7 +131,7 @@
                 && !salvando
                 && !!previa
                 && (!exigeSubstituicao || substituir),
-            rotuloConfirmar: salvando ? 'GRAVANDO...' : 'CONFIRMAR — é um aluno'
+            rotuloConfirmar: salvando ? 'comum.gravando' : 'plano.confirmar.aluno'
         };
     }
 

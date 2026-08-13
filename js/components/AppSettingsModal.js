@@ -28,6 +28,7 @@ const FORM_CADASTRO_MANUAL = 'magbo-form-cadastro-manual';
 // ANTES deste arquivo no index.html.
 
 function AppSettingsModal({ onClose, onShowToast }) {
+    const t = useI18n();
     const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'staff-import', 'manual'
 
     // --- Manual Registration State ---
@@ -182,7 +183,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-                onShowToast({ title: 'Erro', message: 'Não foi possível ativar a tela cheia.', type: 'error' });
+                onShowToast({ title: t('cfg.erro'), message: t('cfg.gerais.telacheia.erro'), type: 'error' });
             });
         } else {
             if (document.exitFullscreen) {
@@ -196,14 +197,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const renderGeneralSettings = () => (
         <div className="space-y-6 animate-fade-in">
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
-                <h3 className="text-lg font-bold text-navy-500 mb-2">Configurações Gerais</h3>
-                <p className="text-sm text-slate-500 mb-6">Ajustes básicos do sistema (Em desenvolvimento).</p>
+                <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cfg.gerais.titulo')}</h3>
+                <p className="text-sm text-slate-500 mb-6">{t('cfg.gerais.sub')}</p>
 
                 <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-soft-200">
                         <div>
-                            <p className="font-bold text-navy-500">Modo Tela Cheia</p>
-                            <p className="text-xs text-slate-400">Ativar exibição em tela cheia na portaria</p>
+                            <p className="font-bold text-navy-500">{t('cfg.gerais.telacheia')}</p>
+                            <p className="text-xs text-slate-400">{t('cfg.gerais.telacheia.sub')}</p>
                         </div>
                         <button 
                             onClick={toggleFullscreen}
@@ -237,7 +238,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 // Validação básica antes de enviar
                 const validRows = json.filter(row => row.Nome && String(row.Nome).trim() !== '');
                 if (validRows.length === 0) {
-                    onShowToast({ title: 'Planilha vazia', message: 'Nenhuma linha válida encontrada (verifique a coluna Nome).', type: 'error' });
+                    onShowToast({ title: t('cfg.imp.vazia'), message: t('cfg.imp.vazia.detalhe'), type: 'error' });
                     return;
                 }
 
@@ -253,7 +254,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     fotoUrl: row.Foto ? String(row.Foto).trim() : ''
                 }));
 
-                onShowToast({ title: 'Importando...', message: `Enviando ${payload.length} registros ao servidor.`, type: 'info' });
+                onShowToast({ title: t('cfg.imp.enviando'), message: t('cfg.enviando.n', { n: payload.length }), type: 'info' });
 
                 const result = await window.api.createUsersBulk(payload);
 
@@ -265,8 +266,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 // Feedback detalhado
                 if (result.status === 'success') {
                     onShowToast({
-                        title: 'Importação concluída',
-                        message: `${result.sucesso} usuários importados com sucesso.`,
+                        title: t('cfg.imp.ok'),
+                        message: t('cfg.imp.ok.detalhe', { n: result.sucesso }),
                         type: 'success'
                     });
                 } else {
@@ -276,16 +277,16 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         .join('\n');
                     console.warn('Erros na importação:', result.detalheErros);
                     onShowToast({
-                        title: `Importação parcial: ${result.sucesso}/${result.totalRecebido}`,
-                        message: `${result.falhas} falharam. Veja console (F12) para detalhes.`,
+                        title: t('cfg.imp.parcial', { ok: result.sucesso, total: result.totalRecebido }),
+                        message: t('cfg.imp.parcial.detalhe', { n: result.falhas }),
                         type: 'warning'
                     });
                 }
             } catch (err) {
                 console.error('Erro na importação:', err);
                 onShowToast({
-                    title: 'Erro',
-                    message: err.message || 'Falha ao processar arquivo Excel.',
+                    title: t('cfg.erro'),
+                    message: err.message || t('cfg.imp.falha.arquivo'),
                     type: 'error'
                 });
             } finally {
@@ -298,11 +299,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const renderImportSettings = () => (
         <div className="space-y-6 animate-fade-in">
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
-                <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Cadastro via Excel</h3>
+                <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cfg.imp.titulo')}</h3>
                 <div className="text-sm text-slate-500 mb-6">
-                    Envie planilha <strong>.xlsx</strong> com as colunas:
+                    {t('cfg.imp.instrucao.a')} <strong>.xlsx</strong> {t('cfg.imp.instrucao.b')}
                     <ImportColumnList doc={window.MagboImportColumns.ALUNOS} />
-                    <p className="text-xs mt-2">Use o template oficial. Tipos aceitos: ALUNO, PROFESSOR, FUNCIONARIO, RESPONSAVEL (sempre maiúsculas).</p>
+                    <p className="text-xs mt-2">{t('cfg.imp.template')}</p>
                 </div>
 
                 <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
@@ -315,8 +316,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
                         <LucideIcon name="file-spreadsheet" size={32} />
                     </div>
-                    <p className="font-bold text-navy-500">Clique ou arraste o arquivo aqui</p>
-                    <p className="text-sm text-slate-400 mt-1">Formatos suportados: .xlsx, .xls</p>
+                    <p className="font-bold text-navy-500">{t('cfg.imp.arraste')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('cfg.formatos')}</p>
                 </div>
             </div>
         </div>
@@ -367,9 +368,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 const rows = lerPlanilhaHikCentral(evt);
                 if (rows.length === 0) {
                     onShowToast({
-                        title: 'Planilha não reconhecida',
-                        message: 'Nenhuma linha com ID a partir do cabeçalho (linha 9). '
-                            + 'Confirme que é o export "Renseignements personnels".',
+                        title: t('cfg.hik.nao.reconhecida'),
+                        message: t('cfg.hik.nao.reconhecida.detalhe'),
                         type: 'error'
                     });
                     return;
@@ -378,14 +378,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 setHikRows(rows);
                 setHikPlan(null);
                 onShowToast({
-                    title: 'Conferindo...',
-                    message: `${rows.length} linhas lidas. Simulando antes de gravar.`,
+                    title: t('cfg.hik.conferindo'),
+                    message: t('cfg.hik.conferindo.detalhe', { n: rows.length }),
                     type: 'info'
                 });
                 setHikPlan(await window.api.previewHikCentralImport(rows));
             } catch (err) {
                 console.error('Erro ao ler o export do HikCentral:', err);
-                onShowToast({ title: 'Erro', message: err.message || 'Falha ao ler a planilha.', type: 'error' });
+                onShowToast({ title: t('cfg.erro'), message: err.message || t('cfg.hik.falha.ler'), type: 'error' });
             } finally {
                 e.target.value = '';
             }
@@ -400,17 +400,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
             const relatorio = await window.api.applyHikCentralImport(hikRows);
             setHikPlan(relatorio);
             if (window.userCache?.reload) await window.userCache.reload();
-            const t = relatorio.totais || {};
+            const tot = relatorio.totais || {};
             onShowToast({
-                title: 'Importação aplicada',
-                message: `${t.CRIAR || 0} criados · ${t.ATUALIZAR || 0} atualizados · `
-                    + `${t.PULAR || 0} ignorados · ${t.CONFLITO || 0} conflitos · `
-                    + `${t.REVISAO_MANUAL || 0} para conferência manual`,
-                type: (t.CONFLITO || t.REVISAO_MANUAL) ? 'warning' : 'success'
+                title: t('cfg.hik.aplicada'),
+                message: t('cfg.hik.aplicada.detalhe', {
+                    criar: tot.CRIAR || 0, atualizar: tot.ATUALIZAR || 0,
+                    ignorar: tot.PULAR || 0, conflitos: tot.CONFLITO || 0,
+                    conferir: tot.REVISAO_MANUAL || 0
+                }),
+                type: (tot.CONFLITO || tot.REVISAO_MANUAL) ? 'warning' : 'success'
             });
         } catch (err) {
             console.error(err);
-            onShowToast({ title: 'Importação não aplicada', message: err.message, type: 'error' });
+            onShowToast({ title: t('cfg.hik.nao.aplicada'), message: err.message, type: 'error' });
         } finally {
             setHikApplying(false);
         }
@@ -428,26 +430,25 @@ function AppSettingsModal({ onClose, onShowToast }) {
         try {
             const r = await window.api.exportHikCentralCsv(escopo);
             onShowToast({
-                title: r.linhas === 0 ? 'Nada a exportar' : 'CSV gerado',
+                title: r.linhas === 0 ? t('cfg.csv.nada') : t('cfg.csv.gerado'),
                 message: r.linhas === 0
-                    ? 'Nenhum aluno ativo sem identificador Hikvision.'
-                    : `${r.linhas} aluno(s) em ${r.nomeArquivo}. NÃO abrir no Excel: `
-                        + 'ele come os zeros à esquerda da matrícula.',
+                    ? t('cfg.csv.nenhum')
+                    : t('cfg.csv.gerado.detalhe', { n: r.linhas, arquivo: r.nomeArquivo }),
                 type: r.linhas === 0 ? 'info' : 'success'
             });
         } catch (e) {
-            onShowToast({ title: 'CSV não gerado', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.csv.erro'), message: e.message, type: 'error' });
         } finally {
             setExportando(false);
         }
     };
 
     const ACOES_HIK = {
-        CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
-        ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
-        PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
-        CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
-        REVISAO_MANUAL: { label: 'Conferir', cor: 'text-amber-700 bg-amber-100' }
+        CRIAR: { label: t('plano.acao.criar'), cor: 'text-success-700 bg-success-100' },
+        ATUALIZAR: { label: t('plano.acao.atualizar'), cor: 'text-accent-700 bg-accent-100' },
+        PULAR: { label: t('plano.acao.ignorar'), cor: 'text-slate-600 bg-soft-100' },
+        CONFLITO: { label: t('plano.acao.conflito'), cor: 'text-danger-700 bg-danger-100' },
+        REVISAO_MANUAL: { label: t('plano.acao.conferir'), cor: 'text-amber-700 bg-amber-100' }
     };
 
     // ── Aba "Servidores": manutenção do cadastro ─────────────────────────
@@ -457,7 +458,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
         try {
             setStaffRows(await window.api.listStaff());
         } catch (e) {
-            onShowToast({ title: 'Erro', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.erro'), message: e.message, type: 'error' });
         } finally {
             setStaffLoading(false);
         }
@@ -477,31 +478,29 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 // acabou de mostrar o valor ao operador.
                 postoFixoPointId: staffEdit.postoFixoPointId || ''
             });
-            onShowToast({ title: 'Servidor atualizado', message: r.message, type: 'success' });
+            onShowToast({ title: t('cfg.srv.atualizado'), message: r.message, type: 'success' });
             setStaffEdit(null);
             await carregarServidores();
             if (window.userCache?.reload) await window.userCache.reload();
         } catch (e) {
-            onShowToast({ title: 'Não salvo', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.srv.nao.salvo'), message: e.message, type: 'error' });
         }
     };
 
     const acaoServidor = async (row, acao) => {
         // Remoção é irreversível; inativar não. Só a primeira pede confirmação.
         if (acao === 'delete' && !window.confirm(
-            `Remover definitivamente ${row.nome} (${row.id})?\n\n`
-            + 'Só é possível porque este registro não tem nenhuma passagem. '
-            + 'A ação não pode ser desfeita.')) return;
+            t('cfg.srv.confirmar.remocao', { nome: row.nome, id: row.id }))) return;
         try {
             const r = acao === 'delete' ? await window.api.deleteStaff(row.id)
                 : acao === 'deactivate' ? await window.api.deactivateStaff(row.id)
                 : await window.api.reactivateStaff(row.id);
-            onShowToast({ title: 'Feito', message: r.message, type: 'success' });
+            onShowToast({ title: t('cfg.srv.feito'), message: r.message, type: 'success' });
             await carregarServidores();
             if (window.userCache?.reload) await window.userCache.reload();
         } catch (e) {
             // O backend recusa a remoção com histórico e explica o porquê.
-            onShowToast({ title: 'Ação não realizada', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.srv.nao.realizada'), message: e.message, type: 'error' });
         }
     };
 
@@ -593,23 +592,23 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <p className="font-bold text-navy-500 text-sm">
-                            "{reclassRow.nome}" é na verdade um aluno
+                            "{reclassRow.nome}" {t('cfg.rec.titulo')}
                         </p>
                         <p className="text-[11px] text-slate-500">
                             {reclassRow.id}
                             {reclassRow.hikvisionEmployeeId
-                                ? <> · face <span className="font-mono">{reclassRow.hikvisionEmployeeId}</span></>
-                                : ' · sem identificador Hikvision'}
-                            {' · '}{reclassRow.passagens} passagem(ns)
+                                ? <> · {t('cfg.face')} <span className="font-mono">{reclassRow.hikvisionEmployeeId}</span></>
+                                : ' · ' + t('cfg.sem.id.hikvision')}
+                            {' · '}{t('cfg.passagens', { n: reclassRow.passagens })}
                         </p>
                     </div>
                     <button onClick={() => setReclassRow(null)}
-                        className="text-xs font-bold text-slate-500 underline hover:no-underline">Fechar</button>
+                        className="text-xs font-bold text-slate-500 underline hover:no-underline">{t('acao.fechar')}</button>
                 </div>
 
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">
-                        Procurar o aluno no MAGBO (pelo nome)
+                        {t('cfg.rec.procurar')}
                     </label>
                     <input type="text" value={reclassQuery} onChange={e => setReclassQuery(e.target.value)}
                         className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500" />
@@ -624,7 +623,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 <span className="text-slate-400 ml-2 font-mono">{a.id}</span>
                                 <span className="text-slate-400 ml-2">{a.turma || '—'}</span>
                                 {a.hikvision_employee_id && (
-                                    <span className="ml-2 text-amber-700">já tem face {a.hikvision_employee_id}</span>
+                                    <span className="ml-2 text-amber-700">{t('cfg.ja.tem.face')} {a.hikvision_employee_id}</span>
                                 )}
                             </button>
                         ))}
@@ -633,8 +632,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
                 {st.mostrarAusente && (
                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                        Nenhum aluno com esse nome. Se ele realmente não está no MAGBO, precisa entrar
-                        primeiro pela importação do Pronote — não se cadastra aluno por aqui.
+                        {t('cfg.rec.ausente')}
                     </p>
                 )}
 
@@ -648,25 +646,25 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 {st.mostrarPrevia && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="border border-success-200 bg-success-50 rounded-xl p-3">
-                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">Aluno (recebe a face)</p>
+                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">{t('cfg.rec.aluno.titulo')}</p>
                             <p className="font-bold text-navy-500 text-sm">{p.alunoNome}</p>
                             <p className="text-[11px] text-slate-600 font-mono">{p.alunoId}</p>
-                            <p className="text-[11px] text-slate-600">Turma: {p.alunoTurma || '—'}</p>
+                            <p className="text-[11px] text-slate-600">{t('comum.turma')}: {p.alunoTurma || '—'}</p>
                             <p className="text-[11px] text-slate-600">
-                                ID atual: {p.alunoHikvisionAtual || 'nenhum'}
+                                {t('cfg.id.atual')}: {p.alunoHikvisionAtual || t('cfg.nenhum')}
                                 {p.servidorHikvisionId && <> → <span className="font-mono font-bold">{p.servidorHikvisionId}</span></>}
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-1">Nome, turma e tipo não são alterados.</p>
+                            <p className="text-[10px] text-slate-400 mt-1">{t('cfg.rec.nao.alterados')}</p>
                         </div>
                         <div className="border border-danger-200 bg-danger-50 rounded-xl p-3">
-                            <p className="text-[11px] font-bold text-danger-700 uppercase mb-1">Servidor (será inativado)</p>
+                            <p className="text-[11px] font-bold text-danger-700 uppercase mb-1">{t('cfg.rec.servidor.titulo')}</p>
                             <p className="font-bold text-navy-500 text-sm">{p.servidorNome}</p>
                             <p className="text-[11px] text-slate-600 font-mono">{p.servidorId}</p>
-                            <p className="text-[11px] text-slate-600">Departamento: {p.servidorDepartamento || '—'}</p>
+                            <p className="text-[11px] text-slate-600">{t('cfg.col.departamento')}: {p.servidorDepartamento || '—'}</p>
                             <p className="text-[11px] text-slate-600">
-                                {p.servidorPassagens} passagem(ns) — <strong>ficam neste registro</strong>
+                                {t('cfg.passagens', { n: p.servidorPassagens })} — <strong>{t('cfg.rec.ficam')}</strong>
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-1">Inativo sai dos relatórios.</p>
+                            <p className="text-[10px] text-slate-400 mt-1">{t('cfg.rec.inativo.sai')}</p>
                         </div>
                     </div>
                 )}
@@ -678,9 +676,9 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             onChange={e => setReclassSubstituir(e.target.checked)}
                             className="mt-0.5 w-3.5 h-3.5 accent-amber-600" />
                         <span>
-                            Este aluno já tem o identificador <span className="font-mono">{p.alunoHikvisionAtual}</span>.
-                            Confirmo a substituição por <span className="font-mono">{p.servidorHikvisionId}</span> —
-                            a face antiga deixa de reconhecê-lo.
+                            {t('cfg.rec.subst.a')} <span className="font-mono">{p.alunoHikvisionAtual}</span>.
+                            {' '}{t('cfg.rec.subst.b')} <span className="font-mono">{p.servidorHikvisionId}</span> —
+                            {' '}{t('cfg.rec.subst.c')}
                         </span>
                     </label>
                 )}
@@ -691,11 +689,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             onClick={confirmarReclass}
                             disabled={!st.podeConfirmar}
                             className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {st.rotuloConfirmar}
+                            {t(st.rotuloConfirmar)}
                         </button>
                         <button onClick={() => { setReclassChoice(null); setReclassPreview(null); setReclassErro(null); }}
                             className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                            Escolher outro
+                            {t('cfg.escolher.outro')}
                         </button>
                     </div>
                 )}
@@ -753,9 +751,12 @@ function AppSettingsModal({ onClose, onShowToast }) {
             setFotoPlan(plano);
             if (aplicar) {
                 onShowToast({
-                    title: 'Fotos importadas',
-                    message: `${plano.totais.CRIAR || 0} nova(s), ${plano.totais.ATUALIZAR || 0} atualizada(s), `
-                        + `${plano.totais.SEM_CORRESPONDENCIA || 0} sem correspondência.`,
+                    title: t('cfg.foto.importadas'),
+                    message: t('cfg.foto.importadas.detalhe', {
+                        novas: plano.totais.CRIAR || 0,
+                        atualizadas: plano.totais.ATUALIZAR || 0,
+                        semdono: plano.totais.SEM_CORRESPONDENCIA || 0
+                    }),
                     type: 'success'
                 });
                 // O cache guarda objectURLs por pessoa: sem esta limpeza, quem
@@ -765,43 +766,41 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 await carregarResumoDeFotos();
             }
         } catch (e) {
-            onShowToast({ title: 'Importação não realizada', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.foto.nao.realizada'), message: e.message, type: 'error' });
         } finally {
             setFotoBusy(false);
         }
     };
 
     const FOTO_ACAO_LABEL = {
-        CRIAR: { label: 'Nova', cor: 'text-success-700 bg-success-100' },
-        ATUALIZAR: { label: 'Substitui', cor: 'text-accent-700 bg-accent-100' },
-        PULAR: { label: 'Já igual', cor: 'text-slate-600 bg-soft-100' },
-        SEM_CORRESPONDENCIA: { label: 'Sem dono', cor: 'text-amber-700 bg-amber-100' },
-        CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' },
-        RECUSADO: { label: 'Recusado', cor: 'text-danger-700 bg-danger-100' }
+        CRIAR: { label: t('plano.foto.nova'), cor: 'text-success-700 bg-success-100' },
+        ATUALIZAR: { label: t('plano.foto.substitui'), cor: 'text-accent-700 bg-accent-100' },
+        PULAR: { label: t('plano.foto.igual'), cor: 'text-slate-600 bg-soft-100' },
+        SEM_CORRESPONDENCIA: { label: t('plano.foto.semdono'), cor: 'text-amber-700 bg-amber-100' },
+        CONFLITO: { label: t('plano.acao.conflito'), cor: 'text-danger-700 bg-danger-100' },
+        RECUSADO: { label: t('plano.foto.recusado'), cor: 'text-danger-700 bg-danger-100' }
     };
 
     const renderPhotoImport = () => {
         const escolhidos = fotoZip ? 1 : fotoArquivos.length;
-        const t = fotoPlan?.totais || {};
+        const tot = fotoPlan?.totais || {};
         return (
             <div className="space-y-4 animate-fade-in">
                 <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
-                    <h3 className="text-lg font-bold text-navy-500 mb-1">Fotos de identificação</h3>
+                    <h3 className="text-lg font-bold text-navy-500 mb-1">{t('cfg.foto.titulo')}</h3>
                     <div className="text-xs text-slate-500">
-                        Não há planilha aqui — o que precisa estar certo é o arquivo:
+                        {t('cfg.foto.instrucao')}
                         <ImportColumnList doc={window.MagboImportColumns.FOTOS} />
                     </div>
                     <p className="text-xs text-slate-500 mt-2">
-                        <strong>Nada é gravado antes de você confirmar.</strong> A simulação mostra,
-                        arquivo por arquivo, o que aconteceria — inclusive os que não acharem dono.
+                        <strong>{t('cfg.foto.nada.gravado')}</strong> {t('cfg.foto.simulacao')}
                     </p>
                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
-                        São fotos de menores. Elas ficam no banco (entram no backup junto com o resto),
-                        só saem por requisição autenticada, uma por vez, e não há exportação em massa.
+                        {t('cfg.foto.menores')}
                     </p>
                     {fotoResumo && (
                         <p className="text-xs text-slate-500 mt-2">
-                            Hoje há <strong className="text-navy-500">{fotoResumo.comFoto}</strong> pessoa(s) com foto cadastrada.
+                            {t('cfg.foto.resumo.a')} <strong className="text-navy-500">{fotoResumo.comFoto}</strong> {t('cfg.foto.resumo.b')}
                         </p>
                     )}
                 </div>
@@ -810,8 +809,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     <label className="border-2 border-dashed border-soft-300 rounded-2xl p-5 text-center cursor-pointer hover:border-accent-400 hover:bg-accent-50/40 transition-colors">
                         <input type="file" accept=".zip,application/zip" className="hidden" onChange={escolherZipDeFotos} />
                         <LucideIcon name="file-archive" size={26} className="text-slate-400 mx-auto mb-2" />
-                        <p className="font-bold text-navy-500 text-sm">Escolher um arquivo ZIP</p>
-                        <p className="text-[11px] text-slate-400 mt-1">Um zip com todas as fotos dentro</p>
+                        <p className="font-bold text-navy-500 text-sm">{t('cfg.foto.zip')}</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{t('cfg.foto.zip.sub')}</p>
                     </label>
                     <label className="border-2 border-dashed border-soft-300 rounded-2xl p-5 text-center cursor-pointer hover:border-accent-400 hover:bg-accent-50/40 transition-colors">
                         {/* webkitdirectory: escolher a PASTA inteira. O caminho
@@ -820,19 +819,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <input type="file" accept="image/*" multiple webkitdirectory=""
                             className="hidden" onChange={escolherFotos} />
                         <LucideIcon name="folder-open" size={26} className="text-slate-400 mx-auto mb-2" />
-                        <p className="font-bold text-navy-500 text-sm">Escolher uma pasta</p>
-                        <p className="text-[11px] text-slate-400 mt-1">Todas as imagens da pasta</p>
+                        <p className="font-bold text-navy-500 text-sm">{t('cfg.foto.pasta')}</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{t('cfg.foto.pasta.sub')}</p>
                     </label>
                 </div>
 
                 {escolhidos > 0 && (
                     <div className="flex flex-wrap items-center gap-2 bg-white border border-soft-200 rounded-2xl p-3">
                         <span className="text-sm text-navy-500 font-semibold flex-1 min-w-[180px]">
-                            {fotoZip ? fotoZip.name : `${fotoArquivos.length} arquivo(s) selecionado(s)`}
+                            {fotoZip ? fotoZip.name : t('cfg.foto.selecionados', { n: fotoArquivos.length })}
                         </span>
                         <button onClick={() => rodarImportacaoDeFotos(false)} disabled={fotoBusy}
                             className="px-4 py-2 rounded-xl bg-navy-500 text-white text-sm font-bold hover:bg-navy-600 disabled:opacity-50">
-                            {fotoBusy ? 'Verificando...' : 'Simular'}
+                            {fotoBusy ? t('cfg.verificando') : t('cfg.simular')}
                         </button>
                         {/* Só depois da simulação: confirmar sem ter visto o
                             plano é exatamente o que a disciplina existe para
@@ -840,11 +839,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <button onClick={() => rodarImportacaoDeFotos(true)}
                             disabled={fotoBusy || !fotoPlan || fotoPlan.aplicado}
                             className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-40 disabled:cursor-not-allowed">
-                            Confirmar e gravar
+                            {t('cfg.confirmar.gravar')}
                         </button>
                         <button onClick={limparEscolhaDeFotos} disabled={fotoBusy}
                             className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                            Limpar
+                            {t('admin.filtros.limpar')}
                         </button>
                     </div>
                 )}
@@ -854,19 +853,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <div className="flex flex-wrap gap-2">
                             {Object.entries(FOTO_ACAO_LABEL).map(([chave, info]) => (
                                 <span key={chave} className={`px-3 py-1 rounded-full text-xs font-bold ${info.cor}`}>
-                                    {info.label}: {t[chave] || 0}
+                                    {info.label}: {tot[chave] || 0}
                                 </span>
                             ))}
                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-navy-500/10 text-navy-500">
-                                Total: {t.TOTAL || 0}
+                                {t('agregados.total')} {tot.TOTAL || 0}
                             </span>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${fotoPlan.aplicado ? 'bg-success-100 text-success-700' : 'bg-amber-100 text-amber-700'}`}>
-                                {fotoPlan.aplicado ? 'Gravado' : 'Simulação — nada gravado'}
+                                {fotoPlan.aplicado ? t('cfg.foto.gravado') : t('cfg.foto.simulado')}
                             </span>
                         </div>
 
                         <ListaLimitada
-                            titulo={`${fotoPlan.linhas.length} arquivo(s)`}
+                            titulo={t('cfg.foto.arquivos', { n: fotoPlan.linhas.length })}
                             total={fotoPlan.linhas.length}
                             alturaMax="max-h-[46vh]"
                         >
@@ -874,11 +873,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 <table className="w-full text-xs">
                                     <thead className="sticky top-0 bg-white shadow-sm">
                                         <tr className="text-left text-slate-400 uppercase font-bold">
-                                            <th className="py-2 px-2">Arquivo</th>
-                                            <th className="py-2 px-2">Ação</th>
-                                            <th className="py-2 px-2">Pessoa</th>
-                                            <th className="py-2 px-2">Casou por</th>
-                                            <th className="py-2 px-2">Detalhe</th>
+                                            <th className="py-2 px-2">{t('cfg.col.arquivo')}</th>
+                                            <th className="py-2 px-2">{t('journal.filtro.acao')}</th>
+                                            <th className="py-2 px-2">{t('journal.filtro.pessoa')}</th>
+                                            <th className="py-2 px-2">{t('cfg.col.casou.por')}</th>
+                                            <th className="py-2 px-2">{t('cfg.col.detalhe')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -911,31 +910,29 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const renderStaffList = () => (
         <div className="space-y-4 animate-fade-in">
             <div className="bg-soft-50 p-4 rounded-2xl border border-soft-200">
-                <h3 className="text-lg font-bold text-navy-500 mb-1">Servidores cadastrados</h3>
+                <h3 className="text-lg font-bold text-navy-500 mb-1">{t('cfg.srv.titulo')}</h3>
                 <p className="text-xs text-slate-500">
-                    Professores e funcionários. <strong>Alunos não aparecem aqui</strong> — o cadastro
-                    deles é do Pronote. Se um destes registros for na verdade um aluno, use
-                    <strong> Conferir</strong> na aba HikCentral: lá a face é transferida para o aluno
-                    certo e este registro sai de circulação.
+                    {t('cfg.srv.explica.a')} <strong>{t('cfg.srv.explica.b')}</strong> {t('cfg.srv.explica.c')}
+                    <strong> {t('plano.acao.conferir')}</strong>{t('cfg.srv.explica.d')}
                 </p>
             </div>
 
             <div className="flex items-center gap-2">
                 <input
                     type="text"
-                    placeholder="Buscar por nome, matrícula, departamento ou ID Hikvision..."
+                    placeholder={t('cfg.srv.busca')}
                     className="flex-1 bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
                     value={staffQuery}
                     onChange={e => setStaffQuery(e.target.value)}
                 />
                 <button onClick={carregarServidores}
                     className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                    {staffLoading ? '...' : 'Atualizar'}
+                    {staffLoading ? '...' : t('acao.atualizar')}
                 </button>
             </div>
 
             <ListaLimitada
-                titulo={`${servidoresFiltrados.length} servidor(es)`}
+                titulo={t('cfg.srv.contagem', { n: servidoresFiltrados.length })}
                 total={servidoresFiltrados.length}
                 alturaMax="max-h-[52vh]"
             >
@@ -943,13 +940,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     <table className="w-full text-xs">
                         <thead className="sticky top-0 bg-white shadow-sm">
                             <tr className="text-left text-slate-400 uppercase font-bold">
-                                <th className="py-2 px-2">Matrícula</th>
-                                <th className="py-2 px-2">Nome</th>
-                                <th className="py-2 px-2">Tipo</th>
-                                <th className="py-2 px-2">Departamento</th>
-                                <th className="py-2 px-2">Posto fixo</th>
+                                <th className="py-2 px-2">{t('cfg.col.matricula')}</th>
+                                <th className="py-2 px-2">{t('comum.nome')}</th>
+                                <th className="py-2 px-2">{t('comum.tipo')}</th>
+                                <th className="py-2 px-2">{t('cfg.col.departamento')}</th>
+                                <th className="py-2 px-2">{t('cfg.col.posto')}</th>
                                 <th className="py-2 px-2">ID Hikvision</th>
-                                <th className="py-2 px-2">Passagens</th>
+                                <th className="py-2 px-2">{t('cfg.col.passagens')}</th>
                                 <th className="py-2 px-2"></th>
                             </tr>
                         </thead>
@@ -958,13 +955,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 <tr key={r.id} className={`border-t border-soft-100 ${r.ativo ? '' : 'opacity-50'}`}>
                                     <td className="py-1.5 px-2 font-mono text-slate-500">{r.id}</td>
                                     <td className="py-1.5 px-2 font-bold text-navy-500">
-                                        {r.nome}{!r.ativo && <span className="ml-1 text-[10px] text-slate-400">(inativo)</span>}
+                                        {r.nome}{!r.ativo && <span className="ml-1 text-[10px] text-slate-400">({t('cfg.inativo')})</span>}
                                     </td>
                                     <td className="py-1.5 px-2 text-slate-600">{r.tipo}</td>
                                     <td className="py-1.5 px-2 text-slate-600">{r.departamento || '—'}</td>
                                     <td className="py-1.5 px-2 text-slate-600">
                                         {r.postoFixoPointId
-                                            ? <span title="As passagens repetidas desta pessoa neste ponto ficam gravadas, fora das telas padrão"
+                                            ? <span title={t('cfg.srv.posto.title')}
                                                     className="font-semibold text-navy-500">
                                                   {window.MagboPostoFixo.rotuloDoPonto(r.postoFixoPointId)}
                                               </span>
@@ -982,26 +979,26 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                             postoFixoOriginal: r.postoFixoPointId || ''
                                         })}
                                             className="px-2 py-1 rounded bg-soft-100 text-navy-500 font-bold hover:bg-soft-200">
-                                            Editar
+                                            {t('acao.editar')}
                                         </button>
                                         {/* Só em registro ATIVO: reclassificar um
                                             já inativo não muda nada. */}
                                         {r.ativo && (
                                             <button onClick={() => abrirReclass(r)}
-                                                title="Transferir a face para o aluno certo e tirar este registro de circulação"
+                                                title={t('cfg.srv.eh.aluno.title')}
                                                 className="ml-1 px-2 py-1 rounded bg-accent-100 text-accent-700 font-bold hover:bg-accent-200">
-                                                É um aluno
+                                                {t('cfg.srv.eh.aluno')}
                                             </button>
                                         )}
                                         {r.ativo ? (
                                             <button onClick={() => acaoServidor(r, 'deactivate')}
                                                 className="ml-1 px-2 py-1 rounded bg-amber-100 text-amber-800 font-bold hover:bg-amber-200">
-                                                Inativar
+                                                {t('cfg.srv.inativar')}
                                             </button>
                                         ) : (
                                             <button onClick={() => acaoServidor(r, 'reactivate')}
                                                 className="ml-1 px-2 py-1 rounded bg-success-100 text-success-700 font-bold hover:bg-success-200">
-                                                Reativar
+                                                {t('cfg.srv.reativar')}
                                             </button>
                                         )}
                                         {/* Só aparece quando é seguro: com histórico,
@@ -1009,7 +1006,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                         {r.podeRemover && (
                                             <button onClick={() => acaoServidor(r, 'delete')}
                                                 className="ml-1 px-2 py-1 rounded bg-danger-100 text-danger-700 font-bold hover:bg-danger-200">
-                                                Remover
+                                                {t('cfg.srv.remover')}
                                             </button>
                                         )}
                                     </td>
@@ -1024,22 +1021,22 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
             {staffEdit && (
                 <div className="border border-accent-200 bg-accent-50 rounded-2xl p-4 space-y-3">
-                    <p className="font-bold text-navy-500 text-sm">Editar {staffEdit.nome} ({staffEdit.id})</p>
+                    <p className="font-bold text-navy-500 text-sm">{t('acao.editar')} {staffEdit.nome} ({staffEdit.id})</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Tipo</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{t('comum.tipo')}</label>
                             <select value={staffEdit.tipo}
                                 onChange={e => setStaffEdit({ ...staffEdit, tipo: e.target.value })}
                                 className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm">
-                                <option value="FUNCIONARIO">Funcionário</option>
-                                <option value="PROFESSOR">Professor</option>
+                                <option value="FUNCIONARIO">{t('enum.tipo.FUNCIONARIO')}</option>
+                                <option value="PROFESSOR">{t('enum.tipo.PROFESSOR')}</option>
                             </select>
                             <p className="text-[11px] text-slate-400 mt-1">
-                                Aluno não é opção aqui — use Conferir na aba HikCentral.
+                                {t('cfg.srv.aluno.nao.opcao')}
                             </p>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Departamento</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.col.departamento')}</label>
                             <input type="text" list="magbo-departamentos" value={staffEdit.departamento}
                                 onChange={e => setStaffEdit({ ...staffEdit, departamento: e.target.value })}
                                 className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm" />
@@ -1054,14 +1051,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         professores e funcionários, e o backend recusa o resto. */}
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">
-                            Posto fixo (opcional)
+                            {t('cfg.srv.posto.rotulo')}
                         </label>
                         <select
                             value={staffEdit.postoFixoPointId || ''}
                             onChange={e => setStaffEdit({ ...staffEdit, postoFixoPointId: e.target.value })}
                             className="w-full bg-white border border-soft-200 rounded-xl px-3 py-2 text-sm"
                         >
-                            <option value="">Nenhum — todas as passagens contam</option>
+                            <option value="">{t('cfg.srv.posto.nenhum')}</option>
                             {window.MagboPostoFixo.PONTOS.map(p => (
                                 <option key={p.id} value={p.id}>{p.label}</option>
                             ))}
@@ -1071,21 +1068,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 { departamento: staffEdit.departamento, postoFixoPointId: staffEdit.postoFixoOriginal },
                                 staffEdit.postoFixoPointId)
                                 ? <span className="text-amber-600 font-semibold">
-                                      Sugerido pelo departamento — confirme salvando, ou escolha outro.
+                                      {t('cfg.srv.posto.sugerido')}
                                   </span>
-                                : 'Neste ponto, só a primeira passagem do dia conta. As demais ficam '
-                                  + 'gravadas (o Journal mostra todas) mas saem das telas e dos contadores. '
-                                  + 'Em qualquer outro ponto, nada muda.'}
+                                : t('cfg.srv.posto.explica')}
                         </p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={salvarServidor}
                             className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600">
-                            Salvar
+                            {t('acao.salvar')}
                         </button>
                         <button onClick={() => setStaffEdit(null)}
                             className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                            Cancelar
+                            {t('acao.cancelar')}
                         </button>
                     </div>
                 </div>
@@ -1125,7 +1120,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
             const r = await window.api.previewStudentMatch(aluno.id, matchRow.idHikvision);
             setMatchPreview(r.preview);
         } catch (e) {
-            onShowToast({ title: 'Não foi possível conferir', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.match.erro.conferir'), message: e.message, type: 'error' });
         }
     };
 
@@ -1135,11 +1130,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
         try {
             const r = await window.api.confirmStudentMatch(matchChoice.id, matchRow.idHikvision);
             setMatchDone(prev => ({ ...prev, [matchRow.idHikvision]: matchChoice.id }));
-            onShowToast({ title: 'Casamento concluído', message: r.message, type: 'success' });
+            onShowToast({ title: t('cfg.match.ok'), message: r.message, type: 'success' });
             if (window.userCache?.reload) await window.userCache.reload();
             setMatchRow(null);
         } catch (e) {
-            onShowToast({ title: 'Casamento não realizado', message: e.message, type: 'error' });
+            onShowToast({ title: t('cfg.match.nao.realizado'), message: e.message, type: 'error' });
         } finally {
             setMatchSaving(false);
         }
@@ -1151,18 +1146,18 @@ function AppSettingsModal({ onClose, onShowToast }) {
             <div className="border-2 border-amber-300 bg-white rounded-2xl p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                     <div>
-                        <p className="font-bold text-navy-500 text-sm">Conferir: {matchRow.nome}</p>
+                        <p className="font-bold text-navy-500 text-sm">{t('plano.acao.conferir')}: {matchRow.nome}</p>
                         <p className="text-[11px] text-slate-500">
-                            ID do HikCentral <span className="font-mono">{matchRow.idHikvision}</span> ·
-                            linha {matchRow.linha} da planilha
+                            {t('cfg.match.id.hcp')} <span className="font-mono">{matchRow.idHikvision}</span> ·
+                            {' '}{t('cfg.match.linha.a')} {matchRow.linha} {t('cfg.match.linha.b')}
                         </p>
                     </div>
                     <button onClick={() => setMatchRow(null)}
-                        className="text-xs font-bold text-slate-500 underline hover:no-underline">Fechar</button>
+                        className="text-xs font-bold text-slate-500 underline hover:no-underline">{t('acao.fechar')}</button>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Procurar o aluno pelo nome</label>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.match.procurar')}</label>
                     <input type="text" value={matchQuery} onChange={e => setMatchQuery(e.target.value)}
                         className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500" />
                 </div>
@@ -1176,7 +1171,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 <span className="text-slate-400 ml-2 font-mono">{a.id}</span>
                                 <span className="text-slate-400 ml-2">{a.turma || '—'}</span>
                                 {a.hikvision_employee_id && (
-                                    <span className="ml-2 text-amber-700">já tem face {a.hikvision_employee_id}</span>
+                                    <span className="ml-2 text-amber-700">{t('cfg.ja.tem.face')} {a.hikvision_employee_id}</span>
                                 )}
                             </button>
                         ))}
@@ -1189,31 +1184,31 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 {matchPreview && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="border border-success-200 bg-success-50 rounded-xl p-3">
-                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">Recebe a face</p>
+                            <p className="text-[11px] font-bold text-success-700 uppercase mb-1">{t('cfg.match.recebe')}</p>
                             <p className="font-bold text-navy-500 text-sm">{matchPreview.alunoNome}</p>
                             <p className="text-[11px] text-slate-600 font-mono">{matchPreview.alunoId}</p>
-                            <p className="text-[11px] text-slate-600">Turma: {matchPreview.alunoTurma || '—'}</p>
+                            <p className="text-[11px] text-slate-600">{t('comum.turma')}: {matchPreview.alunoTurma || '—'}</p>
                             <p className="text-[11px] text-slate-600">
-                                ID Hikvision atual: {matchPreview.alunoHikvisionAtual || 'nenhum'} →
+                                {t('cfg.match.id.atual')}: {matchPreview.alunoHikvisionAtual || t('cfg.nenhum')} →
                                 <span className="font-mono font-bold"> {matchPreview.hikvisionId}</span>
                             </p>
                         </div>
                         <div className={`border rounded-xl p-3 ${matchPreview.servidorId ? 'border-danger-200 bg-danger-50' : 'border-soft-200 bg-soft-50'}`}>
                             <p className="text-[11px] font-bold text-danger-700 uppercase mb-1">
-                                {matchPreview.servidorId ? 'Será inativado' : 'Nenhum registro a desfazer'}
+                                {matchPreview.servidorId ? t('cfg.match.inativado') : t('cfg.match.nada.desfazer')}
                             </p>
                             {matchPreview.servidorId ? (
                                 <>
                                     <p className="font-bold text-navy-500 text-sm">{matchPreview.servidorNome}</p>
                                     <p className="text-[11px] text-slate-600 font-mono">{matchPreview.servidorId}</p>
-                                    <p className="text-[11px] text-slate-600">Departamento: {matchPreview.servidorDepartamento || '—'}</p>
+                                    <p className="text-[11px] text-slate-600">{t('cfg.col.departamento')}: {matchPreview.servidorDepartamento || '—'}</p>
                                     <p className="text-[11px] text-slate-600">
-                                        {matchPreview.servidorPassagens} passagem(ns) — preservadas
+                                        {t('cfg.passagens', { n: matchPreview.servidorPassagens })} — {t('cfg.match.preservadas')}
                                     </p>
                                 </>
                             ) : (
                                 <p className="text-[11px] text-slate-500">
-                                    Este identificador não está ligado a nenhum servidor.
+                                    {t('cfg.match.sem.servidor')}
                                 </p>
                             )}
                         </div>
@@ -1224,11 +1219,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     <div className="flex gap-2">
                         <button onClick={confirmarCasamento} disabled={matchSaving || !matchPreview}
                             className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 disabled:opacity-50">
-                            {matchSaving ? 'GRAVANDO...' : 'CONFIRMAR CASAMENTO'}
+                            {matchSaving ? t('comum.gravando') : t('cfg.match.confirmar')}
                         </button>
                         <button onClick={() => { setMatchChoice(null); setMatchPreview(null); }}
                             className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                            Escolher outro
+                            {t('cfg.escolher.outro')}
                         </button>
                     </div>
                 )}
@@ -1249,17 +1244,15 @@ function AppSettingsModal({ onClose, onShowToast }) {
         return (
             <div className="space-y-6 animate-fade-in">
                 <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
-                    <h3 className="text-lg font-bold text-navy-500 mb-2">Importar do HikCentral</h3>
+                    <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cfg.hik.titulo')}</h3>
                     <div className="text-sm text-slate-500 mb-4">
-                        Export <strong>Renseignements personnels</strong> (.xlsx), com o cabeçalho na
-                        linha 9. As colunas são lidas pelo nome:
+                        {t('cfg.hik.instrucao.a')} <strong>Renseignements personnels</strong> {t('cfg.hik.instrucao.b')}
                         <ImportColumnList doc={window.MagboImportColumns.HIKCENTRAL} />
                     </div>
                     <ul className="text-xs text-slate-500 space-y-1 mb-6 list-disc pl-5">
-                        <li><strong>Alunos já cadastrados</strong> apenas recebem o identificador
-                            Hikvision e o departamento — nome e turma continuam vindo do Pronote.</li>
-                        <li><strong>Servidores</strong> são criados com matrícula FUNC-###.</li>
-                        <li>Nada é gravado antes de você conferir e confirmar.</li>
+                        <li><strong>{t('cfg.hik.li1.a')}</strong> {t('cfg.hik.li1.b')}</li>
+                        <li><strong>{t('cfg.hik.li2.a')}</strong> {t('cfg.hik.li2.b')}</li>
+                        <li>{t('cfg.hik.li3')}</li>
                     </ul>
 
                     <div className="border-2 border-dashed border-accent-200 rounded-2xl p-8 text-center bg-white hover:bg-accent-50 transition-colors relative group">
@@ -1272,25 +1265,22 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
                             <LucideIcon name="scan-face" size={32} />
                         </div>
-                        <p className="font-bold text-navy-500">Clique ou arraste o export do HikCentral</p>
-                        <p className="text-sm text-slate-400 mt-1">{hikRows.length > 0 ? `${hikRows.length} linhas carregadas` : 'Formatos: .xlsx, .xls'}</p>
+                        <p className="font-bold text-navy-500">{t('cfg.hik.arraste')}</p>
+                        <p className="text-sm text-slate-400 mt-1">{hikRows.length > 0 ? t('cfg.hik.linhas.carregadas', { n: hikRows.length }) : t('cfg.formatos.curto')}</p>
                     </div>
                 </div>
 
                 {/* Caminho INVERSO: o MAGBO diz ao HCP quem falta cadastrar. */}
                 <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
-                    <h3 className="text-lg font-bold text-navy-500 mb-2">Gerar CSV para o HikCentral</h3>
+                    <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cfg.csv.titulo')}</h3>
                     <p className="text-sm text-slate-500 mb-4">
-                        Lista de alunos para a TI importar no HCP e depois aplicar aos terminais
-                        (<em>Apply to Device</em>). Aluno sem identificador Hikvision é reconhecido
-                        pelo terminal mas <strong>negado pelo MAGBO em toda passagem</strong> — é
-                        exatamente quem entra neste arquivo.
+                        {t('cfg.csv.explica.a')} (<em>Apply to Device</em>). {t('cfg.csv.explica.b')}
+                        {' '}<strong>{t('cfg.csv.explica.c')}</strong> — {t('cfg.csv.explica.d')}
                     </p>
                     <p className="text-xs text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2 mb-4">
-                        ⚠️ <strong>Não abrir no Excel.</strong> Ele transforma a matrícula
-                        <span className="font-mono"> 0001764</span> em
-                        <span className="font-mono"> 1764</span>, e o HikCentral cadastraria a pessoa
-                        com o identificador errado. Se precisar conferir, use um editor de texto.
+                        ⚠️ <strong>{t('cfg.csv.excel.a')}</strong> {t('cfg.csv.excel.b')}
+                        <span className="font-mono"> 0001764</span> {t('cfg.csv.excel.c')}
+                        <span className="font-mono"> 1764</span>{t('cfg.csv.excel.d')}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2">
                         <button
@@ -1299,7 +1289,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             disabled={exportando}
                             className="flex-1 px-4 py-3 rounded-xl bg-accent-500 text-white text-sm font-bold hover:bg-accent-600 transition-colors disabled:opacity-50"
                         >
-                            {exportando ? 'GERANDO...' : 'Baixar — só quem falta cadastrar'}
+                            {exportando ? t('cfg.gerando') : t('cfg.csv.baixar.faltantes')}
                         </button>
                         <button
                             type="button"
@@ -1307,21 +1297,19 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             disabled={exportando}
                             className="px-4 py-3 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200 transition-colors disabled:opacity-50"
                         >
-                            Todos os alunos
+                            {t('cfg.csv.todos')}
                         </button>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-2">
-                        O template exato de importação do HCP ainda é pendência com o Fabiano
-                        (pendência 3 do procedimento). Este arquivo usa as mesmas colunas do export
-                        que o MAGBO já lê — confira uma vez com a TI antes do uso em massa.
+                        {t('cfg.csv.pendencia')}
                     </p>
                 </div>
 
                 {hikPlan && (
                     <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                            <p className="font-bold text-navy-500 text-sm">{plano.titulo}</p>
-                            <span className="text-xs text-slate-400">{plano.total} linhas</span>
+                            <p className="font-bold text-navy-500 text-sm">{t(plano.titulo)}</p>
+                            <span className="text-xs text-slate-400">{t('cfg.hik.linhas', { n: plano.total })}</span>
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
@@ -1340,12 +1328,10 @@ function AppSettingsModal({ onClose, onShowToast }) {
                         {revisao.length > 0 && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                                 <p className="text-[11px] text-amber-700 mb-2">
-                                    O ID do HikCentral não é a matrícula, então a face não casa com o
-                                    cadastro e a pessoa é negada em toda passagem. Só o nome liga de
-                                    volta — casar automaticamente trocaria a face de um aluno pela de outro.
+                                    {t('cfg.hik.revisao.explica')}
                                 </p>
                                 <ListaLimitada
-                                    titulo={`${revisao.length} aluno(s) precisam de conferência manual`}
+                                    titulo={t('cfg.hik.revisao.contagem', { n: revisao.length })}
                                     total={revisao.length}
                                     alturaMax="max-h-[30vh]"
                                     classeTitulo="text-amber-800"
@@ -1368,7 +1354,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                                                 ) : (
                                                                     <button onClick={() => abrirCasamento(r)}
                                                                         className="px-2 py-1 rounded bg-amber-200 text-amber-900 font-bold hover:bg-amber-300">
-                                                                        Conferir
+                                                                        {t('plano.acao.conferir')}
                                                                     </button>
                                                                 )}
                                                             </td>
@@ -1385,7 +1371,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
                         {problemas.length > 0 && (
                             <ListaLimitada
-                                titulo={`${problemas.length} linha(s) ignorada(s) ou em conflito`}
+                                titulo={t('cfg.hik.problemas.contagem', { n: problemas.length })}
                                 total={problemas.length}
                             >
                                 {(visiveis) => (
@@ -1417,12 +1403,12 @@ function AppSettingsModal({ onClose, onShowToast }) {
     const renderStaffImport = () => (
         <div className="space-y-6 animate-fade-in">
             <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200">
-                <h3 className="text-lg font-bold text-navy-500 mb-2">Importar Servidores via Excel</h3>
+                <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cfg.simp.titulo')}</h3>
                 <div className="text-sm text-slate-500 mb-6">
-                    Planilha <strong>.xlsx</strong> com as colunas:
+                    {t('cfg.simp.instrucao.a')} <strong>.xlsx</strong> {t('cfg.imp.instrucao.b')}
                     <ImportColumnList doc={window.MagboImportColumns.SERVIDORES} />
                     <p className="text-xs text-slate-400 mt-2">
-                        Alunos não entram por aqui — continuam vindo da importação Pronote.
+                        {t('cfg.simp.alunos.nao')}
                     </p>
                 </div>
 
@@ -1436,8 +1422,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     <div className="w-16 h-16 bg-accent-100 rounded-full flex items-center justify-center mx-auto mb-4 text-accent-600 group-hover:scale-110 transition-transform">
                         <LucideIcon name="users" size={32} />
                     </div>
-                    <p className="font-bold text-navy-500">Clique ou arraste a planilha de servidores</p>
-                    <p className="text-sm text-slate-400 mt-1">Formatos suportados: .xlsx, .xls</p>
+                    <p className="font-bold text-navy-500">{t('cfg.simp.arraste')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('cfg.formatos')}</p>
                 </div>
             </div>
 
@@ -1448,11 +1434,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             onClick={() => setStaffImportErrors([])}
                             className="text-xs font-bold text-danger-700 underline hover:no-underline"
                         >
-                            Fechar
+                            {t('acao.fechar')}
                         </button>
                     </div>
                     <ListaLimitada
-                        titulo={`${staffImportErrors.length} linha(s) recusada(s)`}
+                        titulo={t('cfg.simp.recusadas', { n: staffImportErrors.length })}
                         total={staffImportErrors.length}
                         classeTitulo="text-danger-700"
                     >
@@ -1460,9 +1446,9 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <table className="w-full text-xs">
                                 <thead className="sticky top-0 bg-white">
                                     <tr className="text-left text-danger-700/70 uppercase font-bold">
-                                        <th className="py-1 px-2">Linha</th>
-                                        <th className="py-1 px-2">Nome</th>
-                                        <th className="py-1 px-2">Motivo</th>
+                                        <th className="py-1 px-2">{t('cfg.col.linha')}</th>
+                                        <th className="py-1 px-2">{t('comum.nome')}</th>
+                                        <th className="py-1 px-2">{t('cfg.col.motivo')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1505,11 +1491,11 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 // A confirmação diz a matrícula EMITIDA: é o número que o
                 // operador precisa levar para o HikCentral.
                 onShowToast({
-                    title: 'Servidor cadastrado',
-                    message: `${resultado.nome} — matrícula ${resultado.matricula}`
+                    title: t('cfg.man.srv.ok'),
+                    message: t('cfg.man.srv.detalhe', { nome: resultado.nome, matricula: resultado.matricula })
                         + (resultado.hikvisionEmployeeId
                             ? ` · ID Hikvision ${resultado.hikvisionEmployeeId}`
-                            : ' · SEM identificador Hikvision: a face não será reconhecida'),
+                            : t('cfg.man.srv.sem.id')),
                     type: resultado.hikvisionEmployeeId ? 'success' : 'warning'
                 });
                 limparFormulario(manualForm.tipo);
@@ -1538,17 +1524,17 @@ function AppSettingsModal({ onClose, onShowToast }) {
             // O backend pode responder 200 com status=error; sem esta checagem
             // a tela dizia "sucesso" para uma recusa.
             if (resposta && resposta.status === 'error') {
-                throw new Error(resposta.message || 'Falha ao cadastrar usuário');
+                throw new Error(resposta.message || t('cfg.man.falha'));
             }
 
             if (window.userCache?.reload) await window.userCache.reload();
-            onShowToast({ title: 'Sucesso', message: `${manualForm.nome} cadastrado com sucesso!`, type: 'success' });
+            onShowToast({ title: t('cfg.man.ok'), message: t('cfg.man.ok.detalhe', { nome: manualForm.nome }), type: 'success' });
             limparFormulario('ALUNO');
         } catch (error) {
             console.error(error);
             onShowToast({
-                title: 'Cadastro não realizado',
-                message: error.message || 'Falha ao cadastrar',
+                title: t('cfg.man.nao.realizado'),
+                message: error.message || t('cfg.man.falha'),
                 type: 'error'
             });
         } finally {
@@ -1599,16 +1585,16 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
                 if (payload.length === 0) {
                     onShowToast({
-                        title: 'Planilha vazia',
-                        message: 'Nenhuma linha com a coluna "nome" preenchida.',
+                        title: t('cfg.imp.vazia'),
+                        message: t('cfg.simp.vazia.detalhe'),
                         type: 'error'
                     });
                     return;
                 }
 
                 onShowToast({
-                    title: 'Importando servidores...',
-                    message: `Enviando ${payload.length} registros.`, type: 'info'
+                    title: t('cfg.simp.enviando'),
+                    message: t('cfg.enviando.n', { n: payload.length }), type: 'info'
                 });
 
                 const result = await window.api.createStaffBulk(payload);
@@ -1616,8 +1602,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
 
                 if (result.falhas === 0) {
                     onShowToast({
-                        title: 'Importação concluída',
-                        message: `${result.sucesso} servidores cadastrados.`,
+                        title: t('cfg.imp.ok'),
+                        message: t('cfg.simp.ok.detalhe', { n: result.sucesso }),
                         type: 'success'
                     });
                 } else {
@@ -1625,16 +1611,16 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     // importa a planilha precisa saber qual linha corrigir.
                     setStaffImportErrors(result.detalheErros || []);
                     onShowToast({
-                        title: `Importação parcial: ${result.sucesso}/${result.totalRecebido}`,
-                        message: `${result.falhas} linha(s) recusada(s) — veja a lista abaixo.`,
+                        title: t('cfg.imp.parcial', { ok: result.sucesso, total: result.totalRecebido }),
+                        message: t('cfg.simp.parcial.detalhe', { n: result.falhas }),
                         type: 'warning'
                     });
                 }
             } catch (err) {
                 console.error('Erro na importação de servidores:', err);
                 onShowToast({
-                    title: 'Erro',
-                    message: err.message || 'Falha ao processar a planilha.',
+                    title: t('cfg.erro'),
+                    message: err.message || t('cfg.simp.falha.processar'),
                     type: 'error'
                 });
             } finally {
@@ -1655,7 +1641,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     realmente tem duas colunas. */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Nome Completo *</label>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.nome')}</label>
                         <input
                             required
                             type="text"
@@ -1666,23 +1652,23 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Tipo de Usuário</label>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.tipo')}</label>
                         <select
                             className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                             value={manualForm.tipo}
                             onChange={e => setManualForm({ ...manualForm, tipo: e.target.value })}
                         >
-                            <option value="ALUNO">Aluno</option>
-                            <option value="RESPONSAVEL">Responsável</option>
-                            <option value="PROFESSOR">Professor</option>
-                            <option value="FUNCIONARIO">Funcionário</option>
+                            <option value="ALUNO">{t('enum.tipo.ALUNO')}</option>
+                            <option value="RESPONSAVEL">{t('enum.tipo.RESPONSAVEL')}</option>
+                            <option value="PROFESSOR">{t('enum.tipo.PROFESSOR')}</option>
+                            <option value="FUNCIONARIO">{t('enum.tipo.FUNCIONARIO')}</option>
                         </select>
                     </div>
 
                     {manualForm.tipo === 'ALUNO' && (
                         <>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Turma</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('comum.turma')}</label>
                                 <input
                                     type="text"
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
@@ -1691,7 +1677,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Horário de Saída (Turma)</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.horario')}</label>
                                 <input
                                     type="time"
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
@@ -1700,10 +1686,10 @@ function AppSettingsModal({ onClose, onShowToast }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">ID do Responsável</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.resp.id')}</label>
                                 <input
                                     type="text"
-                                    placeholder="Ex: R001"
+                                    placeholder={t('cfg.man.resp.exemplo')}
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     value={manualForm.responsavel_id}
                                     onChange={e => setManualForm({ ...manualForm, responsavel_id: e.target.value })}
@@ -1715,42 +1701,42 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     {ehServidor && (
                         <>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Matrícula</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.col.matricula')}</label>
                                 <input
                                     type="text"
-                                    placeholder={proximaMatricula ? `Automático: ${proximaMatricula}` : 'Automático'}
+                                    placeholder={proximaMatricula ? t('cfg.man.automatico.n', { m: proximaMatricula }) : t('cfg.man.automatico')}
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     value={manualForm.matricula}
                                     onChange={e => setManualForm({ ...manualForm, matricula: e.target.value })}
                                 />
                                 <p className="text-[11px] text-slate-400 mt-1">
-                                    Em branco, o sistema emite a próxima da sequência.
+                                    {t('cfg.man.matricula.ajuda')}
                                 </p>
                             </div>
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
-                                    Identificador Hikvision
+                                    {t('cfg.man.id.hik')}
                                 </label>
                                 <input
                                     type="text"
                                     inputMode="numeric"
-                                    placeholder="Ex: 1234567890"
+                                    placeholder={t('cfg.man.id.exemplo')}
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     value={manualForm.hikvision_employee_id}
                                     onChange={e => setManualForm({ ...manualForm, hikvision_employee_id: e.target.value })}
                                 />
                                 <p className="text-[11px] text-slate-400 mt-1">
-                                    employeeNo do HikCentral (10 dígitos) — é ele que liga a face ao cadastro.
+                                    {t('cfg.man.id.ajuda')}
                                 </p>
                             </div>
 
                             <div className="sm:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Departamento</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.col.departamento')}</label>
                                 <input
                                     type="text"
                                     list="magbo-departamentos"
-                                    placeholder="Ex: Vie Scolaire, Serviços Gerais, Direção"
+                                    placeholder={t('cfg.man.depto.exemplo')}
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     value={manualForm.departamento}
                                     onChange={e => setManualForm({ ...manualForm, departamento: e.target.value })}
@@ -1765,17 +1751,17 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     {manualForm.tipo === 'RESPONSAVEL' && (
                         <>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Parentesco</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.parentesco')}</label>
                                 <input
                                     type="text"
-                                    placeholder="Ex: Pai, Mãe"
+                                    placeholder={t('cfg.man.parentesco.exemplo')}
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
                                     value={manualForm.parentesco}
                                     onChange={e => setManualForm({ ...manualForm, parentesco: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Telefone</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">{t('cfg.man.telefone')}</label>
                                 <input
                                     type="text"
                                     className="w-full bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500"
@@ -1809,14 +1795,14 @@ function AppSettingsModal({ onClose, onShowToast }) {
                    cortado de novo, exatamente o defeito em correção. */
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                     <p className="text-xs text-slate-500 sm:flex-1 sm:min-w-0">
-                        Simulação conferida — nada foi gravado ainda.
+                        {t('cfg.barra.simulada')}
                     </p>
                     <button
                         onClick={confirmarImportHikCentral}
                         disabled={hikApplying}
                         className="w-full sm:w-auto sm:max-w-[60%] px-6 py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed truncate"
                     >
-                        {hikApplying ? 'GRAVANDO...' : planoBarra.rotuloConfirmar}
+                        {hikApplying ? t('comum.gravando') : t(planoBarra.rotuloConfirmar, planoBarra.confirmarParams)}
                     </button>
                 </div>
             );
@@ -1830,8 +1816,8 @@ function AppSettingsModal({ onClose, onShowToast }) {
                     className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors shadow-lg shadow-accent-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {submitting
-                        ? 'CADASTRANDO...'
-                        : (ehServidor ? 'CADASTRAR SERVIDOR' : 'CADASTRAR NOVO USUÁRIO')}
+                        ? t('cfg.man.cadastrando')
+                        : (ehServidor ? t('cfg.man.btn.servidor') : t('cfg.man.btn.usuario'))}
                 </button>
             );
         }
@@ -1860,7 +1846,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
             ref={containerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Configurações e Cadastros"
+            aria-label={t('cfg.titulo')}
             className="fixed inset-0 z-[200] bg-navy-900/60 backdrop-blur-sm flex flex-col p-0 sm:p-4"
         >
             <div className="bg-white sm:rounded-[24px] w-full max-w-[1600px] mx-auto shadow-2xl flex flex-col flex-1 min-h-0 overflow-hidden animate-zoom-in">
@@ -1872,15 +1858,15 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <LucideIcon name="settings" size={20} className="text-white" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">Configurações e Cadastros</h2>
-                            <p className="text-xs text-white/50 truncate">Gerencie o sistema e importe usuários</p>
+                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{t('cfg.titulo')}</h2>
+                            <p className="text-xs text-white/50 truncate">{t('cfg.subtitulo')}</p>
                         </div>
                     </div>
                     <button
                         ref={fecharRef}
                         onClick={onClose}
-                        title="Fechar (Esc)"
-                        aria-label="Fechar"
+                        title={t('cfg.fechar.esc')}
+                        aria-label={t('acao.fechar')}
                         className="w-10 h-10 shrink-0 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60 transition-colors"
                     >
                         <LucideIcon name="x" size={20} />
@@ -1896,7 +1882,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="file-spreadsheet" size={18} className={activeTab === 'import' ? 'text-accent-500' : 'text-slate-400'} />
-                            Importar Excel
+                            {t('cfg.aba.excel')}
                         </button>
                         <button
                             onClick={() => setActiveTab('hikcentral')}
@@ -1910,35 +1896,35 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-list' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="id-card" size={18} className={activeTab === 'staff-list' ? 'text-accent-500' : 'text-slate-400'} />
-                            Servidores
+                            {t('cfg.aba.servidores')}
                         </button>
                         <button
                             onClick={() => setActiveTab('staff-import')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'staff-import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="users" size={18} className={activeTab === 'staff-import' ? 'text-accent-500' : 'text-slate-400'} />
-                            Importar Servidores
+                            {t('cfg.aba.imp.servidores')}
                         </button>
                         <button
                             onClick={() => setActiveTab('photos')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'photos' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="image" size={18} className={activeTab === 'photos' ? 'text-accent-500' : 'text-slate-400'} />
-                            Fotos
+                            {t('cfg.aba.fotos')}
                         </button>
                         <button
                             onClick={() => setActiveTab('manual')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'manual' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="user-plus" size={18} className={activeTab === 'manual' ? 'text-accent-500' : 'text-slate-400'} />
-                            Cadastro Manual
+                            {t('cfg.aba.manual')}
                         </button>
                         <button
                             onClick={() => setActiveTab('general')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'general' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
                         >
                             <LucideIcon name="cog" size={18} className={activeTab === 'general' ? 'text-accent-500' : 'text-slate-400'} />
-                            Gerais
+                            {t('cfg.aba.gerais')}
                         </button>
                     </div>
 

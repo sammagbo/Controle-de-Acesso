@@ -62,6 +62,7 @@ const MIGRADAS = [
     'js/components/GeneralReport.js',
     'js/cdi/BibliotecaView.js',
     'js/cdi/SettingsModal.js',
+    'js/components/ImportColumnList.js',
     'js/App.js',
 ];
 

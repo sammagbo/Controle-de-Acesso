@@ -59,6 +59,15 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            'importcol.obrigatoria': 'obligatoire',
+            'importcol.conjunto': 'ensemble',
+            'importcol.condicional': 'conditionnelle',
+            'importcol.aceita': 'accepte :',
+            'importcol.legenda.a': 'En',
+            'importcol.legenda.negrito': 'gras',
+            'importcol.legenda.b': ', ce qui doit être rempli sur chaque ligne. Le reste est optionnel.',
+            'importcol.posicional': ' Les colonnes sont lues par POSITION, pas par nom.',
+
             'acao.exportar': 'Exporter',
             'acao.restaurar': 'Restaurer',
 
@@ -702,6 +711,15 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'importcol.obrigatoria': 'obrigatória',
+            'importcol.conjunto': 'em conjunto',
+            'importcol.condicional': 'condicional',
+            'importcol.aceita': 'aceita:',
+            'importcol.legenda.a': 'Em',
+            'importcol.legenda.negrito': 'negrito',
+            'importcol.legenda.b': ', o que precisa estar preenchido em toda linha. O resto é opcional.',
+            'importcol.posicional': ' As colunas são lidas pela POSIÇÃO, não pelo nome.',
 
             'acao.exportar': 'Exportar',
             'acao.restaurar': 'Restaurar',

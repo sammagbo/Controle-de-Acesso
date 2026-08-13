@@ -15,6 +15,7 @@ function rendersSectorView(point) {
 }
 
 function App() {
+      const t = useI18n();
       const [currentUser, setCurrentUser] = React.useState(null);
       const [authChecked, setAuthChecked] = React.useState(false);
 
@@ -184,7 +185,7 @@ function App() {
                         // segundos e servidor fora do ar, um toast por ciclo tornaria a
                         // tela inutilizável.
                         if (isInitial) {
-                              setToast({ title: 'Erro de Comunicação com o Servidor', message: e.message, type: 'error' });
+                              setToast({ title: t('app.erro.comunicacao'), message: e.message, type: 'error' });
                         } else {
                               console.warn('[App] falha na recarga periódica do setor', pointId, e.message);
                         }
@@ -227,7 +228,7 @@ function App() {
                   // Guard: API returned incomplete payload
                   if (!data || !data.user) {
                         window.playErrorBeep?.();
-                        setToast({ title: 'Erro de Dados', message: 'Usuário não encontrado ou dados incompletos.', type: 'error' });
+                        setToast({ title: t('app.erro.dados'), message: t('app.erro.usuario'), type: 'error' });
                         return;
                   }
                   
@@ -261,7 +262,7 @@ function App() {
                         try {
                               newLog = await registerAccess({ userId, pointId, action: status });
                               // registerAccess (utils/api.js) already normalises: .status and .timestamp are set
-                              if (!newLog) throw new Error('Falha ao registrar acesso');
+                              if (!newLog) throw new Error(t('app.erro.registro'));
                         } catch (error) {
                               if ((error.message || '').includes('DUPLICATE_MEAL') || (error.message || '').includes('Duplicidade')) {
                                     isRefeicaoDuplicada = true;
@@ -299,35 +300,35 @@ function App() {
                                     type: 'sector', 
                                     user, 
                                     bannerProps: { 
-                                          text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', 
-                                          subtext: 'Sem responsável cadastrado', 
+                                          text: status === 'ENTRADA' ? t('app.banner.acesso.liberado') : t('app.banner.saida.liberada'), 
+                                          subtext: t('app.banner.sem.responsavel'), 
                                           type: 'success' 
                                     } 
                               });
                         }
                   } else if (isEspecial(pointId) || pointId.startsWith('REFEI')) {
-                        let bannerProps = { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' };
+                        let bannerProps = { text: status === 'ENTRADA' ? t('app.banner.acesso.liberado') : t('app.banner.saida.liberada'), type: 'success' };
                         let beepType = 'success';
 
                         if (errorTempoMinimo) {
-                              bannerProps = { text: 'ACESSO BLOQUEADO', subtext: 'Tempo mínimo (10 min) não atingido. Retorne à cantina.', type: 'alert' };
+                              bannerProps = { text: t('app.banner.bloqueado'), subtext: t('app.banner.tempo.minimo'), type: 'alert' };
                               beepType = 'error';
                         } else if (isRefeicaoDuplicada) {
                               // Constraint 3 (Refeitório): Banner Vemelho Central Absoluto!
-                              bannerProps = { text: 'AVISO REFEIÇÃO DUPLICADA', subtext: 'Refeição já registrada hoje no Servidor', type: 'alert' };
+                              bannerProps = { text: t('app.banner.refeicao.dup'), subtext: t('app.banner.refeicao.dup.sub'), type: 'alert' };
                               beepType = 'error';
 
                         } else if (isEspecial(pointId)) {
                               if (status === 'ENTRADA') {
-                                    bannerProps = { text: 'TEMPO DE PERMANÊNCIA MAX 02:00', subtext: 'Timer iniciado', type: 'success' };
+                                    bannerProps = { text: t('app.banner.permanencia.max'), subtext: t('app.banner.timer.iniciado'), type: 'success' };
                               } else {
                                     // SAIDA
                                     const timer = activeTimers.find(t => t.userId === userId && t.pointId === pointId);
                                     if (timer && (now - timer.startTime > 7200 * 1000)) {
-                                          bannerProps = { text: 'TEMPO MÁXIMO EXCEDIDO', subtext: 'Permaneceu mais de 2h (7200s)', type: 'alert' };
+                                          bannerProps = { text: t('app.banner.tempo.excedido'), subtext: t('app.banner.tempo.excedido.sub'), type: 'alert' };
                                           beepType = 'error';
                                     } else {
-                                          bannerProps = { text: 'SAÍDA LIBERADA', subtext: 'Dentro do tempo', type: 'success' };
+                                          bannerProps = { text: t('app.banner.saida.liberada'), subtext: t('app.banner.dentro.tempo'), type: 'success' };
                                     }
                               }
                         }
@@ -339,12 +340,12 @@ function App() {
                   } else {
                         // Portaria Normal (Funcionário/Prof) e afins..
                         window.playSuccessBeep?.();
-                        setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? 'ACESSO LIBERADO' : 'SAÍDA LIBERADA', type: 'success' } });
+                        setAccessModal({ type: 'sector', user, bannerProps: { text: status === 'ENTRADA' ? t('app.banner.acesso.liberado') : t('app.banner.saida.liberada'), type: 'success' } });
                   }
             } catch (error) {
                   // Constraint 4: Try/Catch super resiliente contra quedas de Backend
                   window.playErrorBeep?.();
-                  setToast({ title: 'Erro de Comunicação com o Servidor', message: error.message || 'Desconhecido', type: 'error' });
+                  setToast({ title: t('app.erro.comunicacao'), message: error.message || t('app.erro.desconhecido'), type: 'error' });
             }
       }, [accessLogs, activeTimers, currentPoint]);
 
@@ -375,11 +376,11 @@ function App() {
                         // volta ao PAINEL, sem redigitar o PIN: a sessão admin
                         // é a mesma, só a tela mudou.
                         adminView
-                              ? { label: 'Dashboard', acao: () => { setAdminView(false); setOrigemAdmin(false); } }
+                              ? { label: t('header.dashboard'), acao: () => { setAdminView(false); setOrigemAdmin(false); } }
                               : currentPoint && origemAdmin
-                                    ? { label: 'Painel Administrativo', acao: () => { setCurrentPoint(null); setAdminView(true); } }
+                                    ? { label: t('header.painel'), acao: () => { setCurrentPoint(null); setAdminView(true); } }
                                     : currentPoint
-                                          ? { label: 'Dashboard', acao: () => setCurrentPoint(null) }
+                                          ? { label: t('header.dashboard'), acao: () => setCurrentPoint(null) }
                                           : null
                   }
             />

@@ -60,6 +60,9 @@ const MIGRADAS = [
     'js/components/RefectoryReport.js',
     'js/components/InfirmaryReport.js',
     'js/components/GeneralReport.js',
+    'js/cdi/BibliotecaView.js',
+    'js/cdi/SettingsModal.js',
+    'js/App.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */
@@ -75,6 +78,7 @@ const ATRIBUTOS_VISIVEIS = new Set(['title', 'placeholder', 'aria-label', 'alt']
 const NAO_SE_TRADUZ = [
     /^MAGBO/,                      // marca
     /^Lycée Molière$/,             // nome da escola, em francês nos dois idiomas
+    /^Magbo Studio$/,              // marca (rodapé do CDI), grafia própria
     /^[A-Z][A-Z0-9_]{2,}$/,        // PORT1, REFEI1, POSTO_FIXO, FECHAMENTO_AUTO…
     /^(FUNC|PROF)-/,               // matrículas de servidor
     /^[\d\s.,:/·%+()-]*$/,         // pontuação, números, separadores

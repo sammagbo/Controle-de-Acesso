@@ -309,7 +309,7 @@ function CdiStatsModal({ open, onClose, logs, students }) {
                                                                   {/* Este gráfico não imprime o número acima da barra —
                                                                       daí o title: passar o mouse é a única forma de ler
                                                                       o valor exato de uma hora. */}
-                                                                  <div className="w-full bg-green-500 rounded-t transition-all" title={`${b.chave}h : ${b.valor}`} style={{ height: `${b.altura}px` }}></div>
+                                                                  <div className="w-full bg-green-500 rounded-t transition-all" title={t('vue.tooltip.hora', { h: b.chave, n: b.valor })} style={{ height: `${b.altura}px` }}></div>
                                                                   <span className="text-xs text-slate-400 mt-1">{b.chave}h</span>
                                                             </div>
                                                       ))}

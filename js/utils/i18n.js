@@ -58,6 +58,10 @@
     const DICIONARIOS = {
         fr: {
             'idioma.rotulo': 'Langue',
+
+            'comum.conectando': 'Connexion...',
+            'saidas.dias.lista': 'Jours : {dias}',
+            'saidas.sempre': 'Toujours',
             'pin.incorreto.n': 'PIN incorrect. Déjà {n} erreurs.',
             'pin.incorreto.tentativa': 'PIN incorrect. Tentative {n}.',
 
@@ -869,6 +873,7 @@
             'cantina.gestao.nota.zeros.d': 'Texte',
             'cantina.gestao.nota.zeros.e': "avant d'enregistrer — Excel la transforme en nombre, mange le zéro, et plus aucune ligne ne correspond au registre.",
             'cantina.gestao.simulado': "Simulation vérifiée — rien n'a encore été écrit.",
+            'cantina.gestao.aplicado': "Importation déjà appliquée — les droits sont enregistrés.",
             'cantina.gestao.aplicado.titulo': 'Importation appliquée',
             'cantina.gestao.aplicado.criados': 'Créés : {n}',
             'cantina.gestao.aplicado.atualizados': 'Mis à jour : {n}',
@@ -1051,6 +1056,10 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'comum.conectando': 'Conectando...',
+            'saidas.dias.lista': 'Dias: {dias}',
+            'saidas.sempre': 'Sempre',
             'pin.incorreto.n': 'PIN incorreto. Já errou {n} vezes.',
             'pin.incorreto.tentativa': 'PIN incorreto. Tentativa {n}.',
 
@@ -1860,6 +1869,7 @@
             'cantina.gestao.nota.zeros.d': 'Texto',
             'cantina.gestao.nota.zeros.e': 'antes de salvar — o Excel a transforma em número, come o zero, e aí nenhuma linha casa com o cadastro.',
             'cantina.gestao.simulado': 'Simulação conferida — nada foi gravado ainda.',
+            'cantina.gestao.aplicado': 'Importação já aplicada — os direitos estão gravados.',
             'cantina.gestao.aplicado.titulo': 'Importação aplicada',
             'cantina.gestao.aplicado.criados': 'Criados: {n}',
             'cantina.gestao.aplicado.atualizados': 'Atualizados: {n}',

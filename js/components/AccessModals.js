@@ -46,7 +46,7 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                             <div className="grid grid-cols-1 gap-3">
                                 <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.parentesco')}</p>
-                                    <p className="text-sm font-bold text-navy-500 truncate">{responsavel.parentesco || 'Responsável'}</p>
+                                    <p className="text-sm font-bold text-navy-500 truncate">{responsavel.parentesco || t('enum.tipo.RESPONSAVEL')}</p>
                                 </div>
                             </div>
                         </div>

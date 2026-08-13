@@ -132,7 +132,7 @@ function ExitPermissionManagement() {
                                                                                     </>
                                                                               ) : (
                                                                                     <div className="text-slate-500">
-                                                                                          {perm.allowedDays?.length > 0 ? `Dias: ${perm.allowedDays.join(', ')}` : 'Sempre'}
+                                                                                          {perm.allowedDays?.length > 0 ? t('saidas.dias.lista', { dias: perm.allowedDays.join(', ') }) : t('saidas.sempre')}
                                                                                           <br/>
                                                                                           {perm.startTime} - {perm.endTime}
                                                                                     </div>

@@ -304,7 +304,7 @@ function UserEditModal({ user, onClose, onSaved, onShowToast }) {
               className="flex-1 px-4 py-3 rounded-xl bg-navy-500 hover:bg-navy-600 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving ? <LucideIcon name="loader-2" size={16} className="animate-spin" /> : <LucideIcon name="check" size={16} />}
-              {saving ? 'Salvando...' : t('acao.salvar')}
+              {saving ? t('comum.salvando') : t('acao.salvar')}
             </button>
           </div>
         </div>

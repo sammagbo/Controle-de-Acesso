@@ -6,6 +6,7 @@
 // table with duration & status, CSV + PDF export.
 
 function InfirmaryReport() {
+    const t = useI18n();
     const todayStr = () => new Date().toISOString().slice(0, 10);
 
     const [dateFrom, setDateFrom] = React.useState(todayStr());
@@ -72,8 +73,8 @@ function InfirmaryReport() {
     }, [filtered]);
 
     const statusBadge = (v) => {
-        if (!v.exitRegistered) return { label: 'Sortie non enregistrée', cls: 'text-slate-600 bg-slate-100' };
-        if (v.longStay) return { label: 'Séjour prolongé', cls: 'text-warning-700 bg-warning-100' };
+        if (!v.exitRegistered) return { label: t('rap.status.sem.saida'), cls: 'text-slate-600 bg-slate-100' };
+        if (v.longStay) return { label: t('rap.status.estadia.longa'), cls: 'text-warning-700 bg-warning-100' };
         return { label: 'Normal', cls: 'text-success-700 bg-success-100' };
     };
 
@@ -84,7 +85,8 @@ function InfirmaryReport() {
     };
 
     const exportCSV = () => {
-        const header = 'Date,ID,Nom,Classe,Entrée,Sortie,Durée (min),Statut\n';
+        // O CSV sai no idioma da tela.
+        const header = t('rap.cantina.csv.header') + '\n';
         const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
         const rows = filtered.map(v => [
             esc(v.date), esc(v.userId), esc(v.nome), esc(v.turma),
@@ -118,18 +120,18 @@ function InfirmaryReport() {
         return (
             <div className="fixed inset-0 bg-white z-50 p-8 overflow-auto" id="infirmary-report-view">
                 <style>{`@media print { body * { visibility: hidden; } #infirmary-report-view, #infirmary-report-view * { visibility: visible; } #infirmary-report-view { position: absolute; left: 0; top: 0; width: 100%; } }`}</style>
-                <h1 className="text-2xl font-black mb-1">Rapport Infirmerie — Lycée Molière</h1>
-                <p className="text-sm text-slate-500 mb-4">Période : {dateFrom} → {dateTo} · {filtered.length} visites</p>
+                <h1 className="text-2xl font-black mb-1">{t('rap.enferm.print.titulo')}</h1>
+                <p className="text-sm text-slate-500 mb-4">{t('rap.periodo')} {dateFrom} → {dateTo} · {t('rap.enferm.visitas', { n: filtered.length })}</p>
                 <div className="grid grid-cols-5 gap-3 mb-5 text-center text-sm">
-                    <div><b className="block text-xl">{kpis.total}</b>Visites</div>
-                    <div><b className="block text-xl">{kpis.uniques}</b>Élèves</div>
-                    <div><b className="block text-xl">{kpis.longs}</b>Séjours prolongés</div>
-                    <div><b className="block text-xl">{kpis.noExit}</b>Sans sortie</div>
-                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>Durée moy.</div>
+                    <div><b className="block text-xl">{kpis.total}</b>{t('cdi.stats.visitas')}</div>
+                    <div><b className="block text-xl">{kpis.uniques}</b>{t('rap.kpi.alunos')}</div>
+                    <div><b className="block text-xl">{kpis.longs}</b>{t('rap.enferm.kpi.longas')}</div>
+                    <div><b className="block text-xl">{kpis.noExit}</b>{t('rap.status.sem.saida')}</div>
+                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>{t('cdi.stats.duracao.curta')}</div>
                 </div>
                 <table className="w-full text-xs border-collapse">
                     <thead><tr className="border-b-2 border-slate-800 text-left">
-                        <th className="py-1">Date</th><th>Nom</th><th>Classe</th><th>Entrée</th><th>Sortie</th><th>Durée</th><th>Statut</th>
+                        <th className="py-1">{t('rap.col.data')}</th><th>{t('comum.nome')}</th><th>{t('comum.turma')}</th><th>{t('rap.col.entrada')}</th><th>{t('rap.col.saida')}</th><th>{t('rap.col.duracao')}</th><th>{t('comum.status')}</th>
                     </tr></thead>
                     <tbody>
                         {filtered.map((v, i) => (
@@ -152,8 +154,8 @@ function InfirmaryReport() {
                     <LucideIcon name="heart-pulse" size={24} className="text-white" />
                 </div>
                 <div>
-                    <h2 className="text-xl font-black text-navy-500">Rapport Infirmerie</h2>
-                    <p className="text-sm text-slate-400">Visites, durée de présence et séjours prolongés</p>
+                    <h2 className="text-xl font-black text-navy-500">{t('rap.enferm.titulo')}</h2>
+                    <p className="text-sm text-slate-400">{t('rap.enferm.subtitulo')}</p>
                 </div>
             </div>
 
@@ -173,11 +175,11 @@ function InfirmaryReport() {
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                 {[
-                    { label: 'Visites', value: kpis.total, color: 'text-navy-500' },
-                    { label: 'Élèves uniques', value: kpis.uniques, color: 'text-accent-600' },
-                    { label: 'Séjours prolongés', value: kpis.longs, color: 'text-warning-600' },
-                    { label: 'Sans sortie', value: kpis.noExit, color: 'text-slate-500' },
-                    { label: 'Durée moyenne', value: fmtDuration(kpis.avg), color: 'text-success-600' },
+                    { label: t('cdi.stats.visitas'), value: kpis.total, color: 'text-navy-500' },
+                    { label: t('rap.kpi.alunos.unicos'), value: kpis.uniques, color: 'text-accent-600' },
+                    { label: t('rap.enferm.kpi.longas'), value: kpis.longs, color: 'text-warning-600' },
+                    { label: t('rap.status.sem.saida'), value: kpis.noExit, color: 'text-slate-500' },
+                    { label: t('rap.kpi.duracao'), value: fmtDuration(kpis.avg), color: 'text-success-600' },
                 ].map((k, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm">
                         <p className="text-xs font-bold text-slate-400 uppercase">{k.label}</p>
@@ -188,22 +190,23 @@ function InfirmaryReport() {
 
             <div className="bg-white rounded-2xl border border-soft-200 p-4 mb-5 shadow-sm flex flex-wrap items-end gap-3">
                 <div className="flex-1 min-w-[180px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Élève (nom/ID)</label>
-                    <input type="text" value={aluno} onChange={e => setAluno(e.target.value)} placeholder="Rechercher..." className={inputCls + " w-full mt-1"} />
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('rap.filtro.aluno')}</label>
+                    <input type="text" value={aluno} onChange={e => setAluno(e.target.value)} placeholder={t('rap.filtro.busca')} className={inputCls + " w-full mt-1"} />
                 </div>
                 <div className="min-w-[140px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Classe</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('comum.turma')}</label>
                     <select value={turma} onChange={e => setTurma(e.target.value)} className={inputCls + " w-full mt-1"}>
-                        <option value="">Toutes</option>
-                        {turmas.map(t => <option key={t} value={t}>{t}</option>)}
+                        <option value="">{t('rap.filtro.todas')}</option>
+                        {/* ⚠️ o parâmetro chamava-se `t` e sombreava a função de tradução */}
+                        {turmas.map(tu => <option key={tu} value={tu}>{tu}</option>)}
                     </select>
                 </div>
                 <div className="min-w-[160px]">
-                    <label className="text-xs font-bold text-slate-400 uppercase">Statut</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase">{t('comum.status')}</label>
                     <select value={statut} onChange={e => setStatut(e.target.value)} className={inputCls + " w-full mt-1"}>
-                        <option value="">Tous</option>
-                        <option value="long">Séjour prolongé</option>
-                        <option value="noexit">Sans sortie</option>
+                        <option value="">{t('rap.filtro.todos')}</option>
+                        <option value="long">{t('rap.status.estadia.longa')}</option>
+                        <option value="noexit">{t('rap.status.sem.saida')}</option>
                     </select>
                 </div>
                 <button onClick={exportCSV} className="px-4 py-2 rounded-xl bg-success-500 text-white font-bold text-sm hover:bg-success-600 flex items-center gap-2">
@@ -216,25 +219,25 @@ function InfirmaryReport() {
 
             <div className="bg-white rounded-2xl border border-soft-200 overflow-hidden shadow-sm">
                 <div className="px-5 py-3 border-b border-soft-100 flex items-center justify-between">
-                    <span className="text-sm font-bold text-navy-500">{filtered.length} visites</span>
-                    {loading && <span className="text-xs text-slate-400">Chargement...</span>}
+                    <span className="text-sm font-bold text-navy-500">{t('rap.enferm.visitas', { n: filtered.length })}</span>
+                    {loading && <span className="text-xs text-slate-400">{t('comum.carregando')}</span>}
                 </div>
                 <div className="overflow-x-auto max-h-[calc(100vh-440px)] overflow-y-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-soft-50 sticky top-0">
                             <tr className="text-left text-xs font-bold text-slate-400 uppercase">
-                                <th className="px-4 py-2">Date</th>
-                                <th className="px-4 py-2">Élève</th>
-                                <th className="px-4 py-2">Classe</th>
-                                <th className="px-4 py-2">Entrée</th>
-                                <th className="px-4 py-2">Sortie</th>
-                                <th className="px-4 py-2">Durée</th>
-                                <th className="px-4 py-2">Statut</th>
+                                <th className="px-4 py-2">{t('rap.col.data')}</th>
+                                <th className="px-4 py-2">{t('rap.filtro.aluno.curto')}</th>
+                                <th className="px-4 py-2">{t('comum.turma')}</th>
+                                <th className="px-4 py-2">{t('rap.col.entrada')}</th>
+                                <th className="px-4 py-2">{t('rap.col.saida')}</th>
+                                <th className="px-4 py-2">{t('rap.col.duracao')}</th>
+                                <th className="px-4 py-2">{t('comum.status')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 && !loading && (
-                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">Aucune visite pour cette période</td></tr>
+                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{t('rap.enferm.vazio')}</td></tr>
                             )}
                             {filtered.map((v, i) => {
                                 const b = statusBadge(v);

@@ -55,6 +55,10 @@ const MIGRADAS = [
     'js/components/ExitPermissionManagement.js',
     'js/components/UserManagement.js',
     'js/components/UserListPanel.js',
+    // Leva 3 — RAPPORTS.
+    'js/cdi/StatsModal.js',
+    'js/components/RefectoryReport.js',
+    'js/components/InfirmaryReport.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */
@@ -81,6 +85,7 @@ const NAO_SE_TRADUZ = [
     /^v\d+\.\d+/,                 // versão
     /^[A-Z]\d$/,                  // turma (A1, B2) — dado, não texto
     /^[A-Z]$/,                     // letra solta (o L de L{linha})
+    /^(min|m|h|s)$/,               // unidades de tempo — iguais nos dois idiomas
     // A linha de exemplos de status aceita TODOS os idiomas de uma vez — ela
     // ensina o que a planilha pode conter, e a planilha não tem idioma.
     /^Autorizado · Não autorizado · Autorisé · Non autorisé/,

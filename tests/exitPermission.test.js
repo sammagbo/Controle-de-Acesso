@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import E from '../js/utils/exitPermission.js';
+
+// O motivo da recusa virou CHAVE i18n (a tela traduz). Para o teste continuar
+// exigindo um motivo LEGÍVEL, resolve-se a chave nos DOIS dicionários.
+const I18N_SRC = fs.readFileSync(path.resolve(__dirname, '../js/utils/i18n.js'), 'utf8');
+function motivoTraduzido(chave) {
+    const re = new RegExp(`'${chave.replace(/\./g, '\\.')}':\\s*(?:'((?:[^'\\\\]|\\\\.)*)'|"((?:[^"\\\\]|\\\\.)*)")`, 'g');
+    const valores = [];
+    let m;
+    while ((m = re.exec(I18N_SRC)) !== null) valores.push(m[1] ?? m[2]);
+    return valores; // [fr, pt]
+}
 
 /**
  * AUTORIZAÇÃO DE SAÍDA — a matrícula sai de uma ESCOLHA, não de digitação.
@@ -100,7 +113,9 @@ describe('exitPermission — validação antes de salvar', () => {
         it('★ recusa com motivo LEGÍVEL, não um booleano mudo', () => {
             const r = E.validar(formSingle({ aluno: null }));
             expect(r.ok).toBe(false);
-            expect(r.motivo).toContain('Selecione o aluno');
+            const [fr, pt] = motivoTraduzido(r.motivo);
+            expect(fr).toContain('élève');
+            expect(pt).toContain('Selecione o aluno');
         });
 
         it('★ aluno sem id também é recusado', () => {
@@ -122,18 +137,22 @@ describe('exitPermission — validação antes de salvar', () => {
         it('quem autorizou é obrigatório', () => {
             const r = E.validar(formSingle({ autorizadoFamilia: '   ' }));
             expect(r.ok).toBe(false);
-            expect(r.motivo).toContain('autorizou');
+            const [fr, pt] = motivoTraduzido(r.motivo);
+            expect(fr).toContain('autoris');
+            expect(pt).toContain('autorizou');
         });
 
         it('saída única exige as duas datas', () => {
             expect(E.validar(formSingle({ validUntil: '' })).ok).toBe(false);
-            expect(E.validar(formSingle({ validFrom: '' })).motivo).toContain('retorno');
+            expect(motivoTraduzido(E.validar(formSingle({ validFrom: '' })).motivo)[1]).toContain('retorno');
         });
 
         it('recorrente exige ao menos um dia', () => {
             const r = E.validar(formRecurring({ dias: { MONDAY: false, TUESDAY: false } }));
             expect(r.ok).toBe(false);
-            expect(r.motivo).toContain('dia');
+            const [fr, pt] = motivoTraduzido(r.motivo);
+            expect(fr).toContain('jour');
+            expect(pt).toContain('dia');
         });
 
         it('formulário completo passa', () => {
@@ -280,7 +299,9 @@ describe('duas autoridades de saída', () => {
         // Seria uma criança autorizada a sair sem ninguém ter autorizado.
         const r = E.validar(base({}));
         expect(r.ok).toBe(false);
-        expect(r.motivo).toMatch(/família/i);
+        const [fr, pt] = motivoTraduzido(r.motivo);
+        expect(fr).toMatch(/famille/i);
+        expect(pt).toMatch(/família/i);
     });
 
     it('★ campo só com espaços não conta como autoridade', () => {

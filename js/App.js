@@ -264,7 +264,7 @@ function App() {
                               // registerAccess (utils/api.js) already normalises: .status and .timestamp are set
                               if (!newLog) throw new Error(t('app.erro.registro'));
                         } catch (error) {
-                              if ((error.message || '').includes('DUPLICATE_MEAL') || (error.message || '').includes('Duplicidade')) {
+                              if (error.code === 'DUPLICATE' || (error.message || '').includes('DUPLICATE_MEAL') || (error.message || '').includes('Duplicidade')) {
                                     isRefeicaoDuplicada = true;
                                     newLog = { id: `dup-${now}`, userId, pointId, status: 'ENTRADA', timestamp: new Date().toISOString() };
                               } else {

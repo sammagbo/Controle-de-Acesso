@@ -27,7 +27,7 @@ function ImportColumnList({ doc, legenda = true }) {
                             <code className={`px-1.5 py-0.5 rounded ${obrigatoria
                                 ? 'bg-soft-100 font-bold text-navy-600'
                                 : 'bg-soft-50 font-normal text-slate-500'}`}>
-                                {c.campo}
+                                {c.rotulo ? t(c.campo) : c.campo}
                             </code>
                             {obrigatoria && (
                                 <span className="text-[10px] font-bold uppercase text-danger-600">{t('importcol.obrigatoria')}</span>
@@ -40,7 +40,7 @@ function ImportColumnList({ doc, legenda = true }) {
                             {c.aceitos && c.aceitos.length > 0 && (
                                 <span className="text-slate-400">{t('importcol.aceita')} {c.aceitos.join(' · ')}</span>
                             )}
-                            {c.nota && <span className="text-slate-400">— {c.nota}</span>}
+                            {c.nota && <span className="text-slate-400">— {t(c.nota)}</span>}
                         </li>
                     );
                 })}

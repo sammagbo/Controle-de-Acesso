@@ -362,7 +362,7 @@ function JournalTab({ active = true }) {
                                                     ? 'text-success-700 bg-success-100'
                                                     : 'text-danger-700 bg-danger-100'
                                                 }`}>
-                                                {isEntrada ? 'Entrée' : 'Sortie'}
+                                                {isEntrada ? t('rap.col.entrada') : t('rap.col.saida')}
                                             </span>
                                         </td>
                                     </tr>
@@ -657,7 +657,7 @@ function ParEleveTab() {
                                                         <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                                                             isEntrada ? 'bg-success-100 text-success-700' : 'bg-rose-100 text-rose-700'
                                                         }`}>
-                                                            {isEntrada ? 'Entrée' : 'Sortie'}{!isEntrada && l._dur != null ? ` (${l._dur} min)` : ''}
+                                                            {isEntrada ? t('rap.col.entrada') : t('rap.col.saida')}{!isEntrada && l._dur != null ? ` (${l._dur} min)` : ''}
                                                         </span>
                                                     </div>
                                                 );

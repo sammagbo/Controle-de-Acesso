@@ -64,6 +64,8 @@ const MIGRADAS = [
     'js/cdi/SettingsModal.js',
     'js/components/ImportColumnList.js',
     'js/App.js',
+    // Leva final.
+    'js/components/AdminDashboard.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

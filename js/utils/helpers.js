@@ -70,7 +70,8 @@ function formatDuration(ms) {
 }
 
 /** Default fallback for missing TIPO_LABELS entries */
-const TIPO_LABEL_FALLBACK = { label: 'Desconhecido', color: 'bg-slate-400', textColor: 'text-white' };
+// Só TEMA desde 14/08/2026 — o rótulo vem de tEnum('tipo', 'DESCONHECIDO').
+const TIPO_LABEL_FALLBACK = { color: 'bg-slate-400', textColor: 'text-white' };
 
 /** Palette for local avatars (MAGBO tokens) — deterministic per seed */
 const AVATAR_BG_COLORS = ['#2E3F66', '#3AA3B0', '#2563EB', '#059669', '#D97706', '#576585'];

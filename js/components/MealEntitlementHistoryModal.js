@@ -43,7 +43,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
       };
 
       const getStatusBadge = (status) => {
-            const label = window.ENTITLEMENT_STATUS_LABELS?.[status] || status || 'VIDE';
+            const label = window.MagboI18n.tEnum('entitlement', status || 'VIDE');
             if (status === 'AUTHORIZED') return <span className="text-[10px] font-bold text-success-700 bg-success-100 px-1.5 py-0.5 rounded">{label}</span>;
             if (status === 'NOT_AUTHORIZED') return <span className="text-[10px] font-bold text-danger-700 bg-danger-100 px-1.5 py-0.5 rounded">{label}</span>;
             return <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{label}</span>;

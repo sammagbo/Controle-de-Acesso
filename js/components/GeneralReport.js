@@ -734,9 +734,9 @@ function DeniedAttemptStats() {
                 <div className="bg-white rounded-2xl border border-soft-200 p-4 shadow-sm text-xs text-slate-400">Statistiques indisponibles.</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {block('Par motif', stats.byReason, window.DENIAL_REASON_LABELS)}
+                    {block('Par motif', stats.byReason, (k) => window.MagboI18n.tEnum('denial', k))}
                     {block('Par point', stats.byPoint, (k) => pointLabel(k))}
-                    {block('Par méthode', stats.byMethod, window.AUTH_METHOD_LABELS)}
+                    {block('Par méthode', stats.byMethod, (k) => window.MagboI18n.tEnum('authMethod', k))}
                     {block('Par classe (élèves)', stats.byTurma,
                         (k) => k === 'UNKNOWN' ? 'Personnel / sans classe' : k)}
                 </div>

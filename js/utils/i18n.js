@@ -59,6 +59,41 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            // ── ENUMS DO BACKEND (espelho — valor novo no Java exige chave
+            //    nova AQUI, nos dois idiomas, na mesma entrega) ──
+            'enum.denial.MEAL_NOT_ENTITLED': 'Pas de droit au repas',
+            'enum.denial.OUTSIDE_MEAL_TIME': 'Hors horaire',
+            'enum.denial.DUPLICATE_MEAL': 'Repas dupliqué',
+            'enum.denial.EXIT_NOT_AUTHORIZED': 'Sortie non autorisée',
+            'enum.denial.OUTSIDE_EXIT_WINDOW': 'Hors fenêtre de sortie',
+            'enum.denial.USER_INACTIVE': 'Utilisateur inactif',
+            'enum.denial.UNKNOWN_USER': 'Personne inconnue',
+            'enum.denial.UNKNOWN_FACE': 'Visage non reconnu',
+            'enum.denial.AMBIGUOUS_NAME': 'Nom ambigu',
+            'enum.denial.MISSING_DOOR_MAPPING': 'Terminal non configuré',
+            'enum.denial.DEVICE_DENIED': 'Refusé par le terminal',
+            'enum.denial.NORMAL': 'Normal',
+            'enum.authMethod.FACE': 'Visage',
+            'enum.authMethod.CARD': 'Carte',
+            'enum.authMethod.UNKNOWN': 'Inconnu',
+            'enum.entitlement.AUTHORIZED': 'Autorisé',
+            'enum.entitlement.NOT_AUTHORIZED': 'Non autorisé',
+            'enum.entitlement.PENDING': 'En attente',
+            'enum.entitlement.VIDE': 'Vide',
+            'enum.exitType.PERMANENT': 'Permanent',
+            'enum.exitType.RECURRING': 'Récurrent',
+            'enum.exitType.DATE_RANGE': 'Période',
+            'enum.exitType.SINGLE': 'Ponctuel',
+            'enum.exitStatus.ACTIVE': 'Actif',
+            'enum.exitStatus.REVOKED': 'Révoqué',
+            'enum.exitStatus.USED': 'Utilisé',
+            'enum.exitStatus.EXPIRED': 'Expiré',
+            'enum.tipo.ALUNO': 'Élève',
+            'enum.tipo.PROFESSOR': 'Professeur',
+            'enum.tipo.FUNCIONARIO': 'Agent',
+            'enum.tipo.RESPONSAVEL': 'Responsable',
+            'enum.tipo.DESCONHECIDO': 'Inconnu',
+
             'acao.cancelar': 'Annuler',
             'acao.editar': 'Modifier',
             'acao.desativar': 'Désactiver',
@@ -387,6 +422,39 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'enum.denial.MEAL_NOT_ENTITLED': 'Sem direito à refeição',
+            'enum.denial.OUTSIDE_MEAL_TIME': 'Fora do horário',
+            'enum.denial.DUPLICATE_MEAL': 'Refeição duplicada',
+            'enum.denial.EXIT_NOT_AUTHORIZED': 'Saída não autorizada',
+            'enum.denial.OUTSIDE_EXIT_WINDOW': 'Fora da janela de saída',
+            'enum.denial.USER_INACTIVE': 'Usuário inativo',
+            'enum.denial.UNKNOWN_USER': 'Pessoa desconhecida',
+            'enum.denial.UNKNOWN_FACE': 'Rosto não reconhecido',
+            'enum.denial.AMBIGUOUS_NAME': 'Nome ambíguo',
+            'enum.denial.MISSING_DOOR_MAPPING': 'Terminal não configurado',
+            'enum.denial.DEVICE_DENIED': 'Negado pelo terminal',
+            'enum.denial.NORMAL': 'Normal',
+            'enum.authMethod.FACE': 'Rosto',
+            'enum.authMethod.CARD': 'Cartão',
+            'enum.authMethod.UNKNOWN': 'Desconhecido',
+            'enum.entitlement.AUTHORIZED': 'Autorizado',
+            'enum.entitlement.NOT_AUTHORIZED': 'Não autorizado',
+            'enum.entitlement.PENDING': 'Pendente',
+            'enum.entitlement.VIDE': 'Vazio',
+            'enum.exitType.PERMANENT': 'Permanente',
+            'enum.exitType.RECURRING': 'Recorrente',
+            'enum.exitType.DATE_RANGE': 'Período',
+            'enum.exitType.SINGLE': 'Pontual',
+            'enum.exitStatus.ACTIVE': 'Ativa',
+            'enum.exitStatus.REVOKED': 'Revogada',
+            'enum.exitStatus.USED': 'Utilizada',
+            'enum.exitStatus.EXPIRED': 'Expirada',
+            'enum.tipo.ALUNO': 'Aluno',
+            'enum.tipo.PROFESSOR': 'Professor',
+            'enum.tipo.FUNCIONARIO': 'Funcionário',
+            'enum.tipo.RESPONSAVEL': 'Responsável',
+            'enum.tipo.DESCONHECIDO': 'Desconhecido',
 
             'acao.cancelar': 'Cancelar',
             'acao.editar': 'Editar',
@@ -787,6 +855,33 @@
         return interpolar(texto, params);
     }
 
+    /**
+     * Rótulo de um ENUM do backend, no idioma atual.
+     *
+     * Os mapas estáticos de constants.js (DENIAL_REASON_LABELS etc.) viveram
+     * até 14/08/2026 num idioma só — francês fixo, mesmo com a tela em
+     * português. Agora os rótulos vivem nos dicionários como chaves
+     * `enum.<grupo>.<VALOR>`, e este helper é o único caminho até eles.
+     *
+     * ⚠️ FALLBACK É O CÓDIGO CRU, nunca a chave: um DENIAL_REASON novo no
+     * backend aparece como MEAL_NOT_SOMETHING na tela — feio, legível e
+     * denunciando exatamente o que falta acrescentar aqui. A chave
+     * `enum.denial.MEAL_NOT_SOMETHING` diria menos a quem opera.
+     *
+     * ⚠️ ESPELHO DO BACKEND (a regra que vivia em constants.js viaja junto):
+     * valor novo num enum Java exige a chave nova nos DOIS dicionários NA
+     * MESMA entrega — e o CHECK do banco correspondente, quando houver.
+     */
+    function tEnum(grupo, valor) {
+        if (valor == null || valor === '') return '';
+        const k = 'enum.' + String(grupo) + '.' + String(valor);
+        const atual = DICIONARIOS[idiomaAtual] || {};
+        const padrao = DICIONARIOS[PADRAO] || {};
+        return atual[k] != null ? atual[k]
+            : padrao[k] != null ? padrao[k]
+            : String(valor);
+    }
+
     function interpolar(texto, params) {
         if (!params) return texto;
         return texto.replace(/\{(\w+)\}/g, function (todo, nome) {
@@ -805,6 +900,7 @@
         setLang: setLang,
         getLang: getLang,
         languages: languages,
-        t: t
+        t: t,
+        tEnum: tEnum
     };
 });

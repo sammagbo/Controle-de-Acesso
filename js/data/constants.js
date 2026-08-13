@@ -33,11 +33,14 @@ const ACCESS_POINTS = [
 // Usado em badges, cards e filtros para exibir o tipo de forma
 // consistente em toda a aplicação.
 // ---------------------------------------------------------------------
+// ⚠️ Desde 14/08/2026 este mapa é SÓ TEMA VISUAL: os rótulos moram nos
+// dicionários do i18n (chaves `enum.tipo.*` em js/utils/i18n.js) e chegam
+// pela MagboI18n.tEnum('tipo', valor) — cor é tema, não idioma.
 const TIPO_LABELS = {
-      ALUNO:       { label: 'Aluno',       color: 'bg-accent-500',  textColor: 'text-white' },
-      PROFESSOR:   { label: 'Professor',   color: 'bg-navy-500',    textColor: 'text-white' },
-      FUNCIONARIO: { label: 'Funcionário', color: 'bg-slate-600',   textColor: 'text-white' },
-      RESPONSAVEL: { label: 'Responsável', color: 'bg-purple-600',  textColor: 'text-white' },
+      ALUNO:       { color: 'bg-accent-500',  textColor: 'text-white' },
+      PROFESSOR:   { color: 'bg-navy-500',    textColor: 'text-white' },
+      FUNCIONARIO: { color: 'bg-slate-600',   textColor: 'text-white' },
+      RESPONSAVEL: { color: 'bg-purple-600',  textColor: 'text-white' },
 };
 
 
@@ -54,32 +57,17 @@ const CATEGORY_COLORS = {
 };
 
 // ---------------------------------------------------------------------
-// LABELS GERAIS E MOTIVOS DE RECUSA
+// RÓTULOS DE ENUM → MUDARAM DE CASA (14/08/2026)
 // ---------------------------------------------------------------------
-const DENIAL_REASON_LABELS = {
-      MEAL_NOT_ENTITLED:   "Pas de droit au repas",
-      OUTSIDE_MEAL_TIME:   "Hors horaire",
-      DUPLICATE_MEAL:      "Repas dupliqué",
-      EXIT_NOT_AUTHORIZED: "Sortie non autorisée",
-      OUTSIDE_EXIT_WINDOW: "Hors fenêtre de sortie",
-      USER_INACTIVE:       "Utilisateur inactif",
-      UNKNOWN_USER:        "Personne inconnue",
-      MISSING_DOOR_MAPPING:"Terminal non configuré",
-      DEVICE_DENIED:       "Refusé par le terminal",
-      NORMAL:              "Normal"
-};
+// DENIAL_REASON_LABELS, AUTH_METHOD_LABELS, ENTITLEMENT_STATUS_LABELS,
+// EXIT_PERMISSION_TYPE_LABELS e EXIT_PERMISSION_STATUS_LABELS viviam aqui
+// como mapas estáticos NUM idioma só — francês fixo mesmo com a tela em
+// português. Agora são chaves `enum.<grupo>.<VALOR>` nos dicionários de
+// js/utils/i18n.js, servidas por MagboI18n.tEnum(grupo, valor).
+// A regra do espelho continua a mesma e viajou junto: valor novo num enum
+// do BACKEND exige a chave nova nos DOIS dicionários, na MESMA entrega.
 
-const AUTH_METHOD_LABELS = { 
-      FACE: "Visage", 
-      CARD: "Carte", 
-      UNKNOWN: "Inconnu" 
-};
 
-const ENTITLEMENT_STATUS_LABELS = { 
-      AUTHORIZED: "Autorisé", 
-      NOT_AUTHORIZED: "Non autorisé", 
-      PENDING: "En attente" 
-};
 
 // ---------------------------------------------------------------------
 // pointLabel — NOME do ponto, nunca o código sozinho
@@ -97,16 +85,4 @@ function pointLabel(pointId, lang) {
       return (lang === 'pt' ? 'Ponto ' : 'Point ') + id;
 }
 
-const EXIT_PERMISSION_TYPE_LABELS = {
-      PERMANENT: "Permanent", 
-      RECURRING: "Récurrent", 
-      DATE_RANGE: "Période", 
-      SINGLE: "Ponctuel" 
-};
 
-const EXIT_PERMISSION_STATUS_LABELS = { 
-      ACTIVE: "Actif", 
-      REVOKED: "Révoqué", 
-      USED: "Utilisé", 
-      EXPIRED: "Expiré" 
-};

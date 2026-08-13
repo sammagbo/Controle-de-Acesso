@@ -19,6 +19,7 @@
 // mostra "200 de 1197" quando são 199, ou esconde a última linha.
 
 function ListaLimitada({ titulo, total, children, alturaMax = 'max-h-[38vh]', classeTitulo = 'text-slate-600' }) {
+      const t = useI18n();
     const paging = window.MagboListPaging;
     const [mostrando, setMostrando] = React.useState(paging.LINHAS_POR_PAGINA);
 
@@ -49,7 +50,7 @@ function ListaLimitada({ titulo, total, children, alturaMax = 'max-h-[38vh]', cl
                     onClick={() => setMostrando(m => paging.nextChunk(m, total))}
                     className="mt-2 w-full py-2 rounded-xl bg-soft-100 text-navy-500 text-xs font-bold hover:bg-soft-200 transition-colors"
                 >
-                    Mostrar mais {estado.proximoLote} (faltam {estado.restantes})
+                    {t('lista.mais')} {estado.proximoLote} {t('lista.faltam')} {estado.restantes})
                 </button>
             )}
         </div>

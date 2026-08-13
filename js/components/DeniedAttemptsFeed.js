@@ -5,6 +5,7 @@
 
 function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) {
       const [attempts, setAttempts] = React.useState([]);
+      const t = useI18n();
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState(false);
       // F7a — destaque + som para itens novos entre polls
@@ -116,7 +117,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                           localStorage.setItem('magbo_feed_sound', next ? 'on' : 'off');
                                           return next;
                                     })}
-                                    title={soundOn ? 'Som ligado (clique para desligar)' : 'Som desligado (clique para ligar)'}
+                                    title={t(soundOn ? 'feed.som.ligado' : 'feed.som.desligado')}
                                     className={`p-1 rounded-lg transition-colors ${soundOn ? 'text-danger-600 hover:bg-danger-100' : 'text-slate-300 hover:bg-slate-100'}`}
                               >
                                     <LucideIcon name={soundOn ? 'volume-2' : 'volume-x'} size={16} />
@@ -133,17 +134,17 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                         {loading && attempts.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-6 text-slate-400">
                                     <LucideIcon name="loader-2" size={20} className="animate-spin mb-2" />
-                                    <p className="text-xs">Carregando...</p>
+                                    <p className="text-xs">{t('comum.carregando')}</p>
                               </div>
                         ) : error && attempts.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-6 text-danger-400">
                                     <LucideIcon name="alert-circle" size={20} className="mb-2" />
-                                    <p className="text-xs">Erro ao carregar</p>
+                                    <p className="text-xs">{t('comum.erro.carregar')}</p>
                               </div>
                         ) : attempts.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-6 text-slate-300">
                                     <LucideIcon name="check-circle-2" size={24} className="mb-2 text-success-300" />
-                                    <p className="text-xs font-medium">{emptyMessage || 'Nenhuma tentativa negada hoje'}</p>
+                                    <p className="text-xs font-medium">{emptyMessage || t('feed.vazio')}</p>
                               </div>
                         ) : (
                               <div className="space-y-2">

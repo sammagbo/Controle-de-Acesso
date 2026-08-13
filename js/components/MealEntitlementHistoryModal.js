@@ -3,6 +3,7 @@
 // =====================================================================
 
 function MealEntitlementHistoryModal({ userId, onClose }) {
+    const t = useI18n();
       const [history, setHistory] = React.useState([]);
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState('');
@@ -21,7 +22,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                         data.sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
                         setHistory(data);
                   } catch (err) {
-                        setError(err.message || "Erreur de chargement de l'historique.");
+                        setError(err.message || t('cantina.hist.erro'));
                   } finally {
                         setLoading(false);
                   }
@@ -49,8 +50,8 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
       };
 
       const getSourceBadge = (source) => {
-            if (source === 'BULK') return <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded flex items-center gap-1"><LucideIcon name="file-spreadsheet" size={10}/> Import</span>;
-            if (source === 'UI') return <span className="text-[10px] font-bold text-navy-700 bg-navy-100 px-1.5 py-0.5 rounded flex items-center gap-1"><LucideIcon name="monitor" size={10}/> Manuel</span>;
+            if (source === 'BULK') return <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded flex items-center gap-1"><LucideIcon name="file-spreadsheet" size={10}/> {t('cantina.hist.import')}</span>;
+            if (source === 'UI') return <span className="text-[10px] font-bold text-navy-700 bg-navy-100 px-1.5 py-0.5 rounded flex items-center gap-1"><LucideIcon name="monitor" size={10}/> {t('cantina.hist.manual')}</span>;
             return <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{source || 'API'}</span>;
       };
 
@@ -67,7 +68,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                                           <LucideIcon name="history" size={20} className="text-white" />
                                     </div>
                                     <div>
-                                          <h2 className="text-lg font-bold text-white">Historique d'accès cantine</h2>
+                                          <h2 className="text-lg font-bold text-white">{t('cantina.hist.titulo')}</h2>
                                           <p className="text-xs text-navy-100">{userName}</p>
                                     </div>
                               </div>
@@ -81,7 +82,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                               {loading ? (
                                     <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                           <LucideIcon name="loader-2" size={24} className="animate-spin mb-2" />
-                                          <p className="text-sm">Chargement de l'historique...</p>
+                                          <p className="text-sm">{t('cantina.hist.carregando')}</p>
                                     </div>
                               ) : error ? (
                                     <div className="bg-danger-50 text-danger-600 p-4 rounded-xl text-sm border border-danger-100 flex items-center gap-2">
@@ -91,7 +92,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                               ) : history.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                           <LucideIcon name="clock-3" size={32} className="mb-3 text-slate-300" />
-                                          <p className="text-sm font-medium">Aucun historique disponible</p>
+                                          <p className="text-sm font-medium">{t('cantina.hist.vazio')}</p>
                                     </div>
                               ) : (
                                     <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-soft-200 before:to-transparent">
@@ -107,7 +108,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                                                             </div>
                                                             <div className="mb-2">
                                                                   <div className="flex items-center gap-2 text-sm">
-                                                                        <span className="text-slate-500 font-medium">Statut:</span>
+                                                                        <span className="text-slate-500 font-medium">{t('comum.status')}:</span>
                                                                         {getStatusBadge(h.oldStatus)}
                                                                         <LucideIcon name="arrow-right" size={12} className="text-slate-300" />
                                                                         {getStatusBadge(h.newStatus)}
@@ -115,7 +116,7 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                                                             </div>
                                                             <div className="mb-2">
                                                                   <div className="flex items-center gap-2 text-xs">
-                                                                        <span className="text-slate-500 font-medium">Validité:</span>
+                                                                        <span className="text-slate-500 font-medium">{t('cantina.hist.validade')}:</span>
                                                                         <span className="text-slate-400 line-through">{formatDate(h.oldValidUntil)}</span>
                                                                         <LucideIcon name="arrow-right" size={10} className="text-slate-300" />
                                                                         <span className="font-semibold text-navy-500">{formatDate(h.newValidUntil)}</span>
@@ -123,11 +124,11 @@ function MealEntitlementHistoryModal({ userId, onClose }) {
                                                             </div>
                                                             {h.note && (
                                                                   <div className="mt-2 bg-soft-50 p-2 rounded-lg text-xs text-slate-600 border border-soft-100">
-                                                                        <span className="font-bold">Note: </span>{h.note}
+                                                                        <span className="font-bold">{t('cantina.hist.nota')}: </span>{h.note}
                                                                   </div>
                                                             )}
                                                             <div className="mt-3 text-[10px] text-slate-400 text-right">
-                                                                  Par {h.changedBy || 'Système'}
+                                                                  {t('cantina.hist.por')} {h.changedBy || t('cantina.hist.sistema')}
                                                             </div>
                                                       </div>
                                                 </div>

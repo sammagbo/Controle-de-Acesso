@@ -3,6 +3,7 @@
 // =====================================================================
 
 function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast }) {
+      const t = useI18n();
       const [newStudent, setNewStudent] = React.useState({ name: '', class: '', id: '' });
       const [editing, setEditing] = React.useState(null);
       if (!open) return null;
@@ -12,7 +13,7 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
       const handleAdd = async () => {
             if (!newStudent.name || !newStudent.class) return;
             const id = newStudent.id || generateId();
-            if (students.some(s => s.id === id)) { setToast({ message: 'ID déjà existant', type: 'error' }); return; }
+            if (students.some(s => s.id === id)) { setToast({ message: t('cdi.aluno.id.existe'), type: 'error' }); return; }
 
             const parts = newStudent.name.trim().split(' ');
             const firstName = parts[0];
@@ -33,10 +34,10 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
                   };
                   setStudents([...students, mapped]);
                   setNewStudent({ name: '', class: '', id: '' });
-                  setToast({ message: 'Élève ajouté', type: 'success' });
+                  setToast({ message: t('cdi.aluno.adicionado'), type: 'success' });
             } catch (e) {
                   console.error(e);
-                  setToast({ message: "Erreur ajout", type: 'error' });
+                  setToast({ message: t('cdi.aluno.erro.adicionar'), type: 'error' });
             }
       };
 
@@ -47,7 +48,7 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
             // antigo ('Supprimer cet élève ?') prometia uma exclusão que
             // nunca acontecia: pedia coragem para um botão que só falhava.
             setToast({
-                  message: "La base élèves vient du Pronote — la suppression se fait dans les Réglages de l'application principale.",
+                  message: t('cdi.aluno.sem.exclusao'),
                   type: 'error'
             });
       };
@@ -74,10 +75,10 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
                   };
                   setStudents(students.map(s => s.id === editing.id ? mapped : s));
                   setEditing(null);
-                  setToast({ message: 'Modifications enregistrées', type: 'success' });
+                  setToast({ message: t('cdi.aluno.salvo'), type: 'success' });
             } catch (e) {
                   console.error(e);
-                  setToast({ message: "Erreur modification", type: 'error' });
+                  setToast({ message: t('cdi.aluno.erro.editar'), type: 'error' });
             }
       };
 
@@ -85,17 +86,17 @@ function CdiStudentManagerModal({ open, onClose, students, setStudents, setToast
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
                   <div className="bg-white rounded-xl w-full max-w-lg mx-4 p-5 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
-                              <h2 className="font-bold text-lg">Base Élèves ({students.length})</h2>
+                              <h2 className="font-bold text-lg">{t('cdi.base')} ({students.length})</h2>
                               <button onClick={onClose}><CdiIcon name="x" size={20} /></button>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-3 mb-4">
                               <div className="grid grid-cols-3 gap-2 mb-2">
-                                    <input placeholder="Nom Prénom" value={newStudent.name} onChange={e => setNewStudent({ ...newStudent, name: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
-                                    <input placeholder="Classe" value={newStudent.class} onChange={e => setNewStudent({ ...newStudent, class: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
-                                    <input placeholder="ID (auto)" value={newStudent.id} onChange={e => setNewStudent({ ...newStudent, id: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
+                                    <input placeholder={t('cdi.aluno.nome')} value={newStudent.name} onChange={e => setNewStudent({ ...newStudent, name: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
+                                    <input placeholder={t('comum.turma')} value={newStudent.class} onChange={e => setNewStudent({ ...newStudent, class: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
+                                    <input placeholder={t('cdi.aluno.id')} value={newStudent.id} onChange={e => setNewStudent({ ...newStudent, id: e.target.value })} className="px-2 py-1.5 border rounded text-sm" />
                               </div>
                               <button onClick={handleAdd} className="w-full py-1.5 bg-blue-600 text-white rounded text-sm font-medium flex items-center justify-center gap-1">
-                                    <CdiIcon name="plus" size={16} /> Ajouter
+                                    <CdiIcon name="plus" size={16} /> {t('acao.adicionar')}
                               </button>
                         </div>
                         <div className="flex-1 overflow-y-auto space-y-1">

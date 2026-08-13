@@ -59,6 +59,9 @@
            init() lê a preferência da MÁQUINA no localStorage. Só a tela de
            login está migrada; ver o cabeçalho de js/utils/i18n.js. -->
       <script type="text/babel" src="js/utils/i18n.js?v=1"></script>
+      <!-- A ligação do i18n com o React (hook useI18n). Separada porque
+           i18n.js é puro e testado sem React; esta precisa dele carregado. -->
+      <script type="text/babel" src="js/utils/i18nReact.js?v=1"></script>
       <script type="text/babel">window.MagboI18n.init();</script>
       <!-- UI Configuration (access points, visual labels, category colors) -->
       <script type="text/babel" src="js/data/constants.js?v=1"></script>
@@ -98,6 +101,7 @@
       <!-- PasswordInput é usado pelo LoginScreen E pela gestão de operadores:
            carrega junto dos compartilhados, antes de ambos. -->
       <script type="text/babel" src="js/components/PasswordInput.js?v=1"></script>
+      <script type="text/babel" src="js/components/LanguageSelector.js?v=1"></script>
       <script type="text/babel" src="js/components/ImportColumnList.js?v=1"></script>
       <!-- PersonPhoto antes de qualquer tela que mostre gente: SectorView, o
            Rapport e o CDI o consomem. -->

@@ -3,6 +3,8 @@
 // =====================================================================
 
 function ExitPermissionManagement() {
+      const t = useI18n();
+      const locale = useLocale();
       const [permissions, setPermissions] = React.useState([]);
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState('');
@@ -20,7 +22,7 @@ function ExitPermissionManagement() {
                   const data = await window.api.getActiveExitPermissions();
                   setPermissions(data);
             } catch (err) {
-                  setError(err.message || 'Erro ao carregar permissões.');
+                  setError(err.message || t('saidas.erro.carregar'));
             } finally {
                   setLoading(false);
             }
@@ -31,13 +33,12 @@ function ExitPermissionManagement() {
       }, []);
 
       const handleRevoke = async (id) => {
-            if (!confirm('Revogar esta autorização de saída?\n\n'
-                  + 'O aluno passa a ser barrado na saída imediatamente. '
-                  + 'A revogação não pode ser desfeita — para autorizar de novo, '
-                  + 'crie uma nova autorização. O registro revogado permanece no '
-                  + 'histórico, com quem revogou e quando.')) return;
+            // Traduzido SEM afrouxar: barrado na hora · irreversível · o
+            // registro fica no histórico com quem e quando — as três
+            // precisões existem nos DOIS idiomas (ver o dicionário).
+            if (!confirm(t('saidas.revogar.confirma'))) return;
             try {
-                  await window.api.revokeExitPermission(id, 'Revogado manualmente pela portaria');
+                  await window.api.revokeExitPermission(id, t('saidas.revogar.motivo'));
                   loadPermissions();
             } catch (err) {
                   alert(err.message);
@@ -47,21 +48,21 @@ function ExitPermissionManagement() {
       const formatDateTime = (isoString) => {
             if (!isoString) return '—';
             const date = new Date(isoString);
-            return isNaN(date) ? '—' : date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return isNaN(date) ? '—' : date.toLocaleDateString(locale) + ' ' + date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
       };
 
       return (
             <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-fade-in">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                              <h1 className="text-2xl font-black text-navy-800">Controle de Saídas</h1>
-                              <p className="text-sm text-slate-500">Gerencie as autorizações de saída de alunos.</p>
+                              <h1 className="text-2xl font-black text-navy-800">{t('saidas.titulo')}</h1>
+                              <p className="text-sm text-slate-500">{t('saidas.subtitulo')}</p>
                         </div>
 
                         {canEdit && (
                               <button onClick={() => setShowModal(true)} className="btn bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2 shadow-lg shadow-accent-600/20">
                                     <LucideIcon name="plus" size={18} />
-                                    Nova Autorização
+                                    {t('saidas.nova')}
                               </button>
                         )}
                   </div>
@@ -69,13 +70,13 @@ function ExitPermissionManagement() {
                   <div className="bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
                         <div className="bg-soft-50 px-6 py-4 border-b border-soft-200 flex items-center gap-2">
                               <LucideIcon name="door-open" size={18} className="text-accent-600" />
-                              <h3 className="text-sm font-bold text-navy-700">Autorizações Ativas</h3>
+                              <h3 className="text-sm font-bold text-navy-700">{t('saidas.ativas')}</h3>
                         </div>
 
                         {loading ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <LucideIcon name="loader-2" size={24} className="animate-spin mb-2" />
-                                    <p className="text-sm">Carregando...</p>
+                                    <p className="text-sm">{t('comum.carregando')}</p>
                               </div>
                         ) : error ? (
                               <div className="flex flex-col items-center justify-center py-12 text-danger-500">
@@ -85,18 +86,18 @@ function ExitPermissionManagement() {
                         ) : permissions.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <LucideIcon name="shield-check" size={32} className="mb-2 text-slate-300" />
-                                    <p className="text-sm">Nenhuma autorização ativa no momento.</p>
+                                    <p className="text-sm">{t('saidas.vazio')}</p>
                               </div>
                         ) : (
                               <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                           <thead>
                                                 <tr className="bg-soft-50 border-b border-soft-200">
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Aluno</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Tipo</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Validade</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Responsável / Nota</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Ações</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('saidas.col.aluno')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('comum.tipo')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('saidas.col.validade')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('saidas.col.responsavel')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">{t('saidas.col.acoes')}</th>
                                                 </tr>
                                           </thead>
                                           <tbody className="divide-y divide-soft-100">
@@ -126,8 +127,8 @@ function ExitPermissionManagement() {
                                                                         <div className="text-xs text-navy-700">
                                                                               {perm.type === 'SINGLE' ? (
                                                                                     <>
-                                                                                          <div>De: {formatDateTime(perm.validFrom)}</div>
-                                                                                          <div>Até: {formatDateTime(perm.validUntil)}</div>
+                                                                                          <div>{t('saidas.de')} {formatDateTime(perm.validFrom)}</div>
+                                                                                          <div>{t('saidas.ate')} {formatDateTime(perm.validUntil)}</div>
                                                                                     </>
                                                                               ) : (
                                                                                     <div className="text-slate-500">
@@ -144,13 +145,13 @@ function ExitPermissionManagement() {
                                                                             só com um nome não diria. */}
                                                                         {perm.authorizedByFamily && (
                                                                               <div className="text-xs font-medium text-slate-700">
-                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">Família</span>
+                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">{t('saidas.autoridade.familia.curta')}</span>
                                                                                     {perm.authorizedByFamily}
                                                                               </div>
                                                                         )}
                                                                         {perm.authorizedBySchool && (
                                                                               <div className="text-xs font-medium text-slate-700">
-                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">Escola</span>
+                                                                                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">{t('saidas.autoridade.escola.curta')}</span>
                                                                                     {perm.authorizedBySchool}
                                                                               </div>
                                                                         )}
@@ -162,7 +163,7 @@ function ExitPermissionManagement() {
                                                                               disabled={!canEdit}
                                                                               className="text-xs font-bold text-danger-600 hover:text-danger-700 bg-danger-50 hover:bg-danger-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                                                                         >
-                                                                              Revogar
+                                                                              {t('saidas.revogar')}
                                                                         </button>
                                                                   </td>
                                                             </tr>
@@ -178,8 +179,8 @@ function ExitPermissionManagement() {
                       reutilizável da cantina, ligado ao endpoint /gate. Acessos válidos
                       (autorizações) e tentativas negadas ficam visualmente separados. */}
                   <DeniedAttemptsFeed
-                        title="Tentatives Refusées — Portail"
-                        emptyMessage="Aucune tentative refusée"
+                        title={t('saidas.feed.titulo')}
+                        emptyMessage={t('feed.vazio')}
                         fetchFn={window.api?.getGateAttempts || (async () => [])}
                         pollingMs={5000}
                   />
@@ -190,6 +191,7 @@ function ExitPermissionManagement() {
 }
 
 function NewExitPermissionModal({ onClose, onSaved }) {
+      const t = useI18n();
       const [type, setType] = React.useState('SINGLE');
       // DUAS AUTORIDADES, e o registro precisa dizer qual agiu.
       // A da escola nasce preenchida com o operador logado — acerta na maioria
@@ -279,7 +281,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
             }
             const payload = window.MagboExitPermission.montarPayload(form);
             if (!payload) {
-                  setErroForm('Selecione o aluno pelo nome antes de salvar.');
+                  setErroForm(t('saidas.selecione.aluno'));
                   return;
             }
 
@@ -301,7 +303,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
             <div className="fixed inset-0 z-[400] bg-navy-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                   <div className="bg-white rounded-[24px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="bg-accent-600 p-6 flex items-center justify-between flex-shrink-0">
-                              <h2 className="text-lg font-bold text-white">Nova Autorização de Saída</h2>
+                              <h2 className="text-lg font-bold text-white">{t('saidas.nova.titulo')}</h2>
                               <button onClick={onClose} className="text-white/80 hover:text-white transition-colors">
                                     <LucideIcon name="x" size={24} />
                               </button>
@@ -310,7 +312,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
                               {/* ── Aluno: escolhido pelo NOME, nunca digitado ── */}
                               <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Aluno</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.col.aluno')}</label>
 
                                     {aluno ? (
                                           <div className="flex items-center gap-3 bg-success-50 border border-success-200 rounded-xl px-4 py-3">
@@ -324,7 +326,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                                 </div>
                                                 <button type="button" onClick={trocarAluno}
                                                       className="text-xs font-bold text-accent-700 underline hover:no-underline shrink-0">
-                                                      Trocar
+                                                      {t('saidas.trocar')}
                                                 </button>
                                           </div>
                                     ) : (
@@ -338,7 +340,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                                             value={busca}
                                                             onChange={e => setBusca(e.target.value)}
                                                             className="w-full pl-9 pr-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium"
-                                                            placeholder="Buscar pelo nome (ou matrícula)..."
+                                                            placeholder={t('saidas.busca.aluno')}
                                                       />
                                                 </div>
 
@@ -356,17 +358,16 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                                 )}
 
                                                 {buscando && resultados.length === 0 && (
-                                                      <p className="text-[11px] text-slate-400 mt-1">Buscando...</p>
+                                                      <p className="text-[11px] text-slate-400 mt-1">{t('setor.buscando')}</p>
                                                 )}
                                                 {!buscando && window.MagboExitPermission.buscaValida(busca) && resultados.length === 0 && (
                                                       <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-1">
-                                                            Nenhum aluno com esse nome. Confira a grafia — a busca ignora
-                                                            acentos e maiúsculas.
+                                                            {t('saidas.busca.vazia')}
                                                       </p>
                                                 )}
                                                 {!window.MagboExitPermission.buscaValida(busca) && (
                                                       <p className="text-[11px] text-slate-400 mt-1">
-                                                            Digite ao menos {window.MagboExitPermission.MINIMO_BUSCA} letras do nome.
+                                                            {t('saidas.busca.minimo', { n: window.MagboExitPermission.MINIMO_BUSCA })}
                                                       </p>
                                                 )}
                                           </>
@@ -376,45 +377,44 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                               {/* As duas autoridades, lado a lado e ROTULADAS —
                                   a tela tem de deixar claro qual é qual. */}
                               <div className="rounded-2xl border border-soft-200 bg-soft-50/60 p-4 space-y-3">
-                                    <p className="text-xs font-black text-navy-500 uppercase tracking-wide">Quem autorizou</p>
+                                    <p className="text-xs font-black text-navy-500 uppercase tracking-wide">{t('saidas.autoridades.titulo')}</p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                           <div className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">Família (responsável)</label>
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.autoridade.familia')}</label>
                                                 <input type="text" value={authorizedFamily}
                                                       onChange={e => setAuthorizedFamily(e.target.value)}
-                                                      placeholder="Pai, mãe ou guardião"
+                                                      placeholder={t('saidas.autoridade.familia.exemplo')}
                                                       className="w-full px-4 py-2 bg-white border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" />
                                           </div>
                                           <div className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">Escola (Vie Scolaire)</label>
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.autoridade.escola')}</label>
                                                 <input type="text" value={authorizedSchool}
                                                       onChange={e => setAuthorizedSchool(e.target.value)}
-                                                      placeholder="Membro da Vie Scolaire"
+                                                      placeholder={t('saidas.autoridade.escola.exemplo')}
                                                       className="w-full px-4 py-2 bg-white border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium" />
                                           </div>
                                     </div>
                                     <p className="text-[11px] text-slate-400">
-                                          Preencha <strong>pelo menos uma</strong> das duas. As duas juntas
-                                          quando a família autorizou e a Vie Scolaire referendou.
+                                          {t('saidas.autoridades.regra.a')} <strong>{t('saidas.autoridades.regra.b')}</strong> {t('saidas.autoridades.regra.c')}
                                     </p>
                               </div>
 
                               <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Autorização</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.tipo')}</label>
                                     <select value={type} onChange={e => setType(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium">
-                                          <option value="SINGLE">Saída Única (Data/Hora específica)</option>
-                                          <option value="RECURRING">Recorrente (Dias da semana)</option>
+                                          <option value="SINGLE">{t('saidas.tipo.unica')}</option>
+                                          <option value="RECURRING">{t('saidas.tipo.recorrente')}</option>
                                     </select>
                               </div>
 
                               {type === 'SINGLE' ? (
                                     <div className="grid grid-cols-2 gap-4">
                                           <div className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">Saída</label>
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.saida')}</label>
                                                 <input required type="datetime-local" value={validFrom} onChange={e => setValidFrom(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl text-sm" />
                                           </div>
                                           <div className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">Retorno (Máx)</label>
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.retorno')}</label>
                                                 <input required type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl text-sm" />
                                           </div>
                                     </div>
@@ -422,16 +422,16 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                     <div className="space-y-4">
                                           <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-1">
-                                                      <label className="text-xs font-bold text-slate-500 uppercase">Hora Início</label>
+                                                      <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.hora.inicio')}</label>
                                                       <input required type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl text-sm" />
                                                 </div>
                                                 <div className="space-y-1">
-                                                      <label className="text-xs font-bold text-slate-500 uppercase">Hora Fim</label>
+                                                      <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.hora.fim')}</label>
                                                       <input required type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl text-sm" />
                                                 </div>
                                           </div>
                                           <div className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase">Dias Autorizados</label>
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.dias')}</label>
                                                 <div className="flex gap-2">
                                                       {['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY'].map((d, i) => (
                                                             <label key={d} className={`flex-1 text-center py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${days[d] ? 'bg-accent-100 text-accent-700 border-accent-200' : 'bg-soft-50 text-slate-400 border-soft-200'} border`}>
@@ -445,7 +445,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                               )}
 
                               <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500 uppercase">Observações (Opcional)</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('saidas.campo.obs')}</label>
                                     <textarea value={notes} onChange={e => setNotes(e.target.value)} rows="2" className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-accent-500 text-sm font-medium resize-none"></textarea>
                               </div>
                         </form>
@@ -461,10 +461,10 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                         )}
 
                         <div className="bg-soft-50 p-4 border-t border-soft-200 flex justify-end gap-2">
-                              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-soft-100 rounded-xl transition-colors">Cancelar</button>
+                              <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-soft-100 rounded-xl transition-colors">{t('acao.cancelar')}</button>
                               <button type="button" onClick={handleSubmit} disabled={saving} className="btn bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2">
                                     {saving && <LucideIcon name="loader-2" size={16} className="animate-spin" />}
-                                    Salvar Autorização
+                                    {t('saidas.salvar')}
                               </button>
                         </div>
                   </div>

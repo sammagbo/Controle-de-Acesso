@@ -6,6 +6,7 @@
 // Em sucesso, chama onSuccess() (ex: ativa o adminView no App).
 
 function AdminPinModal({ open, onSuccess, onClose }) {
+      const t = useI18n();
       const [pin, setPin] = React.useState('');
       const [loading, setLoading] = React.useState(false);
       const [error, setError] = React.useState('');
@@ -54,7 +55,7 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                   } else {
                         const newAttempts = attempts + 1;
                         setAttempts(newAttempts);
-                        if (data.message && data.message !== 'PIN incorreto') {
+                        if (data.message && data.message !== t('pin.erro')) {
                               setError(data.message);
                         } else if (newAttempts >= 3) {
                               setError(`PIN incorreto. Já errou ${newAttempts} vezes.`);
@@ -87,14 +88,14 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                                           <LucideIcon name="lock" size={40} className="text-navy-500" />
                                     </div>
                                     <div className="text-center">
-                                          <h2 className="text-2xl font-black text-navy-500">Acesso Administrativo</h2>
-                                          <p className="text-sm text-slate-400 mt-1">Digite o PIN para entrar no Painel Administrativo.</p>
+                                          <h2 className="text-2xl font-black text-navy-500">{t('pin.titulo')}</h2>
+                                          <p className="text-sm text-slate-400 mt-1">{t('pin.subtitulo')}</p>
                                     </div>
                               </div>
 
                               {/* Input PIN */}
                               <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PIN Administrativo</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('pin.rotulo')}</label>
                                     <input
                                           ref={inputRef}
                                           type="password"
@@ -121,7 +122,7 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                                           disabled={loading}
                                           className="px-4 py-3 rounded-xl bg-soft-100 hover:bg-soft-200 text-navy-500 font-bold text-sm transition-colors disabled:opacity-50"
                                     >
-                                          Cancelar
+                                          {t('acao.cancelar')}
                                     </button>
                                     <button
                                           onClick={handleSubmit}
@@ -131,12 +132,12 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                                           {loading ? (
                                                 <>
                                                       <LucideIcon name="loader-2" size={16} className="animate-spin" />
-                                                      Validando...
+                                                      {t('pin.validando')}
                                                 </>
                                           ) : (
                                                 <>
                                                       <LucideIcon name="unlock" size={16} />
-                                                      Entrar
+                                                      {t('pin.entrar')}
                                                 </>
                                           )}
                                     </button>

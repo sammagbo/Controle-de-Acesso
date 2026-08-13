@@ -3,6 +3,7 @@
 // =====================================================================
 
 function ActiveTimers({ activeTimers, pointId }) {
+      const t = useI18n();
       const [, forceUpdate] = React.useState(0);
 
       React.useEffect(() => {
@@ -18,7 +19,7 @@ function ActiveTimers({ activeTimers, pointId }) {
                   <div className="flex items-center gap-2 mb-3">
                         <LucideIcon name="timer" size={18} className="text-warning-600" />
                         <h4 className="text-sm font-bold text-warning-600 uppercase tracking-wider">
-                              Tempo de Permanência
+                              {t('timers.titulo')}
                         </h4>
                         <span className="ml-auto bg-warning-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                               {timersForPoint.length}

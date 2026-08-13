@@ -14,6 +14,7 @@
 function PasswordInput({ value, onChange, id, name, placeholder, autoComplete = 'current-password',
       required = false, disabled = false, className = '', style = null, inputRef = null, onKeyDown = null }) {
       const [visivel, setVisivel] = React.useState(false);
+      const t = useI18n();
 
       return (
             <div className="relative">
@@ -42,8 +43,8 @@ function PasswordInput({ value, onChange, id, name, placeholder, autoComplete = 
                         // botão de entrar — o olho é auxílio de mouse, não parada
                         // obrigatória do teclado.
                         tabIndex={-1}
-                        title={visivel ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                        aria-label={visivel ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                        title={t(visivel ? 'senha.ocultar' : 'senha.mostrar')}
+                        aria-label={t(visivel ? 'senha.ocultar' : 'senha.mostrar')}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy-500 transition-colors disabled:opacity-40"
                   >
                         <LucideIcon name={visivel ? 'eye-off' : 'eye'} size={18} />

@@ -36,12 +36,15 @@ function LoginScreen({ onLoginSuccess }) {
   // ÚNICA tela migrada para o i18n (js/utils/i18n.js). As outras continuam
   // com os literais de sempre de propósito: migrar é revisão de texto com
   // quem opera, não busca-e-substitui.
-  const [lang, setLang] = React.useState(() => window.MagboI18n.getLang());
-  const t = React.useCallback((k, p) => window.MagboI18n.t(k, p), [lang]);
+  // ⚠️ ERA estado LOCAL (`useState(getLang)`), que resolvia o problema só para
+  // esta tela: a troca no cabeçalho não a alcançava. O hook escuta o evento
+  // `magbo-lang-changed` e vale para o app inteiro — ver js/utils/i18nReact.js.
+  const t = useI18n();
+  const lang = window.MagboI18n.getLang();
 
   const trocarIdioma = (code) => {
     // Persiste na MÁQUINA: o posto é fixo, quem senta nele muda.
-    setLang(window.MagboI18n.setLang(code));
+    window.MagboI18n.setLang(code);
   };
 
   const handleSubmit = async (e) => {
@@ -100,7 +103,7 @@ function LoginScreen({ onLoginSuccess }) {
             MAGBO
           </h1>
           <p className="font-script text-2xl mb-5" style={{ color: '#48C3D2' }}>
-            Access Control
+            {t("login.marca.produto")}
           </p>
           <div className="h-px w-32 mb-4" style={{ background: '#48C3D2' }}></div>
           <p className="font-serif italic text-sm text-white/85 leading-relaxed">
@@ -118,10 +121,10 @@ function LoginScreen({ onLoginSuccess }) {
   rel="noopener noreferrer"
   className="font-serif text-[10px] tracking-[0.2em] mb-1 block hover:opacity-80 transition cursor-pointer"
   style={{ color: '#48C3D2', fontWeight: 600, textDecoration: 'none' }}>
-            LYCÉE MOLIÈRE · RIO DE JANEIRO
+            {t("login.rodape.escola")}
           </a>
           <p className="font-serif italic text-[10px] text-white/60">
-            Anno MMXXVI · v1.0
+            {t("login.rodape.ano")}
           </p>
           <a
             href="https://sammagbo.com"
@@ -129,7 +132,7 @@ function LoginScreen({ onLoginSuccess }) {
             rel="noopener noreferrer"
             className="font-script text-sm mt-2 inline-block hover:opacity-80 transition cursor-pointer"
             style={{ color: '#48C3D2', textDecoration: 'none' }}>
-            sammagbo.com
+            {t("login.rodape.autor")}
           </a>
         </div>
       </div>
@@ -191,7 +194,7 @@ function LoginScreen({ onLoginSuccess }) {
                 disabled={loading}
                 className="w-full px-4 py-3 bg-white border font-serif text-base focus:outline-none focus:ring-2 transition disabled:opacity-50"
                 style={{ borderColor: '#0C1B3A', color: '#0C1B3A' }}
-                placeholder="admin"
+                placeholder={t("login.usuario.exemplo")}
               />
             </div>
 
@@ -244,14 +247,13 @@ function LoginScreen({ onLoginSuccess }) {
                 <button type="button" onClick={() => { setEsqueciNome(username); setEsqueci('form'); }}
                   className="font-serif italic text-xs underline hover:opacity-70 transition"
                   style={{ color: '#1F2D52' }}>
-                  Mot de passe oublié ?
+                  {t("login.esqueci")}
                 </button>
               )}
               {esqueci === 'form' && (
                 <div className="border p-3 space-y-2" style={{ borderColor: '#0C1B3A', background: '#FFFFFF' }}>
                   <p className="font-serif text-xs" style={{ color: '#0C1B3A' }}>
-                    Votre demande sera transmise à l'administrateur, qui réinitialisera
-                    votre mot de passe. Indiquez votre nom d'utilisateur :
+                    {t('login.esqueci.explicacao')}
                   </p>
                   <input type="text" value={esqueciNome} onChange={e => setEsqueciNome(e.target.value)}
                     className="w-full px-3 py-2 bg-white border font-serif text-sm focus:outline-none"
@@ -261,11 +263,11 @@ function LoginScreen({ onLoginSuccess }) {
                       disabled={!(esqueciNome.trim())}
                       className="px-3 py-1.5 font-serif text-xs disabled:opacity-40"
                       style={{ background: '#0C1B3A', color: '#F7F4ED' }}>
-                      Envoyer la demande
+                      {t('login.esqueci.enviar')}
                     </button>
                     <button type="button" onClick={() => setEsqueci(null)}
                       className="px-3 py-1.5 font-serif text-xs underline" style={{ color: '#1F2D52' }}>
-                      Annuler
+                      {t('login.esqueci.cancelar')}
                     </button>
                   </div>
                 </div>
@@ -273,8 +275,7 @@ function LoginScreen({ onLoginSuccess }) {
               {esqueci === 'sent' && (
                 <p className="font-serif text-xs px-3 py-2 border-l-2"
                   style={{ background: '#F0FDF4', borderColor: '#16A34A', color: '#166534' }}>
-                  Demande enregistrée. L'administrateur la verra à sa prochaine connexion —
-                  en cas d'urgence, contactez la Vie Scolaire directement.
+                  {t('login.esqueci.enviado')}
                 </p>
               )}
             </div>

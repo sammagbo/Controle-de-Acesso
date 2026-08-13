@@ -3,6 +3,8 @@
 // =====================================================================
 
 function MealEntitlementManagement() {
+      const t = useI18n();
+      const locale = useLocale();
       const [searchTerm, setSearchTerm] = React.useState('');
       const [filterTurma, setFilterTurma] = React.useState('');
       const [filterStatus, setFilterStatus] = React.useState('');
@@ -46,7 +48,7 @@ function MealEntitlementManagement() {
                   const sum = await window.api.getMealEntitlementSummary();
                   setSummary(sum);
             } catch (err) {
-                  setError(err.message || 'Erreur lors du chargement des données.');
+                  setError(err.message || t('cantina.gestao.erro.carregar'));
             } finally {
                   setLoading(false);
             }
@@ -62,7 +64,7 @@ function MealEntitlementManagement() {
 
       const handleToggleStatus = async (userId, currentEntitlement) => {
             if (!canEdit) {
-                  alert("Vous n'avez pas l'autorisation de modifier ce droit.");
+                  alert(t('cantina.gestao.sem.permissao'));
                   return;
             }
 
@@ -73,7 +75,7 @@ function MealEntitlementManagement() {
             // passava a valer para sempre. A montagem vive em
             // js/utils/mealEntitlement.js, com teste.
             const payload = window.MagboMealEntitlement.buildTogglePayload(
-                  currentEntitlement, 'Modifié via interface cantine');
+                  currentEntitlement, t('cantina.gestao.motivo.ui'));
 
             try {
                   const updated = await window.api.putMealEntitlement(userId, payload);
@@ -119,7 +121,7 @@ function MealEntitlementManagement() {
 
             setImportando(true);
             try {
-                  if (!window.XLSX) throw new Error("La bibliothèque XLSX n'est pas chargée.");
+                  if (!window.XLSX) throw new Error(t('cantina.gestao.xlsx.ausente'));
 
                   const data = await file.arrayBuffer();
                   const workbook = window.XLSX.read(data, { type: 'array' });
@@ -135,8 +137,7 @@ function MealEntitlementManagement() {
 
                   if (rows.length === 0) {
                         throw new Error(
-                              "Nenhuma linha reconhecida. Confira se a planilha tem as colunas "
-                              + "Matrícula e Status, com o cabeçalho na primeira linha.");
+                              t('cantina.gestao.import.nada'));
                   }
 
                   setImportRows(rows);
@@ -145,7 +146,7 @@ function MealEntitlementManagement() {
                   setImportPlan(await window.api.previewMealEntitlementImport(rows));
             } catch (err) {
                   limparImport();
-                  alert("Erreur d'importation: " + err.message);
+                  alert(t('cantina.gestao.import.erro') + ' ' + err.message);
             } finally {
                   setImportando(false);
                   if (fileInputRef.current) fileInputRef.current.value = '';
@@ -161,16 +162,19 @@ function MealEntitlementManagement() {
                   // confirmar alguém pode ter mexido num direito pela tela.
                   const relatorio = await window.api.applyMealEntitlementImport(importRows);
                   setImportPlan(relatorio);
-                  const t = relatorio.totais || {};
+                  // ⚠️ A variável local chamava-se `t` e SOMBREAVA a função de
+                  // tradução — qualquer t('chave') aqui dentro viraria
+                  // TypeError. Renomeada junto com a migração do i18n.
+                  const totais = relatorio.totais || {};
                   alert(
-                        `Importação aplicada\n\n`
-                        + `Criados: ${t.CRIAR || 0}\n`
-                        + `Atualizados: ${t.ATUALIZAR || 0}\n`
-                        + `Ignorados: ${t.PULAR || 0}\n`
-                        + `Conflitos: ${t.CONFLITO || 0}`);
+                        t('cantina.gestao.aplicado.titulo') + '\n\n'
+                        + t('cantina.gestao.aplicado.criados', { n: totais.CRIAR || 0 }) + '\n'
+                        + t('cantina.gestao.aplicado.atualizados', { n: totais.ATUALIZAR || 0 }) + '\n'
+                        + t('cantina.gestao.aplicado.ignorados', { n: totais.PULAR || 0 }) + '\n'
+                        + t('cantina.gestao.aplicado.conflitos', { n: totais.CONFLITO || 0 }));
                   loadData();
             } catch (err) {
-                  alert("Importação não aplicada: " + err.message);
+                  alert(t('cantina.gestao.import.nao.aplicada') + ' ' + err.message);
             } finally {
                   setImportando(false);
             }
@@ -178,10 +182,10 @@ function MealEntitlementManagement() {
 
       /** Rótulos das quatro ações — mesmos nomes da aba HikCentral. */
       const ACOES_REFEICAO = {
-            CRIAR: { label: 'Criar', cor: 'text-success-700 bg-success-100' },
-            ATUALIZAR: { label: 'Atualizar', cor: 'text-accent-700 bg-accent-100' },
-            PULAR: { label: 'Ignorar', cor: 'text-slate-600 bg-soft-100' },
-            CONFLITO: { label: 'Conflito', cor: 'text-danger-700 bg-danger-100' }
+            CRIAR: { label: null, chave: 'plano.criar', cor: 'text-success-700 bg-success-100' },
+            ATUALIZAR: { label: null, chave: 'plano.atualizar', cor: 'text-accent-700 bg-accent-100' },
+            PULAR: { label: null, chave: 'plano.ignorar', cor: 'text-slate-600 bg-soft-100' },
+            CONFLITO: { label: null, chave: 'plano.conflito', cor: 'text-danger-700 bg-danger-100' }
       };
 
       // Mesma máquina de estados da aba HikCentral (js/utils/importPlan.js).
@@ -211,8 +215,8 @@ function MealEntitlementManagement() {
             <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-fade-in">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                              <h1 className="text-2xl font-black text-navy-800">Gestion Cantine</h1>
-                              <p className="text-sm text-slate-500">Gérez les droits de repas des étudiants.</p>
+                              <h1 className="text-2xl font-black text-navy-800">{t('cantina.gestao.titulo')}</h1>
+                              <p className="text-sm text-slate-500">{t('cantina.gestao.subtitulo')}</p>
                         </div>
 
                         {canEdit && (
@@ -220,7 +224,7 @@ function MealEntitlementManagement() {
                                     <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
                                     <button onClick={handleImportClick} disabled={importando} className="btn bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
                                           <LucideIcon name={importando ? "loader-2" : "upload"} size={18} className={importando ? "animate-spin" : ""} />
-                                          {importando ? "Lecture..." : "Importer Liste (XLSX)"}
+                                          {importando ? t('cantina.gestao.lendo') : t('cantina.gestao.importar')}
                                     </button>
                               </div>
                         )}
@@ -230,18 +234,18 @@ function MealEntitlementManagement() {
                   {canEdit && (
                         <div className="bg-soft-50 p-6 rounded-2xl border border-soft-200 space-y-4">
                               <div>
-                                    <h3 className="text-lg font-bold text-navy-500 mb-2">Importar lista de direitos (.xlsx)</h3>
+                                    <h3 className="text-lg font-bold text-navy-500 mb-2">{t('cantina.gestao.import.titulo')}</h3>
                                     <p className="text-sm text-slate-500 mb-3">
-                                          Cabeçalho na <strong>primeira linha</strong>. As colunas são lidas pelo
-                                          <strong> nome</strong> — acento, maiúscula e espaço não importam.
+                                          {t('cantina.gestao.import.regra.a')} <strong>{t('cantina.gestao.import.regra.b')}</strong>{t('cantina.gestao.import.regra.c')}
+                                          <strong> {t('cantina.gestao.import.regra.d')}</strong> {t('cantina.gestao.import.regra.e')}
                                     </p>
                                     <div className="overflow-x-auto">
                                           <table className="w-full text-xs">
                                                 <thead>
                                                       <tr className="text-left text-slate-400 uppercase font-bold">
-                                                            <th className="py-1 pr-3">Coluna</th>
-                                                            <th className="py-1 pr-3">Obrigatória</th>
-                                                            <th className="py-1">Nomes aceitos</th>
+                                                            <th className="py-1 pr-3">{t('cantina.gestao.col.coluna')}</th>
+                                                            <th className="py-1 pr-3">{t('cantina.gestao.col.obrigatoria')}</th>
+                                                            <th className="py-1">{t('cantina.gestao.col.aceitos')}</th>
                                                       </tr>
                                                 </thead>
                                                 <tbody>
@@ -256,8 +260,8 @@ function MealEntitlementManagement() {
                                                                   : 'font-normal text-slate-500'}`}>{c.campo}</td>
                                                                   <td className="py-1.5 pr-3">
                                                                         {c.obrigatorio
-                                                                              ? <span className="text-danger-700 font-bold">sim</span>
-                                                                              : <span className="text-slate-400">não</span>}
+                                                                              ? <span className="text-danger-700 font-bold">{t('comum.sim')}</span>
+                                                                              : <span className="text-slate-400">{t('comum.nao')}</span>}
                                                                   </td>
                                                                   <td className="py-1.5 text-slate-600">
                                                                         <code className="bg-soft-100 px-1.5 py-0.5 rounded">{c.aceitos.join(' · ')}</code>
@@ -268,17 +272,15 @@ function MealEntitlementManagement() {
                                           </table>
                                     </div>
                                     <ul className="text-xs text-slate-500 space-y-1 mt-3 list-disc pl-5">
-                                          <li><strong>Status</strong> aceita português, francês ou o nome do sistema:
+                                          <li><strong>{t('comum.status')}</strong> {t('cantina.gestao.nota.status')}
                                                 <em> Autorizado · Não autorizado · Autorisé · Non autorisé · AUTHORIZED · NOT_AUTHORIZED</em>.</li>
-                                          <li><strong>Aluno que não está no MAGBO é ignorado</strong>, nunca criado —
-                                                o cadastro de aluno vem da importação Pronote.</li>
-                                          <li>Linha que não mudaria nada aparece como <em>ignorar</em>.</li>
-                                          <li><strong>Nada é gravado antes de você conferir e confirmar.</strong></li>
+                                          <li><strong>{t('cantina.gestao.nota.ignorado.a')}</strong>{t('cantina.gestao.nota.ignorado.b')}</li>
+                                          <li>{t('cantina.gestao.nota.sem.mudanca.a')} <em>{t('plano.ignorar')}</em>.</li>
+                                          <li><strong>{t('cantina.gestao.nota.dry.run')}</strong></li>
                                     </ul>
                                     <p className="text-xs text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2 mt-3">
-                                          ⚠️ A matrícula tem <strong>zeros à esquerda</strong> (0001764). Formate a coluna
-                                          como <strong>Texto</strong> antes de salvar — o Excel a transforma em número,
-                                          come o zero, e aí nenhuma linha casa com o cadastro.
+                                          ⚠️ {t('cantina.gestao.nota.zeros.a')} <strong>{t('cantina.gestao.nota.zeros.b')}</strong> (0001764). {t('cantina.gestao.nota.zeros.c')}
+                                          <strong> {t('cantina.gestao.nota.zeros.d')}</strong> {t('cantina.gestao.nota.zeros.e')}
                                     </p>
                               </div>
 
@@ -286,14 +288,14 @@ function MealEntitlementManagement() {
                                     <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
                                           <div className="flex items-center justify-between">
                                                 <p className="font-bold text-navy-500 text-sm">{plano.titulo}</p>
-                                                <span className="text-xs text-slate-400">{plano.total} linhas</span>
+                                                <span className="text-xs text-slate-400">{t('plano.linhas', { n: plano.total })}</span>
                                           </div>
 
                                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                                 {Object.keys(ACOES_REFEICAO).map(k => (
                                                       <div key={k} className="rounded-xl border border-soft-200 p-3 text-center">
                                                             <p className="text-xl font-bold text-navy-500 tabular-nums">{plano.totais[k] || 0}</p>
-                                                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{ACOES_REFEICAO[k].label}</p>
+                                                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{t(ACOES_REFEICAO[k].chave)}</p>
                                                       </div>
                                                 ))}
                                           </div>
@@ -311,7 +313,7 @@ function MealEntitlementManagement() {
                                                                                     <td className="py-1 px-2 font-mono text-slate-400 whitespace-nowrap">L{l.linha}</td>
                                                                                     <td className="py-1 px-2 whitespace-nowrap">
                                                                                           <span className={`px-1.5 py-0.5 rounded font-bold ${ACOES_REFEICAO[l.acao].cor}`}>
-                                                                                                {ACOES_REFEICAO[l.acao].label}
+                                                                                                {t(ACOES_REFEICAO[l.acao].chave)}
                                                                                           </span>
                                                                                     </td>
                                                                                     <td className="py-1 px-2 font-mono text-slate-500 whitespace-nowrap">{l.userId || '—'}</td>
@@ -328,12 +330,12 @@ function MealEntitlementManagement() {
                                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 border-t border-soft-200 pt-3">
                                                 <p className="text-xs text-slate-500 sm:flex-1">
                                                       {plano.podeConfirmar
-                                                            ? 'Simulação conferida — nada foi gravado ainda.'
-                                                            : 'Importação aplicada.'}
+                                                            ? t('cantina.gestao.simulado')
+                                                            : t('cantina.gestao.aplicado')}
                                                 </p>
                                                 <button type="button" onClick={limparImport}
                                                       className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold hover:bg-soft-200">
-                                                      Descartar
+                                                      {t('acao.descartar')}
                                                 </button>
                                                 {plano.podeConfirmar && (
                                                       <button
@@ -355,19 +357,19 @@ function MealEntitlementManagement() {
                   {summary && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Autorisés</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('cantina.gestao.kpi.autorizados')}</p>
                                     <p className="text-2xl font-black text-success-600 mt-2">{summary.authorized ?? 0}</p>
                               </div>
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Non Autorisés</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('cantina.gestao.kpi.nao.autorizados')}</p>
                                     <p className="text-2xl font-black text-danger-600 mt-2">{summary.notAuthorized ?? 0}</p>
                               </div>
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">En attente</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('cantina.gestao.kpi.pendentes')}</p>
                                     <p className="text-2xl font-black text-warning-600 mt-2">{summary.pending ?? 0}</p>
                               </div>
                               <div className="bg-white p-4 rounded-2xl border border-soft-200 shadow-sm flex flex-col justify-between">
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Élèves</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('cantina.gestao.kpi.alunos')}</p>
                                     <p className="text-2xl font-black text-navy-600 mt-2">{summary.totalStudents ?? 0}</p>
                               </div>
                         </div>
@@ -379,7 +381,7 @@ function MealEntitlementManagement() {
                               <LucideIcon name="search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                               <input 
                                     type="text" 
-                                    placeholder="Rechercher par nom ou matricule..." 
+                                    placeholder={t('cantina.gestao.busca')} 
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-navy-500 text-sm font-medium"
@@ -391,7 +393,7 @@ function MealEntitlementManagement() {
                                     onChange={e => setFilterTurma(e.target.value)}
                                     className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-navy-500 text-sm font-medium"
                               >
-                                    <option value="">Toutes les classes</option>
+                                    <option value="">{t('cantina.gestao.todas.turmas')}</option>
                                     <option value="A1">A1</option>
                                     <option value="A2">A2</option>
                                     <option value="B1">B1</option>
@@ -404,9 +406,9 @@ function MealEntitlementManagement() {
                                     onChange={e => setFilterStatus(e.target.value)}
                                     className="w-full px-4 py-2 bg-soft-50 border border-soft-200 rounded-xl focus:ring-2 focus:ring-navy-500 text-sm font-medium"
                               >
-                                    <option value="">Tous les statuts</option>
-                                    <option value="AUTHORIZED">Autorisé</option>
-                                    <option value="NOT_AUTHORIZED">Non autorisé</option>
+                                    <option value="">{t('cantina.gestao.todos.status')}</option>
+                                    <option value="AUTHORIZED">{t('cantina.gestao.status.autorizado')}</option>
+                                    <option value="NOT_AUTHORIZED">{t('cantina.gestao.status.nao.autorizado')}</option>
                               </select>
                         </div>
                   </div>
@@ -416,7 +418,7 @@ function MealEntitlementManagement() {
                         {loading ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <LucideIcon name="loader-2" size={24} className="animate-spin mb-2" />
-                                    <p className="text-sm">Chargement des droits...</p>
+                                    <p className="text-sm">{t('cantina.gestao.carregando')}</p>
                               </div>
                         ) : error ? (
                               <div className="flex flex-col items-center justify-center py-12 text-danger-500">
@@ -426,18 +428,18 @@ function MealEntitlementManagement() {
                         ) : mergedList.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <LucideIcon name="search-x" size={32} className="mb-2 text-slate-300" />
-                                    <p className="text-sm">Aucun résultat trouvé.</p>
+                                    <p className="text-sm">{t('cantina.gestao.vazio')}</p>
                               </div>
                         ) : (
                               <div className="overflow-x-auto">
                                     <table className="w-full text-left border-collapse">
                                           <thead>
                                                 <tr className="bg-soft-50 border-b border-soft-200">
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Étudiant</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Classe</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Statut Droit</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">Dernière Modif.</th>
-                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('cantina.gestao.col.aluno')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('comum.turma')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('cantina.gestao.col.direito')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('cantina.gestao.col.modif')}</th>
+                                                      <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">{t('saidas.col.acoes')}</th>
                                                 </tr>
                                           </thead>
                                           <tbody className="divide-y divide-soft-100">
@@ -480,8 +482,8 @@ function MealEntitlementManagement() {
                                                                   <td className="px-6 py-3">
                                                                         {ent?.updatedAt ? (
                                                                               <div className="text-xs text-slate-500">
-                                                                                    {new Date(ent.updatedAt).toLocaleDateString('fr-FR')}
-                                                                                    <div className="text-[10px] text-slate-400">par {ent.updatedBy || 'API'}</div>
+                                                                                    {new Date(ent.updatedAt).toLocaleDateString(locale)}
+                                                                                    <div className="text-[10px] text-slate-400">{t('cantina.hist.por')} {ent.updatedBy || 'API'}</div>
                                                                               </div>
                                                                         ) : (
                                                                               <span className="text-xs text-slate-400">—</span>
@@ -491,7 +493,7 @@ function MealEntitlementManagement() {
                                                                         <button 
                                                                               onClick={() => setSelectedUserHistory(item.userId)}
                                                                               className="p-1.5 text-slate-400 hover:text-navy-600 hover:bg-soft-100 rounded-lg transition-colors"
-                                                                              title="Voir l'historique"
+                                                                              title={t('cantina.gestao.historico')}
                                                                         >
                                                                               <LucideIcon name="history" size={18} />
                                                                         </button>

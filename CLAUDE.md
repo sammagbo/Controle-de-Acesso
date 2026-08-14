@@ -88,6 +88,49 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
   "Toujours"** no portão. Novo `tests/exitPermissionContract.test.js` trava o
   contrato DTO↔tela por AST.
 
+### A rodada de 14/08 — o que a revisão fechou
+> Segunda passagem do painel de nove agentes. As branches continuam **não
+> mergeadas**; `fix/audit-logic` já entrou (main `0b35872`).
+> Ordem: `feat/regime-de-sortie` · `feat/ppms-evacuation` · `fix/ontime-contract`
+> · `feat/totvs-link` · estas duas de documentação.
+
+- **O regime CHEGA AO PORTÃO.** `GET /api/admin/regimes/gate/{pointId}`, consumido
+  pelo `SectorView` só em pontos PORT, no mesmo polling de 3 s das passagens.
+  Faixa grande para a passagem que precisa de atenção + pastilha em cada linha,
+  **sem um clique a mais**. ⚠️ Cada linha é julgada **na hora da passagem**:
+  avaliar "agora" faria a linha das 10h ser rejulgada às 16h e mudar de cor
+  sozinha — vermelha para verde quando o fim da jornada chegasse.
+- ⚠️ **Na faixa, ATENÇÃO VENCE RECÊNCIA.** Num portão às 11h50 passam várias
+  pessoas em segundos; mostrar sempre a última enterraria um vermelho sob o verde
+  seguinte. O `NON_AUTORISE`/`A_VERIFIER` mais recente dos últimos **2 minutos**
+  segura a faixa, com a hora à vista e a contagem de quantas passagens vieram
+  depois.
+- **As quatro leituras do AED**, e as duas do meio decidem se a tela serve:
+  `INCONNU` (923 alunos no dia 1) é **ardósia com borda** — não o cinza-claro de
+  `MISSING_DOOR_MAPPING`, que o operador aprendeu a ignorar — e diz «confira o
+  carnet, como antes»; `A_VERIFIER` é âmbar e diz **o que** conferir. Nenhum dos
+  dois parece recusa; nenhum parece aprovação. Todo veredicto traz a **ação**.
+- **`A_VERIFIER` deixa rastro** (`DenialReason.REGIME_TO_VERIFY`, como
+  `OBSERVATION`): um veredicto que ninguém consegue contar depois não pode ser
+  melhorado. ⚠️ **Não é objeção** — o MAGBO não discorda da saída, ele não sabe.
+  `INCONNU` continua **sem** rastro de propósito (923 linhas/dia afogariam as
+  duas famílias que importam).
+- **«Autorisé par» vem do CADASTRO** (`responsavel_id`), não do teclado: o campo é
+  prova, e texto livre eram 923 digitações em setembro e 923 strings que não
+  provam nada. O escape para quem assinou sem ser o responsável cadastrado marca
+  a linha **como exceção**.
+- **PPMS:** exportação CSV em massa **removida** (decisão do Sam — a lei pede
+  papel para a cellule de crise, e a impressão fica; um CSV com o nome de todas
+  as crianças vive no laptop de alguém para sempre). A **zona passa a ser a visita
+  aberta**: quem saiu do CDI e continua na escola vai para `EM_TRANSITO` com o
+  último lugar onde foi visto — dizer «CDI» mandaria a equipe procurar numa sala
+  vazia. Aviso novo quando há gente em ponto **sem fechamento automático** (a
+  enfermaria, cujo registro é manual).
+- ⚠️ **`tests/migrations.test.js` responde ao veto do sucessor**: reprova quando
+  uma migração não é citada no README de deploy, quando não tem rollback, e
+  quando o CHECK de `denial_reason` deixa de fora um valor do enum. Não prova que
+  o SQL roda — isso exige Postgres e continua na conferência manual.
+
 ### A semana de 29/07 a 05/08 — cinco deploys (resumo; detalhe no handoff)
 - **Hora do EVENTO, não a de recepção** (`8d78f41`, `EventTimeResolver`): incidente de 03/08 — fila offline de 33 eventos entrou toda às 14:51, gerando durações **negativas**. Fallback para a hora de recepção só com `dateTime` ausente/ilegível, >5 min no futuro ou >30 dias no passado, **sempre com linha INFO**. ⚠️ **As REGRAS continuam avaliadas na hora da DECISÃO** — dívida aberta.
 - **Três camadas de dedup, distintas:** ingestão (`magbo.ingestion-dedup.*`, **60 s**, chave IP+`serialNo`) · mesma passagem (`magbo.same-passage-window-seconds`, **30 s**, chave pessoa+ponto+ação) · refeição duplicada (`magbo.dedup.window-seconds`, **90 s**, regra de negócio). Não confundir.

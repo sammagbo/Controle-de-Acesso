@@ -317,7 +317,7 @@ class RegimeSortieServiceTest {
         }
 
         @Test
-        @DisplayName("★★ a janela do meio-dia do externo tem FIM: 13h59 ainda libera, 14h nao")
+        @DisplayName("★★ a janela do meio-dia do externo tem FIM: 13h libera, 14h nao (a folga fecha às 13h45)")
         void janelaDoMeioDiaFecha() {
             regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
             assertThat(as(13, 0).verdict())

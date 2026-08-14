@@ -478,7 +478,10 @@ public class AccessDecisionService {
             }
 
             if (motivoRegistro != null) {
-                attemptService.record(
+                // ⚠️ ISOLADA: transacao propria, falha engolida. Um registro que
+                // so observa nao pode ter poder de apagar a passagem que ele
+                // observa — ver recordObservacaoIsolada.
+                attemptService.recordObservacaoIsolada(
                         p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
                         p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
                         p.method(), p.authResult(),

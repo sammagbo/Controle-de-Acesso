@@ -33,6 +33,49 @@ public class AccessAttemptService {
      *         atuais descartam o retorno; quem passar a usa-lo precisa tratar
      *         o null.
      */
+    /**
+     * Grava uma OBSERVACAO em transacao PROPRIA — e engole a falha.
+     *
+     * ⚠️ EXISTE PARA QUE UM REGISTRO DE APOIO NUNCA POSSA APAGAR A PROVA.
+     *
+     * O bloco do regime de sortie corre dentro do @Transactional que grava a
+     * PASSAGEM. Uma observacao e informacao de apoio: ela nao decide nada, nao
+     * nega ninguem e nao muda o que a porta faz. Mas, na mesma transacao, um
+     * INSERT que falhe — o caso concreto e o CHECK de denial_reason ainda nao
+     * conhecer o motivo novo, porque a V015 nao foi aplicada na VM — envenena a
+     * transacao inteira e leva junto o `access_log` da crianca cruzando o
+     * portao. A prova de que ela passou desapareceria por causa do aviso sobre
+     * ela ter passado.
+     *
+     * Nao adianta try/catch no chamador: em Spring, a excecao ja marcou a
+     * transacao como rollback-only, e capturar nao a despoluí. Por isso
+     * REQUIRES_NEW — a observacao vive e morre sozinha.
+     *
+     * Documentar a ordem de deploy (aplicar a V015 antes de ligar a regra)
+     * continua certo e continua no README; o que nao pode e a prova depender
+     * de alguem ter lido o README. Painel de revisao, chef d'etablissement e
+     * CPE, 14/08/2026.
+     */
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordObservacaoIsolada(
+        String userId, String employeeNoRaw, String nomeSnapshot, String pointId,
+        AccessAction action, String terminalIp, AuthMethod authMethod, AuthResult authResult,
+        AuthorizationResult authorizationResult, DenialReason denialReason,
+        Integer hikvisionSubEventType, boolean doorMappingFallback, java.time.LocalDateTime eventTime) {
+        try {
+            record(userId, employeeNoRaw, nomeSnapshot, pointId, action, terminalIp,
+                    authMethod, authResult, authorizationResult, denialReason,
+                    hikvisionSubEventType, doorMappingFallback, eventTime);
+        } catch (RuntimeException e) {
+            // O aviso se perde; a passagem fica. E a troca certa: sem a linha de
+            // observacao a Vie Scolaire nao ve um alerta; sem o access_log
+            // ninguem sabe que a crianca saiu.
+            log.error("Observação de regime NÃO gravada (a passagem foi preservada): user={}, motivo={}, erro={}",
+                    userId, denialReason, e.toString());
+        }
+    }
+
     public AccessAttempt record(
         String userId,
         String employeeNoRaw,

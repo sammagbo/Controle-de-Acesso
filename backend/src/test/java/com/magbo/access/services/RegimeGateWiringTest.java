@@ -166,7 +166,7 @@ class RegimeGateWiringTest {
         saiPelaPortaria();
 
         // 1. O aviso, como OBSERVATION — nunca DENIED.
-        verify(attemptService).record(
+        verify(attemptService).recordObservacaoIsolada(
                 eq(ALUNO), anyString(), anyString(), eq("PORT1"), eq(AccessAction.SAIDA),
                 anyString(), any(), any(),
                 eq(AuthorizationResult.OBSERVATION), eq(DenialReason.REGIME_NOT_ALLOWED),
@@ -182,7 +182,7 @@ class RegimeGateWiringTest {
     void semRegimeNaoPoluiOFeed() {
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
         verify(accessLogRepository).save(any(AccessLog.class));
@@ -195,7 +195,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService).record(
+        verify(attemptService).recordObservacaoIsolada(
                 eq(ALUNO), anyString(), anyString(), eq("PORT1"), eq(AccessAction.SAIDA),
                 anyString(), any(), any(),
                 eq(AuthorizationResult.OBSERVATION), eq(DenialReason.REGIME_UNKNOWN),
@@ -208,7 +208,7 @@ class RegimeGateWiringTest {
         service.processCameraRecognition(pessoa(UserType.PROFESSOR), "999",
                 IP_CAMERA, LocalDateTime.of(DIA, LocalTime.of(10, 0)));
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
         verify(accessLogRepository).save(any(AccessLog.class));
@@ -223,7 +223,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
     }
@@ -237,7 +237,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
     }
@@ -250,7 +250,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
         verify(accessLogRepository, never()).save(any(AccessLog.class));
@@ -263,7 +263,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
+        verify(attemptService, never()).recordObservacaoIsolada(
                 any(), any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), anyBoolean(), any());
     }
@@ -285,7 +285,7 @@ class RegimeGateWiringTest {
 
         saiPelaPortaria();
 
-        verify(attemptService).record(
+        verify(attemptService).recordObservacaoIsolada(
                 eq(ALUNO), anyString(), anyString(), eq("PORT1"), eq(AccessAction.SAIDA),
                 anyString(), any(), any(),
                 eq(AuthorizationResult.OBSERVATION), eq(DenialReason.REGIME_TO_VERIFY),

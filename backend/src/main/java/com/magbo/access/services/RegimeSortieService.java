@@ -364,6 +364,25 @@ public class RegimeSortieService {
      *
      * SAIDA e ALUNO apenas: o regime nao fala de entrada nem de servidor, e uma
      * linha NON_APPLICABLE na tela seria ruido no lugar onde ruido custa caro.
+     *
+     * ⚠️ DIVERGENCIA CONHECIDA E NAO RESOLVIDA (painel, arquiteto, 14/08/2026).
+     *
+     * Ha DUAS respostas para o mesmo fato: a que foi GRAVADA em access_attempts
+     * no momento da ingestao, e a que este metodo RECALCULA. Elas coincidem
+     * enquanto nada mudar; divergem se alguem editar o regime do aluno depois da
+     * passagem — a tela passa a mostrar o veredicto novo para uma passagem
+     * julgada com o antigo.
+     *
+     * Nao foi resolvido aqui, e a razao e que as duas correcoes possiveis sao
+     * decisoes maiores que esta entrega: (a) gravar o veredicto na propria linha
+     * de access_logs, que e mudanca de schema numa tabela que o projeto trata
+     * como intocavel; ou (b) a tela ler os attempts em vez de recalcular, o que
+     * nao funciona porque o veredicto VERDE nao gera linha nenhuma — e o verde e
+     * a maioria.
+     *
+     * O que se sabe hoje: o REGISTRO (access_attempts) e a versao autoritativa
+     * para auditoria, porque foi julgado no instante e nao muda; a TELA e apoio
+     * a decisao do momento. Quem investigar um incidente le o registro.
      */
     public List<GateVerdict> veredictosNoPortao(String pointId, int limite) {
         int teto = Math.max(1, Math.min(limite, 50));

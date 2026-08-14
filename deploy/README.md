@@ -3,6 +3,17 @@
 This directory contains everything needed to deploy MAGBO Access Control
 on a production VM using Docker.
 
+> **Updating an installation that already runs?** This file covers the FIRST
+> install. To bring a new version onto a VM that is already serving the school —
+> including how to switch the régime de sortie on, and in which order — follow
+> [`docs/operacional/mise-a-jour-vm.md`](../docs/operacional/mise-a-jour-vm.md).
+> It was written and then **walked literally** against a local instance holding
+> the 439,993 real rows; its last section lists the five places where its own
+> wording was not enough, and what replaced them.
+>
+> To rebuild from nothing, or to restore a backup:
+> [`docs/operacional/reconstruir-do-zero.md`](../docs/operacional/reconstruir-do-zero.md).
+
 ## Prerequisites
 
 - Docker Engine 24+ and Docker Compose v2
@@ -40,9 +51,16 @@ on a production VM using Docker.
    ```bash
    # The full ordered list, and why each one matters:
    cat deploy/migrations/README.md
+
+   # ⚠️ ON_ERROR_STOP=1 is not decorative: without it psql exits 0 even when
+   # every statement in the file failed (measured: 0 without, 3 with).
+   for f in deploy/migrations/V0*.sql; do
+     printf '%-56s' "$(basename "$f")"
+     docker exec -i magbo-postgres psql -U magbo -d magbodb -v ON_ERROR_STOP=1 < "$f"        > /tmp/mig.log 2>&1 && echo OK || { echo FAILED; tail -3 /tmp/mig.log; break; }
+   done
    ```
 
-   Apply **V001 → V015, in order**, before considering the deployment done.
+   Apply **V001 → V016, in order**, before considering the deployment done.
    `npm test -- tests/migrations.test.js` fails if a migration exists in
    `deploy/migrations/` and is not named in that README, if it has no rollback,
    or if the `denial_reason` CHECK has fallen behind the Java enum.

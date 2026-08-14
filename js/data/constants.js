@@ -25,16 +25,14 @@ const ACCESS_POINTS = [
       { id: 'GENERAL_REPORT',   nome: 'Rapport Général',    icon: 'layout-dashboard', description: 'Vue consolidée — KPIs, élèves, journal', category: 'monitor', area: 'admin', hidden: true },
       { id: 'MEAL_ENTITLEMENT_MANAGEMENT', nome: 'Droits Repas', icon: 'utensils', description: 'Gestion des droits', category: 'monitor', area: 'admin', hidden: true },
       { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
-      // ⚠️ `sempreVisivel` e nao uma area nova: canAccessArea() casa a string
-      // contra setoresPermitidos, entao inventar 'todos' esconderia o card de
-      // TODO MUNDO menos o admin — o oposto do que se quer. O PpmsController usa
-      // isAuthenticated() de proposito (numa evacuacao a lista inteira tem de
-      // alcancar quem estiver com o telefone na mao) e este campo e o espelho
-      // disso no card: se o backend deixa entrar, a tela nao pode esconder.
+      // ⚠️ O card segue a permissao PPMS_READ (js/components/Dashboard.js), nao a
+      // area: a lista e nominativa e o dono decidiu RESTRINGIR, nao fechar —
+      // Vie Scolaire, direcao e enfermaria. O `sempreVisivel` anterior espelhava
+      // um endpoint isAuthenticated() que deixou de existir.
       // PPMS — NAO hidden e NAO restrito a 'admin': numa evacuacao quem tem o
       // telefone na mao precisa alcancar a lista, e procurar o caminho no meio
       // de uma evacuacao e o mesmo que nao ter a tela.
-      { id: 'PPMS', nome: 'PPMS', icon: 'siren', description: 'Qui est à l’intérieur', category: 'monitor', area: 'portail', sempreVisivel: true },
+      { id: 'PPMS', nome: 'PPMS', icon: 'siren', description: 'Qui est à l’intérieur', category: 'monitor', area: 'portail' },
 ];
 
 

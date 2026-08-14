@@ -159,7 +159,9 @@ describe('permissions — gate de escrita', () => {
             expect(P.PERMISSIONS).toEqual({
                 MEAL_ENTITLEMENT_WRITE: 'MEAL_ENTITLEMENT_WRITE',
                 EXIT_PERMISSION_WRITE: 'EXIT_PERMISSION_WRITE',
-                ATTEMPTS_READ: 'ATTEMPTS_READ'
+                ATTEMPTS_READ: 'ATTEMPTS_READ',
+                // PPMS: a lista nominativa deixou de ser isAuthenticated() em 14/08.
+                PPMS_READ: 'PPMS_READ'
             });
         });
     });

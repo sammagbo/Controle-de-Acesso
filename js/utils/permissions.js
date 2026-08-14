@@ -28,7 +28,9 @@
     const PERMISSIONS = {
         MEAL_ENTITLEMENT_WRITE: 'MEAL_ENTITLEMENT_WRITE',
         EXIT_PERMISSION_WRITE: 'EXIT_PERMISSION_WRITE',
-        ATTEMPTS_READ: 'ATTEMPTS_READ'
+        ATTEMPTS_READ: 'ATTEMPTS_READ',
+        // PPMS: ler a lista nominativa de quem está dentro (decisão de 14/08).
+        PPMS_READ: 'PPMS_READ'
     };
 
     /**

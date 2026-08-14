@@ -14,32 +14,31 @@ import java.time.LocalDateTime;
 /**
  * PPMS — "quem está dentro, agora".
  *
- * ⚠️ A PERMISSAO E `isAuthenticated()`, e isso é uma decisão, não um esquecimento.
+ * ⚠️ A PERMISSAO E `PPMS_READ`, e a decisão do Sam (14/08/2026) foi RESTRINGIR,
+ * NAO FECHAR.
  *
- * Toda outra leitura deste sistema é por ÁREA: quem opera a cantina vê a
- * cantina. Aqui não pode ser: numa evacuação, quem estiver com o telefone na
- * mão no pátio precisa da lista inteira, e um operador da portaria descobrir que
- * "não tem permissão para ver o CDI" enquanto a escola é evacuada seria o pior
- * momento possível para o sistema ter razão.
+ * A lista continua NOMINATIVA, e isso é deliberado: numa evacuação é o nome que
+ * permite achar uma criança, e uma contagem anônima não serve para procurar
+ * ninguém. O que mudou é QUEM a alcança — Vie Scolaire, direção e enfermaria.
+ *
+ * A versão anterior era `isAuthenticated()`, com o argumento de que numa
+ * evacuação quem estiver com o telefone na mão precisa da lista inteira. O
+ * argumento continua verdadeiro e não bastava: a leitura da ENFERMARIA é murada
+ * por `@areaSecurity.can('infirmerie')` em todo o resto do sistema, e a rota
+ * mostrava, a qualquer conta autenticada, qual criança está na enfermaria agora.
+ * Um operador da cantina não tem por que saber isso, e alargar esse alcance não
+ * podia ser efeito colateral de uma tela de emergência. O painel apanhou a
+ * contradição; o dono decidiu por escrito.
+ *
+ * ⚠️ CONSEQUÊNCIA OPERACIONAL, e ela é real: a permissão precisa estar concedida
+ * ANTES do dia em que importa. Um AED que descobre no pátio que não tem
+ * `PPMS_READ` é o pior momento possível para o sistema ter razão — por isso a
+ * permissão é de PERFIL (Vie Scolaire inteira), não de pessoa, e entra no
+ * procedimento de comissionamento.
  *
  * O que a rota devolve são nomes, turmas e zona — nenhum dado de saúde, nenhuma
- * biometria. Não há versão pública: `isAuthenticated()` continua sendo uma porta
- * fechada, só que com uma chave que todo adulto da escola tem.
- *
- * ⚠️ MAS ELA ALARGA O ALCANCE, e dizer o contrário seria falso. A leitura da
- * ENFERMARIA é murada por `@areaSecurity.can('infirmerie')` em todo o resto do
- * sistema; aqui, quem está na enfermaria agora aparece — com nome, matrícula e
- * turma — para qualquer conta autenticada, inclusive um operador que só tem
- * 'cantine'. Uma versão anterior deste javadoc afirmava que a rota não mostra
- * "nada que o operador já não veja na tela do seu setor": não é verdade, e o
- * painel de revisão apanhou a frase.
- *
- * O argumento da evacuação continua de pé — numa escola sendo evacuada, o
- * alcance restrito é o erro caro. Mas isto é DECISÃO DO DONO, pendente por
- * escrito como foi feito com o CSV; enquanto não houver decisão registrada, o
- * que existe é esta ressalva.
- *
- * Nada é gravado: o retrato é calculado no momento e morre na resposta.
+ * biometria. Nada é gravado: o retrato é calculado no momento e morre na
+ * resposta.
  */
 @RestController
 @RequestMapping("/api/ppms")
@@ -49,7 +48,7 @@ public class PpmsController {
     private final PpmsService ppmsService;
 
     @GetMapping("/inside")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('PPMS_READ')")
     public ResponseEntity<PpmsSnapshot> quemEstaDentro() {
         return ResponseEntity.ok(ppmsService.snapshot(LocalDateTime.now()));
     }

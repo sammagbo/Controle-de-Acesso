@@ -94,11 +94,6 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {ACCESS_POINTS.filter(point => {
                               // Regra padrão: ponto visível se não-hidden e o usuário tem a área.
-                              // `sempreVisivel`: o card acompanha um endpoint que é
-                              // isAuthenticated() de propósito (PPMS). Filtrar por área
-                              // aqui esconderia a tela de evacuação de metade das pessoas
-                              // que o backend deliberadamente deixa entrar.
-                              if (!point.hidden && point.sempreVisivel) return true;
                               if (!point.hidden && window.auth.canAccessArea(point.area)) return true;
                               // Exceção (decisão do Sam): as telas de gestão (hidden, área admin) são
                               // a porta de entrada dedicada do OPERATOR que tem a permissão granular
@@ -113,6 +108,15 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               }
                               if (point.id === 'EXIT_PERMISSION_MANAGEMENT') {
                                     return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.EXIT_PERMISSION_WRITE);
+                              }
+                              // PPMS: lista NOMINATIVA de menores. Restrita, não
+                              // fechada (decisão do Sam, 14/08) — Vie Scolaire,
+                              // direção, enfermaria. Espelha o @PreAuthorize do
+                              // PpmsController: tela que habilita por um critério e
+                              // endpoint que aceita por outro dá botão morto de um
+                              // lado e 403 do outro.
+                              if (point.id === 'PPMS') {
+                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.PPMS_READ);
                               }
                               return false;
                         }).map((point) => {

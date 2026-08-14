@@ -20,6 +20,14 @@
 //    ressalva jurídica: é a diferença entre parar de procurar uma criança e
 //    continuar procurando.
 
+// ⚠️ TONS: success/danger/warning só existem em 50, 100, 500 e 600 no
+// tailwind.config inline do index.html. O aviso de OFFLINE — o elemento que diz
+// «este retrato é velho», e que o comentário acima chama da diferença entre
+// continuar procurando uma criança e parar — usava `text-warning-800` e
+// `border-warning-400`: nenhum dos dois é gerado, então ele saía com a cor
+// herdada, indistinguível do resto da tela. Apanhado pelo agente de qualidade
+// em 14/08/2026.
+
 const PPMS_CACHE = 'magbo.ppms.ultimo';
 
 function PpmsView({ onBack }) {
@@ -162,7 +170,7 @@ function PpmsView({ onBack }) {
 
             {/* ⚠️ Sem rede: a hora do retrato em destaque, nunca escondida. */}
             {offline && (
-                <p className="text-sm font-bold text-warning-800 bg-warning-100 border-2 border-warning-400 rounded-xl px-4 py-3 mb-4">
+                <p className="text-sm font-bold text-warning-600 bg-warning-100 border-2 border-warning-500 rounded-xl px-4 py-3 mb-4">
                     {snap ? t('ppms.offline', { hora: carimbo(snap.geradoEm) }) : t('ppms.sem.relevo')}
                 </p>
             )}

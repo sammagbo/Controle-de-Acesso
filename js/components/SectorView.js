@@ -58,6 +58,82 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
             }
       };
 
+      // ── RÉGIME DE SORTIE, ao vivo, no portão ──────────────────────────
+      // ⚠️ SEM UM CLIQUE A MAIS. O veredicto chega sozinho, no mesmo ciclo em
+      // que a passagem aparece: com duzentos alunos em movimento, qualquer
+      // interação a mais custa mais do que a informação vale (veto do AED).
+      //
+      // Só no PORTÃO: o regime de sortie fala de sair da escola. No CDI ou na
+      // cantina a consulta seria puro gasto.
+      const ehPortao = String(point.id || '').toUpperCase().startsWith('PORT');
+      const [veredictos, setVeredictos] = React.useState([]);
+      const [falhouRegime, setFalhouRegime] = React.useState(false);
+
+      React.useEffect(() => {
+            if (!ehPortao || !window.api?.veredictosNoPortao) { setVeredictos([]); return; }
+            let vivo = true;
+            const buscar = async () => {
+                  const v = await window.api.veredictosNoPortao(point.id, 20);
+                  if (!vivo) return;
+                  // null = a consulta FALHOU; [] = não há saída de aluno hoje.
+                  // Sem distinguir, uma falha de rede fica idêntica a "está tudo
+                  // certo" na tela onde isso mais custa.
+                  setFalhouRegime(v === null);
+                  setVeredictos(Array.isArray(v) ? v : []);
+            };
+            buscar();
+            return () => { vivo = false; };
+            // ⚠️ SEM setInterval PRÓPRIO. `accessLogs` está nas dependências e o
+            // App.js recarrega os logs a cada 3s trocando o array — este efeito
+            // já roda naquele ritmo. Com o intervalo TAMBÉM montado aqui eram
+            // duas chamadas por ciclo ao mesmo endpoint, cada uma com duas
+            // consultas por linha (painel de revisão, arquiteto, 14/08).
+      }, [ehPortao, point.id, accessLogs]);
+
+      /**
+       * O QUE A FAIXA MOSTRA — e por que não é simplesmente "o último".
+       *
+       * ⚠️ Num portão às 11h50 passam várias pessoas em poucos segundos. Se a
+       * faixa mostrasse sempre a última passagem, um VERMELHO seria enterrado
+       * pelo verde que chega três segundos depois, e o AED nunca o veria: o
+       * alerta existiria por dois segundos, no meio de uma fila.
+       *
+       * Então quem precisa de atenção VENCE: o mais recente NON_AUTORISE ou
+       * A_VERIFIER dos últimos dois minutos fica na faixa, mesmo que passagens
+       * verdes tenham vindo depois. Passados os dois minutos, a faixa volta a
+       * ser a última passagem — o alerta é para o momento, não para o dia.
+       *
+       * A hora aparece sempre na faixa, então nunca se confunde a passagem
+       * retida com a que acabou de acontecer.
+       */
+      const JANELA_ATENCAO_MS = 2 * 60 * 1000;
+      const emDestaque = React.useMemo(() => {
+            if (!veredictos.length) return null;
+            const agora = Date.now();
+            const precisaAtencao = veredictos.find(v =>
+                  (v.verdict === 'NON_AUTORISE' || v.verdict === 'A_VERIFIER')
+                  && v.momento
+                  && (agora - new Date(v.momento).getTime()) <= JANELA_ATENCAO_MS);
+            return precisaAtencao || veredictos[0];
+      }, [veredictos]);
+
+      // Quantas passagens de aluno vieram DEPOIS da que está na faixa: sem isto,
+      // o AED não sabe que a fila andou enquanto o alerta ficou parado.
+      const passagensDepois = React.useMemo(() => {
+            if (!emDestaque) return 0;
+            const i = veredictos.findIndex(v => v.logId === emDestaque.logId);
+            return i > 0 ? i : 0;
+      }, [veredictos, emDestaque]);
+
+      // Casado por logId: o veredicto pertence À PASSAGEM, e foi julgado na hora
+      // dela. Casar por userId poria o veredicto de agora numa linha de horas
+      // atrás.
+      const veredictoPorLog = React.useMemo(() => {
+            const m = {};
+            (veredictos || []).forEach(v => { if (v && v.logId != null) m[v.logId] = v; });
+            return m;
+      }, [veredictos]);
+
       const pointLogs = React.useMemo(() => {
             return accessLogs
                   .filter(log => log.pointId === point.id)
@@ -86,6 +162,17 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                   {/* Active Timers (Biblioteca / Enfermaria) */}
                   {isEspecial(point.id) && (
                         <ActiveTimers activeTimers={activeTimers} pointId={point.id} />
+                  )}
+
+                  {/* A FAIXA: a última saída de aluno, grande, sem procurar. */}
+                  {ehPortao && emDestaque && (
+                        <RegimeVerdictBanner v={emDestaque} passagensDepois={passagensDepois} />
+                  )}
+                  {/* A ausência de faixa não pode significar duas coisas. */}
+                  {ehPortao && falhouRegime && (
+                        <p className="text-xs font-bold text-warning-600 bg-warning-50 border border-warning-500 rounded-xl px-3 py-2 mb-3">
+                              {t('regime.portao.indisponivel')}
+                        </p>
                   )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -278,6 +365,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                         )}
                                                                         {user && user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
+                                                                        )}
+                                                                        {/* A pastilha do regime, na própria linha.
+                                                                            Casada por logId: o veredicto pertence a
+                                                                            ESTA passagem e foi julgado na hora dela. */}
+                                                                        {veredictoPorLog[log.id] && (
+                                                                              <RegimeChip
+                                                                                    verdict={veredictoPorLog[log.id].verdict}
+                                                                                    regimeSortie={veredictoPorLog[log.id].regimeSortie} />
                                                                         )}
                                                                         {/* Matrícula só quando o nome falta: é o
                                                                             único apoio que sobra para identificar

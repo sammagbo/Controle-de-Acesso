@@ -33,6 +33,59 @@ public class AccessAttemptService {
      *         atuais descartam o retorno; quem passar a usa-lo precisa tratar
      *         o null.
      */
+    /**
+     * Grava uma OBSERVACAO em transacao PROPRIA — e engole a falha.
+     *
+     * ⚠️ EXISTE PARA QUE UM REGISTRO DE APOIO NUNCA POSSA APAGAR A PROVA.
+     *
+     * O bloco do regime de sortie corre dentro do @Transactional que grava a
+     * PASSAGEM. Uma observacao e informacao de apoio: ela nao decide nada, nao
+     * nega ninguem e nao muda o que a porta faz. Mas, na mesma transacao, um
+     * INSERT que falhe — o caso concreto e o CHECK de denial_reason ainda nao
+     * conhecer o motivo novo, porque a V015 nao foi aplicada na VM — envenena a
+     * transacao inteira e leva junto o `access_log` da crianca cruzando o
+     * portao. A prova de que ela passou desapareceria por causa do aviso sobre
+     * ela ter passado.
+     *
+     * ⚠️ REQUIRES_NEW NAO BASTA SOZINHO, e o try/catch DESTE metodo tambem
+     * nao — o chamador PRECISA do proprio catch. Duas falhas escapam daqui:
+     * (1) o interceptador lanca ANTES do corpo se o pool nao tiver uma segunda
+     * conexao (REQUIRES_NEW pede outra enquanto a transacao da passagem segura
+     * a primeira); (2) quando o INSERT falha, o save marca a transacao INTERNA
+     * como rollback-only, o catch abaixo engole a excecao do save — mas o
+     * COMMIT da transacao interna estoura em seguida
+     * (UnexpectedRollbackException), fora de qualquer try daqui. A primeira
+     * versao deste metodo confiava so no catch interno e um painel de revisao
+     * provou o buraco (14/08/2026). O catch interno fica: ele cobre as falhas
+     * que nao envenenam a transacao (os IllegalArgument dos guards) e loga o
+     * motivo com detalhe. Mas quem garante a passagem e o catch no chamador
+     * (AccessDecisionService).
+     *
+     * Documentar a ordem de deploy (aplicar a V015 antes de ligar a regra)
+     * continua certo e continua no README; o que nao pode e a prova depender
+     * de alguem ter lido o README. Painel de revisao, chef d'etablissement e
+     * CPE, 14/08/2026.
+     */
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordObservacaoIsolada(
+        String userId, String employeeNoRaw, String nomeSnapshot, String pointId,
+        AccessAction action, String terminalIp, AuthMethod authMethod, AuthResult authResult,
+        AuthorizationResult authorizationResult, DenialReason denialReason,
+        Integer hikvisionSubEventType, boolean doorMappingFallback, java.time.LocalDateTime eventTime) {
+        try {
+            record(userId, employeeNoRaw, nomeSnapshot, pointId, action, terminalIp,
+                    authMethod, authResult, authorizationResult, denialReason,
+                    hikvisionSubEventType, doorMappingFallback, eventTime);
+        } catch (RuntimeException e) {
+            // O aviso se perde; a passagem fica. E a troca certa: sem a linha de
+            // observacao a Vie Scolaire nao ve um alerta; sem o access_log
+            // ninguem sabe que a crianca saiu.
+            log.error("Observação de regime NÃO gravada (a passagem foi preservada): user={}, motivo={}, erro={}",
+                    userId, denialReason, e.toString());
+        }
+    }
+
     public AccessAttempt record(
         String userId,
         String employeeNoRaw,

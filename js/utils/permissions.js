@@ -26,6 +26,9 @@
      * padrão de ACCESS_POINTS/AreaMapping.
      */
     const PERMISSIONS = {
+        // Régime de sortie (V014): quem tem o papel assinado na mão é a Vie
+        // Scolaire, não o administrador. Espelha security/Permissions.java.
+        REGIME_WRITE: 'REGIME_WRITE',
         MEAL_ENTITLEMENT_WRITE: 'MEAL_ENTITLEMENT_WRITE',
         EXIT_PERMISSION_WRITE: 'EXIT_PERMISSION_WRITE',
         ATTEMPTS_READ: 'ATTEMPTS_READ'

@@ -407,6 +407,12 @@ function App() {
                               const pt = ACCESS_POINTS.find(p => p.id === 'EXIT_PERMISSION_MANAGEMENT');
                               if (pt) setCurrentPoint(pt);
                         }}
+                        onNavigateToRegime={() => {
+                              setAdminView(false);
+                              setOrigemAdmin(true);
+                              const pt = ACCESS_POINTS.find(p => p.id === 'REGIME_MANAGEMENT');
+                              if (pt) setCurrentPoint(pt);
+                        }}
                   />
             ) : !currentPoint ? (
                         <Dashboard
@@ -425,6 +431,8 @@ function App() {
                         <MealEntitlementManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'EXIT_PERMISSION_MANAGEMENT' ? (
                         <ExitPermissionManagement onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'REGIME_MANAGEMENT' ? (
+                        <StudentRegimeManagement onBack={() => setCurrentPoint(null)} />
                   ) : (
                   <SectorView
                         point={currentPoint}

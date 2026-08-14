@@ -45,6 +45,8 @@ public class SystemUserController {
             // A lista vive em Permissions.TODAS. Escrita aqui, ela divergiria
             // da tela — e a mensagem de erro divergiria da propria verificacao,
             // que foi exatamente o que aconteceu antes de 14/08/2026.
+            // (Resolucao de merge 14/08: o lado da CADEIA de equals() foi
+            // descartado; REGIME_WRITE entrou como linha dentro de TODAS.)
             if (!val.equals("*") && !com.magbo.access.security.Permissions.TODAS.contains(val)) {
                 throw new IllegalArgumentException("Permissão inválida: " + val
                         + ". Valores válidos: *, "

@@ -33,6 +33,11 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ExitTimeRegressionTest {
 
+    /** Régime de sortie desligado — ver o construtor do service no setUp. */
+    private static final com.magbo.access.config.RegimeProperties REGIME_DESLIGADO =
+            new com.magbo.access.config.RegimeProperties();
+    static { REGIME_DESLIGADO.setHabilitado(false); }
+
     @Mock private DoorMappingService doorMappingService;
     @Mock private UserRepository userRepository;
     @Mock private ClassScheduleRepository classScheduleRepository;
@@ -60,7 +65,14 @@ class ExitTimeRegressionTest {
                 // Real sobre repositorio mock, como o PostoFixoService: nestes
                 // cenarios nao ha log anterior, entao ele devolve null sem
                 // decidir nada — e o teste passa a cobrir tambem esse caminho.
-                new PresencaAbertaService(accessLogRepository));
+                new PresencaAbertaService(accessLogRepository),
+                // Régime de sortie DESLIGADO nestes cenarios, de proposito.
+                // Estes testes sao anteriores a regra e provam OUTRA coisa; com
+                // habilitado=false o servico retorna na primeira linha sem tocar
+                // dependencia nenhuma (por isso os nulos), e o que eles provavam
+                // continua provado sem ruido novo. A fiacao do regime tem teste
+                // proprio: RegimeGateWiringTest.
+                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null));
     }
 
     private String validar() {

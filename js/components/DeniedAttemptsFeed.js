@@ -73,7 +73,26 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
             switch (reason) {
                   case 'MEAL_NOT_ENTITLED':
                   case 'EXIT_NOT_AUTHORIZED':
+                  // Regime 1 saindo no meio da jornada é da mesma família das
+                  // outras duas: uma criança no lugar errado. Deixá-lo no cinza
+                  // padrão o poria na cor de MISSING_DOOR_MAPPING, que o
+                  // operador aprendeu a ler como "coisa de configuração".
+                  case 'REGIME_NOT_ALLOWED':
                         color = 'bg-danger-100 text-danger-700';
+                        break;
+                  // Âmbar, não vermelho: "ninguém preencheu o papel deste aluno"
+                  // pede uma ação da Vie Scolaire, não uma do portão.
+                  case 'REGIME_UNKNOWN':
+                        color = 'bg-warning-100 text-warning-600';
+                        break;
+                  // ⚠️ REGIME_TO_VERIFY NAO E RECUSA: e o registro de que o MAGBO
+                  // nao sabe (falta a grade). Sem um case proprio caia no cinza
+                  // padrao — a cor de MISSING_DOOR_MAPPING, que o operador
+                  // aprendeu a ler como "coisa de configuracao", e o rastro que
+                  // esta entrega criou para responder ao AED chegava a ele
+                  // pintado de "ignora isto".
+                  case 'REGIME_TO_VERIFY':
+                        color = 'bg-accent-500/10 text-accent-700';
                         break;
                   case 'DEVICE_DENIED':
                         color = 'bg-orange-100 text-orange-700';

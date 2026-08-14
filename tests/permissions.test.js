@@ -159,7 +159,12 @@ describe('permissions — gate de escrita', () => {
             expect(P.PERMISSIONS).toEqual({
                 MEAL_ENTITLEMENT_WRITE: 'MEAL_ENTITLEMENT_WRITE',
                 EXIT_PERMISSION_WRITE: 'EXIT_PERMISSION_WRITE',
-                ATTEMPTS_READ: 'ATTEMPTS_READ'
+                ATTEMPTS_READ: 'ATTEMPTS_READ',
+                // Régime de sortie (V014). Este teste apanhou a adição no
+                // mesmo minuto em que ela foi feita, que é o serviço que ele
+                // presta: permissão que existe de um lado só produz botão morto
+                // num lado e 403 no outro.
+                REGIME_WRITE: 'REGIME_WRITE'
             });
         });
     });

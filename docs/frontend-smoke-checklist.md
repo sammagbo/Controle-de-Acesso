@@ -106,6 +106,51 @@ Esta é a área que mudou mais. Ir em Dashboard → **CDI / Biblioteca**.
 
 ---
 
+## 3-bis. Régime de sortie — a faixa do PORTÃO (entrega de 14/08)
+
+> ⚠️ Só aparece em pontos **PORT***, só para **SAÍDA** de **ALUNO**, e só com
+> `magbo.regime.habilitado=true` (nasce **false** — ver `deploy/.env.example`).
+> Com a regra desligada nada disto aparece, e **isso é o comportamento correto**.
+
+| # | Ação | Esperado |
+|---|---|---|
+| 3b.1 | Abrir PORT1 com a regra DESLIGADA | Nenhuma faixa, nenhuma pastilha. A tela é a de sempre |
+| 3b.2 | Ligar a regra, sem nenhum regime cadastrado, e registrar uma saída de aluno | Faixa **ardósia** «Régime non renseigné», ação «Contrôlez le carnet, comme avant». **Não pode** parecer recusa nem aprovação |
+| 3b.3 | Cadastrar regime 1 para esse aluno e registrar outra saída às 10h | Faixa **vermelha** «Ne doit pas sortir seul», ação «Retenez l'élève et appelez la Vie Scolaire» |
+| 3b.4 | ⚠️ Logo depois, registrar a saída de um aluno **sem regime** | A faixa **continua no vermelho** por 2 min, com a hora do vermelho e «N passagem(ns) depois desta». Se o vermelho sumir, é regressão |
+| 3b.5 | Cadastrar regime 2 e registrar saída | Faixa **âmbar**, ação «Vérifiez l'emploi du temps et le carnet» + a ressalva de que o MAGBO não tem a grade |
+| 3b.6 | Cadastrar regime 3 e registrar saída | Faixa **verde**, com a ressalva da grade (o verde responde pelo REGIME, não pelo horário) |
+| 3b.7 | Criar autorização pontual (Sorties) para um aluno de regime 1 e registrar a saída | **Verde**, motivo «autorisation ponctuelle». ⚠️ Recarregar a tela 10 s depois: **continua verde** — a permissão foi consumida e o alibi tem de sobreviver |
+| 3b.8 | Parar o backend e abrir PORT1 | Aviso «Régime indisponible — serveur injoignable. Contrôlez le carnet.» A ausência de faixa **não pode** ser silenciosa |
+| 3b.9 | Feed de negadas do portão | As linhas de regime têm rótulo em francês/português, **não** o código cru; `REGIME_TO_VERIFY` tem cor **própria**, não o cinza de configuração |
+| 3b.10 | Trocar o idioma no cabeçalho | Faixa, ações e pastilhas mudam de idioma sem recarregar |
+
+## 3-ter. Régimes (tela da Vie Scolaire)
+
+| # | Ação | Esperado |
+|---|---|---|
+| 3t.1 | Entrar como OPERATOR **com** `REGIME_WRITE` | O card «Régimes» aparece no Dashboard (não exige PIN de admin) |
+| 3t.2 | Entrar como OPERATOR **sem** a permissão | O card não aparece |
+| 3t.3 | Buscar um aluno **com** responsável cadastrado | «Autorisé par» mostra o nome do cadastro numa caixa verde, **sem digitar** |
+| 3t.4 | Clicar «não foi este responsável» e gravar outro nome | A linha fica marcada como **exceção**, em âmbar |
+| 3t.5 | ⚠️ Reabrir esse mesmo aluno | Mostra o nome **gravado** (a exceção), não o do cadastro. Se voltar ao cadastro, é regressão: a prova estaria sendo reescrita |
+| 3t.6 | Substituir o regime e abrir o histórico | A linha do tempo mostra o de→para do regime **e** a troca de quem autorizou |
+| 3t.7 | Ver os KPIs | «Sem regime» é o número que lidera. No dia 1 deve dizer ~923 |
+
+## 3-quater. PPMS — quem está dentro
+
+| # | Ação | Esperado |
+|---|---|---|
+| 3q.1 | Abrir PPMS (qualquer operador autenticado) | Abre. **Não** exige área específica — é tela de evacuação |
+| 3q.2 | Ver a ordem das zonas | CDI e enfermaria **antes** de «Dans l'établissement — zone inconnue», mesmo com menos gente |
+| 3q.3 | Registrar entrada e saída de alguém no CDI | Ele sai do card «CDI» e vai para a zona desconhecida, com «CDI» na linha como último lugar visto |
+| 3q.4 | Ter alguém na enfermaria | Aparece o terceiro aviso, sobre ponto sem fechamento automático |
+| 3q.5 | Parar o backend e recarregar | Mostra o retrato guardado **com a hora**, em faixa de aviso |
+| 3q.6 | Sair da sessão e reentrar sem rede | **Nenhum** retrato antigo aparece — o cache é apagado no logout |
+| 3q.7 | Procurar botão de exportar CSV | **Não existe.** Só impressão. Se voltar, é regressão da decisão do dono |
+
+---
+
 ## 4. Rapport Général
 
 Cabeçalho → **Rapport Général**.

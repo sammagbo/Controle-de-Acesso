@@ -26,6 +26,48 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 - **VM de produção** (Ubuntu 24.04, `deploy/docker-compose.yml`): **precisa**. A migração na
   VM deve ser controlada e revisável — é aqui que estes arquivos são aplicados, na ordem.
 
+### ⚠️ Como saber que este README está completo
+
+`npm test -- tests/migrations.test.js` reprova quando uma migração existe em
+`deploy/migrations/` e **não é citada neste arquivo**, quando ela não tem
+rollback, e quando o CHECK de `access_attempts.denial_reason` deixa de fora um
+valor do enum `DenialReason.java`. Não substitui aplicar o SQL num Postgres —
+substitui a lembrança de que ele existe.
+
+### ⚠️ A V016 é a única SEM transação (CONCURRENTLY)
+
+`CREATE INDEX CONCURRENTLY` não pode rodar dentro de `BEGIN/COMMIT`, e é por
+isso que aquele arquivo não os tem. Em troca, ele não trava as escritas: num dia
+letivo, um segundo de webhook bloqueado é uma passagem que o terminal reenvia ou
+perde.
+
+⚠️ Se o comando falhar no meio, fica um índice **inválido** — não usado pelo
+planejador e ocupando espaço. Conferir depois de aplicar:
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc   "SELECT indisvalid FROM pg_index WHERE indexrelid = 'idx_access_logs_ponto_hora'::regclass;"
+# t = válido · f = derrubar com rollback/R016 e repetir
+```
+
+Medição que justifica o índice (Postgres local, 439.993 registros reais,
+14/08/2026): a consulta do portão passou de **Seq Scan, 3687 buffers, ~14,5 ms**
+para **Index Scan, 5 buffers, ~0,05 ms**.
+
+### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
+
+A **V014** cria `student_regimes` e `student_regime_events` (régime de sortie) — é
+aditiva e o `ddl-auto` do PC a resolve sozinho. A **V015** amplia o CHECK de
+`access_attempts.denial_reason` com `REGIME_NOT_ALLOWED`, `REGIME_UNKNOWN` e `REGIME_TO_VERIFY`, e
+esta **precisa ser aplicada à mão na VM**: o Hibernate gera o CHECK ao *criar* a
+tabela e o `ddl-auto=update` **nunca altera** um CHECK existente (mesma armadilha
+da V009).
+
+⚠️ **A falha é adiada e silenciosa.** Sem a V015 nada quebra no dia do deploy:
+ela só arma quando a Vie Scolaire cadastrar o primeiro regime e um aluno de
+regime 1 passar no portão — aí o INSERT da tentativa estoura **dentro da
+transação** e derruba junto o `access_log` de uma passagem real. Aplicar
+**antes** de ligar `magbo.regime.habilitado`.
+
 ### ⚠️ A V012 é obrigatória NO PC TAMBÉM — a primeira que é
 
 A regra acima vale porque toda migração até aqui foi **aditiva**, e `ddl-auto=update` entrega
@@ -41,6 +83,9 @@ erro de driver e não com mensagem de validação.
 # PC (container magbo-postgres), ANTES de subir o backend novo:
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -53,7 +98,7 @@ cabeçalho do próprio V012.
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V013. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V016. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -72,6 +117,9 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 ```
 
 | Arquivo | Cria/altera | Fase |

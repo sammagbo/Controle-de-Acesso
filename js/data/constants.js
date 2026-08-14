@@ -25,6 +25,11 @@ const ACCESS_POINTS = [
       { id: 'GENERAL_REPORT',   nome: 'Rapport Général',    icon: 'layout-dashboard', description: 'Vue consolidée — KPIs, élèves, journal', category: 'monitor', area: 'admin', hidden: true },
       { id: 'MEAL_ENTITLEMENT_MANAGEMENT', nome: 'Droits Repas', icon: 'utensils', description: 'Gestion des droits', category: 'monitor', area: 'admin', hidden: true },
       { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
+      // Régime de sortie — o direito ANUAL, distinto das autorizações pontuais
+      // acima. As duas telas coexistem porque as duas coisas coexistem
+      // (circulaire 96-248): o regime é a regra do ano, a autorização é a
+      // exceção do dia, e a exceção vence.
+      { id: 'REGIME_MANAGEMENT', nome: 'Régimes', icon: 'scroll-text', description: 'Régime de sortie annuel', category: 'monitor', area: 'admin', hidden: true },
 ];
 
 

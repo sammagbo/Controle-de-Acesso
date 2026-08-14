@@ -88,6 +88,9 @@
       <script type="text/babel" src="js/utils/mealSheet.js?v=1"></script>
       <!-- importColumns REUSA a documentação de colunas do mealSheet (para não
            ter duas verdades sobre a mesma planilha): carrega depois dele. -->
+      <!-- regimeSheet REUSA os helpers de cabecalho do hikcentralSheet, como o
+           mealSheet: carrega depois dele e ANTES do importColumns, que o consome. -->
+      <script type="text/babel" src="js/utils/regimeSheet.js?v=1"></script>
       <script type="text/babel" src="js/utils/importColumns.js?v=1"></script>
       <script type="text/babel" src="js/utils/exitPermission.js?v=1"></script>
       <script type="text/babel" src="js/utils/helpers.js?v=10"></script>
@@ -112,11 +115,17 @@
       <script type="text/babel" src="js/components/ActiveTimers.js?v=8"></script>
       <script type="text/babel" src="js/components/Header.js?v=8"></script>
       <script type="text/babel" src="js/components/Dashboard.js?v=8"></script>
+      <!-- O veredicto do regime, lido no portão. Antes do SectorView, que o usa. -->
+      <script type="text/babel" src="js/components/RegimeVerdictBadge.js?v=1"></script>
       <script type="text/babel" src="js/components/SectorView.js?v=8"></script>
       <script type="text/babel" src="js/components/DeniedAttemptsFeed.js?v=1"></script>
       <script type="text/babel" src="js/components/MealEntitlementHistoryModal.js?v=1"></script>
       <script type="text/babel" src="js/components/MealEntitlementManagement.js?v=1"></script>
       <script type="text/babel" src="js/components/ExitPermissionManagement.js?v=1"></script>
+      <!-- Régime de sortie: o direito ANUAL. Vizinho das autorizações pontuais
+           acima porque são a mesma pergunta vista em duas escalas — o ano e o
+           dia — e quem opera as duas é a mesma Vie Scolaire. -->
+      <script type="text/babel" src="js/components/StudentRegimeManagement.js?v=1"></script>
       <script type="text/babel" src="js/components/CantineMonitor.js?v=1"></script>
       <script type="text/babel" src="js/components/RefectoryReport.js?v=1"></script>
       <script type="text/babel" src="js/components/InfirmaryReport.js?v=1"></script>

@@ -109,6 +109,9 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               if (point.id === 'EXIT_PERMISSION_MANAGEMENT') {
                                     return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.EXIT_PERMISSION_WRITE);
                               }
+                              if (point.id === 'REGIME_MANAGEMENT') {
+                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.REGIME_WRITE);
+                              }
                               return false;
                         }).map((point) => {
                               const colors = CATEGORY_COLORS[point.category];

@@ -26,6 +26,14 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 - **VM de produção** (Ubuntu 24.04, `deploy/docker-compose.yml`): **precisa**. A migração na
   VM deve ser controlada e revisável — é aqui que estes arquivos são aplicados, na ordem.
 
+### ⚠️ Como saber que este README está completo
+
+`npm test -- tests/migrations.test.js` reprova quando uma migração existe em
+`deploy/migrations/` e **não é citada neste arquivo**, quando ela não tem
+rollback, e quando o CHECK de `access_attempts.denial_reason` deixa de fora um
+valor do enum `DenialReason.java`. Não substitui aplicar o SQL num Postgres —
+substitui a lembrança de que ele existe.
+
 ### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
 
 A **V014** cria `student_regimes` e `student_regime_events` (régime de sortie) — é

@@ -15,6 +15,13 @@
 // precisa poder dizer, seis meses depois, qual era a autorização vigente
 // naquela terça-feira.
 
+// ⚠️ TONS: só 50, 100, 500 e 600 existem para success/danger/warning no
+// tailwind.config inline do index.html (accent tem 400–700, sem 50). Uma classe
+// com tom não definido NÃO É GERADA — a cor simplesmente não sai, e o aviso
+// fica cinza no meio da tela. Onde faltava um tom intermediário, usa-se a
+// opacidade do 500 (`border-warning-500/40`), que o Tailwind gera. Apanhado
+// pelo agente de qualidade em 14/08/2026, lendo o config.
+
 function StudentRegimeManagement({ onBack }) {
     const t = useI18n();
     const locale = useLocale();
@@ -218,7 +225,7 @@ function StudentRegimeManagement({ onBack }) {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('regime.kpi.com')}</p>
                         <p className="text-3xl font-black text-success-600 leading-tight">{resumo.comRegime}</p>
                     </div>
-                    <div className="bg-white rounded-2xl p-5 border border-warning-200 shadow-sm" title={t('regime.kpi.sem.ajuda')}>
+                    <div className="bg-white rounded-2xl p-5 border border-warning-500/40 shadow-sm" title={t('regime.kpi.sem.ajuda')}>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('regime.kpi.sem')}</p>
                         <p className="text-3xl font-black text-warning-600 leading-tight">{resumo.semRegime}</p>
                         <p className="text-[11px] text-slate-400 mt-1">{t('regime.kpi.sem.ajuda')}</p>
@@ -230,7 +237,7 @@ function StudentRegimeManagement({ onBack }) {
                 </div>
             )}
 
-            <p className="text-xs text-warning-800 bg-warning-50 border border-warning-200 rounded-xl px-4 py-3 mb-6">
+            <p className="text-xs text-warning-600 bg-warning-50 border border-warning-500/40 rounded-xl px-4 py-3 mb-6">
                 {t('regime.aviso.prova')}
             </p>
 
@@ -247,7 +254,7 @@ function StudentRegimeManagement({ onBack }) {
                     <div className="mt-2 max-h-56 overflow-y-auto border border-soft-200 rounded-xl">
                         {resultados.map(u => (
                             <button key={u.id} onClick={() => escolher(u)}
-                                className="w-full text-left px-4 py-2 text-sm border-b border-soft-100 last:border-0 hover:bg-accent-50">
+                                className="w-full text-left px-4 py-2 text-sm border-b border-soft-100 last:border-0 hover:bg-accent-500/10">
                                 <span className="font-bold text-navy-500">{u.nome}</span>
                                 <span className="text-slate-400 ml-2 font-mono text-xs">{u.id}</span>
                                 <span className="text-slate-400 ml-2 text-xs">{u.turma || '—'}</span>
@@ -282,7 +289,7 @@ function StudentRegimeManagement({ onBack }) {
                         {carregando ? (
                             <p className="text-sm text-slate-400">{t('comum.carregando')}</p>
                         ) : dados?.vigente ? (
-                            <div className="rounded-xl border border-success-200 bg-success-50 p-4">
+                            <div className="rounded-xl border border-success-500/40 bg-success-50 p-4">
                                 <p className="font-bold text-navy-500 text-sm">
                                     {window.MagboI18n.tEnum('regimeSortie', dados.vigente.regimeSortie)}
                                 </p>
@@ -299,7 +306,7 @@ function StudentRegimeManagement({ onBack }) {
                                     <p className="text-[11px] text-slate-400 font-mono">{dados.vigente.documentoRef}</p>
                                 )}
                                 <button onClick={encerrar}
-                                    className="mt-3 px-3 py-1.5 rounded-lg bg-danger-100 text-danger-700 text-xs font-bold hover:bg-danger-200">
+                                    className="mt-3 px-3 py-1.5 rounded-lg bg-danger-100 text-danger-600 text-xs font-bold hover:bg-danger-500/20">
                                     {t('regime.form.encerrar')}
                                 </button>
                             </div>
@@ -375,7 +382,7 @@ function StudentRegimeManagement({ onBack }) {
                                 {responsavel && !outroAutor ? (
                                     <>
                                         {/* O nome que o cadastro já tem. Sem digitação. */}
-                                        <div className="flex items-center gap-2 bg-success-50 border border-success-200 rounded-xl px-3 py-2">
+                                        <div className="flex items-center gap-2 bg-success-50 border border-success-500/40 rounded-xl px-3 py-2">
                                             <LucideIcon name="user-check" size={16} className="text-success-600 shrink-0" />
                                             <span className="text-sm font-bold text-navy-500 truncate">{responsavel.nome}</span>
                                             {responsavel.parentesco && (
@@ -399,7 +406,7 @@ function StudentRegimeManagement({ onBack }) {
                                             conferir depois; deixá-lo com a mesma cara da rotina
                                             esconderia justamente o que merece atenção. */}
                                         {responsavel && (
-                                            <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
+                                            <p className="text-[11px] text-warning-600 bg-warning-50 border border-warning-500/40 rounded-lg px-3 py-2">
                                                 {t('regime.form.familia.excecao', { nome: responsavel.nome })}
                                                 {' '}
                                                 <button type="button" onClick={() => { setOutroAutor(false); setForm({ ...form, authorizedByFamily: '' }); }}
@@ -431,14 +438,14 @@ function StudentRegimeManagement({ onBack }) {
                                 className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm" />)}
 
                         {erro && (
-                            <p className="text-xs text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-3 py-2">{erro}</p>
+                            <p className="text-xs text-danger-600 bg-danger-50 border border-danger-500/40 rounded-xl px-3 py-2">{erro}</p>
                         )}
                         {aviso && (
-                            <p className="text-xs text-success-700 bg-success-50 border border-success-200 rounded-xl px-3 py-2">{aviso}</p>
+                            <p className="text-xs text-success-600 bg-success-50 border border-success-500/40 rounded-xl px-3 py-2">{aviso}</p>
                         )}
 
                         <button type="submit" disabled={salvando || (outroAutor && !form.authorizedByFamily.trim()) || (!responsavel && !form.authorizedByFamily.trim())}
-                            className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50">
+                            className="w-full py-3 bg-accent-500/100 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50">
                             {salvando ? t('comum.salvando') : t('regime.form.salvar')}
                         </button>
                     </form>

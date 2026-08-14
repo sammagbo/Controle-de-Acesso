@@ -9,7 +9,7 @@ de sauvegarde `magbo_*.sql.gz`, et rien d'autre.
 application ouverte sur la base restaurée). Ce qui n'a **pas** été exécuté est marqué
 ⚠️ NON TESTÉ, avec la raison.
 
-**Version de référence :** `main` après le PR #33 (V012 incluse). Si le schéma a évolué
+**Version de référence :** `main` après le PR #41 (V015 incluse — voir la note ci-dessous). Si le schéma a évolué
 depuis, la mécanique reste la même — c'est l'entité JPA qui fait foi, pas ce fichier.
 
 ---
@@ -116,7 +116,23 @@ for f in deploy/migrations/V0*.sql; do
 done
 ```
 
-Doit imprimer `OK` **douze fois** (V001…V012). Exécuté le 12/08/2026 : 12/12 OK sur un
+Doit imprimer `OK` **quinze fois** (V001…V015).
+
+> ⚠️ **V013 à V015 ajoutées après la vérification du 12/08.** V013 =
+> `password_reset_requests` ; V014 = `student_regimes` + `student_regime_events`
+> (régime de sortie) ; V015 = élargit le CHECK de `access_attempts.denial_reason`
+> avec `REGIME_NOT_ALLOWED`, `REGIME_UNKNOWN` et `REGIME_TO_VERIFY`.
+> **La V015 n'est pas optionnelle** : sans elle, l'INSERT d'une tentative de
+> régime échoue *à l'intérieur de la transaction* et emporte l'`access_log`
+> d'un passage réel — et seulement des semaines plus tard, quand la Vie
+> Scolaire aura chargé les régimes. `npm test -- tests/migrations.test.js`
+> échoue si une migration manque à la procédure.
+>
+> Pour **activer** le régime après les migrations :
+> `MAGBO_REGIME_HABILITADO=true` dans `deploy/.env`, puis recréer le conteneur.
+> Il naît à `false` : le jar ne s'édite pas sur la VM.
+
+L'ancienne vérification (12/08/2026, 12/12 OK) reste valable pour V001…V012. Exécuté le 12/08/2026 : 12/12 OK sur un
 schéma né d'Hibernate. Ce qu'elles ajoutent réellement à ce stade : les index `idx_*`
 (V006), le CHECK manuel `meal_entitlement_events_source_check` (V003), et la V012 fait des
 no-ops (le schéma Hibernate actuel naît déjà avec les deux colonnes d'autorité, sans

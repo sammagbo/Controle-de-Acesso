@@ -30,6 +30,12 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-magbo}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_prod}
       MAGBO_JWT_SECRET: ${MAGBO_JWT_SECRET}
+      # ⚠️ RÉGIME DE SORTIE — a única chave que liga a funcionalidade inteira.
+      # Nasce FALSE dentro do jar, e o jar não se edita na VM: sem esta linha,
+      # ligar o regime exigia rebuild. Ligar SÓ DEPOIS de aplicar a V015
+      # (deploy/migrations/README.md) — antes disso o INSERT da tentativa estoura
+      # dentro da transação e derruba junto o access_log de uma passagem real.
+      MAGBO_REGIME_HABILITADO: ${MAGBO_REGIME_HABILITADO:-false}
       MAGBO_WEBHOOK_TOKEN: ${MAGBO_WEBHOOK_TOKEN:-}
     ports:
       - "8080:8080"

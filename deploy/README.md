@@ -29,13 +29,31 @@ on a production VM using Docker.
    docker compose up -d
    ```
 
-4. **Check health:**
+4. **Apply the SQL migrations — ⚠️ THIS STEP IS NOT OPTIONAL:**
+
+   The schema is created by Hibernate (`ddl-auto=update`), which **adds** but
+   never alters a CHECK constraint and never removes anything. Several
+   migrations therefore exist that Hibernate will NOT apply for you, and the
+   failures they prevent are **delayed and silent** — they arm weeks later, in
+   production, inside the transaction that records a real passage.
+
+   ```bash
+   # The full ordered list, and why each one matters:
+   cat deploy/migrations/README.md
+   ```
+
+   Apply **V001 → V015, in order**, before considering the deployment done.
+   `npm test -- tests/migrations.test.js` fails if a migration exists in
+   `deploy/migrations/` and is not named in that README, if it has no rollback,
+   or if the `denial_reason` CHECK has fallen behind the Java enum.
+
+5. **Check health:**
    ```bash
    docker compose ps
    docker compose logs backend --tail 50
    ```
 
-5. **Verify backend:**
+6. **Verify backend:**
    ```bash
    curl http://localhost:8080/api/auth/login \
      -X POST -H "Content-Type: application/json" \

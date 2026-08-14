@@ -26,6 +26,21 @@ conversão futura. **Não** foi adicionado Flyway ao `pom.xml`, **não** existe
 - **VM de produção** (Ubuntu 24.04, `deploy/docker-compose.yml`): **precisa**. A migração na
   VM deve ser controlada e revisável — é aqui que estes arquivos são aplicados, na ordem.
 
+### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
+
+A **V014** cria `student_regimes` e `student_regime_events` (régime de sortie) — é
+aditiva e o `ddl-auto` do PC a resolve sozinho. A **V015** amplia o CHECK de
+`access_attempts.denial_reason` com `REGIME_NOT_ALLOWED` e `REGIME_UNKNOWN`, e
+esta **precisa ser aplicada à mão na VM**: o Hibernate gera o CHECK ao *criar* a
+tabela e o `ddl-auto=update` **nunca altera** um CHECK existente (mesma armadilha
+da V009).
+
+⚠️ **A falha é adiada e silenciosa.** Sem a V015 nada quebra no dia do deploy:
+ela só arma quando a Vie Scolaire cadastrar o primeiro regime e um aluno de
+regime 1 passar no portão — aí o INSERT da tentativa estoura **dentro da
+transação** e derruba junto o `access_log` de uma passagem real. Aplicar
+**antes** de ligar `magbo.regime.habilitado`.
+
 ### ⚠️ A V012 é obrigatória NO PC TAMBÉM — a primeira que é
 
 A regra acima vale porque toda migração até aqui foi **aditiva**, e `ddl-auto=update` entrega
@@ -41,6 +56,8 @@ erro de driver e não com mensagem de validação.
 # PC (container magbo-postgres), ANTES de subir o backend novo:
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -53,7 +70,7 @@ cabeçalho do próprio V012.
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V013. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V015. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -72,6 +89,8 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V010_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V011__user_photos.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012__exit_permission_two_authorities.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
 ```
 
 | Arquivo | Cria/altera | Fase |

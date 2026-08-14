@@ -637,7 +637,15 @@ if (window.api) {
       window.api.revokeExitPermission = revokeExitPermission;
       // Régime de sortie. ⚠️ Anexar aqui é obrigatório: em 17/07 dez funções
       // ficaram órfãs por esquecimento e as telas caíram no fallback vazio, em
-      // silêncio. Há teste de fiação (tests/wiring.test.js).
+      // silêncio.
+      //
+      // ⚠️ NÃO HÁ TESTE COBRINDO ESTA LIGAÇÃO. Uma versão anterior deste
+      // comentário afirmava que `tests/wiring.test.js` a cobria; ele cobre
+      // outra coisa — as tags <script> do index.html e os globais
+      // window.Magbo*. Nenhum teste verifica que uma função de api.js foi
+      // anexada ao window.api, que é exatamente o defeito de 17/07. Fica dito
+      // como está, em vez de prometido: um comentário que inventa prova é pior
+      // que um sem prova nenhuma. (Painel de revisão, 14/08/2026.)
       window.api.getRegimeDoAluno = getRegimeDoAluno;
       window.api.getRegimeSummary = getRegimeSummary;
       window.api.avaliarRegime = avaliarRegime;

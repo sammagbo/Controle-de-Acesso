@@ -77,8 +77,17 @@ public class RegimeProperties {
      */
     private String desconhecido = "OBSERVATION";
 
-    /** Regra ligada? Desligada, o servico responde NON_APPLICABLE para todos. */
-    private boolean habilitado = true;
+    /**
+     * Regra ligada? Desligada, o servico responde NON_APPLICABLE para todos.
+     *
+     * ⚠️ FALSE tambem no campo Java, e nao so no application.properties. O
+     * comentario do docker-compose afirma "nasce FALSE"; com o default do campo
+     * em true, quem construisse um RegimeProperties sem passar pelo Spring —
+     * um teste, um binding parcial — teria a regra LIGADA sem que ninguem
+     * tivesse pedido. Duas fontes para o mesmo padrao, e a que aparece na
+     * documentacao era a que nao valia. (Painel de revisao, 14/08/2026.)
+     */
+    private boolean habilitado = false;
 
     public boolean negarDesconhecido() {
         return "DENY".equalsIgnoreCase(desconhecido);

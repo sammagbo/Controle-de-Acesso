@@ -38,7 +38,7 @@ substitui a lembrança de que ele existe.
 
 A **V014** cria `student_regimes` e `student_regime_events` (régime de sortie) — é
 aditiva e o `ddl-auto` do PC a resolve sozinho. A **V015** amplia o CHECK de
-`access_attempts.denial_reason` com `REGIME_NOT_ALLOWED` e `REGIME_UNKNOWN`, e
+`access_attempts.denial_reason` com `REGIME_NOT_ALLOWED`, `REGIME_UNKNOWN` e `REGIME_TO_VERIFY`, e
 esta **precisa ser aplicada à mão na VM**: o Hibernate gera o CHECK ao *criar* a
 tabela e o `ddl-auto=update` **nunca altera** um CHECK existente (mesma armadilha
 da V009).

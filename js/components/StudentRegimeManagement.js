@@ -156,17 +156,28 @@ function StudentRegimeManagement({ onBack }) {
     useEffect(() => {
         const q = busca.trim();
         if (q.length < 2) { setResultados([]); return; }
+        // Aluno já escolhido e o campo diz exatamente o nome dele: não é uma
+        // busca nova, é o efeito re-rodando porque `escolher` preencheu o
+        // campo. Sem esta guarda a lista REABRIA sozinha 250ms depois do
+        // clique — e refazia a consulta a cada gravação.
+        if (aluno && q === (aluno.nome || '').trim()) { setResultados([]); return; }
         let vivo = true;
         const tid = setTimeout(async () => {
             try {
-                const achados = await window.userCache.search(q, 20);
+                // ⚠️ searchStudents, NÃO search: a busca de alunos do servidor
+                // normaliza acento — "Goncalves" acha "Gonçalves". A primeira
+                // versão usava a genérica: quem digitasse sem acento concluía
+                // que a criança não estava cadastrada, e o limite de 20 ainda
+                // era gasto com funcionários que o filtro descartava depois
+                // (painel de revisão, frontend, 14/08).
+                const achados = await window.userCache.searchStudents(q, 20);
                 if (vivo) setResultados((achados || []).filter(u => u.tipo === 'ALUNO'));
             } catch (e) {
                 if (vivo) setResultados([]);
             }
         }, 250);
         return () => { vivo = false; clearTimeout(tid); };
-    }, [busca]);
+    }, [busca, aluno]);
 
     const escolher = async (u) => {
         setAluno(u);

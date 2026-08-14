@@ -89,6 +89,7 @@
             'regime.import.geral.invalido': 'Régime général non reconnu (externe / DP / interne)',
             'regime.import.sortie.invalido': 'Régime de sortie non reconnu (1, 2 ou 3)',
             'regime.import.data.invalida': 'Date illisible (AAAA-MM-JJ ou JJ/MM/AAAA)',
+            'regime.import.texto.longo': 'Texte trop long (note : 500 caractères max, document : 255)',
             'regime.import.sem.inicio': 'Date de début manquante',
             'regime.import.datas.invertidas': 'La fin est avant le début',
             'regime.import.sem.autor': 'Personne n’a autorisé — un régime sans auteur ne prouve rien',
@@ -130,6 +131,7 @@
             'regime.motivo.nao.aluno': "Le régime de sortie ne concerne que les élèves",
             'regime.motivo.permissao.pontual': 'Autorisation ponctuelle valable maintenant',
             'regime.motivo.fim.jornada': 'Fin de la journée — sortie normale',
+            'regime.motivo.fim.manha': 'Fin de la demi-journée — sortie normale',
             'regime.motivo.sem.regime': "Aucun régime enregistré pour cet élève",
             'regime.motivo.regime1': 'Régime 1 : reste dans l’établissement pendant la demi-journée',
             'regime.motivo.regime2': "Régime 2 : sortie possible en cas d'absence de professeur — vérifiez l'emploi du temps",
@@ -894,6 +896,11 @@
             'operadores.setor.cdi': 'CDI',
             'operadores.setor.portail': 'Portail (entrées)',
             'operadores.setor.tudo': 'Tout (admin)',
+            // ⚠️ Rótulo da permissão desta BRANCH na tela de operadores (que
+            // vive na main desde fix/permissions-ui). Toda branch que
+            // acrescenta permissão acrescenta o rótulo dela AQUI, nas duas
+            // línguas — tests/permissions.test.js da main cobra isto.
+            'operadores.permissao.REGIME_WRITE': 'Régimes de sortie — modifier',
             'operadores.senha': 'Mot de passe',
             'operadores.senha.nova': 'Nouveau mot de passe (facultatif)',
             'operadores.ativo': 'Opérateur actif',
@@ -1196,6 +1203,7 @@
             'regime.import.geral.invalido': 'Regime geral não reconhecido (externe / DP / interne)',
             'regime.import.sortie.invalido': 'Regime de saída não reconhecido (1, 2 ou 3)',
             'regime.import.data.invalida': 'Data ilegível (AAAA-MM-DD ou DD/MM/AAAA)',
+            'regime.import.texto.longo': 'Texto longo demais (observação: máx. 500 caracteres, documento: 255)',
             'regime.import.sem.inicio': 'Falta a data de início',
             'regime.import.datas.invertidas': 'O fim é anterior ao início',
             'regime.import.sem.autor': 'Ninguém autorizou — um regime sem autor não prova nada',
@@ -1234,9 +1242,10 @@
             'regime.verdict.NON_APPLICABLE': 'Não se aplica',
 
             'regime.motivo.desligado': 'Controle de regimes desativado',
-            'regime.motivo.nao.aluno': 'O regime de sortie só vale para alunos',
+            'regime.motivo.nao.aluno': 'O regime de saída só vale para alunos',
             'regime.motivo.permissao.pontual': 'Autorização pontual válida agora',
             'regime.motivo.fim.jornada': 'Fim da jornada — saída normal',
+            'regime.motivo.fim.manha': 'Fim da meia-jornada — saída normal',
             'regime.motivo.sem.regime': 'Nenhum regime cadastrado para este aluno',
             'regime.motivo.regime1': 'Regime 1: permanece na escola durante a meia-jornada',
             'regime.motivo.regime2': 'Regime 2: pode sair havendo falta de professor — confira a grade',
@@ -1999,6 +2008,7 @@
             'operadores.setor.cdi': 'CDI',
             'operadores.setor.portail': 'Portaria (entradas)',
             'operadores.setor.tudo': 'Tudo (admin)',
+            'operadores.permissao.REGIME_WRITE': 'Regimes de saída — alterar',
             'operadores.senha': 'Senha',
             'operadores.senha.nova': 'Nova senha (opcional)',
             'operadores.ativo': 'Operador ativo',

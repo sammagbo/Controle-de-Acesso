@@ -74,7 +74,7 @@ class RegimeGateWiringTest {
         regimeProps.setHabilitado(true);
 
         RegimeSortieService regimeService = new RegimeSortieService(
-                regimeRepository, regimeEventRepository, userRepository,
+                regimeRepository, regimeEventRepository, userRepository, classScheduleRepository,
                 exitPermissionService, accessLogRepository, regimeProps, permissionRepository);
 
         service = new AccessDecisionService(
@@ -174,6 +174,46 @@ class RegimeGateWiringTest {
 
         // 2. ★★ E A PASSAGEM CONTINUA GRAVADA. Esta e a linha que separa este
         //    sistema de um que tranca portas.
+        verify(accessLogRepository).save(any(AccessLog.class));
+    }
+
+    @Test
+    @DisplayName("★★★ a observacao ESTOURA no commit e a passagem sobrevive mesmo assim")
+    void observacaoQueEstouraNaoApagaAPassagem() {
+        // ⚠️ O que o mock lanca aqui e EXATAMENTE o que escapa do metodo real, e
+        // que o try/catch interno dele nao alcanca: (a) UnexpectedRollbackException
+        // — o INSERT falhou (CHECK da V015 ausente na VM), o save marcou a
+        // transacao interna como rollback-only, o catch interno engoliu o erro do
+        // save, e o COMMIT dela estourou DEPOIS, no interceptador; (b)
+        // CannotCreateTransactionException — o pool de 10 nao tinha segunda
+        // conexao e o interceptador lancou ANTES do corpo do metodo.
+        // A primeira versao confiava so no catch interno; um painel de revisao
+        // (leitor adversario, 14/08/2026) provou que essas duas falhas passavam
+        // por cima dele e levavam o access_log junto. O guard agora e o catch no
+        // CHAMADOR — e e ele que este teste executa.
+        comRegime(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+        org.mockito.Mockito.doThrow(
+                new org.springframework.transaction.UnexpectedRollbackException(
+                        "Transaction silently rolled back because it has been marked as rollback-only"))
+                .when(attemptService).recordObservacaoIsolada(
+                        any(), any(), any(), any(), any(), any(), any(), any(),
+                        any(), any(), any(), anyBoolean(), any());
+
+        saiPelaPortaria();
+
+        // A observacao explodiu — e a passagem foi gravada mesmo assim.
+        verify(accessLogRepository).save(any(AccessLog.class));
+
+        // O mesmo para a falha que acontece ANTES do corpo do metodo.
+        org.mockito.Mockito.reset(accessLogRepository);
+        org.mockito.Mockito.doThrow(
+                new org.springframework.transaction.CannotCreateTransactionException(
+                        "Could not open JDBC Connection for transaction"))
+                .when(attemptService).recordObservacaoIsolada(
+                        any(), any(), any(), any(), any(), any(), any(), any(),
+                        any(), any(), any(), anyBoolean(), any());
+
+        saiPelaPortaria();
         verify(accessLogRepository).save(any(AccessLog.class));
     }
 

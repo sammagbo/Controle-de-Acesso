@@ -170,6 +170,26 @@ public class RegimeImportService {
             return conflito(r, u, "regime.import.sem.autor");
         }
 
+        // ⚠️ assinadoEm avaliado AQUI, no plano — nao dentro do if(gravar).
+        // A primeira versao so o parseava no apply e engolia o erro com
+        // assinado=null: o preview mostrava a linha verde e a data em que o
+        // responsavel assinou o papel era descartada sem uma linha de log. A
+        // data da assinatura e prova documental (V014), nao um enfeite.
+        LocalDate assinado;
+        try {
+            assinado = parseData(r.getAssinadoEm());
+        } catch (DateTimeParseException e) {
+            return conflito(r, u, "regime.import.data.invalida");
+        }
+
+        // Limites físicos das colunas (StudentRegime): estourar aqui no flush
+        // derrubaria o lote inteiro com rollback DEPOIS de um preview verde.
+        if (autor.length() > 255
+                || len(r.getDocumentoRef()) > 255
+                || len(r.getNote()) > 500) {
+            return conflito(r, u, "regime.import.texto.longo");
+        }
+
         StudentRegime vigente = regimeRepository.findVigente(matricula, de).orElse(null);
         String atual = vigente == null ? null
                 : vigente.getRegimeSortie() + " / " + vigente.getRegimeGeneral();
@@ -177,22 +197,28 @@ public class RegimeImportService {
 
         // Identico: nao se encerra um regime para abrir outro igual — isso
         // encheria o historico de linhas sem diferenca nenhuma.
+        // ⚠️ Os campos de PROVA (documentoRef, assinadoEm, note) entram na
+        // comparacao: o fluxo real da escola e carregar setembro sem os numeros
+        // de carnet e reenviar a MESMA planilha em outubro com eles. Se o teste
+        // de identidade os ignorasse, esse reenvio responderia 923x "identique"
+        // e a referencia do papel assinado nunca seria gravada — sem nenhum
+        // sinal de recusa (painel de revisao, arquiteto, 14/08/2026).
+        // Planilha com o campo VAZIO onde o banco tem valor conta como
+        // diferenca de proposito: vira ATUALIZAR e fica no historico, em vez de
+        // apagar prova em silencio.
         if (vigente != null
                 && vigente.getRegimeSortie() == sortie
                 && vigente.getRegimeGeneral() == geral
                 && Objects.equals(vigente.getAuthorizedByFamily(), autor)
-                && Objects.equals(vigente.getValidUntil(), ate)) {
+                && Objects.equals(vigente.getValidUntil(), ate)
+                && Objects.equals(vigente.getDocumentoRef(), trimOuNulo(r.getDocumentoRef()))
+                && Objects.equals(vigente.getAssinadoEm(), assinado)
+                && Objects.equals(vigente.getNote(), trimOuNulo(r.getNote()))) {
             return new RowPlan(r.getLinha(), matricula, u.getNome(), u.getTurma(),
                     atual, novo, Acao.PULAR, "regime.import.identico");
         }
 
         if (gravar) {
-            LocalDate assinado;
-            try {
-                assinado = parseData(r.getAssinadoEm());
-            } catch (DateTimeParseException e) {
-                assinado = null;
-            }
             regimeService.definir(matricula, geral, sortie, de, ate, autor,
                     trimOuNulo(r.getDocumentoRef()), assinado, trimOuNulo(r.getNote()),
                     quem, "BULK");
@@ -231,6 +257,10 @@ public class RegimeImportService {
         return t.isEmpty() ? null : t;
     }
 
+    private static int len(String s) {
+        return trim(s).length();
+    }
+
     private static <E extends Enum<E>> E parseEnum(Class<E> tipo, String valor) {
         String v = trim(valor).toUpperCase().replace('-', '_').replace(' ', '_');
         if (v.isEmpty()) return null;
@@ -253,15 +283,32 @@ public class RegimeImportService {
         }
     }
 
-    /** Aceita ISO (2026-09-01) e o formato francês (01/09/2026). */
+    /**
+     * Aceita ISO (2026-09-01) e o formato francês (01/09/2026).
+     *
+     * ⚠️ TUDO que der errado aqui sai como DateTimeParseException — e só. A
+     * primeira versão deixava escapar DateTimeException (31/09/2026, 29/02/2027:
+     * LocalDate.of valida o calendário e lança a MÃE, não a filha) e
+     * NumberFormatException (01/set/2026). O catch de avaliarLinha não as
+     * alcançava, a exceção subia até o controller, e UMA data digitada errada
+     * derrubava a planilha das 923 linhas inteira com 500 — no apply E no
+     * preview, sem dizer a linha. Exatamente o que o contrato da classe promete
+     * que não acontece (painel de revisão, arquiteto, 14/08/2026).
+     */
     private static LocalDate parseData(String s) {
         String v = trim(s);
         if (v.isEmpty()) return null;
-        if (v.contains("/")) {
-            String[] p = v.split("/");
-            if (p.length != 3) throw new DateTimeParseException("formato", v, 0);
-            return LocalDate.of(Integer.parseInt(p[2]), Integer.parseInt(p[1]), Integer.parseInt(p[0]));
+        try {
+            if (v.contains("/")) {
+                String[] p = v.split("/");
+                if (p.length != 3) throw new DateTimeParseException("formato", v, 0);
+                return LocalDate.of(Integer.parseInt(p[2]), Integer.parseInt(p[1]), Integer.parseInt(p[0]));
+            }
+            return LocalDate.parse(v);
+        } catch (DateTimeParseException e) {
+            throw e;
+        } catch (java.time.DateTimeException | NumberFormatException e) {
+            throw new DateTimeParseException(e.getMessage(), v, 0);
         }
-        return LocalDate.parse(v);
     }
 }

@@ -47,9 +47,19 @@ public class AccessAttemptService {
      * portao. A prova de que ela passou desapareceria por causa do aviso sobre
      * ela ter passado.
      *
-     * Nao adianta try/catch no chamador: em Spring, a excecao ja marcou a
-     * transacao como rollback-only, e capturar nao a despoluí. Por isso
-     * REQUIRES_NEW — a observacao vive e morre sozinha.
+     * ⚠️ REQUIRES_NEW NAO BASTA SOZINHO, e o try/catch DESTE metodo tambem
+     * nao — o chamador PRECISA do proprio catch. Duas falhas escapam daqui:
+     * (1) o interceptador lanca ANTES do corpo se o pool nao tiver uma segunda
+     * conexao (REQUIRES_NEW pede outra enquanto a transacao da passagem segura
+     * a primeira); (2) quando o INSERT falha, o save marca a transacao INTERNA
+     * como rollback-only, o catch abaixo engole a excecao do save — mas o
+     * COMMIT da transacao interna estoura em seguida
+     * (UnexpectedRollbackException), fora de qualquer try daqui. A primeira
+     * versao deste metodo confiava so no catch interno e um painel de revisao
+     * provou o buraco (14/08/2026). O catch interno fica: ele cobre as falhas
+     * que nao envenenam a transacao (os IllegalArgument dos guards) e loga o
+     * motivo com detalhe. Mas quem garante a passagem e o catch no chamador
+     * (AccessDecisionService).
      *
      * Documentar a ordem de deploy (aplicar a V015 antes de ligar a regra)
      * continua certo e continua no README; o que nao pode e a prova depender

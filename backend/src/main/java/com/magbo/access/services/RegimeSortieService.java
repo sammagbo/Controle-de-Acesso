@@ -68,6 +68,7 @@ public class RegimeSortieService {
     private final StudentRegimeRepository regimeRepository;
     private final StudentRegimeEventRepository eventRepository;
     private final UserRepository userRepository;
+    private final com.magbo.access.repositories.ClassScheduleRepository classScheduleRepository;
     private final ExitPermissionService exitPermissionService;
     private final AccessLogRepository accessLogRepository;
     private final RegimeProperties props;
@@ -174,12 +175,21 @@ public class RegimeSortieService {
 
         // 3. FIM DA JORNADA — vale mesmo sem regime cadastrado. Depois do fim do
         //    dia, a saida deixa de ser excecao a autorizar: e o fim do dia.
+        //    ⚠️ O relogio da manha e o DA TURMA (class_schedules), nao uma hora
+        //    unica da escola — ver fimDaJornada.
         RegimeGeneral geral = vigenteOpt.map(StudentRegime::getRegimeGeneral).orElse(null);
-        if (fimDaJornada(agora.toLocalTime(), geral)) {
+        FimJornada fj = fimDaJornada(agora.toLocalTime(), geral,
+                userOpt.get().getTurma(), agora.getDayOfWeek());
+        if (fj != FimJornada.NAO) {
             return new RegimeDecision(RegimeVerdict.AUTORISE,
-                    "regime.motivo.fim.jornada",
+                    fj == FimJornada.FIM_DO_DIA
+                            ? "regime.motivo.fim.jornada"
+                            : "regime.motivo.fim.manha",
                     vigenteOpt.map(StudentRegime::getRegimeSortie).orElse(null),
-                    geral, null, false);
+                    // dependeDeGrade=true quando a liberacao do meio-dia veio do
+                    // PADRAO da escola e nao da grade da turma: o verde carrega
+                    // a ressalva de que o MAGBO nao conferiu o horario DELA.
+                    geral, null, fj == FimJornada.MEIO_DIA_PELO_PADRAO);
         }
 
         // 5. SEM REGIME. Cinza, nunca vermelho — no dia 1 sao 923 alunos assim.
@@ -211,34 +221,90 @@ public class RegimeSortieService {
         };
     }
 
+    /** Como (e se) a jornada terminou — o grau importa para o motivo e a ressalva. */
+    enum FimJornada {
+        NAO,
+        /** Depois de fimDia: acabou para todo mundo, sem ressalva. */
+        FIM_DO_DIA,
+        /** Janela do meio-dia com a hora DA TURMA (class_schedules). */
+        MEIO_DIA_PELA_TURMA,
+        /** Janela do meio-dia com o PADRAO da escola — a turma nao tem grade. */
+        MEIO_DIA_PELO_PADRAO
+    }
+
     /**
      * A jornada desta pessoa ja terminou?
      *
-     * Para o EXTERNE, o fim da manha encerra o dia letivo (ele almoca fora).
-     * Para o demi-pensionnaire e o interne, so o fim do dia — eles almocam aqui.
-     * Sem regime geral conhecido, usa-se o criterio mais restritivo (fim do dia):
-     * na duvida sobre o que a familia contratou, nao se antecipa uma liberacao.
+     * Para o EXTERNE, o fim da manha encerra a meia-jornada (ele almoca fora).
+     * Para o demi-pensionnaire e o interne, em dia normal so o fim do dia — eles
+     * almocam aqui. Sem regime geral conhecido, usa-se o criterio mais
+     * restritivo (fim do dia): na duvida sobre o que a familia contratou, nao se
+     * antecipa uma liberacao.
+     *
+     * ⚠️ O FIM DA MANHA E O DA TURMA, nao um da escola. Esta escola nao tem UMA
+     * hora de fim de manha: class_schedules — a grade que a CANTINA ja consulta
+     * — registra 11H00, 12H30 e 13H00 conforme a turma. Com o padrao unico de
+     * 12:00, um aluno de turma que termina as 13h00 recebia VERDE "sortie
+     * normale" ao meio-dia, UMA HORA antes de a manha dele acabar — o unico
+     * verde do modulo que afirmava mais do que o dado por tras dele. E a turma
+     * com 'N' (sem refeicao — a quarta-feira tipica: 30 das 43 turmas) prendia o
+     * demi-pensionnaire ate as 17h30 num dia em que ele nem almoca aqui.
+     * Apanhado pelo painel de revisao (Vie Scolaire) em 14/08/2026.
+     *
+     * ⚠️ No dia 'N' o demi-pensionnaire ganha a MESMA janela do meio-dia do
+     * externe — nao o dia inteiro. 'N' afirma "a turma nao come aqui neste dia";
+     * nao afirma "nao ha aula a tarde". Um regime 1 saindo sozinho as 15h de uma
+     * quarta continua merecendo o olhar da Vie Scolaire; se a escola achar isso
+     * ruidoso, o dado a corrigir e a grade, nao a regra.
+     *
+     * ⚠️ A janela do meio-dia continua fechando na retomadaTarde (property):
+     * a grade da apenas a hora do ALMOCO da turma; a hora em que a tarde comeca
+     * o MAGBO segue nao sabendo por turma.
      */
-    private boolean fimDaJornada(LocalTime agora, RegimeGeneral geral) {
+    private FimJornada fimDaJornada(LocalTime agora, RegimeGeneral geral,
+                                    String turma, java.time.DayOfWeek dia) {
         int folga = props.getToleranciaMinutos();
 
         // Depois do fim do dia, a jornada de todo mundo acabou.
-        if (!agora.isBefore(props.getFimDia().minusMinutes(folga))) return true;
+        if (!agora.isBefore(props.getFimDia().minusMinutes(folga))) return FimJornada.FIM_DO_DIA;
 
-        // ⚠️ O EXTERNE so esta liberado DENTRO da janela do meio-dia — entre o
-        // fim da manha e a retomada da tarde. A primeira versao perguntava
-        // apenas "e depois do fim da manha?", e por isso respondia
-        // "fim de jornada — saida normal" as 14h30, as 16h e ate a meia-noite:
-        // o aluno de regime 1 que se mandava depois do almoco recebia VERDE, e
-        // com uma afirmacao de que aquela saida tinha sido normal. Apanhado pelo
-        // painel de revisao (CPE) em 14/08/2026.
-        if (geral == RegimeGeneral.EXTERNE) {
-            return !agora.isBefore(props.getFimManha().minusMinutes(folga))
+        // A grade da turma para hoje: hora ("12H30"), 'N', ou nada.
+        String midi = turma == null || turma.isBlank() ? null
+                : classScheduleRepository.findById(turma)
+                        .map(cs -> cs.midiDoDia(dia)).orElse(null);
+        boolean diaSemRefeicao = "N".equalsIgnoreCase(midi);
+        LocalTime fimManhaDaTurma = parseMidi(midi);
+
+        // ⚠️ A janela do meio-dia — entre o fim da manha e a retomada da tarde.
+        // A primeira versao perguntava apenas "e depois do fim da manha?", e por
+        // isso respondia "fim de jornada" as 14h30, as 16h e ate a meia-noite:
+        // o aluno de regime 1 que se mandava depois do almoco recebia VERDE.
+        // Apanhado pelo painel de revisao (CPE) em 14/08/2026.
+        boolean janelaVale = geral == RegimeGeneral.EXTERNE
+                || (geral == RegimeGeneral.DEMI_PENSIONNAIRE && diaSemRefeicao);
+        if (janelaVale) {
+            LocalTime inicio = fimManhaDaTurma != null ? fimManhaDaTurma : props.getFimManha();
+            boolean dentro = !agora.isBefore(inicio.minusMinutes(folga))
                     && agora.isBefore(props.getRetomadaTarde().minusMinutes(folga));
+            if (!dentro) return FimJornada.NAO;
+            return fimManhaDaTurma != null
+                    ? FimJornada.MEIO_DIA_PELA_TURMA : FimJornada.MEIO_DIA_PELO_PADRAO;
         }
 
-        // Demi-pensionnaire e interne almocam aqui: so o fim do dia encerra.
-        return false;
+        // Demi-pensionnaire em dia de refeicao, e interne sempre: so o fim do
+        // dia encerra.
+        return FimJornada.NAO;
+    }
+
+    /** "12H30" -> 12:30; 'N', vazio, ilegivel ou null -> null. Mesmo formato da cantina. */
+    private LocalTime parseMidi(String h) {
+        if (h == null || h.isBlank() || "N".equalsIgnoreCase(h)) return null;
+        try {
+            return LocalTime.parse(h.toUpperCase().replace("H", ":"));
+        } catch (Exception e) {
+            log.warn("class_schedules com midi ilegível: '{}'", h);
+            return null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

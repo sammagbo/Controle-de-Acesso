@@ -48,6 +48,12 @@ arrière n'est pas une panne visible — l'écran affiche l'ancienne version san
 
 ## 1. Prérequis, et la vérification qui compte ✅
 
+**Quand :** hors horaire scolaire. Entre le § 4 (`mvn clean` vide le répertoire monté)
+et le § 6 (recréation du conteneur), le backend a des fenêtres d'indisponibilité de
+quelques minutes — pendant lesquelles les terminaux **mettent les passages en file et
+les renvoient** (comportement observé deux fois), donc rien n'est perdu, mais les
+écrans sont aveugles. Un mercredi après-midi ou après 18h.
+
 - Accès SSH à la VM et droit de lancer `docker`.
 - `git`, `docker`, `docker compose`, **Maven + JDK 17** sur la VM (le jar se construit
   là où le volume est monté).
@@ -116,9 +122,14 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc "SELECT count(*) FROM a
 
 ```bash
 git status          # doit être propre : une modification locale non commitée sera perdue
+git rev-parse HEAD > ~/magbo_version_precedente.txt   # le § 10.2 en a besoin
 git pull origin main
 git log --oneline -3
 ```
+
+Le premier fichier garde **la version d'où vous partez** : c'est le commit vers lequel
+le § 10.2 reviendra si la mise à jour tourne mal. Sans lui, le retour arrière commence
+par une fouille dans `git log` sous pression.
 
 ⚠️ NON EXÉCUTÉ : le drill s'est déroulé sur un poste local, sans VM dans le périmètre.
 Le reste du document a été exécuté.
@@ -210,9 +221,15 @@ après n'importe quel déploiement. Elle prouve que le backend répond, rien de 
 **plus vieux** que le démarrage du conteneur :
 
 ```bash
-docker exec magbo-backend ls -l --time-style=+%H:%M:%S /app/access-control-*.jar
+docker exec magbo-backend sh -c 'ls -l /app/access-control-*.jar'
 docker inspect magbo-backend --format '{{.State.StartedAt}}'
 ```
+
+⚠️ Le `sh -c` n'est pas décoratif : `docker exec` n'ouvre pas de shell, et sans lui le
+`*` arrive littéral à `ls` — « No such file or directory » sur un jar présent. La
+première version de ce document donnait la commande sans le shell, marquée ✅ parce que
+le drill avait tapé le nom complet du jar ; la version écrite n'avait jamais tourné
+(mesuré le 14/08 : sans `sh -c` → échec, avec → répond).
 
 Un jar **plus récent** que le démarrage signifie : vous avez reconstruit et **pas**
 redémarré — le processus sert encore l'ancien code. Démontré pendant le drill : le jar
@@ -239,10 +256,27 @@ ne ressemble pas à une panne : le bouton n'est simplement pas là.
 particulières »**, une case par permission. Le rôle ADMIN les possède toutes : les
 cases y sont grisées, pas cachées.
 
-⚠️ **Si cet écran n'a pas de champ « Permissions particulières », la version installée
-est antérieure au 14/08/2026.** Avant cette date les permissions n'étaient accordables
-que par API, et rien ne le disait. Ne contournez pas par `curl` : mettez le code à jour,
-sinon la personne qui reprendra après vous se retrouvera devant le même mur.
+⚠️ **Ces écrans ne vivent PAS sur la VM.** Le § 1 à § 6 a mis à jour le backend ; le
+tableau de bord est une application Electron installée sur les postes (loge, CDI,
+cantine), et elle se met à jour par un **paquet séparé** :
+[`release-portable.md`](release-portable.md). Si l'écran des opérateurs n'a pas de
+champ « Permissions particulières », ce n'est pas que la VM est en retard — c'est que
+**le poste** l'est. La mise à jour des postes est donc un PASSO de cette procédure,
+pas une note de bas de page :
+
+7-bis. **Mettre à jour les postes** en suivant `release-portable.md`, **avant** de
+compter sur les écrans des § 7 et § 8. Ne contournez pas par `curl`.
+
+**Vérifier ce qui est accordé** (marche même sans poste à jour — c'est la base qui
+fait foi) :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -c \
+  "SELECT username, role, permissoes FROM system_users WHERE ativo = true;"
+# permissoes est un CSV : REGIME_WRITE doit apparaître pour la Vie Scolaire,
+# PPMS_READ pour Vie Scolaire / direction / infirmière. NULL = aucune permission
+# particulière — normal pour un opérateur de cantine.
+```
 
 ⚠️ `PPMS_READ` **restreint** une liste qui était ouverte à tous : après cette mise à
 jour, un opérateur qui voyait la liste PPMS ne la verra plus. C'est la décision
@@ -263,10 +297,38 @@ quatrième copie de la liste dans l'écran, et le formulaire cessant d'envoyer l
 confirmation : rien n'est écrit tant que le plan n'a pas été affiché et confirmé, et le
 `apply` **refait** le plan contre la base du moment.
 
+**La planilha :** en-têtes à la première ligne, une ligne par élève, colonne
+Matricule **formatée TEXTE** (les zéros de tête comptent : 0001764 et 1764 sont deux
+élèves). Noms de colonnes acceptés (français, portugais, ou le nom système — la liste
+vit dans `js/utils/regimeSheet.js` et l'écran d'import l'affiche) :
+
+| Colonne | Obligatoire | Exemples acceptés |
+|---|---|---|
+| Matricule | oui | `Matrícula`, `Matricule`, `ID` |
+| Régime général | oui | `Régime général`, `Regime geral` — EXTERNE / DP / INTERNE |
+| Régime de sortie | oui | `Régime de sortie`, `Sortie` — 1, R1, «régime 1», REGIME_1 |
+| Valable du | oui | `Valable du`, `Válido de` — 2026-09-01 ou 01/09/2026 |
+| Autorisé par | oui | `Autorisé par`, `Autorizado por` |
+| Valable au / Document / Signé le / Note | non | `Valable au`, `Carnet`, `Signé le`, `Note` |
+
+**Vérifier combien de régimes sont EN VIGUEUR aujourd'hui :**
+
 ```bash
 docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
-  "SELECT count(*) FROM student_regimes WHERE valid_until IS NULL;"
+  "SELECT count(*) FROM student_regimes
+    WHERE encerrado_em IS NULL
+      AND valid_from <= current_date
+      AND (valid_until IS NULL OR valid_until >= current_date);"
 ```
+
+⚠️ **Ne comptez PAS `valid_until IS NULL`** — c'est « sans date de fin », pas « en
+vigueur ». La première version de ce document donnait cette requête-là : une planilha
+avec la colonne « Valable au » remplie aurait répondu **0**, le texte enseignait à lire
+0 comme « rien de chargé », et la conclusion aurait été de réimporter 923 lignes dans
+une table qui est une **preuve** (chaque remplacement reste dans l'historique). La
+réimportation de la même planilha est d'ailleurs sans effet — l'import répond
+« identique » ligne à ligne — mais une vérification qui pousse vers un geste inutile
+sur une table de preuve est une vérification mal écrite.
 
 ⚠️ Zéro régime chargé ne casse rien : **tout élève répond INCONNU** (gris) au portail,
 ce qui est exactement le comportement prévu pour le jour 1. Mais un portail entièrement
@@ -307,7 +369,8 @@ L'ordre du retour arrière est l'inverse de celui de l'aller.
    `up -d --force-recreate backend`). Suffit pour tout ce que le régime touche : la
    règle ne s'évalue plus, le portail redevient ce qu'il était. ✅ (le mécanisme a été
    exercé dans les deux sens)
-2. **Revenir au jar précédent** : `git checkout <commit précédent>`,
+2. **Revenir au jar précédent** : le commit est dans le fichier noté au § 3 —
+   `git checkout $(cat ~/magbo_version_precedente.txt)`, puis
    `mvn clean package -DskipTests`, puis `up -d --force-recreate backend`.
    ⚠️ NON EXÉCUTÉ.
 3. **Ne PAS dérouler les migrations** par réflexe. Elles sont additives : une colonne
@@ -359,6 +422,29 @@ vérifiée était fausse**.
    par API. C'était exactement le reproche qui a motivé ce drill : une opération que
    seul l'auteur savait faire. L'écran existe depuis le 14/08/2026 (branche
    `fix/permissions-ui`).
+
+Un panel de relecture indépendant (14/08, après le premier passage) a trouvé **trois
+défauts de plus dans ce document même** — de la même famille : des vérifications qui
+passaient, ou des ✅, sans que la chose vérifiée soit vraie. Corrigés ci-dessus :
+
+6. **§ 6 encore — la commande corrigée n'avait pas tourné.** La comparaison
+   jar/StartedAt a remplacé l'aveu nº 4, mais la commande écrite utilisait un joker
+   sans shell (`docker exec … ls …*.jar`) : `docker exec` n'ouvre pas de shell, le `*`
+   arrive littéral, et la commande échoue sur un jar présent. Le drill avait tapé le
+   nom complet du jar ; le document avait le joker ; le ✅ couvrait une commande jamais
+   exécutée. Mesuré, corrigé (`sh -c`), re-mesuré.
+
+7. **§ 7 — le champ que la procédure montrait n'existe pas sur les postes de la VM.**
+   Le texte envoyait vers un écran Electron en supposant les postes à jour, et son
+   propre conseil en cas d'absence du champ (« mettez le code à jour ») renvoyait le
+   lecteur au geste qu'il venait de faire. La mise à jour des POSTES est un autre
+   paquet (`release-portable.md`) et elle est maintenant le § 7-bis, un passo nommé.
+
+8. **§ 8 — la vérification mesurait « sans date de fin », pas « en vigueur ».**
+   `valid_until IS NULL` répond 0 sur une planilha correctement remplie avec « Valable
+   au », et le texte enseignait à lire 0 comme un échec de chargement — poussant vers
+   une réimportation de 923 lignes sur une table de preuve. Remplacée par la requête de
+   vigence (bornes de dates + `encerrado_em IS NULL`), exécutée.
 
 **Ce qui a tenu :** l'ordre d'activation, l'avertissement `restart` vs
 `--force-recreate` (mesuré, et exact), l'idempotence des seize migrations, le CHECK de

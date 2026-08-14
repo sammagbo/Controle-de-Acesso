@@ -86,7 +86,7 @@ class EntryWindowRegressionTest {
                 // dependencia nenhuma (por isso os nulos), e o que eles provavam
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
-                new RegimeSortieService(null, null, null, null, null, REGIME_DESLIGADO, null));
+                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null));
     }
 
     private String validar(User user, LocalTime hora) {

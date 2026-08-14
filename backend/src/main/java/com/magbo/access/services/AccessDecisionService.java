@@ -478,16 +478,33 @@ public class AccessDecisionService {
             }
 
             if (motivoRegistro != null) {
-                // ⚠️ ISOLADA: transacao propria, falha engolida. Um registro que
-                // so observa nao pode ter poder de apagar a passagem que ele
-                // observa — ver recordObservacaoIsolada.
-                attemptService.recordObservacaoIsolada(
-                        p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
-                        p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
-                        p.method(), p.authResult(),
-                        AuthorizationResult.OBSERVATION, motivoRegistro,
-                        p.subType(), p.resolved().isFallback(), p.eventTime()
-                );
+                // ⚠️ ISOLADA: transacao propria (REQUIRES_NEW) E catch AQUI, no
+                // chamador. Os dois juntos, porque o try/catch DENTRO do metodo
+                // nao alcanca as duas falhas que importam: o interceptador do
+                // Spring lanca ANTES do corpo quando o pool nao tem segunda
+                // conexao (CannotCreateTransactionException) e DEPOIS do corpo
+                // quando o INSERT falhou e marcou a transacao interna como
+                // rollback-only — o catch interno engole o erro do save, mas o
+                // COMMIT dela estoura em seguida (UnexpectedRollbackException),
+                // ja fora de qualquer try do metodo. Sem este catch, esse
+                // estouro atravessa a transacao DESTA passagem e apaga o
+                // access_log — exatamente o defeito que o metodo existe para
+                // impedir (painel de revisao, leitor adversario, 14/08).
+                try {
+                    attemptService.recordObservacaoIsolada(
+                            p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
+                            p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
+                            p.method(), p.authResult(),
+                            AuthorizationResult.OBSERVATION, motivoRegistro,
+                            p.subType(), p.resolved().isFallback(), p.eventTime()
+                    );
+                } catch (RuntimeException e) {
+                    // O aviso se perde; a passagem fica. Sem a observacao a Vie
+                    // Scolaire nao ve um alerta; sem o access_log ninguem sabe
+                    // que a crianca saiu.
+                    log.error("Observação de regime NÃO gravada (a passagem foi preservada): user={}, motivo={}, erro={}",
+                            p.userId(), motivoRegistro, e.toString());
+                }
                 log.info("Régime de sortie: user={}, veredicto={}, motivo={}, regime={}",
                         p.userId(), regime.verdict(), regime.motivo(), regime.regimeSortie());
             }
@@ -724,14 +741,9 @@ public class AccessDecisionService {
     }
 
     private String getLunchTimeForDay(ClassSchedule s, DayOfWeek day) {
-        switch (day) {
-            case MONDAY: return s.getLunMidi();
-            case TUESDAY: return s.getMarMidi();
-            case WEDNESDAY: return s.getMerMidi();
-            case THURSDAY: return s.getJeuMidi();
-            case FRIDAY: return s.getVenMidi();
-            default: return null;
-        }
+        // O switch vive no modelo (ClassSchedule.midiDoDia) desde que o regime
+        // de sortie passou a ler a mesma grade — fonte unica, logica identica.
+        return s.midiDoDia(day);
     }
 
     private LocalTime parseHour(String h) {

@@ -49,6 +49,7 @@ class RegimeSortieServiceTest {
     private static final LocalDate HOJE = LocalDate.of(2026, 8, 14);
 
     @Mock private StudentRegimeRepository regimeRepository;
+    @Mock private com.magbo.access.repositories.ClassScheduleRepository classScheduleRepository;
     @Mock private StudentRegimeEventRepository eventRepository;
     @Mock private UserRepository userRepository;
     @Mock private ExitPermissionService exitPermissionService;
@@ -69,7 +70,7 @@ class RegimeSortieServiceTest {
         props.setHabilitado(true);
 
         service = new RegimeSortieService(regimeRepository, eventRepository,
-                userRepository, exitPermissionService, accessLogRepository, props, permissionRepository);
+                userRepository, classScheduleRepository, exitPermissionService, accessLogRepository, props, permissionRepository);
 
         // Por omissao: e aluno ativo, sem permissao pontual, sem regime.
         aluno(UserType.ALUNO);
@@ -86,6 +87,16 @@ class RegimeSortieServiceTest {
     private void aluno(UserType tipo) {
         User u = User.builder().id(ALUNO).nome("Aurélie Gonçalves").tipo(tipo).ativo(true).build();
         when(userRepository.findById(ALUNO)).thenReturn(Optional.of(u));
+    }
+
+    /** Da uma turma ao aluno e uma grade a turma. HOJE (14/08/2026) e SEXTA -> venMidi. */
+    private void turmaComGrade(String turma, String venMidi) {
+        User u = User.builder().id(ALUNO).nome("Aurélie Gonçalves")
+                .tipo(UserType.ALUNO).turma(turma).ativo(true).build();
+        when(userRepository.findById(ALUNO)).thenReturn(Optional.of(u));
+        com.magbo.access.models.ClassSchedule cs = com.magbo.access.models.ClassSchedule.builder()
+                .classe(turma).venMidi(venMidi).build();
+        when(classScheduleRepository.findById(turma)).thenReturn(Optional.of(cs));
     }
 
     private void regimeVigente(RegimeSortie sortie, RegimeGeneral geral) {
@@ -314,6 +325,72 @@ class RegimeSortieServiceTest {
             assertThat(d.verdict())
                     .as("a meia-jornada da tarde recomecou; isto nao e fim de jornada")
                     .isEqualTo(RegimeVerdict.NON_AUTORISE);
+        }
+
+        // ─── O RELOGIO DA TURMA (class_schedules) ───────────────────
+        // Esta escola nao tem UMA hora de fim de manha: a grade registra
+        // 11H00, 12H30 e 13H00 conforme a turma, e 30 das 43 turmas tem 'N'
+        // (sem refeicao) na quarta. O padrao unico de 12:00 dava falso VERDE
+        // uma hora antes de a manha da turma de 13h acabar, e falso VERMELHO
+        // ao demi-pensionnaire saindo ao meio-dia de um dia em que ele nem
+        // almoca aqui. Painel de revisao (Vie Scolaire), 14/08/2026.
+
+        @Test
+        @DisplayName("★★★ FALSO VERDE DO MEIO-DIA: turma que termina as 13h NAO libera as 12h")
+        void turmaDas13hNaoLiberaAoMeioDia() {
+            turmaComGrade("T1", "13H00");
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            assertThat(as(12, 0).verdict())
+                    .as("a manha da T1 acaba as 13h; meio-dia e meio da jornada DELA")
+                    .isEqualTo(RegimeVerdict.NON_AUTORISE);
+            // E as 13h, sai — com o motivo do fim da MANHA, nao do dia.
+            RegimeDecision d = as(13, 0);
+            assertThat(d.verdict()).isEqualTo(RegimeVerdict.AUTORISE);
+            assertThat(d.motivo()).isEqualTo("regime.motivo.fim.manha");
+            assertThat(d.dependeDeGrade())
+                    .as("o relogio veio da grade DA TURMA: o verde nao carrega ressalva")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("★★ turma das 11h: o externo sai as 11h05, uma hora antes do padrao da escola")
+        void turmaDas11hLiberaAntesDoPadrao() {
+            turmaComGrade("6A", "11H00");
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            assertThat(as(11, 5).verdict()).isEqualTo(RegimeVerdict.AUTORISE);
+        }
+
+        @Test
+        @DisplayName("★★★ FALSO VERMELHO DA QUARTA: DP em dia 'N' sai ao meio-dia — ele nem almoca aqui")
+        void demiPensionnaireSaiNoDiaSemRefeicao() {
+            turmaComGrade("T1", "N");
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            RegimeDecision d = as(12, 0);
+            assertThat(d.verdict())
+                    .as("dia sem refeicao da turma: a saida do meio-dia e a saida normal do DP")
+                    .isEqualTo(RegimeVerdict.AUTORISE);
+            assertThat(d.motivo()).isEqualTo("regime.motivo.fim.manha");
+        }
+
+        @Test
+        @DisplayName("★★ mas DP em dia 'N' as 15h ainda e olhado — 'N' diz refeicao, nao grade da tarde")
+        void diaSemRefeicaoNaoLiberaATarde() {
+            turmaComGrade("T1", "N");
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            assertThat(as(15, 0).verdict()).isEqualTo(RegimeVerdict.NON_AUTORISE);
+        }
+
+        @Test
+        @DisplayName("★ sem grade da turma, o padrao da escola vale — e o verde CARREGA a ressalva")
+        void semGradeUsaOPadraoComRessalva() {
+            // O aluno dos outros testes nao tem turma: e o proprio fallback.
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            RegimeDecision d = as(12, 0);
+            assertThat(d.verdict()).isEqualTo(RegimeVerdict.AUTORISE);
+            assertThat(d.motivo()).isEqualTo("regime.motivo.fim.manha");
+            assertThat(d.dependeDeGrade())
+                    .as("o relogio veio do PADRAO, nao da turma: a tela precisa dizer isso")
+                    .isTrue();
         }
 
         @Test

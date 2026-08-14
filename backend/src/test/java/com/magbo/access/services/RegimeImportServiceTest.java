@@ -98,6 +98,87 @@ class RegimeImportServiceTest {
     @DisplayName("★★ o que é recusado, e por quê")
     class Recusas {
 
+        /**
+         * ⚠️ TODA recusa deste bloco roda pelo APPLY, nao pelo plan.
+         *
+         * A primeira versao testava as recusas em service.plan() — o caminho
+         * onde escrever e IMPOSSIVEL por construcao (gravar=false). Elas
+         * provavam o ROTULO "CONFLITO", nunca a ausencia de gravacao: mover o
+         * `if (gravar) definir(...)` para antes das validacoes passava na
+         * suite inteira e, no apply real, gravava a matricula duplicada, o
+         * FUNC-201 e a linha sem autor (painel de revisao, testes e mutacao,
+         * 14/08/2026). Este helper roda o caminho onde a escrita esta LIGADA e
+         * afirma que `definir` nao foi chamado para a matricula recusada.
+         */
+        private RegimeImportService.RowPlan recusadaNoApply(RegimeImportRow r) {
+            var plano = service.apply(new java.util.ArrayList<>(List.of(r)), "sam");
+            verify(regimeService, never()).definir(eq(r.getMatricula() == null ? "" : r.getMatricula().trim()),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+            return plano.linhas().get(0);
+        }
+
+        @Test
+        @DisplayName("★★★ data IMPOSSÍVEL no calendário (31/09) é CONFLITO daquela linha — nunca um 500 do lote")
+        void dataImpossivelNaoDerrubaOLote() {
+            // 31/09/2026 não é formato errado: é dia que não existe. LocalDate.of
+            // lança DateTimeException (a MÃE de DateTimeParseException, não a
+            // filha) e a primeira versão do parseData a deixava escapar — uma
+            // célula digitada errada respondia 500 sem número de linha, no
+            // preview E no apply, contra o contrato escrito da classe.
+            aluno("0001764", UserType.ALUNO);
+            RegimeImportRow ruim = linha(2, "0001764", "EXTERNE", "REGIME_1");
+            ruim.setValidFrom("31/09/2026");
+
+            aluno("0002000", UserType.ALUNO);
+            RegimeImportRow boa = linha(3, "0002000", "EXTERNE", "REGIME_1");
+
+            var plano = service.apply(new java.util.ArrayList<>(List.of(ruim, boa)), "sam");
+
+            assertThat(plano.linhas().get(0).acao()).isEqualTo(RegimeImportService.Acao.CONFLITO);
+            assertThat(plano.linhas().get(0).detalhe()).isEqualTo("regime.import.data.invalida");
+            assertThat(plano.linhas().get(1).acao())
+                    .as("a linha boa segue — o lote não morre pela célula errada")
+                    .isEqualTo(RegimeImportService.Acao.CRIAR);
+            verify(regimeService, never()).definir(eq("0001764"), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("★★ 29/02 de ano não bissexto e mês por extenso: CONFLITO, nunca exceção")
+        void outrasDatasImpossiveis() {
+            aluno("0001764", UserType.ALUNO);
+            for (String v : new String[]{"29/02/2027", "01/set/2026", "32/01/2026"}) {
+                RegimeImportRow r = linha(2, "0001764", "EXTERNE", "REGIME_1");
+                r.setValidFrom(v);
+                assertThat(uma(r).acao())
+                        .as("data '%s' tem de virar CONFLITO da linha", v)
+                        .isEqualTo(RegimeImportService.Acao.CONFLITO);
+            }
+        }
+
+        @Test
+        @DisplayName("★★ 'Signé le' ilegível é CONFLITO no PREVIEW — não descarte silencioso no apply")
+        void assinadoEmIlegivelRecusadoNoPlano() {
+            // A primeira versão só parseava assinadoEm dentro do if(gravar) e
+            // engolia o erro com null: o preview mostrava a linha verde e a data
+            // em que o responsável assinou o papel era jogada fora sem log.
+            aluno("0001764", UserType.ALUNO);
+            RegimeImportRow r = linha(2, "0001764", "EXTERNE", "REGIME_1");
+            r.setAssinadoEm("2026-13-05");
+            assertThat(uma(r).acao()).isEqualTo(RegimeImportService.Acao.CONFLITO);
+            assertThat(uma(r).detalhe()).isEqualTo("regime.import.data.invalida");
+        }
+
+        @Test
+        @DisplayName("★★ nota maior que a coluna (500) é CONFLITO no plano — não rollback no flush")
+        void notaLongaRecusada() {
+            aluno("0001764", UserType.ALUNO);
+            RegimeImportRow r = linha(2, "0001764", "EXTERNE", "REGIME_1");
+            r.setNote("x".repeat(501));
+            assertThat(uma(r).acao()).isEqualTo(RegimeImportService.Acao.CONFLITO);
+            assertThat(uma(r).detalhe()).isEqualTo("regime.import.texto.longo");
+        }
+
         @Test
         @DisplayName("★★ aluno que não existe: CONFLITO, e as outras linhas seguem")
         void alunoAusente() {
@@ -115,10 +196,10 @@ class RegimeImportServiceTest {
         }
 
         @Test
-        @DisplayName("★★★ quem NÃO é aluno é recusado — regime é instituto de aluno")
+        @DisplayName("★★★ quem NÃO é aluno é recusado NO APPLY — e nada é gravado")
         void naoAlunoRecusado() {
             aluno("FUNC-201", UserType.FUNCIONARIO);
-            assertThat(uma(linha(2, "FUNC-201", "EXTERNE", "REGIME_1")).acao())
+            assertThat(recusadaNoApply(linha(2, "FUNC-201", "EXTERNE", "REGIME_1")).acao())
                     .isEqualTo(RegimeImportService.Acao.CONFLITO);
         }
 
@@ -128,11 +209,15 @@ class RegimeImportServiceTest {
             // Escolher uma seria o sistema decidindo qual das duas autorizações
             // da família vale. Mesma disciplina das fotos.
             aluno("0001764", UserType.ALUNO);
-            var plano = service.plan(List.of(
+            // Pelo APPLY: aqui a escrita está ligada, e é aqui que "nenhuma
+            // aplicada" significa alguma coisa.
+            var plano = service.apply(new java.util.ArrayList<>(List.of(
                     linha(2, "0001764", "EXTERNE", "REGIME_1"),
-                    linha(7, "0001764", "DEMI_PENSIONNAIRE", "REGIME_3")));
+                    linha(7, "0001764", "DEMI_PENSIONNAIRE", "REGIME_3"))), "sam");
 
             assertThat(plano.linhas()).allMatch(l -> l.acao() == RegimeImportService.Acao.CONFLITO);
+            verify(regimeService, never()).definir(any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any());
         }
 
         @Test
@@ -141,7 +226,9 @@ class RegimeImportServiceTest {
             aluno("0001764", UserType.ALUNO);
             RegimeImportRow r = linha(2, "0001764", "EXTERNE", "REGIME_1");
             r.setAuthorizedByFamily("   ");
-            assertThat(uma(r).acao()).isEqualTo(RegimeImportService.Acao.CONFLITO);
+            // Pelo apply: sem autor a linha não é prova de nada, e é no caminho
+            // com escrita ligada que isso precisa estar provado.
+            assertThat(recusadaNoApply(r).acao()).isEqualTo(RegimeImportService.Acao.CONFLITO);
         }
 
         @Test

@@ -81,6 +81,41 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
             return () => { vivo = false; clearInterval(id); };
       }, [ehPortao, point.id, accessLogs]);
 
+      /**
+       * O QUE A FAIXA MOSTRA — e por que não é simplesmente "o último".
+       *
+       * ⚠️ Num portão às 11h50 passam várias pessoas em poucos segundos. Se a
+       * faixa mostrasse sempre a última passagem, um VERMELHO seria enterrado
+       * pelo verde que chega três segundos depois, e o AED nunca o veria: o
+       * alerta existiria por dois segundos, no meio de uma fila.
+       *
+       * Então quem precisa de atenção VENCE: o mais recente NON_AUTORISE ou
+       * A_VERIFIER dos últimos dois minutos fica na faixa, mesmo que passagens
+       * verdes tenham vindo depois. Passados os dois minutos, a faixa volta a
+       * ser a última passagem — o alerta é para o momento, não para o dia.
+       *
+       * A hora aparece sempre na faixa, então nunca se confunde a passagem
+       * retida com a que acabou de acontecer.
+       */
+      const JANELA_ATENCAO_MS = 2 * 60 * 1000;
+      const emDestaque = React.useMemo(() => {
+            if (!veredictos.length) return null;
+            const agora = Date.now();
+            const precisaAtencao = veredictos.find(v =>
+                  (v.verdict === 'NON_AUTORISE' || v.verdict === 'A_VERIFIER')
+                  && v.momento
+                  && (agora - new Date(v.momento).getTime()) <= JANELA_ATENCAO_MS);
+            return precisaAtencao || veredictos[0];
+      }, [veredictos]);
+
+      // Quantas passagens de aluno vieram DEPOIS da que está na faixa: sem isto,
+      // o AED não sabe que a fila andou enquanto o alerta ficou parado.
+      const passagensDepois = React.useMemo(() => {
+            if (!emDestaque) return 0;
+            const i = veredictos.findIndex(v => v.logId === emDestaque.logId);
+            return i > 0 ? i : 0;
+      }, [veredictos, emDestaque]);
+
       // Casado por logId: o veredicto pertence À PASSAGEM, e foi julgado na hora
       // dela. Casar por userId poria o veredicto de agora numa linha de horas
       // atrás.
@@ -121,8 +156,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                   )}
 
                   {/* A FAIXA: a última saída de aluno, grande, sem procurar. */}
-                  {ehPortao && veredictos.length > 0 && (
-                        <RegimeVerdictBanner v={veredictos[0]} />
+                  {ehPortao && emDestaque && (
+                        <RegimeVerdictBanner v={emDestaque} passagensDepois={passagensDepois} />
                   )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

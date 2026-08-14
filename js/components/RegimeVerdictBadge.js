@@ -65,7 +65,7 @@ function RegimeChip({ verdict, regimeSortie }) {
  * Grande de propósito: com duzentos alunos em movimento, quem está no portão
  * não varre uma lista. Ele olha para cima uma vez.
  */
-function RegimeVerdictBanner({ v }) {
+function RegimeVerdictBanner({ v, passagensDepois = 0 }) {
     const t = useI18n();
     const locale = useLocale();
     if (!v) return null;
@@ -97,6 +97,13 @@ function RegimeVerdictBanner({ v }) {
                         depois. */}
                     {v.dependeDeGrade && (
                         <p className="text-[11px] mt-1 italic opacity-80">{t('regime.ressalva.grade')}</p>
+                    )}
+                    {/* ⚠️ A fila andou enquanto este alerta ficava parado. Sem
+                        dizê-lo, o AED leria a faixa como "a passagem de agora". */}
+                    {passagensDepois > 0 && (
+                        <p className="text-[11px] mt-1 font-bold opacity-80">
+                            {t('regime.portao.depois', { n: passagensDepois })}
+                        </p>
                     )}
                 </div>
             </div>

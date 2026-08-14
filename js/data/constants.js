@@ -30,6 +30,14 @@ const ACCESS_POINTS = [
       // (circulaire 96-248): o regime é a regra do ano, a autorização é a
       // exceção do dia, e a exceção vence.
       { id: 'REGIME_MANAGEMENT', nome: 'Régimes', icon: 'scroll-text', description: 'Régime de sortie annuel', category: 'monitor', area: 'admin', hidden: true },
+      // ⚠️ O card segue a permissao PPMS_READ (js/components/Dashboard.js), nao a
+      // area: a lista e nominativa e o dono decidiu RESTRINGIR, nao fechar —
+      // Vie Scolaire, direcao e enfermaria. O `sempreVisivel` anterior espelhava
+      // um endpoint isAuthenticated() que deixou de existir.
+      // PPMS — NAO hidden e NAO restrito a 'admin': numa evacuacao quem tem o
+      // telefone na mao precisa alcancar a lista, e procurar o caminho no meio
+      // de uma evacuacao e o mesmo que nao ter a tela.
+      { id: 'PPMS', nome: 'PPMS', icon: 'siren', description: 'Qui est à l’intérieur', category: 'monitor', area: 'portail' },
 ];
 
 

@@ -59,6 +59,31 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            'ppms.aviso.sem.fechamento': 'Un des points listés n’a pas de clôture automatique (l’infirmerie) : quelqu’un peut y figurer alors qu’il est reparti sans que la sortie ait été saisie.',
+            'ppms.zona.transito': 'Dans l’établissement — zone inconnue',
+            'ppms.zona.transito.ajuda': 'Couloirs, cour, salles sans lecteur. Commencez par le dernier endroit vu.',
+
+            'ppms.sem.permissao': 'Votre compte n’a pas accès à la liste nominative du PPMS. Demandez la permission « Liste PPMS » à l’administrateur — ce n’est pas une panne réseau.',
+            'ppms.titulo': 'Qui est à l’intérieur',
+            'ppms.subtitulo': 'PPMS · comptage des effectifs · Lycée Molière',
+            'ppms.total': 'Personnes à l’intérieur',
+            'ppms.zonas': 'Zones',
+            'ppms.gerado': 'Relevé de {hora}',
+            'ppms.atualizar': 'Actualiser',
+            'ppms.imprimir': 'Imprimer la liste',
+            'ppms.exportar': 'Exporter CSV',
+            'ppms.vazio': 'Personne à l’intérieur selon les lecteurs',
+            'ppms.offline': '⚠️ Hors ligne — relevé de {hora}, il peut avoir changé',
+            'ppms.carregando': 'Relevé en cours...',
+            'ppms.erro': 'Impossible de joindre le serveur — voici le dernier relevé connu',
+            'ppms.sem.relevo': 'Aucun relevé disponible hors ligne',
+            'ppms.conferidos': '{n} / {total} vérifiés',
+            'ppms.aviso.leitores': 'Présence SELON LES LECTEURS : qui est entré sans être lu n’y figure pas, qui est sorti sans badger y figure encore.',
+            'ppms.aviso.nao.chamada': 'Ceci ne remplace pas l’appel. C’est le point de départ du comptage, pas sa conclusion.',
+            'ppms.csv.header': 'Zone,Matricule,Nom,Classe,Type,Vu à',
+            'ppms.entrou.as': 'entré à {hora}',
+            'ppms.visto.as': 'vu à {hora}',
+
             'comum.conectando': 'Connexion...',
             'saidas.dias.lista': 'Jours : {dias}',
             'saidas.sempre': 'Toujours',
@@ -735,6 +760,10 @@
             'dias.3': 'Mer',
             'dias.4': 'Jeu',
             'dias.5': 'Ven',
+            // O backend aceita ISO 1..7; sem estas duas, um sábado gravado numa
+            // autorização recorrente saía como rótulo VAZIO na tela da portaria.
+            'dias.6': 'Sam',
+            'dias.7': 'Dim',
 
             'periodo.hoje': "Aujourd'hui",
             'periodo.semana': 'Cette Semaine',
@@ -913,6 +942,10 @@
             // acrescenta permissão acrescenta o rótulo dela AQUI, nas duas
             // línguas — tests/permissions.test.js da main cobra isto.
             'operadores.permissao.REGIME_WRITE': 'Régimes de sortie — modifier',
+            // ⚠️ Rótulo da permissão desta BRANCH na tela de operadores (main,
+            // fix/permissions-ui). Toda branch que acrescenta permissão
+            // acrescenta o rótulo AQUI, nas duas línguas.
+            'operadores.permissao.PPMS_READ': 'Liste PPMS — consulter',
             'operadores.senha': 'Mot de passe',
             'operadores.senha.nova': 'Nouveau mot de passe (facultatif)',
             'operadores.ativo': 'Opérateur actif',
@@ -1185,6 +1218,31 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'ppms.aviso.sem.fechamento': 'Um dos pontos listados não tem fechamento automático (a enfermaria): alguém pode constar lá tendo saído sem que a saída fosse lançada.',
+            'ppms.zona.transito': 'No estabelecimento — zona desconhecida',
+            'ppms.zona.transito.ajuda': 'Corredores, pátio, salas sem leitor. Comece pelo último lugar visto.',
+
+            'ppms.sem.permissao': 'A sua conta não tem acesso à lista nominativa do PPMS. Peça a permissão "Lista PPMS" ao administrador — não é uma falha de rede.',
+            'ppms.titulo': 'Quem está dentro',
+            'ppms.subtitulo': 'PPMS · contagem de efetivos · Lycée Molière',
+            'ppms.total': 'Pessoas dentro',
+            'ppms.zonas': 'Zonas',
+            'ppms.gerado': 'Retrato das {hora}',
+            'ppms.atualizar': 'Atualizar',
+            'ppms.imprimir': 'Imprimir a lista',
+            'ppms.exportar': 'Exportar CSV',
+            'ppms.vazio': 'Ninguém dentro segundo os leitores',
+            'ppms.offline': '⚠️ Sem rede — retrato das {hora}, pode ter mudado',
+            'ppms.carregando': 'Tirando o retrato...',
+            'ppms.erro': 'Servidor inacessível — este é o último retrato conhecido',
+            'ppms.sem.relevo': 'Nenhum retrato disponível sem rede',
+            'ppms.conferidos': '{n} / {total} conferidos',
+            'ppms.aviso.leitores': 'Presença SEGUNDO OS LEITORES: quem entrou sem ser lido não aparece, quem saiu sem passar o crachá ainda aparece.',
+            'ppms.aviso.nao.chamada': 'Isto não substitui a chamada. É o ponto de partida da contagem, não a conclusão dela.',
+            'ppms.csv.header': 'Zona,Matrícula,Nome,Turma,Tipo,Visto às',
+            'ppms.entrou.as': 'entrou às {hora}',
+            'ppms.visto.as': 'visto às {hora}',
 
             'comum.conectando': 'Conectando...',
             'saidas.dias.lista': 'Dias: {dias}',
@@ -1862,6 +1920,8 @@
             'dias.3': 'Qua',
             'dias.4': 'Qui',
             'dias.5': 'Sex',
+            'dias.6': 'Sáb',
+            'dias.7': 'Dom',
 
             'periodo.hoje': 'Hoje',
             'periodo.semana': 'Esta semana',
@@ -2034,6 +2094,7 @@
             'operadores.permissao.EXIT_PERMISSION_WRITE': 'Autorizações de saída — alterar',
             'operadores.permissao.ATTEMPTS_READ': 'Tentativas negadas — consultar',
             'operadores.permissao.REGIME_WRITE': 'Regimes de saída — alterar',
+            'operadores.permissao.PPMS_READ': 'Lista PPMS — consultar',
             'operadores.senha': 'Senha',
             'operadores.senha.nova': 'Nova senha (opcional)',
             'operadores.ativo': 'Operador ativo',

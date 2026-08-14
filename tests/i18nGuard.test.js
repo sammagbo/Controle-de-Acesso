@@ -69,6 +69,7 @@ const MIGRADAS = [
     'js/components/AppSettingsModal.js',
     'js/components/StudentRegimeManagement.js',
     'js/components/RegimeVerdictBadge.js',
+    'js/components/PpmsView.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

@@ -433,6 +433,8 @@ function App() {
                         <ExitPermissionManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'REGIME_MANAGEMENT' ? (
                         <StudentRegimeManagement onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'PPMS' ? (
+                        <PpmsView onBack={() => setCurrentPoint(null)} />
                   ) : (
                   <SectorView
                         point={currentPoint}

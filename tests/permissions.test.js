@@ -128,6 +128,61 @@ describe('permissions — gate de escrita', () => {
             // admin veria o card duplicado (Dashboard + painel).
             expect(P.mostraAtalhoNoDashboard(auth({ admin: true }), P.PERMISSIONS.EXIT_PERMISSION_WRITE)).toBe(false);
         });
+    });
+
+    /**
+     * O FILTRO DO DASHBOARD INTEIRO — e o furo que ele fecha.
+     *
+     * A regra vivia inline no filter do Dashboard, com a regra padrão avaliada
+     * PRIMEIRO: `!hidden && canAccessArea(area)`. O PPMS é não-hidden com área
+     * 'portail' — todo operador do setor do portão (exatamente a equipe que a
+     * restrição mirava) recebia true ANTES de o PPMS_READ ser consultado, e o
+     * ramo do PPMS era código morto para eles. A lista nominativa de menores
+     * abria sem a permissão. Painel de revisão (segurança/RGPD, 14/08/2026):
+     * "provei-o executando o filtro real". Agora o filtro É código testável, e
+     * este bloco executa exatamente aquele cenário.
+     */
+    describe('★★★ podeVerPonto — a ordem das cláusulas é a segurança', () => {
+        const PPMS = { id: 'PPMS', area: 'portail' };
+        const PORTARIA = { id: 'PORT1', area: 'portail' };
+        const GESTAO_HIDDEN = { id: 'MEAL_ENTITLEMENT_MANAGEMENT', area: 'admin', hidden: true };
+
+        const comSetor = (extra = {}) => ({
+            isAdmin: () => false,
+            canAccessArea: () => true,     // tem o setor portail
+            hasPermission: () => false,    // ...e NENHUMA permissão granular
+            ...extra
+        });
+
+        it('★★★ operador do PORTÃO sem PPMS_READ NÃO vê o card do PPMS', () => {
+            // O cenário exato do painel: setor certo, permissão ausente.
+            expect(P.podeVerPonto(comSetor(), PPMS)).toBe(false);
+        });
+
+        it('★★ o mesmo operador continua vendo a PORTARIA — o setor dele', () => {
+            expect(P.podeVerPonto(comSetor(), PORTARIA)).toBe(true);
+        });
+
+        it('★ com PPMS_READ, vê', () => {
+            const op = comSetor({ hasPermission: (perm) => perm === 'PPMS_READ' });
+            expect(P.podeVerPonto(op, PPMS)).toBe(true);
+        });
+
+        it('★ ADMIN vê o PPMS — evacuação não tem dois caminhos', () => {
+            // Diferente das telas de gestão: o admin TEM a lista, e numa
+            // emergência o card precisa estar onde todos os outros estão.
+            expect(P.podeVerPonto({ isAdmin: () => true }, PPMS)).toBe(true);
+        });
+
+        it('tela de gestão hidden continua atrás da permissão de escrita', () => {
+            expect(P.podeVerPonto(comSetor(), GESTAO_HIDDEN)).toBe(false);
+            const op = comSetor({ hasPermission: (perm) => perm === 'MEAL_ENTITLEMENT_WRITE' });
+            expect(P.podeVerPonto(op, GESTAO_HIDDEN)).toBe(true);
+        });
+
+        it('sem auth, false — a tela carrega antes do login', () => {
+            expect(P.podeVerPonto(null, PPMS)).toBe(false);
+        });
 
         it('a permissão da CANTINA não abre a tela de SORTIES', () => {
             // Cada atalho é governado pela sua própria permissão — foi o
@@ -164,7 +219,9 @@ describe('permissions — gate de escrita', () => {
                 // mesmo minuto em que ela foi feita, que é o serviço que ele
                 // presta: permissão que existe de um lado só produz botão morto
                 // num lado e 403 no outro.
-                REGIME_WRITE: 'REGIME_WRITE'
+                REGIME_WRITE: 'REGIME_WRITE',
+                // PPMS: a lista nominativa deixou de ser isAuthenticated() em 14/08.
+                PPMS_READ: 'PPMS_READ'
             });
         });
     });

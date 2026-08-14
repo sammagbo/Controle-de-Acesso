@@ -23,6 +23,21 @@ public final class Permissions {
     public static final String REGIME_WRITE           = "REGIME_WRITE";
 
     /**
+     * Ler a lista NOMINATIVA de quem esta dentro da escola (PPMS).
+     *
+     * ⚠️ A lista continua com NOMES — numa evacuacao e o nome que permite achar
+     * uma crianca, e uma contagem anonima nao serve para procurar ninguem. O que
+     * muda e QUEM a alcanca: Vie Scolaire, direcao e enfermaria. O operador da
+     * cantina nao tem por que saber qual crianca esta na enfermaria agora, e a
+     * rota mostrava isso a qualquer conta autenticada — alargando, sem decisao
+     * escrita, um dado que o resto do sistema protege com can('infirmerie').
+     *
+     * Decisao do Sam em 14/08/2026, depois do painel de revisao: restringir, nao
+     * fechar.
+     */
+    public static final String PPMS_READ              = "PPMS_READ";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -44,5 +59,6 @@ public final class Permissions {
             MEAL_ENTITLEMENT_WRITE,
             EXIT_PERMISSION_WRITE,
             ATTEMPTS_READ,
-            REGIME_WRITE);
+            REGIME_WRITE,
+            PPMS_READ);
 }

@@ -310,6 +310,20 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     List<AccessLog> findByPointIdInAndTimestampAfterOrderByTimestampDesc(
             List<String> pointIds, LocalDateTime after);
 
+    /**
+     * TODA passagem da janela, de TODO ponto — sem lista branca.
+     *
+     * ⚠️ Existe para o PPMS, e a ausencia de filtro de ponto E o requisito.
+     * A primeira versao daquele servico filtrava por AreaMapping.pointToArea(),
+     * um Map.of de sete pontos escritos a mao; CANTINA1, que outros controllers
+     * ja tratam como ponto de primeira classe, ficava de fora — e um aluno na
+     * cantina DESAPARECIA da lista de evacuacao, em silencio. Numa lista onde um
+     * nome que falta e uma crianca que ninguem procura, nao ha filtro seguro
+     * senao nenhum.
+     */
+    List<AccessLog> findByTimestampBetweenOrderByTimestampAsc(
+            LocalDateTime from, LocalDateTime to);
+
     List<AccessLog> findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
             List<String> pointIds, LocalDateTime from, LocalDateTime to);
 

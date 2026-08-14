@@ -94,6 +94,11 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {ACCESS_POINTS.filter(point => {
                               // Regra padrão: ponto visível se não-hidden e o usuário tem a área.
+                              // `sempreVisivel`: o card acompanha um endpoint que é
+                              // isAuthenticated() de propósito (PPMS). Filtrar por área
+                              // aqui esconderia a tela de evacuação de metade das pessoas
+                              // que o backend deliberadamente deixa entrar.
+                              if (!point.hidden && point.sempreVisivel) return true;
                               if (!point.hidden && window.auth.canAccessArea(point.area)) return true;
                               // Exceção (decisão do Sam): as telas de gestão (hidden, área admin) são
                               // a porta de entrada dedicada do OPERATOR que tem a permissão granular

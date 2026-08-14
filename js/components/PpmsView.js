@@ -32,23 +32,45 @@ function PpmsView({ onBack }) {
     const [carregando, setCarregando] = useState(true);
     const [conferidos, setConferidos] = useState(() => new Set());
 
+    /** Lê o último retrato guardado, ou null. */
+    const doCache = () => {
+        try {
+            const g = localStorage.getItem(PPMS_CACHE);
+            return g ? JSON.parse(g) : null;
+        } catch (e) { return null; }
+    };
+
     const carregar = useCallback(async () => {
+        // ⚠️ PINTA O CACHE PRIMEIRO, sempre. Rede CAÍDA falha rápido e a tela se
+        // salva sozinha; rede DEGRADADA — que é o caso normal num incidente —
+        // deixaria o fetch pendurado dezenas de segundos com um retrato bom
+        // guardado que a tela se recusava a mostrar. Cache-só-no-fracasso é
+        // cache que não serve quando o fracasso demora.
+        const guardado = doCache();
+        if (guardado) { setSnap(guardado); setOffline(true); }
         setCarregando(true);
+
+        // ⚠️ E com TETO. `fetch` sem AbortController espera o que o sistema
+        // operacional quiser esperar; numa evacuação, seis segundos é o limite
+        // do que alguém encara olhando para um telefone.
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 6000);
         try {
             const res = await fetch(`${window.magboConfig?.getCached?.()?.apiUrl || 'http://localhost:8080'}/api/ppms/inside`, {
-                headers: window.authHeaders ? window.authHeaders() : {}
+                headers: window.authHeaders ? window.authHeaders() : {},
+                signal: ctrl.signal
             });
             if (!res.ok) throw new Error('http ' + res.status);
             const dados = await res.json();
             setSnap(dados);
             setOffline(false);
-            // Guarda o retrato bom. É o que salva a tela quando a rede cai.
             try { localStorage.setItem(PPMS_CACHE, JSON.stringify(dados)); } catch (e) { /* cota cheia: segue */ }
         } catch (e) {
-            const guardado = localStorage.getItem(PPMS_CACHE);
-            setSnap(guardado ? JSON.parse(guardado) : null);
+            // Já está pintado o cache (se havia); só confirma o estado.
+            setSnap(prev => prev || doCache());
             setOffline(true);
         } finally {
+            clearTimeout(tid);
             setCarregando(false);
         }
     }, []);
@@ -56,6 +78,21 @@ function PpmsView({ onBack }) {
     useEffect(() => { carregar(); }, [carregar]);
 
     const hora = (iso) => iso ? new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '—';
+
+    /**
+     * Carimbo do RETRATO — com DIA quando não é de hoje.
+     *
+     * ⚠️ O cache do localStorage não expira. Sem a data, abrir o PPMS às 8h de
+     * uma terça sem rede mostrava "Retrato das 16:45" — de ontem — com nada
+     * indicando isso. É exatamente a confusão que esta tela existe para evitar,
+     * e numa evacuação ela faz alguém parar de procurar uma criança.
+     */
+    const carimbo = (iso) => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        const hoje = new Date().toDateString() === d.toDateString();
+        return hoje ? hora(iso) : d.toLocaleDateString(locale) + ' ' + hora(iso);
+    };
 
     const alternar = (id) => setConferidos(prev => {
         const n = new Set(prev);
@@ -115,7 +152,7 @@ function PpmsView({ onBack }) {
             {/* ⚠️ Sem rede: a hora do retrato em destaque, nunca escondida. */}
             {offline && (
                 <p className="text-sm font-bold text-warning-800 bg-warning-100 border-2 border-warning-400 rounded-xl px-4 py-3 mb-4">
-                    {snap ? t('ppms.offline', { hora: hora(snap.geradoEm) }) : t('ppms.sem.relevo')}
+                    {snap ? t('ppms.offline', { hora: carimbo(snap.geradoEm) }) : t('ppms.sem.relevo')}
                 </p>
             )}
 
@@ -139,7 +176,7 @@ function PpmsView({ onBack }) {
                     <div className="bg-navy-500 text-white rounded-2xl p-6 mb-5 text-center">
                         <p className="text-6xl font-black leading-none">{snap.totalDentro}</p>
                         <p className="text-sm font-semibold mt-2 opacity-90">{t('ppms.total')}</p>
-                        <p className="text-xs opacity-60 mt-1">{t('ppms.gerado', { hora: hora(snap.geradoEm) })}</p>
+                        <p className="text-xs opacity-60 mt-1">{t('ppms.gerado', { hora: carimbo(snap.geradoEm) })}</p>
                         {totalPessoas > 0 && (
                             <p className="text-xs opacity-75 mt-2">
                                 {t('ppms.conferidos', { n: conferidos.size, total: totalPessoas })}

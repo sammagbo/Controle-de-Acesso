@@ -22,6 +22,14 @@ import java.util.Optional;
  * o conteúdo — que é a única configuração em que o MAGBO não precisa de base
  * legal para dado de saúde.
  *
+ * ⚠️ Nada é registrado sobre QUEM abriu QUAL ficha — decisão registrada na
+ * ADR-005 (docs/architecture/decisoes/). Resumo do argumento: essa linha seria,
+ * ela propria, dado de saude por adjacencia, e a rastreabilidade ja existe no
+ * TOTVS, que e o dono do dado. Duplica-la aqui nao acrescentaria auditoria:
+ * acrescentaria uma segunda copia, num sistema com outra base legal e outro
+ * prazo de retencao. A ADR tambem diz o que o MAGBO teria de se tornar para a
+ * escolha oposta ser a certa — sao quatro condicoes, e nenhuma vale hoje.
+ *
  * ⚠️ Nada é registrado sobre POR QUE se abriu a ficha. Um log dizendo "fulana
  * abriu o prontuário do aluno X" é, ele próprio, um dado sensível: revela que
  * aquela criança esteve na enfermaria. Fica-se com o registro de passagem que o

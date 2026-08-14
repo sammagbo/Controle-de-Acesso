@@ -6,6 +6,9 @@ a enfermeira autentica no TOTVS com a credencial dela, como faz hoje.
 
 ## A regra que não se negocia
 
+> Registrada como decisão em
+> [ADR-005 — a rastreabilidade fica com quem é dono do dado](../architecture/decisoes/ADR-005-totvs-rastreabilidade-no-dono-do-dado.md).
+
 **O MAGBO não guarda dado de saúde.** Nem copia, nem espelha, nem cacheia. Isso
 não é preferência de arquitetura: guardar prontuário aqui exigiria outra base
 legal, outro consentimento, outro regime de retenção e outro nível de proteção —
@@ -59,6 +62,16 @@ São quatro, e a terceira é a que costuma custar caro:
    MAGBO roda em Electron no PC; abrir o link usa o navegador daquela máquina. Se
    o TOTVS estiver noutra VLAN ou exigir VPN, o link abre e falha — e falha na
    frente de uma criança doente.
+
+5. **⚠️ O TOTVS registra quem abriu qual ficha, e por quanto tempo guarda esse
+   registro?** Esta pergunta não é sobre a integração: é sobre onde mora a
+   auditoria. O MAGBO **não** registra acesso a prontuário, e a razão está na
+   [ADR-005](../architecture/decisoes/ADR-005-totvs-rastreabilidade-no-dono-do-dado.md):
+   uma linha dizendo «fulana abriu a ficha do aluno X» é, ela própria, dado de
+   saúde por adjacência, e a rastreabilidade já existe no sistema que é dono do
+   dado. Se a resposta da DSI for **não**, a lacuna é real — e a resposta certa
+   continua não sendo «o MAGBO passa a guardar», e sim «o TOTVS precisa
+   registrar».
 
 ## Como configurar, quando as respostas chegarem
 

@@ -137,6 +137,25 @@
         ]
     };
 
+    /**
+     * Regimes de sortie (.xlsx).
+     *
+     * NAO duplica a lista: ela vive em js/utils/regimeSheet.js, junto dos nomes
+     * de coluna aceitos — duplica-la aqui criaria duas verdades sobre a mesma
+     * planilha. Mesmo padrao de `refeicoes`.
+     */
+    function regimes(regimeSheet) {
+        const fonte = regimeSheet
+            || (typeof window !== 'undefined' ? window.MagboRegimeSheet : null);
+        if (!fonte || typeof fonte.documentacaoDeColunas !== 'function') return null;
+        return {
+            regra: 'backend RegimeImportService.avaliarLinha',
+            colunas: fonte.documentacaoDeColunas().map(function (c) {
+                return { campo: c.campo, obrigatorio: !!c.obrigatorio, aceitos: c.aceitos, nota: null };
+            })
+        };
+    }
+
     /** true quando o campo tem de estar preenchido em toda linha. */
     function ehObrigatorio(coluna) {
         return !!coluna && coluna.obrigatorio === true;
@@ -160,6 +179,7 @@
         CSV_CDI: CSV_CDI,
         FOTOS: FOTOS,
         refeicoes: refeicoes,
+        regimes: regimes,
         ehObrigatorio: ehObrigatorio,
         ehCondicional: ehCondicional,
         obrigatorias: obrigatorias

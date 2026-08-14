@@ -88,6 +88,9 @@
       <script type="text/babel" src="js/utils/mealSheet.js?v=1"></script>
       <!-- importColumns REUSA a documentação de colunas do mealSheet (para não
            ter duas verdades sobre a mesma planilha): carrega depois dele. -->
+      <!-- regimeSheet REUSA os helpers de cabecalho do hikcentralSheet, como o
+           mealSheet: carrega depois dele e ANTES do importColumns, que o consome. -->
+      <script type="text/babel" src="js/utils/regimeSheet.js?v=1"></script>
       <script type="text/babel" src="js/utils/importColumns.js?v=1"></script>
       <script type="text/babel" src="js/utils/exitPermission.js?v=1"></script>
       <script type="text/babel" src="js/utils/helpers.js?v=10"></script>

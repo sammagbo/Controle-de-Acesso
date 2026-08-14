@@ -584,6 +584,34 @@ async function veredictosNoPortao(pointId, limite) {
       }
 }
 
+async function simularImportRegimes(linhas) {
+      const res = await fetch(`${API_BASE}/admin/regimes/import/preview`, {
+            method: 'POST',
+            headers: window.authHeaders ? window.authHeaders() : {},
+            body: JSON.stringify(linhas)
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
+            throw new Error(T('regime.erro'));
+      }
+      return await res.json();
+}
+
+async function aplicarImportRegimes(linhas) {
+      const res = await fetch(`${API_BASE}/admin/regimes/import/apply`, {
+            method: 'POST',
+            headers: window.authHeaders ? window.authHeaders() : {},
+            body: JSON.stringify(linhas)
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
+            throw new Error(T('regime.erro'));
+      }
+      return await res.json();
+}
+
 async function salvarRegime(payload) {
       const res = await fetch(`${API_BASE}/admin/regimes`, {
             method: 'POST',
@@ -650,6 +678,8 @@ if (window.api) {
       window.api.getRegimeSummary = getRegimeSummary;
       window.api.avaliarRegime = avaliarRegime;
       window.api.veredictosNoPortao = veredictosNoPortao;
+      window.api.simularImportRegimes = simularImportRegimes;
+      window.api.aplicarImportRegimes = aplicarImportRegimes;
       window.api.salvarRegime = salvarRegime;
       window.api.encerrarRegime = encerrarRegime;
 }

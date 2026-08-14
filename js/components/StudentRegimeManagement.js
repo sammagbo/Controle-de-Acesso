@@ -66,6 +66,80 @@ function StudentRegimeManagement({ onBack }) {
     const [responsavel, setResponsavel] = useState(null);
     const [outroAutor, setOutroAutor] = useState(false);
 
+    // ── CARGA EM LOTE ────────────────────────────────────────────────
+    // ⚠️ Sem ela o módulo não sai do dia 1: são 923 regimes, e um por vez com
+    // busca e formulário são 923 operações em setembro. O CPE foi explícito —
+    // sem os regimes carregados o portão fica cinza e o AED continua decidindo
+    // de memória, que é o problema que o módulo existe para resolver.
+    //
+    // ⚠️ Mesma disciplina do import do HikCentral e das fotos: SIMULA, mostra
+    // linha a linha o que aconteceria, e só grava com confirmação explícita.
+    const [importLinhas, setImportLinhas] = useState(null);
+    const [importPlano, setImportPlano] = useState(null);
+    const [importando, setImportando] = useState(false);
+    const [importErro, setImportErro] = useState(null);
+
+    const lerArquivo = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setImportErro(null);
+        setImportPlano(null);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const wb = window.XLSX.read(evt.target.result, { type: 'binary' });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const json = window.XLSX.utils.sheet_to_json(
+                    sheet, window.MagboRegimeSheet.sheetOptions());
+                const linhas = window.MagboRegimeSheet.mapRows(json);
+                if (linhas.length === 0) { setImportErro(t('regime.import.vazio')); return; }
+                setImportLinhas(linhas);
+            } catch (err) {
+                setImportErro(t('regime.import.erro.leitura') + err.message);
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const simularImport = async () => {
+        if (!importLinhas || importando) return;
+        setImportando(true);
+        setImportErro(null);
+        try {
+            setImportPlano(await window.api.simularImportRegimes(importLinhas));
+        } catch (err) {
+            setImportErro(err.message);
+        } finally {
+            setImportando(false);
+        }
+    };
+
+    const aplicarImport = async () => {
+        if (!importLinhas || importando) return;
+        setImportando(true);
+        try {
+            setImportPlano(await window.api.aplicarImportRegimes(importLinhas));
+            await carregarResumo();
+        } catch (err) {
+            setImportErro(err.message);
+        } finally {
+            setImportando(false);
+        }
+    };
+
+    const limparImport = () => {
+        setImportLinhas(null); setImportPlano(null); setImportErro(null);
+    };
+
+    const ACOES_REGIME = {
+        CRIAR: 'bg-success-100 text-success-600',
+        ATUALIZAR: 'bg-accent-500/15 text-accent-600',
+        PULAR: 'bg-soft-100 text-slate-600',
+        CONFLITO: 'bg-danger-100 text-danger-600'
+    };
+
     const carregarResumo = useCallback(async () => {
         try {
             setResumo(await window.api.getRegimeSummary());
@@ -240,6 +314,100 @@ function StudentRegimeManagement({ onBack }) {
             <p className="text-xs text-warning-600 bg-warning-50 border border-warning-500/40 rounded-xl px-4 py-3 mb-6">
                 {t('regime.aviso.prova')}
             </p>
+
+            {/* ── Carga em lote ────────────────────────────────────────── */}
+            <div className="bg-white rounded-2xl border border-soft-200 shadow-sm p-5 mb-6">
+                <p className="font-bold text-navy-500 text-sm mb-1">{t('regime.import.titulo')}</p>
+                <p className="text-xs text-slate-500 mb-3">{t('regime.import.instrucao')}</p>
+                <ImportColumnList doc={window.MagboImportColumns.regimes()} />
+
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <label className="px-4 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold cursor-pointer hover:bg-soft-200">
+                        <input type="file" accept=".xlsx,.xls" className="hidden" onChange={lerArquivo} />
+                        {t('regime.import.arquivo')}
+                    </label>
+                    {importLinhas && (
+                        <>
+                            <span className="text-xs text-slate-400">
+                                {t('regime.import.linhas', { n: importLinhas.length })}
+                            </span>
+                            <button type="button" onClick={simularImport} disabled={importando}
+                                className="px-4 py-2 rounded-xl bg-navy-500 text-white text-sm font-bold disabled:opacity-50">
+                                {importando ? t('comum.carregando') : t('regime.import.simular')}
+                            </button>
+                            {/* Só depois da simulação: confirmar sem ter visto o
+                                plano é exatamente o que a disciplina impede. */}
+                            <button type="button" onClick={aplicarImport}
+                                disabled={importando || !importPlano || importPlano.aplicado}
+                                className="px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+                                {t('regime.import.confirmar')}
+                            </button>
+                            <button type="button" onClick={limparImport}
+                                className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
+                                {t('regime.import.descartar')}
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {importErro && (
+                    <p className="text-xs text-danger-600 bg-danger-50 border border-danger-500/40 rounded-xl px-3 py-2 mt-3">{importErro}</p>
+                )}
+
+                {importPlano && (
+                    <div className="mt-4 space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                            {Object.keys(ACOES_REGIME).map(k => (
+                                <span key={k} className={`px-3 py-1 rounded-full text-xs font-bold ${ACOES_REGIME[k]}`}>
+                                    {t('plano.regime.' + k)}: {importPlano.totais[k] || 0}
+                                </span>
+                            ))}
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${importPlano.aplicado ? 'bg-success-100 text-success-600' : 'bg-warning-100 text-warning-600'}`}>
+                                {importPlano.aplicado ? t('regime.import.aplicado') : t('regime.import.simulado')}
+                            </span>
+                        </div>
+                        <ListaLimitada
+                            titulo={t('regime.import.linhas', { n: importPlano.linhas.length })}
+                            total={importPlano.linhas.length}
+                            alturaMax="max-h-[40vh]"
+                        >
+                            {(visiveis) => (
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-white shadow-sm">
+                                        <tr className="text-left text-slate-400 uppercase font-bold">
+                                            <th className="py-2 px-2">{t('regime.import.col.linha')}</th>
+                                            <th className="py-2 px-2">{t('regime.import.col.aluno')}</th>
+                                            <th className="py-2 px-2">{t('journal.filtro.acao')}</th>
+                                            <th className="py-2 px-2">{t('regime.import.col.de')}</th>
+                                            <th className="py-2 px-2">{t('regime.import.col.para')}</th>
+                                            <th className="py-2 px-2">{t('regime.import.col.motivo')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {importPlano.linhas.slice(0, visiveis).map((l, i) => (
+                                            <tr key={i} className="border-t border-soft-100 align-top">
+                                                <td className="py-1.5 px-2 font-mono text-slate-400">L{l.linha}</td>
+                                                <td className="py-1.5 px-2 text-navy-500">
+                                                    {l.nome || <span className="font-mono text-slate-400">{l.matricula}</span>}
+                                                    {l.turma && <span className="text-slate-400 ml-1">{l.turma}</span>}
+                                                </td>
+                                                <td className="py-1.5 px-2">
+                                                    <span className={`px-2 py-0.5 rounded-full font-bold ${ACOES_REGIME[l.acao] || ''}`}>
+                                                        {t('plano.regime.' + l.acao)}
+                                                    </span>
+                                                </td>
+                                                <td className="py-1.5 px-2 text-slate-500">{l.regimeAtual || '—'}</td>
+                                                <td className="py-1.5 px-2 text-slate-600">{l.regimeNovo || '—'}</td>
+                                                <td className="py-1.5 px-2 text-slate-500">{t(l.detalhe)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </ListaLimitada>
+                    </div>
+                )}
+            </div>
 
             {/* ── Busca ────────────────────────────────────────────────── */}
             <div className="bg-white rounded-2xl border border-soft-200 shadow-sm p-5 mb-6">

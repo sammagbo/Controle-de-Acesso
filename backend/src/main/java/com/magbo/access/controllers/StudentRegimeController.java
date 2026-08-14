@@ -1,11 +1,13 @@
 package com.magbo.access.controllers;
 
 import com.magbo.access.dto.GateVerdict;
+import com.magbo.access.dto.RegimeImportRow;
 import com.magbo.access.dto.RegimeDecision;
 import com.magbo.access.dto.RegimeRequest;
 import com.magbo.access.models.*;
 import com.magbo.access.repositories.StudentRegimeRepository;
 import com.magbo.access.repositories.UserRepository;
+import com.magbo.access.services.RegimeImportService;
 import com.magbo.access.services.RegimeSortieService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +41,7 @@ import java.util.Map;
 public class StudentRegimeController {
 
     private final RegimeSortieService regimeService;
+    private final RegimeImportService importService;
     private final StudentRegimeRepository regimeRepository;
     private final UserRepository userRepository;
 
@@ -113,6 +116,36 @@ public class StudentRegimeController {
         out.put("porRegimeSortie", porSortie);
         out.put("porRegimeGeneral", porGeneral);
         return ResponseEntity.ok(out);
+    }
+
+    /**
+     * SIMULAÇÃO da importação em lote — não grava nada.
+     *
+     * ⚠️ Mesma disciplina do import do HikCentral e das fotos: simula, mostra
+     * linha a linha o que aconteceria, e só grava com confirmação explícita.
+     * Aqui pesa igual: o que se grava é quem autorizou uma criança a sair
+     * sozinha da escola.
+     */
+    @PostMapping("/import/preview")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('REGIME_WRITE')")
+    public ResponseEntity<RegimeImportService.ImportPlan> simular(
+            @RequestBody List<RegimeImportRow> linhas) {
+        return ResponseEntity.ok(importService.plan(linhas));
+    }
+
+    /**
+     * Aplica de verdade — REFAZENDO o plano contra o banco atual.
+     *
+     * ⚠️ Refazer não é preciosismo: a planilha pode ter sido simulada dez
+     * minutos antes, e nesse meio-tempo alguém pode ter mexido num regime pela
+     * tela. Aplicar o plano velho gravaria por cima de uma decisão mais recente.
+     */
+    @PostMapping("/import/apply")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('REGIME_WRITE')")
+    public ResponseEntity<RegimeImportService.ImportPlan> aplicar(
+            @RequestBody List<RegimeImportRow> linhas, Authentication auth) {
+        return ResponseEntity.ok(
+                importService.apply(linhas, auth == null ? "system" : auth.getName()));
     }
 
     /** Cadastra ou substitui. O anterior é encerrado, nunca apagado. */

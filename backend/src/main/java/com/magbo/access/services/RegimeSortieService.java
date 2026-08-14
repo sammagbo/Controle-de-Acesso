@@ -73,10 +73,35 @@ public class RegimeSortieService {
 
     /**
      * @param userId matricula de quem se apresenta para sair
-     * @param agora  hora da DECISAO (nao a do evento) — e uma decisao, e segue a
-     *               mesma regra do resto da camada: regras usam `now`
+     * @param quando ⚠️ A HORA DA PASSAGEM — o instante em que a crianca cruzou o
+     *               portao —, NUNCA a hora em que o servidor processou o evento.
+     *
+     * ⚠️⚠️ ESTE PARAMETRO E UMA DECISAO, e ela contraria a regra geral da camada.
+     *
+     * O resto do AccessDecisionService avalia regras contra `now` (o relogio da
+     * DECISAO), e por um bom motivo: uma fila offline esvaziada nao pode mudar
+     * DENY/ALLOW retroativamente. Aqui e o contrario, por dois motivos:
+     *
+     *   1. Esta regra NUNCA nega. Ela nao muda o que a porta faz — descreve, para
+     *      o registro, se o regime daquela crianca autorizava aquela saida.
+     *   2. Logo, julga-la pelo relogio do processamento seria gravar uma
+     *      afirmacao falsa: uma saida das 10h processada as 18h viraria "fim da
+     *      jornada — saida normal", e o aviso que a Vie Scolaire precisava ver
+     *      nunca teria existido.
+     *
+     * E a MESMA armadilha do incidente de 03/08/2026, quando uma fila de 33
+     * eventos entrou toda as 14:51 e produziu duracoes negativas — so que agora
+     * o que esta em jogo nao e uma media de permanencia: e se uma crianca podia
+     * sair da escola.
+     *
+     * ⚠️ Apanhado por RegimeGateWiringTest#regimeUsaAHoraDaPassagem, que trava o
+     * argumento explicitamente. A primeira versao usava `now` e passava verde
+     * durante o dia — so quebrou porque a suite rodou as 18h45. Um teste que
+     * depende da hora em que alguem o executa nao e prova de nada, e por isso a
+     * trava de agora captura o argumento em vez de olhar o veredicto.
      */
-    public RegimeDecision avaliar(String userId, LocalDateTime agora) {
+    public RegimeDecision avaliar(String userId, LocalDateTime quando) {
+        final LocalDateTime agora = quando;
         if (!props.isHabilitado()) {
             return new RegimeDecision(RegimeVerdict.NON_APPLICABLE,
                     "regime.motivo.desligado", null, null, null, false);

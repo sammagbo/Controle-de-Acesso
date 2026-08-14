@@ -525,6 +525,76 @@ async function getAllAttempts() {
       return page?.content || [];
 }
 
+// ── RÉGIME DE SORTIE (V014) ──────────────────────────────────────────
+// O direito ANUAL de sair. Distinto das autorizações pontuais acima: aquelas
+// são a exceção do dia, esta é a regra do ano — e a exceção vence.
+
+async function getRegimeDoAluno(userId) {
+      const res = await fetch(`${API_BASE}/admin/regimes/user/${encodeURIComponent(userId)}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('regime.erro'));
+      }
+      return await res.json();
+}
+
+async function getRegimeSummary() {
+      const res = await fetch(`${API_BASE}/admin/regimes/summary`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
+            throw new Error(T('regime.erro'));
+      }
+      return await res.json();
+}
+
+/** O veredicto AGORA — é o que a tela do portão consome. */
+async function avaliarRegime(userId) {
+      const res = await fetch(`${API_BASE}/admin/regimes/evaluate/${encodeURIComponent(userId)}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+      });
+      checkAuthError(res);
+      if (!res.ok) return null;   // o portão nunca trava por falta de veredicto
+      return await res.json();
+}
+
+async function salvarRegime(payload) {
+      const res = await fetch(`${API_BASE}/admin/regimes`, {
+            method: 'POST',
+            headers: window.authHeaders ? window.authHeaders() : {},
+            body: JSON.stringify(payload)
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || T('regime.erro'));
+      }
+      return await res.json();
+}
+
+async function encerrarRegime(userId, note) {
+      const params = new URLSearchParams();
+      if (note) params.set('note', note);
+      const res = await fetch(
+            `${API_BASE}/admin/regimes/user/${encodeURIComponent(userId)}?${params.toString()}`, {
+            method: 'DELETE',
+            headers: window.authHeaders ? window.authHeaders() : {}
+      });
+      checkAuthError(res);
+      if (!res.ok) {
+            if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || T('regime.erro'));
+      }
+      return await res.json();
+}
+
 // Liga as funções da Fase H ao window.api — os componentes consomem
 // window.api.X; sem esta ligação (esquecida na Fase H) os feeds caíam no
 // fallback vazio e as telas de gestão (Droits Repas / Sorties) nunca
@@ -544,5 +614,13 @@ if (window.api) {
       window.api.getActiveExitPermissions = getActiveExitPermissions;
       window.api.postExitPermission = postExitPermission;
       window.api.revokeExitPermission = revokeExitPermission;
+      // Régime de sortie. ⚠️ Anexar aqui é obrigatório: em 17/07 dez funções
+      // ficaram órfãs por esquecimento e as telas caíram no fallback vazio, em
+      // silêncio. Há teste de fiação (tests/wiring.test.js).
+      window.api.getRegimeDoAluno = getRegimeDoAluno;
+      window.api.getRegimeSummary = getRegimeSummary;
+      window.api.avaliarRegime = avaliarRegime;
+      window.api.salvarRegime = salvarRegime;
+      window.api.encerrarRegime = encerrarRegime;
 }
 

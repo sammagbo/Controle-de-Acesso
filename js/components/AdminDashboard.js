@@ -2,7 +2,7 @@
 // ADMIN DASHBOARD — Painel Administrativo (PIN-gated)
 // =====================================================================
 
-function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit }) {
+function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime }) {
       const t = useI18n();
       const locale = useLocale();
       const lang = window.MagboI18n.getLang();
@@ -465,6 +465,28 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     >
                                           <LucideIcon name="utensils" size={16} />
                                           {t('admin.card.repas.btn')}
+                                    </button>
+                              </div>
+
+                              {/* Régime de sortie — o direito ANUAL */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-warning-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="scroll-text" size={24} className="text-warning-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">{t('regime.titulo')}</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      {t('admin.card.regime.sub')}
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToRegime}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-warning-600 text-white hover:bg-warning-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="scroll-text" size={16} />
+                                          {t('admin.card.regime.btn')}
                                     </button>
                               </div>
 

@@ -4,7 +4,9 @@ import com.magbo.access.config.PolicyProperties;
 import com.magbo.access.dto.EntitlementDecision;
 import com.magbo.access.dto.EventClassification;
 import com.magbo.access.dto.ExitDecision;
+import com.magbo.access.dto.RegimeDecision;
 import com.magbo.access.dto.hikvision.HikvisionEventDto;
+import com.magbo.access.models.RegimeVerdict;
 import com.magbo.access.models.AccessAction;
 import com.magbo.access.models.AccessLog;
 import com.magbo.access.models.AuthMethod;
@@ -48,6 +50,7 @@ public class AccessDecisionService {
     private final SamePassageService samePassageService;
     private final PostoFixoService postoFixoService;
     private final PresencaAbertaService presencaAbertaService;
+    private final RegimeSortieService regimeSortieService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -411,6 +414,55 @@ public class AccessDecisionService {
         if (flag == null) {
             flag = presencaAbertaService.flagDeEntradaRepetida(
                     p.userId(), p.resolved().pointId(), p.resolved().action(), p.eventTime());
+        }
+
+        // ── RÉGIME DE SORTIE (V014) ──────────────────────────────────────
+        // A regra ANUAL assinada pelos responsaveis. Roda no portao, na SAIDA,
+        // para os DOIS ramos — terminal e camera — porque e no portao que a
+        // crianca sai, e a camera e o aparelho que enxerga esse portao.
+        //
+        // ⚠️ SO OBSERVA. Nunca retorna, nunca impede a gravacao, nunca nega:
+        // o MAGBO e observacional (ADR-003) e quem decide e o adulto que esta
+        // ali. O que esta linha faz e deixar registrado que o sistema avisou —
+        // e e isso que a direcao vai procurar depois de um incidente.
+        //
+        // ⚠️ Custo aceito: nos terminais, exitPermissionService.evaluate() roda
+        // duas vezes (aqui dentro do RegimeSortieService, e no bloco de
+        // permissao acima). A alternativa seria a ordem das regras de saida
+        // existir em dois lugares, e a segunda copia envelheceria na primeira
+        // mudanca de politica. Uma consulta indexada a mais vale menos que isso.
+        //
+        // DEPOIS da regra de mesma passagem, de proposito: leitura repetida em
+        // segundos nao gera aviso repetido no feed da Vie Scolaire.
+        //
+        // ⚠️ eventTime, e NAO `now` — excecao consciente a regra "regras usam o
+        // relogio da DECISAO". Aquela regra existe para que uma fila offline
+        // esvaziada nao mude DENY/ALLOW retroativamente. Esta regra NUNCA nega:
+        // ela descreve se, no instante em que a crianca cruzou o portao, o
+        // regime dela autorizava aquilo. Julgar isso pelo relogio do
+        // processamento seria dizer que uma saida das 10h foi "a saida normal do
+        // fim do dia" so porque o servidor a processou as 18h — a mesma troca de
+        // relogios que produziu as duracoes negativas de 03/08/2026. Apanhado
+        // por RegimeGateWiringTest, que rodava depois das 17h e passava verde.
+        if (isGate && p.resolved().action() == AccessAction.SAIDA) {
+            RegimeDecision regime = regimeSortieService.avaliar(p.userId(), p.eventTime());
+            if (regime.verdict() == RegimeVerdict.NON_AUTORISE) {
+                attemptService.record(
+                        p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
+                        p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
+                        p.method(), p.authResult(),
+                        AuthorizationResult.OBSERVATION,
+                        // Dois motivos distintos: "regime 1 saindo no meio da
+                        // jornada" e "ninguem preencheu o papel deste aluno"
+                        // pedem acoes diferentes da Vie Scolaire.
+                        "regime.motivo.sem.regime".equals(regime.motivo())
+                                ? DenialReason.REGIME_UNKNOWN
+                                : DenialReason.REGIME_NOT_ALLOWED,
+                        p.subType(), p.resolved().isFallback(), p.eventTime()
+                );
+                log.info("Régime de sortie: user={}, veredicto={}, motivo={}, regime={}",
+                        p.userId(), regime.verdict(), regime.motivo(), regime.regimeSortie());
+            }
         }
 
         AccessLog accessLog = AccessLog.builder()

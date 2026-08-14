@@ -32,12 +32,31 @@ function PpmsView({ onBack }) {
     const [carregando, setCarregando] = useState(true);
     const [conferidos, setConferidos] = useState(() => new Set());
 
-    /** Lê o último retrato guardado, ou null. */
+    /**
+     * Lê o último retrato guardado — e DESCARTA o que não é de hoje.
+     *
+     * ⚠️ São nomes, matrículas e turmas de menores em disco. Duas razões, e
+     * qualquer uma bastaria:
+     *  • Retenção: este projeto decidiu por escrito não guardar nem o token em
+     *    localStorage. Uma lista nominativa sem prazo é pior.
+     *  • Evacuação: um retrato de sexta não ajuda a evacuar na terça. Mostrar
+     *    data ajuda; recusar é o que impede alguém de riscar um nome e parar de
+     *    procurar uma criança.
+     * O que passa da meia-noite é apagado do disco, não só ignorado.
+     */
     const doCache = () => {
         try {
             const g = localStorage.getItem(PPMS_CACHE);
-            return g ? JSON.parse(g) : null;
-        } catch (e) { return null; }
+            if (!g) return null;
+            const d = JSON.parse(g);
+            const mesmoDia = d && d.geradoEm
+                && new Date(d.geradoEm).toDateString() === new Date().toDateString();
+            if (!mesmoDia) { localStorage.removeItem(PPMS_CACHE); return null; }
+            return d;
+        } catch (e) {
+            localStorage.removeItem(PPMS_CACHE);
+            return null;
+        }
     };
 
     const carregar = useCallback(async () => {

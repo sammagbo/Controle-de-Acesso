@@ -58,6 +58,38 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
             }
       };
 
+      // ── RÉGIME DE SORTIE, ao vivo, no portão ──────────────────────────
+      // ⚠️ SEM UM CLIQUE A MAIS. O veredicto chega sozinho, no mesmo ciclo em
+      // que a passagem aparece: com duzentos alunos em movimento, qualquer
+      // interação a mais custa mais do que a informação vale (veto do AED).
+      //
+      // Só no PORTÃO: o regime de sortie fala de sair da escola. No CDI ou na
+      // cantina a consulta seria puro gasto.
+      const ehPortao = String(point.id || '').toUpperCase().startsWith('PORT');
+      const [veredictos, setVeredictos] = React.useState([]);
+
+      React.useEffect(() => {
+            if (!ehPortao || !window.api?.veredictosNoPortao) { setVeredictos([]); return; }
+            let vivo = true;
+            const buscar = async () => {
+                  const v = await window.api.veredictosNoPortao(point.id, 20);
+                  if (vivo) setVeredictos(Array.isArray(v) ? v : []);
+            };
+            buscar();
+            // Mesma cadência do resto da tela de setor (App.js, SECTOR_POLL_MS).
+            const id = setInterval(buscar, 3000);
+            return () => { vivo = false; clearInterval(id); };
+      }, [ehPortao, point.id, accessLogs]);
+
+      // Casado por logId: o veredicto pertence À PASSAGEM, e foi julgado na hora
+      // dela. Casar por userId poria o veredicto de agora numa linha de horas
+      // atrás.
+      const veredictoPorLog = React.useMemo(() => {
+            const m = {};
+            (veredictos || []).forEach(v => { if (v && v.logId != null) m[v.logId] = v; });
+            return m;
+      }, [veredictos]);
+
       const pointLogs = React.useMemo(() => {
             return accessLogs
                   .filter(log => log.pointId === point.id)
@@ -86,6 +118,11 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                   {/* Active Timers (Biblioteca / Enfermaria) */}
                   {isEspecial(point.id) && (
                         <ActiveTimers activeTimers={activeTimers} pointId={point.id} />
+                  )}
+
+                  {/* A FAIXA: a última saída de aluno, grande, sem procurar. */}
+                  {ehPortao && veredictos.length > 0 && (
+                        <RegimeVerdictBanner v={veredictos[0]} />
                   )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -278,6 +315,14 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                         )}
                                                                         {user && user.turma && (
                                                                               <span className="text-xs text-slate-400">{user.turma}</span>
+                                                                        )}
+                                                                        {/* A pastilha do regime, na própria linha.
+                                                                            Casada por logId: o veredicto pertence a
+                                                                            ESTA passagem e foi julgado na hora dela. */}
+                                                                        {veredictoPorLog[log.id] && (
+                                                                              <RegimeChip
+                                                                                    verdict={veredictoPorLog[log.id].verdict}
+                                                                                    regimeSortie={veredictoPorLog[log.id].regimeSortie} />
                                                                         )}
                                                                         {/* Matrícula só quando o nome falta: é o
                                                                             único apoio que sobra para identificar

@@ -563,6 +563,25 @@ async function avaliarRegime(userId) {
       return await res.json();
 }
 
+/**
+ * Os veredictos das últimas saídas de alunos NESTE portão.
+ *
+ * ⚠️ Nunca lança: esta é a tela do portão em hora de pico. Se o servidor
+ * demora ou recusa, a lista de passagens continua funcionando exatamente como
+ * antes do regime existir — o apoio some, a operação não.
+ */
+async function veredictosNoPortao(pointId, limite) {
+      try {
+            const res = await fetch(
+                  `${API_BASE}/admin/regimes/gate/${encodeURIComponent(pointId)}?limite=${limite || 20}`,
+                  { headers: window.authHeaders ? window.authHeaders() : {} });
+            if (!res.ok) return [];
+            return await res.json();
+      } catch (e) {
+            return [];
+      }
+}
+
 async function salvarRegime(payload) {
       const res = await fetch(`${API_BASE}/admin/regimes`, {
             method: 'POST',
@@ -620,6 +639,7 @@ if (window.api) {
       window.api.getRegimeDoAluno = getRegimeDoAluno;
       window.api.getRegimeSummary = getRegimeSummary;
       window.api.avaliarRegime = avaliarRegime;
+      window.api.veredictosNoPortao = veredictosNoPortao;
       window.api.salvarRegime = salvarRegime;
       window.api.encerrarRegime = encerrarRegime;
 }

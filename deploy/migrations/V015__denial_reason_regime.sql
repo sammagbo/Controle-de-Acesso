@@ -18,6 +18,11 @@
 --                        regime 1 no meio da jornada, sem permissão pontual).
 --                        Distinto de EXIT_NOT_AUTHORIZED, que é a ausência de
 --                        permissão PONTUAL: aqui a pontual já foi consultada.
+--   REGIME_TO_VERIFY   — o regime não decide sozinho: falta a GRADE horária
+--                        (aluno de regime 2, que pode sair havendo ausência de
+--                        professor). NÃO é objeção do MAGBO: é o registro de que
+--                        ele não sabe. Existe porque um veredicto que ninguém
+--                        consegue contar depois não pode ser melhorado.
 --   REGIME_UNKNOWN     — não há regime cadastrado. Só aparece quando
 --                        magbo.regime.desconhecido=DENY; no padrão
 --                        (OBSERVATION) nada é gravado, porque no dia 1 são 923
@@ -36,7 +41,7 @@ DO $$ BEGIN
       'EXIT_NOT_AUTHORIZED','OUTSIDE_EXIT_WINDOW','USER_INACTIVE',
       'UNKNOWN_USER','MISSING_DOOR_MAPPING','DEVICE_DENIED',
       'UNKNOWN_FACE','AMBIGUOUS_NAME',
-      'REGIME_NOT_ALLOWED','REGIME_UNKNOWN',
+      'REGIME_NOT_ALLOWED','REGIME_UNKNOWN','REGIME_TO_VERIFY',
       'NORMAL'
     ));
 END $$;

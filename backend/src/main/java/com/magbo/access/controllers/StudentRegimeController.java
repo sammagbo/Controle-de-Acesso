@@ -1,5 +1,6 @@
 package com.magbo.access.controllers;
 
+import com.magbo.access.dto.GateVerdict;
 import com.magbo.access.dto.RegimeDecision;
 import com.magbo.access.dto.RegimeRequest;
 import com.magbo.access.models.*;
@@ -46,6 +47,24 @@ public class StudentRegimeController {
     @PreAuthorize("@areaSecurity.can('portail')")
     public ResponseEntity<RegimeDecision> avaliar(@PathVariable String userId) {
         return ResponseEntity.ok(regimeService.avaliar(userId, LocalDateTime.now()));
+    }
+
+    /**
+     * Os veredictos das últimas saídas de alunos NESTE portão.
+     *
+     * ⚠️ É o que faz o módulo apoiar a decisão em vez de só registrá-la. Sem
+     * este endpoint o AED continuava decidindo de memória com o aluno na frente
+     * dele — o `avaliarRegime` estava construído e nenhuma tela o chamava.
+     *
+     * Leitura por área 'portail': quem opera o portão precisa ver o regime de
+     * quem está saindo. Escrever o regime continua sendo da Vie Scolaire.
+     */
+    @GetMapping("/gate/{pointId}")
+    @PreAuthorize("@areaSecurity.can('portail')")
+    public ResponseEntity<List<GateVerdict>> noPortao(
+            @PathVariable String pointId,
+            @RequestParam(defaultValue = "20") int limite) {
+        return ResponseEntity.ok(regimeService.veredictosNoPortao(pointId, limite));
     }
 
     /** Regime vigente + histórico de um aluno. */

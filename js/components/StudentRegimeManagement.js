@@ -42,6 +42,23 @@ function StudentRegimeManagement({ onBack }) {
     };
     const [form, setForm] = useState(VAZIO);
 
+    /**
+     * O responsável LEGAL que o sistema já conhece.
+     *
+     * ⚠️ Este campo é PROVA: ele diz quem, na família, autorizou aquela criança
+     * a sair sozinha. Pedi-lo como texto livre seriam 923 digitações em setembro
+     * e 923 strings que não provam nada — um erro de grafia e a prova deixa de
+     * casar com o cadastro. O MAGBO já tem o nome (app_users.responsavel_id, o
+     * mesmo que o PortariaModal exibe no portão), então ele é oferecido, não
+     * perguntado.
+     *
+     * O texto livre continua existindo para o caso real em que quem assinou NÃO
+     * é o responsável cadastrado (avó, tutor novo, procuração) — e nesse caso a
+     * tela marca a linha como exceção, em vez de deixá-la parecer rotina.
+     */
+    const [responsavel, setResponsavel] = useState(null);
+    const [outroAutor, setOutroAutor] = useState(false);
+
     const carregarResumo = useCallback(async () => {
         try {
             setResumo(await window.api.getRegimeSummary());
@@ -77,7 +94,16 @@ function StudentRegimeManagement({ onBack }) {
         setErro(null);
         setAviso(null);
         setCarregando(true);
+        setResponsavel(null);
+        setOutroAutor(false);
         try {
+            // O responsável vem do cadastro, não do teclado.
+            try {
+                const ficha = await window.api.fetchUser(u.id);
+                if (ficha && ficha.responsavel && ficha.responsavel.nome) {
+                    setResponsavel(ficha.responsavel);
+                }
+            } catch (e) { /* sem responsável no cadastro: cai no texto livre */ }
             const d = await window.api.getRegimeDoAluno(u.id);
             setDados(d);
             // Pré-preenche com o vigente: substituir um regime é o caso comum
@@ -116,7 +142,11 @@ function StudentRegimeManagement({ onBack }) {
                 regimeSortie: form.regimeSortie,
                 validFrom: form.validFrom || null,
                 validUntil: form.validUntil || null,
-                authorizedByFamily: form.authorizedByFamily,
+                // Sem texto livre, vale o responsável do CADASTRO — é a mesma
+                // string que o portão exibe, então a prova casa com o registro.
+                authorizedByFamily: (!outroAutor && responsavel)
+                    ? responsavel.nome
+                    : form.authorizedByFamily,
                 documentoRef: form.documentoRef || null,
                 assinadoEm: form.assinadoEm || null,
                 note: form.note || null
@@ -330,10 +360,46 @@ function StudentRegimeManagement({ onBack }) {
                         </div>
 
                         {campo(t('regime.form.familia'),
-                            <input type="text" value={form.authorizedByFamily} required
-                                placeholder={t('regime.form.familia.exemplo')}
-                                onChange={e => setForm({ ...form, authorizedByFamily: e.target.value })}
-                                className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm" />)}
+                            <div className="space-y-2">
+                                {responsavel && !outroAutor ? (
+                                    <>
+                                        {/* O nome que o cadastro já tem. Sem digitação. */}
+                                        <div className="flex items-center gap-2 bg-success-50 border border-success-200 rounded-xl px-3 py-2">
+                                            <LucideIcon name="user-check" size={16} className="text-success-600 shrink-0" />
+                                            <span className="text-sm font-bold text-navy-500 truncate">{responsavel.nome}</span>
+                                            {responsavel.parentesco && (
+                                                <span className="text-xs text-slate-400">{responsavel.parentesco}</span>
+                                            )}
+                                        </div>
+                                        <button type="button"
+                                            onClick={() => { setOutroAutor(true); setForm({ ...form, authorizedByFamily: '' }); }}
+                                            className="text-xs font-bold text-accent-600 underline hover:no-underline">
+                                            {t('regime.form.familia.outro')}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <input type="text" value={form.authorizedByFamily} required
+                                            placeholder={t('regime.form.familia.exemplo')}
+                                            onChange={e => setForm({ ...form, authorizedByFamily: e.target.value })}
+                                            className="w-full bg-soft-50 border border-soft-200 rounded-xl px-3 py-2 text-sm" />
+                                        {/* ⚠️ A EXCEÇÃO APARECE COMO EXCEÇÃO. Quem assina sem ser o
+                                            responsável cadastrado é o caso que alguém vai querer
+                                            conferir depois; deixá-lo com a mesma cara da rotina
+                                            esconderia justamente o que merece atenção. */}
+                                        {responsavel && (
+                                            <p className="text-[11px] text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
+                                                {t('regime.form.familia.excecao', { nome: responsavel.nome })}
+                                                {' '}
+                                                <button type="button" onClick={() => { setOutroAutor(false); setForm({ ...form, authorizedByFamily: '' }); }}
+                                                    className="font-bold underline hover:no-underline">
+                                                    {t('regime.form.familia.voltar')}
+                                                </button>
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>)}
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {campo(t('regime.form.documento'),
@@ -360,7 +426,7 @@ function StudentRegimeManagement({ onBack }) {
                             <p className="text-xs text-success-700 bg-success-50 border border-success-200 rounded-xl px-3 py-2">{aviso}</p>
                         )}
 
-                        <button type="submit" disabled={salvando}
+                        <button type="submit" disabled={salvando || (outroAutor && !form.authorizedByFamily.trim()) || (!responsavel && !form.authorizedByFamily.trim())}
                             className="w-full py-3 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50">
                             {salvando ? t('comum.salvando') : t('regime.form.salvar')}
                         </button>

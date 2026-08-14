@@ -62,5 +62,20 @@ public enum DenialReason {
      */
     REGIME_UNKNOWN,
 
+    /**
+     * Portao: o regime nao decide sozinho este momento — falta a GRADE.
+     *
+     * E o aluno de regime 2 (semi-libre), que pode sair havendo ausencia de
+     * professor: informacao que vive no Pronote e nao chega aqui. O MAGBO nao
+     * discorda da saida; ele nao sabe, e diz que nao sabe.
+     *
+     * ⚠️ Gravado como OBSERVATION, como os outros dois. E o unico dos cinco
+     * veredictos que NAO e uma objecao — existe porque um veredicto que ninguem
+     * consegue contar depois nao pode ser melhorado. Sem esta linha, o valor que
+     * o proprio enum RegimeVerdict chama de "o mais importante" nao deixava
+     * rastro em lugar nenhum (painel de revisao, AED, 14/08/2026).
+     */
+    REGIME_TO_VERIFY,
+
     NORMAL
 }

@@ -2,8 +2,10 @@ package com.magbo.access.services;
 
 import com.magbo.access.config.RegimeProperties;
 import com.magbo.access.dto.ExitDecision;
+import com.magbo.access.dto.GateVerdict;
 import com.magbo.access.dto.RegimeDecision;
 import com.magbo.access.models.*;
+import com.magbo.access.repositories.AccessLogRepository;
 import com.magbo.access.repositories.StudentRegimeEventRepository;
 import com.magbo.access.repositories.StudentRegimeRepository;
 import com.magbo.access.repositories.UserRepository;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,6 +68,7 @@ public class RegimeSortieService {
     private final StudentRegimeEventRepository eventRepository;
     private final UserRepository userRepository;
     private final ExitPermissionService exitPermissionService;
+    private final AccessLogRepository accessLogRepository;
     private final RegimeProperties props;
 
     // ─────────────────────────────────────────────────────────────
@@ -294,6 +298,50 @@ public class RegimeSortieService {
                 .build());
 
         log.info("Regime encerrado: user={}, por={}", userId, quem);
+    }
+
+    /**
+     * Os veredictos das ULTIMAS saidas de alunos num portao — para a tela.
+     *
+     * ⚠️ Cada uma avaliada na hora da PASSAGEM. Consultar "agora" faria a linha
+     * das 10h ser julgada as 16h: ela mudaria de cor sozinha ao longo do dia,
+     * inclusive de vermelha para verde quando o fim da jornada chegasse, e o
+     * AED veria o historico do portao se reescrever sob os olhos dele.
+     *
+     * ⚠️ TETO OBRIGATORIO no numero de linhas. Sao duas consultas por linha
+     * (permissao pontual + regime vigente) e isto roda no ciclo de polling da
+     * tela do portao, a cada poucos segundos. Sem teto, uma manha movimentada
+     * transformaria a tela de apoio numa carga permanente no banco.
+     *
+     * SAIDA e ALUNO apenas: o regime nao fala de entrada nem de servidor, e uma
+     * linha NON_APPLICABLE na tela seria ruido no lugar onde ruido custa caro.
+     */
+    public List<GateVerdict> veredictosNoPortao(String pointId, int limite) {
+        int teto = Math.max(1, Math.min(limite, 50));
+        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
+
+        List<AccessLog> logs = accessLogRepository
+                .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
+                        List.of(pointId), inicioDoDia, agora);
+
+        List<GateVerdict> out = new ArrayList<>();
+        for (AccessLog l : logs) {
+            if (out.size() >= teto) break;
+            if (l.getAction() != AccessAction.SAIDA || l.getUserId() == null) continue;
+
+            User u = userRepository.findById(l.getUserId()).orElse(null);
+            if (u == null || u.getTipo() != UserType.ALUNO) continue;
+
+            RegimeDecision d = avaliar(l.getUserId(), l.getTimestamp());
+            if (d.verdict() == RegimeVerdict.NON_APPLICABLE) continue;
+
+            out.add(new GateVerdict(
+                    l.getId(), u.getId(), u.getNome(), u.getTurma(), l.getTimestamp(),
+                    d.verdict(), d.motivo(), d.regimeSortie(), d.regimeGeneral(),
+                    d.dependeDeGrade()));
+        }
+        return out;
     }
 
     public Optional<StudentRegime> vigenteDe(String userId) {

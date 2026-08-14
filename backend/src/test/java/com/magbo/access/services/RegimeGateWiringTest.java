@@ -74,7 +74,7 @@ class RegimeGateWiringTest {
 
         RegimeSortieService regimeService = new RegimeSortieService(
                 regimeRepository, regimeEventRepository, userRepository,
-                exitPermissionService, regimeProps);
+                exitPermissionService, accessLogRepository, regimeProps);
 
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,
@@ -268,17 +268,29 @@ class RegimeGateWiringTest {
     }
 
     @Test
-    @DisplayName("★ regime 2 (semi-libre) é AMARELO na tela, mas não vira registro de aviso")
-    void regime2NaoVirarRegistro() {
-        // A_VERIFIER e uma pergunta ao humano, nao uma objecao do sistema.
-        // Registrar seria afirmar que o MAGBO discorda, e ele nao discorda: ele
-        // nao sabe. O par (access_log + student_regimes) reconstroi isso depois.
+    @DisplayName("★★★ regime 2 DEIXA RASTRO — como OBSERVAÇÃO, nunca como objeção")
+    void regime2DeixaRastro() {
+        // A primeira versão só gravava NON_AUTORISE, e A_VERIFIER — que o
+        // javadoc do próprio RegimeVerdict chama de "o valor mais importante do
+        // enum" — não existia em lugar nenhum: nem attempt, nem feed, nem
+        // relatório. Um veredicto que ninguém consegue contar depois não pode
+        // ser melhorado, e era justamente o do regime 2, metade dos casos
+        // duvidosos.
+        //
+        // ⚠️ Motivo PRÓPRIO (REGIME_TO_VERIFY) e não REGIME_NOT_ALLOWED: o
+        // MAGBO não discorda desta saída, ele não sabe. Contar estas linhas
+        // junto com as recusas seria imputar ao aluno uma limitação do sistema.
         comRegime(RegimeSortie.REGIME_2, RegimeGeneral.EXTERNE);
 
         saiPelaPortaria();
 
-        verify(attemptService, never()).record(
-                any(), any(), any(), any(), any(), any(), any(), any(),
-                any(), any(), any(), anyBoolean(), any());
+        verify(attemptService).record(
+                eq(ALUNO), anyString(), anyString(), eq("PORT1"), eq(AccessAction.SAIDA),
+                anyString(), any(), any(),
+                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.REGIME_TO_VERIFY),
+                any(), anyBoolean(), any());
+        verify(accessLogRepository).save(any(AccessLog.class));
     }
+
+
 }

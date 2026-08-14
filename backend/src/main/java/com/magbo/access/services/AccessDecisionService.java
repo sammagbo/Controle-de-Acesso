@@ -446,18 +446,43 @@ public class AccessDecisionService {
         // por RegimeGateWiringTest, que rodava depois das 17h e passava verde.
         if (isGate && p.resolved().action() == AccessAction.SAIDA) {
             RegimeDecision regime = regimeSortieService.avaliar(p.userId(), p.eventTime());
+            // ⚠️ TRES veredictos deixam rastro, nao um.
+            //
+            // A primeira versao so gravava NON_AUTORISE, e o resultado foi que
+            // A_VERIFIER — o valor que o javadoc do proprio RegimeVerdict chama
+            // de "o mais importante do enum" — nao existia em lugar nenhum:
+            // nem em access_attempts, nem em feed, nem em relatorio. Um
+            // veredicto que ninguem consegue contar depois nao pode ser
+            // melhorado, e era justamente o do regime 2, metade dos casos
+            // duvidosos (painel de revisao, AED, 14/08/2026).
+            //
+            // ⚠️ A_VERIFIER NAO E OBJECAO. Vai como OBSERVATION com motivo
+            // proprio (REGIME_TO_VERIFY) porque o MAGBO nao discorda da saida:
+            // ele nao sabe, e o registro diz exatamente isso. Ler estas linhas
+            // como recusas seria contar contra o aluno uma limitacao do sistema.
+            //
+            // INCONNU continua SEM rastro de proposito: no dia 1 sao 923 alunos
+            // sem regime, e 923 linhas por dia afogariam o feed e as duas
+            // familias que importam. Quando a property `desconhecido` virar
+            // DENY, o veredicto passa a ser NON_AUTORISE e cai no primeiro ramo.
+            DenialReason motivoRegistro = null;
             if (regime.verdict() == RegimeVerdict.NON_AUTORISE) {
+                // Dois motivos distintos: "regime 1 saindo no meio da jornada" e
+                // "ninguem preencheu o papel deste aluno" pedem acoes diferentes
+                // da Vie Scolaire.
+                motivoRegistro = "regime.motivo.sem.regime".equals(regime.motivo())
+                        ? DenialReason.REGIME_UNKNOWN
+                        : DenialReason.REGIME_NOT_ALLOWED;
+            } else if (regime.verdict() == RegimeVerdict.A_VERIFIER) {
+                motivoRegistro = DenialReason.REGIME_TO_VERIFY;
+            }
+
+            if (motivoRegistro != null) {
                 attemptService.record(
                         p.userId(), p.employeeNoRaw(), p.nomeSnapshot(),
                         p.resolved().pointId(), p.resolved().action(), p.terminalIp(),
                         p.method(), p.authResult(),
-                        AuthorizationResult.OBSERVATION,
-                        // Dois motivos distintos: "regime 1 saindo no meio da
-                        // jornada" e "ninguem preencheu o papel deste aluno"
-                        // pedem acoes diferentes da Vie Scolaire.
-                        "regime.motivo.sem.regime".equals(regime.motivo())
-                                ? DenialReason.REGIME_UNKNOWN
-                                : DenialReason.REGIME_NOT_ALLOWED,
+                        AuthorizationResult.OBSERVATION, motivoRegistro,
                         p.subType(), p.resolved().isFallback(), p.eventTime()
                 );
                 log.info("Régime de sortie: user={}, veredicto={}, motivo={}, regime={}",

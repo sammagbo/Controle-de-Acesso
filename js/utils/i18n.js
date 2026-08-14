@@ -58,15 +58,28 @@
     const DICIONARIOS = {
         fr: {
             'idioma.rotulo': 'Langue',
+
+            'regime.form.familia.outro': 'Ce n’est pas ce responsable qui a signé',
+            'regime.form.familia.excecao': 'Exception : le responsable enregistré est {nome}.',
+            'regime.form.familia.voltar': 'Revenir au responsable enregistré',
+
+            'enum.regimeSortie.curto.REGIME_1': 'R1 — surveillé',
+            'enum.regimeSortie.curto.REGIME_2': 'R2 — semi-libre',
+            'enum.regimeSortie.curto.REGIME_3': 'R3 — libre',
+
+            'regime.acao.AUTORISE': 'Laissez sortir.',
+            'regime.acao.NON_AUTORISE': 'Retenez l’élève et appelez la Vie Scolaire.',
+            'regime.acao.A_VERIFIER': 'Vérifiez l’emploi du temps et le carnet avant de laisser sortir.',
+            'regime.acao.INCONNU': 'Contrôlez le carnet, comme avant — MAGBO n’a pas ce régime.',
+            'regime.portao.titulo': 'Régime de sortie',
+            'regime.portao.vazio': 'Aucune sortie d’élève enregistrée aujourd’hui à ce point',
+            'enum.denial.REGIME_TO_VERIFY': 'Régime à vérifier (emploi du temps)',
             'admin.card.regime.sub': 'Le droit annuel de sortir, déclaré par les responsables',
             'admin.card.regime.btn': 'Gérer les régimes',
 
             'enum.regimeSortie.REGIME_1': 'Régime 1 — surveillé',
             'enum.regimeSortie.REGIME_2': 'Régime 2 — semi-libre',
             'enum.regimeSortie.REGIME_3': 'Régime 3 — libre',
-            'enum.regimeSortie.curto.REGIME_1': 'R1',
-            'enum.regimeSortie.curto.REGIME_2': 'R2',
-            'enum.regimeSortie.curto.REGIME_3': 'R3',
             'enum.regimeGeneral.EXTERNE': 'Externe',
             'enum.regimeGeneral.DEMI_PENSIONNAIRE': 'Demi-pensionnaire',
             'enum.regimeGeneral.INTERNE': 'Interne',
@@ -1116,15 +1129,28 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'regime.form.familia.outro': 'Não foi este responsável que assinou',
+            'regime.form.familia.excecao': 'Exceção: o responsável cadastrado é {nome}.',
+            'regime.form.familia.voltar': 'Voltar ao responsável cadastrado',
+
+            'enum.regimeSortie.curto.REGIME_1': 'R1 — vigiado',
+            'enum.regimeSortie.curto.REGIME_2': 'R2 — semilivre',
+            'enum.regimeSortie.curto.REGIME_3': 'R3 — livre',
+
+            'regime.acao.AUTORISE': 'Pode deixar sair.',
+            'regime.acao.NON_AUTORISE': 'Retenha o aluno e chame a Vie Scolaire.',
+            'regime.acao.A_VERIFIER': 'Confira a grade e o carnet antes de deixar sair.',
+            'regime.acao.INCONNU': 'Confira o carnet, como antes — o MAGBO não tem este regime.',
+            'regime.portao.titulo': 'Regime de saída',
+            'regime.portao.vazio': 'Nenhuma saída de aluno registrada hoje neste ponto',
+            'enum.denial.REGIME_TO_VERIFY': 'Regime a verificar (grade horária)',
             'admin.card.regime.sub': 'O direito anual de sair, declarado pelos responsáveis',
             'admin.card.regime.btn': 'Gerenciar os regimes',
 
             'enum.regimeSortie.REGIME_1': 'Regime 1 — vigiado',
             'enum.regimeSortie.REGIME_2': 'Regime 2 — semilivre',
             'enum.regimeSortie.REGIME_3': 'Regime 3 — livre',
-            'enum.regimeSortie.curto.REGIME_1': 'R1',
-            'enum.regimeSortie.curto.REGIME_2': 'R2',
-            'enum.regimeSortie.curto.REGIME_3': 'R3',
             'enum.regimeGeneral.EXTERNE': 'Externo',
             'enum.regimeGeneral.DEMI_PENSIONNAIRE': 'Semi-interno (almoça na escola)',
             'enum.regimeGeneral.INTERNE': 'Interno',

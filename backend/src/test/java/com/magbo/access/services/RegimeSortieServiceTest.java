@@ -52,6 +52,7 @@ class RegimeSortieServiceTest {
     @Mock private StudentRegimeEventRepository eventRepository;
     @Mock private UserRepository userRepository;
     @Mock private ExitPermissionService exitPermissionService;
+    @Mock private com.magbo.access.repositories.AccessLogRepository accessLogRepository;
 
     private RegimeProperties props;
     private RegimeSortieService service;
@@ -67,7 +68,7 @@ class RegimeSortieServiceTest {
         props.setHabilitado(true);
 
         service = new RegimeSortieService(regimeRepository, eventRepository,
-                userRepository, exitPermissionService, props);
+                userRepository, exitPermissionService, accessLogRepository, props);
 
         // Por omissao: e aluno ativo, sem permissao pontual, sem regime.
         aluno(UserType.ALUNO);
@@ -406,6 +407,88 @@ class RegimeSortieServiceTest {
             assertThat(vigente.getEncerradoEm()).isNotNull();
             verify(regimeRepository, never()).delete(any());
             verify(eventRepository).save(any(StudentRegimeEvent.class));
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("★★ os veredictos que a tela do portao consome")
+    class NoPortao {
+
+        private com.magbo.access.models.AccessLog log(long id, String user,
+                com.magbo.access.models.AccessAction acao, int h, int m) {
+            return com.magbo.access.models.AccessLog.builder()
+                    .id(id).userId(user).pointId("PORT1").action(acao)
+                    .timestamp(LocalDateTime.of(HOJE, LocalTime.of(h, m))).build();
+        }
+
+        private void logs(com.magbo.access.models.AccessLog... ls) {
+            when(accessLogRepository.findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
+                    any(), any(), any())).thenReturn(List.of(ls));
+        }
+
+        @Test
+        @DisplayName("★★★ cada linha e julgada na HORA DA PASSAGEM, nao na da consulta")
+        void julgaNaHoraDaPassagem() {
+            // A saida das 10h de um regime 1 e NON_AUTORISE. Se fosse avaliada
+            // "agora" — e esta suite roda a qualquer hora —, depois das 17h ela
+            // viraria AUTORISE por fim de jornada, e o historico do portao se
+            // reescreveria sob os olhos do AED ao longo do dia.
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 0));
+
+            List<com.magbo.access.dto.GateVerdict> v = service.veredictosNoPortao("PORT1", 20);
+
+            assertThat(v).hasSize(1);
+            assertThat(v.get(0).verdict()).isEqualTo(RegimeVerdict.NON_AUTORISE);
+            assertThat(v.get(0).momento()).isEqualTo(LocalDateTime.of(HOJE, LocalTime.of(10, 0)));
+            assertThat(v.get(0).logId()).isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("★★ ENTRADA nao entra — o regime fala de SAIDA")
+        void entradaFicaDeFora() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.ENTRADA, 8, 0));
+            assertThat(service.veredictosNoPortao("PORT1", 20)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("★★ servidor nao entra — regime e instituto de aluno")
+        void servidorFicaDeFora() {
+            aluno(UserType.PROFESSOR);
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 17, 0));
+            assertThat(service.veredictosNoPortao("PORT1", 20)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("★★ o teto e respeitado — isto roda no polling da tela do portao")
+        void tetoRespeitado() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 0),
+                 log(2L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 5),
+                 log(3L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 9));
+            assertThat(service.veredictosNoPortao("PORT1", 2)).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("★ um limite absurdo nao vira consulta absurda")
+        void tetoTemTeto() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 0));
+            assertThat(service.veredictosNoPortao("PORT1", 100000)).hasSize(1);
+            assertThat(service.veredictosNoPortao("PORT1", -5)).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("★★ sem regime cadastrado a linha APARECE, como INCONNU")
+        void semRegimeApareceCinza() {
+            // Cinza tambem e informacao: diz ao AED "confira o carnet, como
+            // antes". Omitir seria devolve-lo a memoria.
+            logs(log(1L, ALUNO, com.magbo.access.models.AccessAction.SAIDA, 10, 0));
+            List<com.magbo.access.dto.GateVerdict> v = service.veredictosNoPortao("PORT1", 20);
+            assertThat(v).hasSize(1);
+            assertThat(v.get(0).verdict()).isEqualTo(RegimeVerdict.INCONNU);
         }
     }
 

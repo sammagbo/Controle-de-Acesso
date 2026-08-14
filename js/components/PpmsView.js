@@ -1,0 +1,190 @@
+// =====================================================================
+// PPMS — "quem está dentro, agora"
+// =====================================================================
+// Desenhada para o dia em que importa, não para a demonstração.
+//
+// O Plan Particulier de Mise en Sûreté é obrigatório e a contagem hoje é feita
+// em papel, nas "fiches des effectifs" do kit de confinamento. Esta tela é o que
+// alguém abre no telefone, no pátio, com o pátio cheio.
+//
+// ⚠️ TRÊS DECISÕES QUE VÊM DAÍ:
+//
+// 1. O RETRATO É GUARDADO no localStorage a cada carga boa. Numa emergência a
+//    rede é a primeira coisa que cai — e uma tela que mostra um erro quando a
+//    rede some é uma tela inútil exatamente na hora para a qual foi feita. Sem
+//    rede, mostra o último retrato COM a hora dele, em destaque, para ninguém
+//    confundir dado velho com dado de agora.
+// 2. O NOME É GRANDE e o toque marca como conferido. Quem lê em voz alta precisa
+//    achar a próxima linha sem procurar, e precisa saber onde parou.
+// 3. OS AVISOS FICAM NO TOPO, não num rodapé. "Segundo os leitores" não é
+//    ressalva jurídica: é a diferença entre parar de procurar uma criança e
+//    continuar procurando.
+
+const PPMS_CACHE = 'magbo.ppms.ultimo';
+
+function PpmsView({ onBack }) {
+    const t = useI18n();
+    const locale = useLocale();
+    const { useState, useEffect, useCallback } = React;
+
+    const [snap, setSnap] = useState(null);
+    const [offline, setOffline] = useState(false);
+    const [carregando, setCarregando] = useState(true);
+    const [conferidos, setConferidos] = useState(() => new Set());
+
+    const carregar = useCallback(async () => {
+        setCarregando(true);
+        try {
+            const res = await fetch(`${window.magboConfig?.getCached?.()?.apiUrl || 'http://localhost:8080'}/api/ppms/inside`, {
+                headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            if (!res.ok) throw new Error('http ' + res.status);
+            const dados = await res.json();
+            setSnap(dados);
+            setOffline(false);
+            // Guarda o retrato bom. É o que salva a tela quando a rede cai.
+            try { localStorage.setItem(PPMS_CACHE, JSON.stringify(dados)); } catch (e) { /* cota cheia: segue */ }
+        } catch (e) {
+            const guardado = localStorage.getItem(PPMS_CACHE);
+            setSnap(guardado ? JSON.parse(guardado) : null);
+            setOffline(true);
+        } finally {
+            setCarregando(false);
+        }
+    }, []);
+
+    useEffect(() => { carregar(); }, [carregar]);
+
+    const hora = (iso) => iso ? new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '—';
+
+    const alternar = (id) => setConferidos(prev => {
+        const n = new Set(prev);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return n;
+    });
+
+    const exportarCsv = () => {
+        if (!snap) return;
+        const linhas = [t('ppms.csv.header')];
+        (snap.zonas || []).forEach(z => (z.pessoas || []).forEach(p => {
+            const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+            linhas.push([z.pointId, p.id, p.nome, p.turma, p.tipo, hora(p.ultimaHora)].map(esc).join(','));
+        }));
+        const blob = new Blob(['﻿' + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ppms-${new Date().toISOString().slice(0, 16).replace(':', 'h')}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const totalPessoas = snap ? (snap.zonas || []).reduce((s, z) => s + (z.pessoas || []).length, 0) : 0;
+
+    return (
+        <div className="max-w-5xl mx-auto px-4 py-6 animate-fade-in" id="ppms-print">
+            <style>{`@media print { body * { visibility: hidden; } #ppms-print, #ppms-print * { visibility: visible; } #ppms-print { position: absolute; left: 0; top: 0; width: 100%; } .ppms-nao-imprime { display: none; } }`}</style>
+
+            <div className="flex items-center justify-between mb-4 ppms-nao-imprime">
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack}
+                        className="w-10 h-10 rounded-xl bg-white border border-soft-200 shadow-sm flex items-center justify-center">
+                        <LucideIcon name="arrow-left" size={18} className="text-navy-500" />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-bold text-navy-500">{t('ppms.titulo')}</h1>
+                        <p className="text-xs text-slate-400">{t('ppms.subtitulo')}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={carregar} disabled={carregando}
+                        className="px-3 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold disabled:opacity-50">
+                        {t('ppms.atualizar')}
+                    </button>
+                    <button onClick={() => window.print()}
+                        className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
+                        {t('ppms.imprimir')}
+                    </button>
+                    <button onClick={exportarCsv}
+                        className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
+                        {t('ppms.exportar')}
+                    </button>
+                </div>
+            </div>
+
+            {/* ⚠️ Sem rede: a hora do retrato em destaque, nunca escondida. */}
+            {offline && (
+                <p className="text-sm font-bold text-warning-800 bg-warning-100 border-2 border-warning-400 rounded-xl px-4 py-3 mb-4">
+                    {snap ? t('ppms.offline', { hora: hora(snap.geradoEm) }) : t('ppms.sem.relevo')}
+                </p>
+            )}
+
+            {/* Os avisos ficam AQUI, antes do número. */}
+            {snap && (snap.avisos || []).length > 0 && (
+                <div className="mb-4 space-y-1">
+                    {snap.avisos.map(a => (
+                        <p key={a} className="text-xs text-slate-600 bg-soft-100 border border-soft-200 rounded-lg px-3 py-2">
+                            {t(a)}
+                        </p>
+                    ))}
+                </div>
+            )}
+
+            {carregando && !snap ? (
+                <p className="text-sm text-slate-400 py-10 text-center">{t('ppms.carregando')}</p>
+            ) : !snap ? (
+                <p className="text-sm text-slate-400 py-10 text-center">{t('ppms.sem.relevo')}</p>
+            ) : (
+                <>
+                    <div className="bg-navy-500 text-white rounded-2xl p-6 mb-5 text-center">
+                        <p className="text-6xl font-black leading-none">{snap.totalDentro}</p>
+                        <p className="text-sm font-semibold mt-2 opacity-90">{t('ppms.total')}</p>
+                        <p className="text-xs opacity-60 mt-1">{t('ppms.gerado', { hora: hora(snap.geradoEm) })}</p>
+                        {totalPessoas > 0 && (
+                            <p className="text-xs opacity-75 mt-2">
+                                {t('ppms.conferidos', { n: conferidos.size, total: totalPessoas })}
+                            </p>
+                        )}
+                    </div>
+
+                    {(snap.zonas || []).length === 0 ? (
+                        <p className="text-sm text-slate-400 py-8 text-center">{t('ppms.vazio')}</p>
+                    ) : (
+                        <div className="space-y-5">
+                            {snap.zonas.map(z => (
+                                <div key={z.pointId} className="bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
+                                    <div className="px-5 py-3 bg-soft-50 border-b border-soft-200 flex items-center justify-between">
+                                        <p className="font-black text-navy-500">{pointLabel(z.pointId, window.MagboI18n.getLang())}</p>
+                                        <span className="text-lg font-black text-navy-500">{z.total}</span>
+                                    </div>
+                                    <div>
+                                        {(z.pessoas || []).map(p => {
+                                            const feito = conferidos.has(p.id);
+                                            return (
+                                                <button key={p.id} onClick={() => alternar(p.id)}
+                                                    className={`w-full text-left px-5 py-3 border-b border-soft-100 last:border-0 flex items-center gap-3 transition-colors ${feito ? 'bg-success-50' : 'hover:bg-soft-50'}`}>
+                                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${feito ? 'bg-success-500 text-white' : 'bg-soft-200'}`}>
+                                                        {feito && <LucideIcon name="check" size={14} />}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1">
+                                                        {/* Nome GRANDE: alguém lê isto em voz alta. */}
+                                                        <span className={`block text-lg font-bold truncate ${feito ? 'text-slate-400 line-through' : 'text-navy-500'}`}>
+                                                            {p.nome}
+                                                        </span>
+                                                        <span className="block text-xs text-slate-400">
+                                                            {p.turma || '—'} · {p.id} · {t('ppms.visto.as', { hora: hora(p.ultimaHora) })}
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}

@@ -425,6 +425,8 @@ function App() {
                         <MealEntitlementManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'EXIT_PERMISSION_MANAGEMENT' ? (
                         <ExitPermissionManagement onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'PPMS' ? (
+                        <PpmsView onBack={() => setCurrentPoint(null)} />
                   ) : (
                   <SectorView
                         point={currentPoint}

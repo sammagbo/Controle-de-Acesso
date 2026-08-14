@@ -67,6 +67,7 @@ const MIGRADAS = [
     // Leva final.
     'js/components/AdminDashboard.js',
     'js/components/AppSettingsModal.js',
+    'js/components/PpmsView.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

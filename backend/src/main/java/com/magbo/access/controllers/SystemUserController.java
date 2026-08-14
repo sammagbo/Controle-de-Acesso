@@ -42,11 +42,13 @@ public class SystemUserController {
         String[] parts = permissoes.split(",");
         for (String p : parts) {
             String val = p.trim();
-            if (!val.equals("*") &&
-                !val.equals(com.magbo.access.security.Permissions.MEAL_ENTITLEMENT_WRITE) &&
-                !val.equals(com.magbo.access.security.Permissions.EXIT_PERMISSION_WRITE) &&
-                !val.equals(com.magbo.access.security.Permissions.ATTEMPTS_READ)) {
-                throw new IllegalArgumentException("Permissão inválida: " + val + ". Valores válidos: *, MEAL_ENTITLEMENT_WRITE, EXIT_PERMISSION_WRITE, ATTEMPTS_READ");
+            // A lista vive em Permissions.TODAS. Escrita aqui, ela divergiria
+            // da tela — e a mensagem de erro divergiria da propria verificacao,
+            // que foi exatamente o que aconteceu antes de 14/08/2026.
+            if (!val.equals("*") && !com.magbo.access.security.Permissions.TODAS.contains(val)) {
+                throw new IllegalArgumentException("Permissão inválida: " + val
+                        + ". Valores válidos: *, "
+                        + String.join(", ", com.magbo.access.security.Permissions.TODAS));
             }
         }
     }

@@ -242,3 +242,88 @@ describe('permissions — integrado com o auth.js real', () => {
         expect(P.canWriteExitPermissions(authReal)).toBe(false);
     });
 });
+
+/**
+ * A TELA QUE CONCEDE — os tres espelhos que precisam dizer a mesma coisa.
+ *
+ * Ate 14/08/2026 nao havia tela nenhuma: o backend aceitava `permissoes` no
+ * POST e no PUT, e o formulario de operadores nunca ofereceu o campo. O
+ * resultado era uma funcionalidade inteira que so o ADMIN alcancava, com o
+ * botao ausente — nao cinza, AUSENTE — para quem deveria usa-la. Descoberto ao
+ * percorrer o procedimento de deploy a letra: o texto mandava conceder a
+ * permissao numa coluna que nao existia.
+ *
+ * Os tres lugares que nomeiam uma permissao sao permissions.js (a lista da
+ * UI), o dicionario (o rotulo que a pessoa le) e validatePermissoes no
+ * SystemUserController (quem o servidor aceita). Divergir aqui nao da erro
+ * visivel: ou aparece uma chave crua na tela, ou o Salvar devolve 400 dizendo
+ * "Permissao invalida" para uma caixa que a propria tela ofereceu.
+ */
+describe('permissoes — a tela, o dicionario e o backend', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const REPO = path.resolve(__dirname, '..');
+    const I18N = require('../js/utils/i18n.js');
+    const NOMES = Object.values(P.PERMISSIONS);
+
+    it('ha permissoes para testar (o teste nao passa por lista vazia)', () => {
+        expect(NOMES.length).toBeGreaterThan(0);
+    });
+
+    it('★ toda permissao tem rotulo nas DUAS linguas', () => {
+        // Sem isto a caixa aparece escrita "operadores.permissao.REGIME_WRITE".
+        // Visivel, sim — mas numa tela de administracao a pessoa conclui que o
+        // sistema esta quebrado e nao marca a caixa.
+        const faltando = [];
+        for (const lang of Object.keys(I18N.DICIONARIOS)) {
+            for (const nome of NOMES) {
+                const chave = 'operadores.permissao.' + nome;
+                if (!I18N.DICIONARIOS[lang][chave]) faltando.push(lang + ':' + chave);
+            }
+        }
+        expect(faltando).toEqual([]);
+    });
+
+    it('★ o backend ACEITA toda permissao que a tela oferece', () => {
+        // ⚠️ Le a lista DENTRO de Permissions.TODAS, nao o arquivo inteiro.
+        // A primeira versao deste teste procurava o nome em qualquer lugar do
+        // SystemUserController e passava com a verificacao removida — porque a
+        // mensagem de erro repetia os nomes. A mutacao sobreviveu, e foi por
+        // isso que a lista virou uma so (Permissions.TODAS) e que este teste
+        // olha exatamente para ela.
+        const java = fs.readFileSync(path.join(REPO,
+            'backend/src/main/java/com/magbo/access/security/Permissions.java'), 'utf8');
+        const bloco = java.slice(java.indexOf('TODAS = java.util.List.of('));
+        const lista = bloco.slice(0, bloco.indexOf(');'));
+        expect(lista.length).toBeGreaterThan(0);
+        const declarados = lista.match(/[A-Z][A-Z_]{3,}/g) || [];
+        const ausentes = NOMES.filter(n => !declarados.includes(n));
+        expect(ausentes).toEqual([]);
+    });
+
+    it('★ validatePermissoes usa a lista, nao uma copia', () => {
+        // Se alguem reescrever a validacao como cadeia de equals(), a lista
+        // volta a existir duas vezes e o teste acima deixa de proteger nada.
+        const ctrl = fs.readFileSync(path.join(REPO,
+            'backend/src/main/java/com/magbo/access/controllers/SystemUserController.java'), 'utf8');
+        const trecho = ctrl.slice(ctrl.indexOf('validatePermissoes'), ctrl.indexOf('@PostMapping'));
+        expect(trecho).toContain('Permissions.TODAS.contains(val)');
+    });
+
+    it('★ a tela NAO tem uma quarta copia da lista', () => {
+        // A lista tem de vir de MagboPermissions. Uma escrita dentro do
+        // componente seria a copia que ninguem lembraria de atualizar.
+        const ui = fs.readFileSync(path.join(REPO, 'js/components/UserManagement.js'), 'utf8');
+        expect(ui).toContain('MagboPermissions');
+        const literais = NOMES.filter(n => ui.includes("'" + n + "'") || ui.includes('"' + n + '"'));
+        expect(literais).toEqual([]);
+    });
+
+    it('★ o formulario envia permissoes ao salvar', () => {
+        // O campo existir e nao ir no corpo da requisicao e o defeito mais
+        // silencioso possivel: a caixa marca, o Salvar responde 200, e nada
+        // mudou.
+        const ui = fs.readFileSync(path.join(REPO, 'js/components/UserManagement.js'), 'utf8');
+        expect(ui).toMatch(/permissoes:\s*form\.permissoes/);
+    });
+});

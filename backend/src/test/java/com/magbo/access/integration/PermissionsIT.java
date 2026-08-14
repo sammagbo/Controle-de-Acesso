@@ -140,4 +140,81 @@ class PermissionsIT extends AbstractIT {
                         .content(body))
                 .andExpect(status().isForbidden());
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // O ENDPOINT QUE CONCEDE — /api/system-users
+    // ─────────────────────────────────────────────────────────────
+    // A tela de operadores agora oferece as permissoes granulares
+    // (fix/permissions-ui), o que faz deste endpoint a porta de TODA elevacao
+    // de privilegio do sistema. Dois furos apontados pelo painel de 14/08:
+    // nenhum teste provava que um OPERATOR e recusado aqui (um PUT aceita
+    // `role` e `permissoes` no mesmo corpo — a auto-elevacao completa), e
+    // validatePermissoes nao era EXECUTADO por teste nenhum — as guardas do
+    // Vitest sao grep de codigo-fonte, e inverter a condicao do whitelist
+    // (aceitar so o invalido) passava na suite inteira.
+
+    @Test
+    @DisplayName("★★★ OPERATOR nao cria operador nem eleva a si mesmo: POST/PUT -> 403")
+    void operadorNaoAlcancaSystemUsers() throws Exception {
+        String token = TestAuthHelper.login(mockMvc, OP_USER, OP_PASS);
+        Long meuId = systemUserRepository.findByUsername(OP_USER).orElseThrow().getId();
+
+        // criar outro operador: recusado
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/system-users")
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "username", "intruso", "password", "x",
+                                "nomeCompleto", "Intruso", "role", "ADMIN"))))
+                .andExpect(status().isForbidden());
+
+        // elevar A SI MESMO — role e permissoes no mesmo corpo: recusado
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/system-users/" + meuId)
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of(
+                                "role", "ADMIN", "permissoes", "*"))))
+                .andExpect(status().isForbidden());
+
+        // e nada mudou no banco
+        SystemUser eu = systemUserRepository.findByUsername(OP_USER).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(eu.getRole()).isEqualTo(Role.OPERATOR);
+        org.assertj.core.api.Assertions.assertThat(eu.getPermissoes()).isNull();
+    }
+
+    @Test
+    @DisplayName("★★★ validatePermissoes EXECUTADO: invalida -> 400, cada valida de TODAS -> 200")
+    void whitelistDePermissoesRodaDeVerdade() throws Exception {
+        // ⚠️ Este teste mata a mutacao que o painel descreveu: inverter o
+        // whitelist para `if (val.equals("*") || TODAS.contains(val)) throw`
+        // mantem as strings que os testes de grep procuram e rejeitaria toda
+        // caixa que a propria tela oferece com 400. Aqui o codigo RODA:
+        // se a invalida passar OU uma valida falhar, o teste quebra.
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+        Long opId = systemUserRepository.findByUsername(OP_USER).orElseThrow().getId();
+
+        // permissao inventada: 400, e o corpo diz qual
+        mockMvc.perform(MockMvcRequestBuilders.put("/api/system-users/" + opId)
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("permissoes", "INVENTADA"))))
+                .andExpect(status().isBadRequest());
+
+        // cada permissao REAL da fonte unica: aceita. Iterar sobre TODAS e o
+        // ponto — se um nome cair da lista no merge, este teste quebra sem
+        // ninguem precisar lembrar dele.
+        for (String perm : com.magbo.access.security.Permissions.TODAS) {
+            mockMvc.perform(MockMvcRequestBuilders.put("/api/system-users/" + opId)
+                            .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(mapper.writeValueAsString(Map.of("permissoes", perm))))
+                    .andExpect(status().isOk());
+        }
+
+        // e a ultima gravacao esta no banco
+        org.assertj.core.api.Assertions.assertThat(
+                systemUserRepository.findByUsername(OP_USER).orElseThrow().getPermissoes())
+                .isEqualTo(com.magbo.access.security.Permissions.TODAS
+                        .get(com.magbo.access.security.Permissions.TODAS.size() - 1));
+    }
 }

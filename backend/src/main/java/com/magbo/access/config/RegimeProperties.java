@@ -32,6 +32,22 @@ public class RegimeProperties {
     private LocalTime fimManha = LocalTime.of(12, 0);
 
     /**
+     * Retomada da tarde: a hora em que a meia-jornada da tarde comeca.
+     *
+     * ⚠️ SEM ISTO O SISTEMA DA FALSO VERDE A TARDE INTEIRA, e foi assim que
+     * nasceu (apanhado pelo painel de revisao em 14/08/2026). A regra do fim da
+     * manha liberava o EXTERNE a partir das 11h45 — e continuava liberando as
+     * 14h30, as 16h, ate a meia-noite, porque so olhava "e depois de fimManha?".
+     * O aluno de regime 1 que se manda depois do almoco recebia AUTORISE com o
+     * motivo "fim de jornada — saida normal": o sistema nao so deixava de
+     * avisar como AFIRMAVA que a saida foi normal.
+     *
+     * A janela do meio-dia vai de fimManha ate aqui. Depois daqui, so fimDia
+     * encerra a jornada de alguem.
+     */
+    private LocalTime retomadaTarde = LocalTime.of(14, 0);
+
+    /**
      * Fim da jornada. A partir daqui todo aluno vai para casa, em qualquer
      * regime: a saida deixa de ser uma excecao a autorizar e passa a ser o fim
      * do dia.

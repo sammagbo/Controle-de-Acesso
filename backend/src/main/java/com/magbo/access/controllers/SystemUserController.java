@@ -45,8 +45,9 @@ public class SystemUserController {
             if (!val.equals("*") &&
                 !val.equals(com.magbo.access.security.Permissions.MEAL_ENTITLEMENT_WRITE) &&
                 !val.equals(com.magbo.access.security.Permissions.EXIT_PERMISSION_WRITE) &&
-                !val.equals(com.magbo.access.security.Permissions.ATTEMPTS_READ)) {
-                throw new IllegalArgumentException("Permissão inválida: " + val + ". Valores válidos: *, MEAL_ENTITLEMENT_WRITE, EXIT_PERMISSION_WRITE, ATTEMPTS_READ");
+                !val.equals(com.magbo.access.security.Permissions.ATTEMPTS_READ) &&
+                !val.equals(com.magbo.access.security.Permissions.REGIME_WRITE)) {
+                throw new IllegalArgumentException("Permissão inválida: " + val + ". Valores válidos: *, MEAL_ENTITLEMENT_WRITE, EXIT_PERMISSION_WRITE, ATTEMPTS_READ, REGIME_WRITE");
             }
         }
     }

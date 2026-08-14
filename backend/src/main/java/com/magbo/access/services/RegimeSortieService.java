@@ -171,8 +171,25 @@ public class RegimeSortieService {
      * na duvida sobre o que a familia contratou, nao se antecipa uma liberacao.
      */
     private boolean fimDaJornada(LocalTime agora, RegimeGeneral geral) {
-        LocalTime limite = (geral == RegimeGeneral.EXTERNE) ? props.getFimManha() : props.getFimDia();
-        return !agora.isBefore(limite.minusMinutes(props.getToleranciaMinutos()));
+        int folga = props.getToleranciaMinutos();
+
+        // Depois do fim do dia, a jornada de todo mundo acabou.
+        if (!agora.isBefore(props.getFimDia().minusMinutes(folga))) return true;
+
+        // ⚠️ O EXTERNE so esta liberado DENTRO da janela do meio-dia — entre o
+        // fim da manha e a retomada da tarde. A primeira versao perguntava
+        // apenas "e depois do fim da manha?", e por isso respondia
+        // "fim de jornada — saida normal" as 14h30, as 16h e ate a meia-noite:
+        // o aluno de regime 1 que se mandava depois do almoco recebia VERDE, e
+        // com uma afirmacao de que aquela saida tinha sido normal. Apanhado pelo
+        // painel de revisao (CPE) em 14/08/2026.
+        if (geral == RegimeGeneral.EXTERNE) {
+            return !agora.isBefore(props.getFimManha().minusMinutes(folga))
+                    && agora.isBefore(props.getRetomadaTarde().minusMinutes(folga));
+        }
+
+        // Demi-pensionnaire e interne almocam aqui: so o fim do dia encerra.
+        return false;
     }
 
     // ─────────────────────────────────────────────────────────────

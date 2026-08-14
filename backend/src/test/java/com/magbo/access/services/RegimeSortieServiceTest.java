@@ -62,6 +62,7 @@ class RegimeSortieServiceTest {
         props.setFimManha(LocalTime.of(12, 0));
         props.setFimDia(LocalTime.of(17, 0));
         props.setToleranciaMinutos(15);
+        props.setRetomadaTarde(LocalTime.of(14, 0));
         props.setDesconhecido("OBSERVATION");
         props.setHabilitado(true);
 
@@ -258,6 +259,39 @@ class RegimeSortieServiceTest {
         void toleranciaNaoEHoraLivre() {
             regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
             assertThat(as(11, 30).verdict()).isEqualTo(RegimeVerdict.NON_AUTORISE);
+        }
+
+        @Test
+        @DisplayName("★★★ FALSO VERDE DA TARDE: externo de regime 1 as 14h30 NAO e saida normal")
+        void externoNaoFicaLiberadoATardeInteira() {
+            // A primeira versao perguntava so "e depois do fim da manha?" e
+            // respondia AUTORISE com motivo 'fim de jornada' as 14h30, as 16h e
+            // ate a meia-noite. O aluno de regime 1 que se manda depois do
+            // almoco recebia verde — e uma afirmacao de que a saida foi normal.
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            RegimeDecision d = as(14, 30);
+            assertThat(d.verdict())
+                    .as("a meia-jornada da tarde recomecou; isto nao e fim de jornada")
+                    .isEqualTo(RegimeVerdict.NON_AUTORISE);
+        }
+
+        @Test
+        @DisplayName("★★ a janela do meio-dia do externo tem FIM: 13h59 ainda libera, 14h nao")
+        void janelaDoMeioDiaFecha() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            assertThat(as(13, 0).verdict())
+                    .as("dentro da janela do almoco o externo vai embora")
+                    .isEqualTo(RegimeVerdict.AUTORISE);
+            assertThat(as(14, 0).verdict())
+                    .as("depois da retomada da tarde, nao")
+                    .isEqualTo(RegimeVerdict.NON_AUTORISE);
+        }
+
+        @Test
+        @DisplayName("★ e o fim do DIA continua liberando o externo, as 17h")
+        void fimDoDiaAindaLiberaExterno() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.EXTERNE);
+            assertThat(as(17, 0).verdict()).isEqualTo(RegimeVerdict.AUTORISE);
         }
 
         @Test

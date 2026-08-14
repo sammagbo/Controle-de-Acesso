@@ -39,6 +39,55 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 > segue abaixo é o histórico das Fases A–K, mantido porque explica **por que** o
 > sistema é como é.
 
+### A noite de 13→14/08 — quatro branches, nenhuma mergeada
+> Trabalho da madrugada, **aguardando revisão do Sam**. Nada foi para a `main`.
+> Ordem de merge: `fix/audit-logic` → `feat/ppms-evacuation` (empilhada nela) ·
+> `feat/regime-de-sortie` é independente · `docs/nuit-14-08` (este texto).
+> ⚠️ `js/App.js` e `js/data/constants.js` recebem uma rota nova em **duas**
+> branches (regime e PPMS): conflito trivial esperado num merge, não é defeito.
+
+- **RÉGIME DE SORTIE** (`feat/regime-de-sortie`, V014+V015): o direito **anual** de
+  sair, declarado por escrito pelos responsáveis legais (circulaire n° 96-248).
+  Tabelas `student_regimes` + `student_regime_events`. **NÃO substitui
+  `student_exit_permissions`**: o regime é a regra do ano, a permissão é a exceção
+  do dia, e **a exceção vence** (avaliada primeiro, sempre).
+  - Veredicto de **CINCO** valores porque a verdade tem cinco estados.
+    `A_VERIFIER` existe porque o MAGBO **não tem a grade horária** (ela é do
+    Pronote) e não pode saber se este minuto é hora vaga; `INCONNU` porque no dia 1
+    **923 alunos não têm regime** e tratar "não preenchido" como "proibido"
+    pintaria a escola de vermelho (a lição do `meal-pending`, D5); `NON_APPLICABLE`
+    porque regime é instituto de **aluno** — é exatamente por não existir esta
+    distinção que a avaliação de saída segue **desligada** nas câmeras da portaria.
+  - **Só observa.** Grava `access_attempts` como `OBSERVATION`, nunca nega, nunca
+    impede a gravação da passagem (ADR-003). `RegimeGateWiringTest` trava isso.
+  - ⚠️ **`magbo.regime.desconhecido` tem de continuar `OBSERVATION`** até os regimes
+    serem carregados. `DENY` antes disso alerta sobre os 923 de uma vez.
+- ⚠️⚠️ **O RELÓGIO DO REGIME É O DA PASSAGEM, NUNCA O DO PROCESSAMENTO** — exceção
+  consciente à regra "regras usam a hora da DECISÃO". Aquela regra existe para que
+  uma fila offline não mude DENY/ALLOW retroativamente; esta regra **nunca nega**:
+  ela afirma se, no instante em que a criança cruzou o portão, o regime dela
+  autorizava aquilo. Julgada pelo relógio do processamento, uma saída das 10h
+  esvaziada às 18h vira "fim de jornada — saída normal" e o aviso que a Vie
+  Scolaire precisava ver **nunca existiu**. É a armadilha de 03/08 outra vez, só
+  que agora decide se uma criança pode sair da escola. A primeira versão usava
+  `now` e passava verde o dia inteiro — só quebrou porque a suíte rodou às 18h45,
+  então a trava (`regimeUsaAHoraDaPassagem`) captura o **argumento**, não o
+  veredicto: teste que reprova conforme a hora em que alguém o roda não prova nada.
+- **PPMS** (`feat/ppms-evacuation`): `GET /api/ppms/inside` + tela `PpmsView`.
+  Computado **em Java** e não pela consulta esperta: `currentOccupancyByPoint` é
+  PG-only e `@Disabled`, e o número que diz se ainda há criança lá dentro não pode
+  vir de consulta que nenhum teste executa. Cache offline em `localStorage` (a rede
+  é a primeira coisa que cai numa emergência) com a hora do retrato em destaque.
+  Rota `isAuthenticated()` e **não** por área, de propósito. **Não substitui a
+  chamada** — a tela diz isso acima do número.
+- **Auditoria lógica** (`fix/audit-logic`): o guarda do i18n passou a ler literal
+  dentro de **expressão JSX** (o ponto cego declarado) e achou 8 defeitos; mais 5
+  vindos da auditoria. O mais caro: a tela de Sorties lia `perm.type`/
+  `perm.allowedDays`, campos que o `ExitPermissionDto` **nunca mandou** — em JS
+  isso é `undefined` sem erro, e **toda autorização pontual aparecia como
+  "Toujours"** no portão. Novo `tests/exitPermissionContract.test.js` trava o
+  contrato DTO↔tela por AST.
+
 ### A semana de 29/07 a 05/08 — cinco deploys (resumo; detalhe no handoff)
 - **Hora do EVENTO, não a de recepção** (`8d78f41`, `EventTimeResolver`): incidente de 03/08 — fila offline de 33 eventos entrou toda às 14:51, gerando durações **negativas**. Fallback para a hora de recepção só com `dateTime` ausente/ilegível, >5 min no futuro ou >30 dias no passado, **sempre com linha INFO**. ⚠️ **As REGRAS continuam avaliadas na hora da DECISÃO** — dívida aberta.
 - **Três camadas de dedup, distintas:** ingestão (`magbo.ingestion-dedup.*`, **60 s**, chave IP+`serialNo`) · mesma passagem (`magbo.same-passage-window-seconds`, **30 s**, chave pessoa+ponto+ação) · refeição duplicada (`magbo.dedup.window-seconds`, **90 s**, regra de negócio). Não confundir.

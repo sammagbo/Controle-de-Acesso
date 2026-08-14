@@ -100,6 +100,14 @@ const NAO_SE_TRADUZ = [
     /^[A-Z]\d$/,                  // turma (A1, B2) — dado, não texto
     /^[A-Z]$/,                     // letra solta (o L de L{linha})
     /^(min|m|h|s)$/,               // unidades de tempo — iguais nos dois idiomas
+    // A mesma unidade colada à pontuação da frase que a rodeia: " min)", "h : ".
+    // O texto traduzível já saiu para uma chave; o que sobra no template literal
+    // é a unidade e o parêntese.
+    /^[\s(]*(min|m|h|s)[\s):.,·-]*$/,
+    // CSS dentro de <style>{`…`}</style>: é folha de estilo, não frase. As três
+    // telas com impressão (StatsModal, Refectory, Infirmary) trazem um bloco
+    // @media print inteiro num template literal.
+    /^@media|[{;]\s*$|^\s*[.#]?[\w-]+\s*\{/,
     // A linha de exemplos de status aceita TODOS os idiomas de uma vez — ela
     // ensina o que a planilha pode conter, e a planilha não tem idioma.
     /^Autorizado · Não autorizado · Autorisé · Non autorisé/,
@@ -113,7 +121,44 @@ function podeFicarCru(texto) {
     return NAO_SE_TRADUZ.some(re => re.test(s));
 }
 
-/** Texto visível fora do i18n, com a linha — o AST é a única leitura confiável. */
+/**
+ * Props de COMPONENTE que o usuário lê. `title` e `placeholder` já valem como
+ * atributo do DOM; estes são os equivalentes dos componentes próprios do
+ * projeto (ListaLimitada, DeniedAttemptsFeed…), que o navegador não conhece
+ * mas que acabam na tela do mesmo jeito.
+ */
+const PROPS_VISIVEIS = new Set([
+    ...ATRIBUTOS_VISIVEIS, 'titulo', 'label', 'rotulo', 'texto', 'message',
+    'emptyMessage', 'mensagem', 'subtitulo', 'descricao',
+]);
+
+/** A chamada é t(...) ou tEnum(...)? Então o que está dentro é CHAVE, não texto. */
+function ehChamadaDeTraducao(no) {
+    if (!no || no.type !== 'CallExpression') return false;
+    const c = no.callee;
+    if (c?.type === 'Identifier') return c.name === 't' || c.name === 'tEnum';
+    if (c?.type === 'MemberExpression') {
+        return c.property?.type === 'Identifier'
+            && (c.property.name === 't' || c.property.name === 'tEnum');
+    }
+    return false;
+}
+
+/**
+ * Texto visível fora do i18n, com a linha — o AST é a única leitura confiável.
+ *
+ * ⚠️ TRÊS CLASSES, e a terceira foi acrescentada em 14/08/2026 depois de uma
+ * regressão real: `{importando ? 'GRAVANDO...' : plano.rotuloConfirmar}` e
+ * ``titulo={`${n} linha(s) ignorada(s)`}`` viviam numa tela que estava na lista
+ * MIGRADAS, e o guarda passava verde porque só olhava JSXText e atributo com
+ * aspas. Literal DENTRO de expressão JSX era o ponto cego declarado — e o que
+ * é declarado e não testado volta.
+ *
+ *   1. JSXText            — texto solto entre tags
+ *   2. JSXAttribute       — title="..." e irmãos, com aspas
+ *   3. expressão JSX      — {'...'} e {`...`}, em filho ou em prop visível,
+ *                           exceto quando é argumento de t()/tEnum() (aí é chave)
+ */
 function textosCrus(codigo, arquivo) {
     const { ast } = Babel.transform(codigo, {
         parserOpts: { plugins: ['jsx'] },
@@ -121,7 +166,63 @@ function textosCrus(codigo, arquivo) {
     });
 
     const achados = [];
-    (function anda(no) {
+
+    /**
+     * Varre uma expressão JSX atrás de literal humano fora do i18n.
+     *
+     * ⚠️ Percorre só POSIÇÕES DE VALOR — ternário, `&&`, concatenação, o próprio
+     * literal — e PARA em chamada de função, objeto e JSX aninhado. A varredura
+     * profunda foi tentada primeiro e afogou o teste: `className={x ? 'bg-red' :
+     * 'bg-green'}`, `style={{color:'#0C1B3A'}}` e `React.createElement('button')`
+     * são todos literais dentro de expressão, e nenhum deles chega aos olhos de
+     * ninguém como texto. Um guarda que acusa trezentas linhas certas para pegar
+     * duas erradas é desligado na primeira semana.
+     */
+    function dentroDaExpressao(no, ondeLinha) {
+        if (!no || typeof no !== 'object') return;
+        const linha = no.loc?.start?.line ?? ondeLinha;
+
+        switch (no.type) {
+            case 'StringLiteral':
+                if (!podeFicarCru(no.value)) {
+                    achados.push(`linha ${linha}: literal em expressão JSX "${no.value.slice(0, 60)}"`);
+                }
+                return;
+            case 'TemplateLiteral':
+                for (const q of no.quasis || []) {
+                    const cru = q.value?.cooked ?? q.value?.raw ?? '';
+                    if (!podeFicarCru(cru)) {
+                        achados.push(`linha ${linha}: template literal em JSX "${cru.trim().slice(0, 60)}"`);
+                    }
+                }
+                // As interpolações podem carregar outro ternário com texto.
+                (no.expressions || []).forEach(e => dentroDaExpressao(e, linha));
+                return;
+            case 'ConditionalExpression':
+                dentroDaExpressao(no.consequent, linha);
+                dentroDaExpressao(no.alternate, linha);
+                return;
+            case 'LogicalExpression':
+                dentroDaExpressao(no.left, linha);
+                dentroDaExpressao(no.right, linha);
+                return;
+            case 'BinaryExpression':
+                if (no.operator === '+') {
+                    dentroDaExpressao(no.left, linha);
+                    dentroDaExpressao(no.right, linha);
+                }
+                return;
+            case 'ParenthesizedExpression':
+                dentroDaExpressao(no.expression, linha);
+                return;
+            default:
+                // Chamada, objeto, JSX aninhado, identificador: não é texto solto
+                // nesta posição, ou é tratado pelo caminhante de fora.
+                return;
+        }
+    }
+
+    (function anda(no, paiAtributo) {
         if (!no || typeof no !== 'object') return;
 
         if (no.type === 'JSXText' && !podeFicarCru(no.value)) {
@@ -134,13 +235,26 @@ function textosCrus(codigo, arquivo) {
             achados.push(`linha ${no.loc?.start?.line}: ${no.name.name}="${no.value.value.slice(0, 60)}"`);
         }
 
+        // Classe 3. Só em lugar que chega à TELA: filho de elemento JSX, ou
+        // valor de prop visível. `className={cond ? 'bg-red' : 'bg-green'}`
+        // continua de fora, que é o que evita afogar o teste em falso positivo.
+        if (no.type === 'JSXExpressionContainer') {
+            const ehFilho = paiAtributo == null;
+            const ehPropVisivel = paiAtributo != null && PROPS_VISIVEIS.has(paiAtributo);
+            if (ehFilho || ehPropVisivel) {
+                dentroDaExpressao(no.expression, no.loc?.start?.line);
+            }
+        }
+
         for (const chave in no) {
             if (chave === 'loc' || chave === 'leadingComments' || chave === 'trailingComments') continue;
             const v = no[chave];
-            if (Array.isArray(v)) v.forEach(anda);
-            else if (v && typeof v === 'object') anda(v);
+            const nomeAttr = (no.type === 'JSXAttribute' && chave === 'value') ? no.name?.name : null;
+            if (Array.isArray(v)) v.forEach(x => anda(x, nomeAttr));
+            else if (v && typeof v === 'object') anda(v, nomeAttr);
         }
-    })(ast);
+    })(ast, null);
+
     return achados;
 }
 

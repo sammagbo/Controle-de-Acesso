@@ -287,7 +287,7 @@ function MealEntitlementManagement() {
                               {plano.estado !== 'sem-arquivo' && (
                                     <div className="bg-white border border-soft-200 rounded-2xl p-4 space-y-4">
                                           <div className="flex items-center justify-between">
-                                                <p className="font-bold text-navy-500 text-sm">{plano.titulo}</p>
+                                                <p className="font-bold text-navy-500 text-sm">{t(plano.titulo)}</p>
                                                 <span className="text-xs text-slate-400">{t('plano.linhas', { n: plano.total })}</span>
                                           </div>
 
@@ -302,7 +302,7 @@ function MealEntitlementManagement() {
 
                                           {plano.problemas.length > 0 && (
                                                 <ListaLimitada
-                                                      titulo={`${plano.problemas.length} linha(s) ignorada(s) ou em conflito`}
+                                                      titulo={t('cfg.hik.problemas.contagem', { n: plano.problemas.length })}
                                                       total={plano.problemas.length}
                                                 >
                                                       {(visiveis) => (
@@ -344,7 +344,7 @@ function MealEntitlementManagement() {
                                                             disabled={importando}
                                                             className="px-6 py-2 bg-accent-500 text-white font-bold rounded-xl hover:bg-accent-600 transition-colors disabled:opacity-50 truncate"
                                                       >
-                                                            {importando ? 'GRAVANDO...' : plano.rotuloConfirmar}
+                                                            {importando ? t('comum.gravando') : t(plano.rotuloConfirmar, plano.confirmarParams)}
                                                       </button>
                                                 )}
                                           </div>

@@ -186,7 +186,7 @@ function RefectoryReport() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                 {[
                     { label: t('rap.cantina.kpi.servidos'), value: kpis.total, color: 'text-navy-500' },
-                    { label: t('rap.kpi.alunos.unicos'), value: kpis.uniques, color: 'text-accent-600' },
+                    { label: t('vue.kpi.pessoas.unicas'), value: kpis.uniques, color: 'text-accent-600' },
                     { label: t('rap.status.fora.horario'), value: kpis.late, color: 'text-danger-600' },
                     { label: t('rap.status.sem.saida'), value: kpis.noExit, color: 'text-slate-500' },
                     { label: t('rap.kpi.duracao'), value: fmtDuration(kpis.avg), color: 'text-success-600' },

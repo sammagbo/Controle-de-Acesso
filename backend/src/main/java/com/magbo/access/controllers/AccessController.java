@@ -160,7 +160,15 @@ public class AccessController {
                     .entryTime(entrada.getTimestamp().format(hm))
                     .exitTime(exitTime)
                     .durationMinutes(duration)
-                    .onTime(entrada.getFlag() == null)   // flag null = entrou na hora certa
+                    // ⚠️ A FLAG PELO NOME, nao "tem flag". access_logs.flag e um campo
+                    // UNICO que tambem recebe POSTO_FIXO, JA_PRESENTE e
+                    // FECHAMENTO_AUTO. Com `flag == null`, uma passagem que o
+                    // proprio sistema classificou como ROTINA era apresentada ao
+                    // operador como refeicao fora do horario — uma acusacao de
+                    // irregularidade sobre quem nao cometeu nenhuma. O KPI
+                    // equivalente da Vue d'ensemble ja conta pela flag certa
+                    // (AccessLogRepository: flag='FORA_HORARIO').
+                    .onTime(!"FORA_HORARIO".equals(entrada.getFlag()))
                     .exitRegistered(exitRegistered)
                     .build());
         }

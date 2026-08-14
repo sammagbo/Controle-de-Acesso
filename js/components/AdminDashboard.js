@@ -70,7 +70,11 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     activeUsers: s.activeUsers || 0,
                                     totalUsers: s.totalUsers || (window.userCache?.all().length || 0),
                                     blockedToday: s.blockedToday || 0,
-                                    authorizedToday: s.authorizedToday || (s.totalToday || 0),
+                                    // ?? e nao ||: `authorizedToday` legitimamente vale 0 quando toda
+                                    // passagem do dia tem flag, e `0 || x` devolve x — o card
+                                    // mostrava o TOTAL do dia como autorizado exatamente no
+                                    // cenario em que o painel deveria alertar.
+                                    authorizedToday: s.authorizedToday ?? (s.totalToday ?? 0),
                                     alertasHoje: s.alertasHoje || 0,
                                     negadasHoje: s.negadasHoje || 0,
                                     divergenciaHoje: s.divergenciaHoje || 0

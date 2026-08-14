@@ -38,6 +38,8 @@ function PpmsView({ onBack }) {
     const [snap, setSnap] = useState(null);
     const [offline, setOffline] = useState(false);
     const [carregando, setCarregando] = useState(true);
+    // 403/401: recusa de PERMISSAO, nunca tratada como rede caida.
+    const [semPermissao, setSemPermissao] = useState(false);
     const [conferidos, setConferidos] = useState(() => new Set());
 
     /**
@@ -87,7 +89,24 @@ function PpmsView({ onBack }) {
                 headers: window.authHeaders ? window.authHeaders() : {},
                 signal: ctrl.signal
             });
+            // ⚠️ 403/401 ANTES do throw generico. O catch abaixo e o caminho da
+            // REDE — ele pinta o retrato do localStorage, que e o comportamento
+            // certo numa evacuacao com wifi caido. Mas o 403 nao e wifi caido:
+            // e o servidor dizendo "este login nao pode ver esta lista". A
+            // primeira versao deixava o 403 cair no mesmo catch, e a tela
+            // servia nome, matricula e turma de menores, do cache em disco,
+            // para quem o servidor tinha acabado de recusar — e o cache de um
+            // login sem direito ainda ficava no aparelho. Painel de revisao
+            // (seguranca/RGPD, 14/08).
+            if (res.status === 403 || res.status === 401) {
+                try { localStorage.removeItem(PPMS_CACHE); } catch (e2) { /* segue */ }
+                setSnap(null);
+                setSemPermissao(true);
+                setOffline(false);
+                return;
+            }
             if (!res.ok) throw new Error('http ' + res.status);
+            setSemPermissao(false);
             const dados = await res.json();
             setSnap(dados);
             setOffline(false);
@@ -186,7 +205,14 @@ function PpmsView({ onBack }) {
                 </div>
             )}
 
-            {carregando && !snap ? (
+            {semPermissao ? (
+                // Recusa NOMEADA — nunca a cara de "sem dados" nem a de "sem
+                // rede". Quem precisa da lista numa evacuacao tem de saber que o
+                // caminho e pedir a permissao, nao esperar o wifi voltar.
+                <p className="text-sm font-bold text-danger-600 bg-danger-50 border-2 border-danger-500 rounded-xl px-4 py-6 text-center">
+                    {t('ppms.sem.permissao')}
+                </p>
+            ) : carregando && !snap ? (
                 <p className="text-sm text-slate-400 py-10 text-center">{t('ppms.carregando')}</p>
             ) : !snap ? (
                 <p className="text-sm text-slate-400 py-10 text-center">{t('ppms.sem.relevo')}</p>

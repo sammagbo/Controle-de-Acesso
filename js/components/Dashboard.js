@@ -92,34 +92,14 @@ function Dashboard({ onSelectPoint, accessLogs }) {
 
                   {/* Access Point Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {ACCESS_POINTS.filter(point => {
-                              // Regra padrão: ponto visível se não-hidden e o usuário tem a área.
-                              if (!point.hidden && window.auth.canAccessArea(point.area)) return true;
-                              // Exceção (decisão do Sam): as telas de gestão (hidden, área admin) são
-                              // a porta de entrada dedicada do OPERATOR que tem a permissão granular
-                              // — o painel admin exige PIN admin-only, então o operador não chega lá.
-                              // Admin continua entrando pelo painel (não vê estes cards).
-                              // A regra vive em js/utils/permissions.js, com teste: uma tela que
-                              // habilita por um critério e um endpoint que aceita por outro produz
-                              // botão morto de um lado e 403 do outro.
-                              const P = window.MagboPermissions;
-                              if (point.id === 'MEAL_ENTITLEMENT_MANAGEMENT') {
-                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.MEAL_ENTITLEMENT_WRITE);
-                              }
-                              if (point.id === 'EXIT_PERMISSION_MANAGEMENT') {
-                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.EXIT_PERMISSION_WRITE);
-                              }
-                              // PPMS: lista NOMINATIVA de menores. Restrita, não
-                              // fechada (decisão do Sam, 14/08) — Vie Scolaire,
-                              // direção, enfermaria. Espelha o @PreAuthorize do
-                              // PpmsController: tela que habilita por um critério e
-                              // endpoint que aceita por outro dá botão morto de um
-                              // lado e 403 do outro.
-                              if (point.id === 'PPMS') {
-                                    return P.mostraAtalhoNoDashboard(window.auth, P.PERMISSIONS.PPMS_READ);
-                              }
-                              return false;
-                        }).map((point) => {
+                        {/* ⚠️ A regra inteira vive em permissions.js (podeVerPonto),
+                            onde ela TEM teste. A versão inline avaliava a regra
+                            padrão primeiro, e o PPMS — não-hidden, área portail —
+                            abria para todo operador do portão antes de o
+                            PPMS_READ ser consultado (painel de 14/08). */}
+                        {ACCESS_POINTS.filter(point =>
+                              window.MagboPermissions.podeVerPonto(window.auth, point)
+                        ).map((point) => {
                               const colors = CATEGORY_COLORS[point.category];
                               const count = activeCounts[point.id] || 0;
                               return (

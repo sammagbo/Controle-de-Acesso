@@ -83,6 +83,42 @@
         return canWrite(auth, permission);
     }
 
+    /**
+     * O card deste ponto aparece no Dashboard para este login?
+     *
+     * ⚠️ A REGRA INTEIRA num lugar so, e os pontos ESPECIAIS avaliados ANTES da
+     * regra padrao. A primeira versao vivia inline no filter do Dashboard, com
+     * a regra padrao PRIMEIRO — `!point.hidden && canAccessArea(area)` — e o
+     * PPMS e nao-hidden com area 'portail': todo operador do setor do portao
+     * (exatamente a equipe que a restricao mirava) recebia true ANTES de o
+     * PPMS_READ ser consultado. O ramo do PPMS era codigo morto para eles, e a
+     * lista nominativa de menores abria sem a permissao. Provado executando o
+     * filtro real; apanhado pelo painel de revisao (seguranca/RGPD, 14/08).
+     * Inline nao tinha teste POSSIVEL — aqui tem.
+     */
+    function podeVerPonto(auth, point) {
+        if (!auth || !point) return false;
+        // Pontos atras de permissao granular — SEMPRE antes da regra padrao.
+        if (point.id === 'MEAL_ENTITLEMENT_MANAGEMENT') {
+            return mostraAtalhoNoDashboard(auth, PERMISSIONS.MEAL_ENTITLEMENT_WRITE);
+        }
+        if (point.id === 'EXIT_PERMISSION_MANAGEMENT') {
+            return mostraAtalhoNoDashboard(auth, PERMISSIONS.EXIT_PERMISSION_WRITE);
+        }
+        if (point.id === 'PPMS') {
+            // Restrita, nao fechada (decisao do dono, 14/08): Vie Scolaire,
+            // direcao, enfermaria — via PPMS_READ. Espelha o @PreAuthorize do
+            // PpmsController. Diferente das telas de gestao, o ADMIN VE o card:
+            // mostraAtalhoNoDashboard esconde do admin porque ele entra pelo
+            // painel; numa evacuacao ninguem navega por dois caminhos.
+            if (typeof auth.isAdmin === 'function' && auth.isAdmin()) return true;
+            return canWrite(auth, PERMISSIONS.PPMS_READ);
+        }
+        // Regra padrao: visivel se nao-hidden e o login tem a area.
+        return !point.hidden && typeof auth.canAccessArea === 'function'
+                && auth.canAccessArea(point.area);
+    }
+
     /** Atalho para a tela de Sorties (`POST/revoke /api/admin/exit-permissions`). */
     function canWriteExitPermissions(auth) {
         return canWrite(auth, PERMISSIONS.EXIT_PERMISSION_WRITE);
@@ -97,6 +133,7 @@
         PERMISSIONS: PERMISSIONS,
         canWrite: canWrite,
         mostraAtalhoNoDashboard: mostraAtalhoNoDashboard,
+        podeVerPonto: podeVerPonto,
         canWriteExitPermissions: canWriteExitPermissions,
         canWriteMealEntitlements: canWriteMealEntitlements
     };

@@ -63,6 +63,7 @@
             'ppms.zona.transito': 'Dans l’établissement — zone inconnue',
             'ppms.zona.transito.ajuda': 'Couloirs, cour, salles sans lecteur. Commencez par le dernier endroit vu.',
 
+            'ppms.sem.permissao': 'Votre compte n’a pas accès à la liste nominative du PPMS. Demandez la permission « Liste PPMS » à l’administrateur — ce n’est pas une panne réseau.',
             'ppms.titulo': 'Qui est à l’intérieur',
             'ppms.subtitulo': 'PPMS · comptage des effectifs · Lycée Molière',
             'ppms.total': 'Personnes à l’intérieur',
@@ -812,6 +813,10 @@
             'operadores.setor.cdi': 'CDI',
             'operadores.setor.portail': 'Portail (entrées)',
             'operadores.setor.tudo': 'Tout (admin)',
+            // ⚠️ Rótulo da permissão desta BRANCH na tela de operadores (main,
+            // fix/permissions-ui). Toda branch que acrescenta permissão
+            // acrescenta o rótulo AQUI, nas duas línguas.
+            'operadores.permissao.PPMS_READ': 'Liste PPMS — consulter',
             'operadores.senha': 'Mot de passe',
             'operadores.senha.nova': 'Nouveau mot de passe (facultatif)',
             'operadores.ativo': 'Opérateur actif',
@@ -1089,6 +1094,7 @@
             'ppms.zona.transito': 'No estabelecimento — zona desconhecida',
             'ppms.zona.transito.ajuda': 'Corredores, pátio, salas sem leitor. Comece pelo último lugar visto.',
 
+            'ppms.sem.permissao': 'A sua conta não tem acesso à lista nominativa do PPMS. Peça a permissão "Lista PPMS" ao administrador — não é uma falha de rede.',
             'ppms.titulo': 'Quem está dentro',
             'ppms.subtitulo': 'PPMS · contagem de efetivos · Lycée Molière',
             'ppms.total': 'Pessoas dentro',
@@ -1834,6 +1840,7 @@
             'operadores.setor.cdi': 'CDI',
             'operadores.setor.portail': 'Portaria (entradas)',
             'operadores.setor.tudo': 'Tudo (admin)',
+            'operadores.permissao.PPMS_READ': 'Lista PPMS — consultar',
             'operadores.senha': 'Senha',
             'operadores.senha.nova': 'Nova senha (opcional)',
             'operadores.ativo': 'Operador ativo',

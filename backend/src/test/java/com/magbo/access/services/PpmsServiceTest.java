@@ -25,7 +25,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -55,8 +56,8 @@ class PpmsServiceTest {
     void setUp() {
         service = new PpmsService(accessLogRepository, userRepository);
         logs.clear();
-        when(accessLogRepository.findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
-                anyList(), any(), any())).thenReturn(logs);
+        when(accessLogRepository.findByTimestampBetweenOrderByTimestampAsc(any(), any()))
+                .thenReturn(logs);
         when(userRepository.findAllById(any())).thenAnswer(inv -> {
             List<User> us = new ArrayList<>();
             for (Object id : (Iterable<?>) inv.getArgument(0)) {
@@ -247,6 +248,47 @@ class PpmsServiceTest {
                     .timestamp(LocalDateTime.of(DIA, LocalTime.of(8, 0))).build());
             ev("0001", "PORT1", AccessAction.ENTRADA, 8, 5, null);
             assertThat(tirar().getTotalDentro()).isEqualTo(1);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("★★★ nenhum ponto fica de fora da lista de evacuação")
+    class SemListaBranca {
+
+        @Test
+        @DisplayName("★★★ um ponto FORA do AreaMapping continua na lista — CANTINA1 era o caso real")
+        void pontoForaDoMapaNaoSome() {
+            // A primeira versão filtrava por AreaMapping.pointToArea(), um Map.of
+            // de sete pontos escritos à mão. CANTINA1 não está nele, e outros
+            // controllers já o tratam como ponto de primeira classe: o aluno da
+            // cantina sumia da lista, em silêncio. Numa lista onde um nome que
+            // falta é uma criança que ninguém procura, não há filtro seguro
+            // senão nenhum.
+            ev("0001", "CANTINA1", AccessAction.ENTRADA, 12, 0, null);
+            PpmsSnapshot s = tirar();
+            assertThat(s.getTotalDentro()).isEqualTo(1);
+            assertThat(nomesDentro(s)).containsExactly("0001");
+        }
+
+        @Test
+        @DisplayName("★★ um ponto comissionado depois (REFEI3) entra sozinho")
+        void pontoNovoEntraSozinho() {
+            ev("0002", "REFEI3", AccessAction.ENTRADA, 12, 0, null);
+            assertThat(tirar().getTotalDentro()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("★★★ o serviço NÃO manda lista de pontos ao banco — a consulta é por janela")
+        void consultaNaoFiltraPonto() {
+            // Trava estrutural: o teste anterior estubava com anyList() e por
+            // isso era CEGO ao argumento. Aqui se prova que o finder usado é o
+            // que não recebe ponto nenhum.
+            ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
+            tirar();
+            verify(accessLogRepository).findByTimestampBetweenOrderByTimestampAsc(any(), any());
+            verify(accessLogRepository, never())
+                    .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(any(), any(), any());
         }
     }
 

@@ -642,6 +642,10 @@
             'dias.3': 'Mer',
             'dias.4': 'Jeu',
             'dias.5': 'Ven',
+            // O backend aceita ISO 1..7; sem estas duas, um sábado gravado numa
+            // autorização recorrente saía como rótulo VAZIO na tela da portaria.
+            'dias.6': 'Sam',
+            'dias.7': 'Dim',
 
             'periodo.hoje': "Aujourd'hui",
             'periodo.semana': 'Cette Semaine',
@@ -1660,6 +1664,8 @@
             'dias.3': 'Qua',
             'dias.4': 'Qui',
             'dias.5': 'Sex',
+            'dias.6': 'Sáb',
+            'dias.7': 'Dom',
 
             'periodo.hoje': 'Hoje',
             'periodo.semana': 'Esta semana',

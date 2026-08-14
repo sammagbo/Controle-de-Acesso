@@ -49,14 +49,19 @@ public class PpmsService {
     public PpmsSnapshot snapshot(LocalDateTime agora) {
         LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
 
-        List<String> pontos = new ArrayList<>(AreaMapping.pointToArea().keySet());
-        List<AccessLog> logs = accessLogRepository
-                .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(pontos, inicioDoDia, agora);
-
-        // Ordem cronológica CRESCENTE para emparelhar; a consulta devolve
-        // decrescente (é a que existe e é testada), então inverte-se aqui.
-        List<AccessLog> emOrdem = new ArrayList<>(logs);
-        emOrdem.sort(Comparator.comparing(AccessLog::getTimestamp));
+        // ⚠️ SEM LISTA BRANCA DE PONTOS. A primeira versao filtrava por
+        // AreaMapping.pointToArea(), um Map.of de SETE pontos escritos a mao —
+        // e CANTINA1, que AccessController e AccessAttemptController ja tratam
+        // como ponto de primeira classe, nao esta nele. O aluno da cantina
+        // sumia da lista de evacuacao, em silencio, e nenhum teste via porque o
+        // estubo respondia a anyList(). Apanhado pelo painel de revisao
+        // (qualidade) em 14/08/2026, com sonda que honra o IN (...).
+        //
+        // Numa lista onde um nome que falta e uma crianca que ninguem procura,
+        // nao existe filtro seguro senao nenhum: um ponto novo comissionado em
+        // door_mappings entra sozinho.
+        List<AccessLog> emOrdem = new ArrayList<>(
+                accessLogRepository.findByTimestampBetweenOrderByTimestampAsc(inicioDoDia, agora));
 
         // Estado do PORTAO por pessoa: dentro da escola ou não.
         Map<String, AccessLog> noPortao = new HashMap<>();

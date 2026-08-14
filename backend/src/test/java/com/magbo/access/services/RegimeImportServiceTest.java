@@ -232,6 +232,17 @@ class RegimeImportServiceTest {
         }
 
         @Test
+        @DisplayName("★★ a grafia FRANCESA — 'Régime 1', com acento — é aceita")
+        void aceitaAGrafiaFrancesa() {
+            // "Régime" é como a palavra se escreve na língua da escola. A
+            // primeira versão comparava sem tirar o acento, e a única grafia
+            // recusada era a correta (painel, Vie Scolaire, 14/08).
+            aluno("0001764", UserType.ALUNO);
+            RegimeImportRow r = linha(2, "0001764", "Demi-pensionnaire", "Régime 1");
+            assertThat(uma(r).acao()).isEqualTo(RegimeImportService.Acao.CRIAR);
+        }
+
+        @Test
         @DisplayName("★★ regime escrito errado é recusado, não adivinhado")
         void enumInvalido() {
             aluno("0001764", UserType.ALUNO);

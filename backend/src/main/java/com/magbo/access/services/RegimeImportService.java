@@ -262,7 +262,14 @@ public class RegimeImportService {
     }
 
     private static <E extends Enum<E>> E parseEnum(Class<E> tipo, String valor) {
-        String v = trim(valor).toUpperCase().replace('-', '_').replace(' ', '_');
+        // ⚠️ Acento fora ANTES de comparar: a Vie Scolaire escreve "Régime 1",
+        // com acento, porque e assim que a palavra se escreve em frances. Sem
+        // esta linha, "RÉGIME_1" nao casava com REGIME_1 e a grafia CORRETA da
+        // lingua da escola era a unica recusada (painel de revisao, Vie
+        // Scolaire, 14/08).
+        String v = java.text.Normalizer.normalize(trim(valor), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toUpperCase().replace('-', '_').replace(' ', '_');
         if (v.isEmpty()) return null;
         // Aceita "REGIME 1", "R1" e "1" alem do nome do enum: quem preenche a
         // planilha le "regime 1" no carnet, nao "REGIME_1".

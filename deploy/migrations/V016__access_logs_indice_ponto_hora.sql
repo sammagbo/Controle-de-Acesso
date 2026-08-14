@@ -1,0 +1,78 @@
+-- =====================================================================
+-- V016 — ÍNDICE (point_id, timestamp) em access_logs
+-- =====================================================================
+-- ⚠️ ESTA MIGRAÇÃO REVERTE UMA DECISÃO ANTERIOR, e isso precisa estar dito.
+-- A V006 recusou explicitamente indexar `access_logs` "nesta fase (tabela de
+-- ~440k registros)". Naquele momento nenhuma consulta quente filtrava por
+-- (ponto, hora): os relatórios rodam sob demanda e o Journal tem teto de 500.
+--
+-- O que mudou: a tela do PORTÃO passou a perguntar, a cada ciclo de 3 segundos
+-- e por tela aberta, "as saídas de aluno deste ponto nas últimas 2 horas"
+-- (RegimeSortieService#veredictosNoPortao). Sem índice isso é uma varredura
+-- completa da tabela — medida abaixo — repetida vinte vezes por minuto.
+--
+-- ── MEDIÇÃO, num Postgres local com os 439.993 registros reais ───────
+-- Consulta:
+--   SELECT * FROM access_logs
+--    WHERE point_id IN ('PORT1')
+--      AND timestamp BETWEEN <agora-2h> AND <agora>
+--    ORDER BY timestamp DESC;
+--
+--   ANTES:  Parallel Seq Scan (3 workers) · 3687 buffers compartilhados (~29 MB)
+--           14,2 / 14,4 / 16,8 ms   — para devolver UMA linha
+--   DEPOIS: Index Scan Backward using idx_access_logs_ponto_hora · 5 buffers
+--           0,041 / 0,046 / 0,062 ms
+--
+--   ≈ 250× mais rápido, e 737× menos páginas lidas. Medido em 14/08/2026 num
+--   Postgres LOCAL (container magbo-postgres) com os 439.993 registros reais,
+--   três execuções de cada lado, depois de aquecer o cache.
+--
+-- Um índice que ninguém mediu é uma crença, não um fato — por isso os dois
+-- números vivem aqui, no arquivo que o cria.
+--
+-- ── POR QUE (point_id, timestamp), NESTA ORDEM ───────────────────────
+-- `point_id` primeiro porque é igualdade e recorta a tabela em poucos valores;
+-- `timestamp` depois porque é intervalo E ordenação — nessa ordem o índice
+-- serve ao WHERE e ao ORDER BY na mesma varredura. A ordem inversa obrigaria a
+-- ler todas as linhas da janela de tempo, de todos os pontos, para depois
+-- filtrar o ponto.
+--
+-- ── ⚠️ CONCURRENTLY, e por isso SEM BEGIN/COMMIT ─────────────────────
+-- `CREATE INDEX` comum trava ESCRITAS na tabela enquanto constrói. Em 440k
+-- registros isso é cerca de um segundo — e, num dia letivo, um segundo de
+-- webhook bloqueado é uma passagem que o terminal reenvia ou perde.
+-- `CONCURRENTLY` não trava escrita, e em troca **não pode rodar dentro de uma
+-- transação**: este é o único arquivo de migração do projeto sem BEGIN/COMMIT,
+-- e é de propósito.
+--
+-- ⚠️ Se este comando FALHAR no meio, o Postgres deixa um índice INVÁLIDO, que
+-- não é usado e continua ocupando espaço. Conferir depois de aplicar (abaixo) e,
+-- se aparecer inválido, derrubar com o rollback e repetir.
+--
+-- ADITIVA: nenhuma coluna, nenhum dado, nenhuma constraint. O PC com
+-- `ddl-auto=update` NÃO cria este índice (o Hibernate só gera os declarados em
+-- @Index nas entidades, e access_logs não os declara) — logo este arquivo é
+-- necessário nos DOIS ambientes.
+-- Rollback: rollback/R016__drop_access_logs_indice.sql
+-- =====================================================================
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_access_logs_ponto_hora
+    ON access_logs (point_id, timestamp);
+
+COMMENT ON INDEX idx_access_logs_ponto_hora IS
+    'Tela do portão: saídas de um ponto nas últimas 2h, a cada 3s. Ver V016 para a medição antes/depois.';
+
+-- ── Conferência depois de aplicar ────────────────────────────────────
+-- 1. O índice existe e é VÁLIDO (indisvalid = false significa construção
+--    interrompida — derrubar e repetir):
+--      SELECT indexrelid::regclass, indisvalid
+--        FROM pg_index WHERE indexrelid = 'idx_access_logs_ponto_hora'::regclass;
+--
+-- 2. O planejador passou a usá-lo:
+--      EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM access_logs
+--       WHERE point_id IN ('PORT1')
+--         AND timestamp BETWEEN now() - interval '2 hours' AND now()
+--       ORDER BY timestamp DESC;
+--    Deve aparecer "Index Scan using idx_access_logs_ponto_hora", e não
+--    "Seq Scan". Se continuar em Seq Scan com a tabela cheia, rodar ANALYZE
+--    access_logs e repetir.

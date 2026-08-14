@@ -34,6 +34,25 @@ rollback, e quando o CHECK de `access_attempts.denial_reason` deixa de fora um
 valor do enum `DenialReason.java`. Não substitui aplicar o SQL num Postgres —
 substitui a lembrança de que ele existe.
 
+### ⚠️ A V016 é a única SEM transação (CONCURRENTLY)
+
+`CREATE INDEX CONCURRENTLY` não pode rodar dentro de `BEGIN/COMMIT`, e é por
+isso que aquele arquivo não os tem. Em troca, ele não trava as escritas: num dia
+letivo, um segundo de webhook bloqueado é uma passagem que o terminal reenvia ou
+perde.
+
+⚠️ Se o comando falhar no meio, fica um índice **inválido** — não usado pelo
+planejador e ocupando espaço. Conferir depois de aplicar:
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc   "SELECT indisvalid FROM pg_index WHERE indexrelid = 'idx_access_logs_ponto_hora'::regclass;"
+# t = válido · f = derrubar com rollback/R016 e repetir
+```
+
+Medição que justifica o índice (Postgres local, 439.993 registros reais,
+14/08/2026): a consulta do portão passou de **Seq Scan, 3687 buffers, ~14,5 ms**
+para **Index Scan, 5 buffers, ~0,05 ms**.
+
 ### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
 
 A **V014** cria `student_regimes` e `student_regime_events` (régime de sortie) — é
@@ -66,6 +85,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -78,7 +98,7 @@ cabeçalho do próprio V012.
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V015. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V016. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -99,6 +119,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V012_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V013__password_reset_requests.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014__student_regimes.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 ```
 
 | Arquivo | Cria/altera | Fase |

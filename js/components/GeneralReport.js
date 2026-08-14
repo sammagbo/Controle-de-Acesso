@@ -494,6 +494,19 @@ function ParEleveTab() {
             const open = {};
             dayLogs.forEach(l => {
                 if (l.action === 'ENTRADA') {
+                    // ⚠️ A ENTRADA de REPETICAO nao abre visita — mesma regra que
+                    // reportFilters.pairVisits aplica no resto do sistema, e que
+                    // esta aba ignorava. Sem isto, quem reentra tem a permanencia
+                    // medida a partir do reconhecimento REPETIDO: no caso real do
+                    // aluno 0003053 (E12:49 · E12:51 JA_PRESENTE · E12:54
+                    // JA_PRESENTE · S13:10) a tela dizia 16 min onde foram 21 —
+                    // sub-reportando justamente a permanencia de quem alguem foi
+                    // conferir.
+                    //
+                    // ⚠️ ASSIMETRICO de proposito: pula ENTRADA marcada, NUNCA
+                    // SAIDA. Pular a saida deixaria a visita aberta para sempre —
+                    // o mesmo defeito de ocupacao ja pago em 10/08/2026.
+                    if (window.MagboPostoFixo && window.MagboPostoFixo.ehRepeticao(l)) return;
                     open[l.pointId] = l;
                 } else if (l.action === 'SAIDA' && open[l.pointId]) {
                     l._dur = Math.round((tsMs(l.timestamp) - tsMs(open[l.pointId].timestamp)) / 60000);

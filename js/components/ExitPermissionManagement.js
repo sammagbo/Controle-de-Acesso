@@ -105,7 +105,14 @@ function ExitPermissionManagement() {
                                                       const user = window.userCache?.byId(perm.userId);
                                                       const userName = user ? user.nome : perm.userId;
                                                       const photoUrl = user ? user.foto_url : window.localAvatar(perm.userId);
-                                                      const typeLabel = window.MagboI18n.tEnum('exitType', perm.type);
+                                                      // ⚠️ `permissionType` e `daysOfWeek` sao os nomes REAIS do ExitPermissionDto.
+                                                      // Antes lia-se `perm.type` e `perm.allowedDays`, que nao existem
+                                                      // no contrato: o tipo saia vazio e TODA autorizacao caia no ramo
+                                                      // recorrente, exibindo "Toujours" — uma saida pontual, criada
+                                                      // para um dia e uma hora, lida no portao como permanente.
+                                                      const typeLabel = window.MagboI18n.tEnum('exitType', perm.permissionType);
+                                                      const diasIso = (perm.daysOfWeek || '').split(',')
+                                                            .map(d => d.trim()).filter(Boolean);
 
                                                       return (
                                                             <tr key={perm.id} className="hover:bg-soft-50/50 transition-colors">
@@ -125,14 +132,16 @@ function ExitPermissionManagement() {
                                                                   </td>
                                                                   <td className="px-6 py-3">
                                                                         <div className="text-xs text-navy-700">
-                                                                              {perm.type === 'SINGLE' ? (
+                                                                              {perm.permissionType === 'SINGLE' ? (
                                                                                     <>
                                                                                           <div>{t('saidas.de')} {formatDateTime(perm.validFrom)}</div>
                                                                                           <div>{t('saidas.ate')} {formatDateTime(perm.validUntil)}</div>
                                                                                     </>
                                                                               ) : (
                                                                                     <div className="text-slate-500">
-                                                                                          {perm.allowedDays?.length > 0 ? t('saidas.dias.lista', { dias: perm.allowedDays.join(', ') }) : t('saidas.sempre')}
+                                                                                          {diasIso.length > 0
+                                                                                                ? t('saidas.dias.lista', { dias: diasIso.map(d => t('dias.' + d)).join(', ') })
+                                                                                                : t('saidas.sempre')}
                                                                                           <br/>
                                                                                           {perm.startTime} - {perm.endTime}
                                                                                     </div>

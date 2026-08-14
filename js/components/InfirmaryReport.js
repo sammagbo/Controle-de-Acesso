@@ -176,7 +176,7 @@ function InfirmaryReport() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                 {[
                     { label: t('cdi.stats.visitas'), value: kpis.total, color: 'text-navy-500' },
-                    { label: t('rap.kpi.alunos.unicos'), value: kpis.uniques, color: 'text-accent-600' },
+                    { label: t('vue.kpi.pessoas.unicas'), value: kpis.uniques, color: 'text-accent-600' },
                     { label: t('rap.enferm.kpi.longas'), value: kpis.longs, color: 'text-warning-600' },
                     { label: t('rap.status.sem.saida'), value: kpis.noExit, color: 'text-slate-500' },
                     { label: t('rap.kpi.duracao'), value: fmtDuration(kpis.avg), color: 'text-success-600' },

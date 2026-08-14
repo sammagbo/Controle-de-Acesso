@@ -13,6 +13,16 @@
 //   A_VERIFIER    âmbar    falta a grade: CONFIRA, não é nem sim nem não
 //   INCONNU       ardósia  não há regime: faça como antes, pelo carnet
 //
+// ⚠️ AS TONALIDADES SÃO 600, NÃO 700, e isso é mecânico e não gosto: o
+// tailwind.config do index.html define success/danger/warning apenas em 50,
+// 100, 500 e 600. `text-success-700` não gera classe nenhuma — o texto sairia
+// sem cor, e as quatro leituras que esta tela existe para distinguir ficariam
+// iguais. Apanhado pelo AED no painel de 14/08/2026, lendo o config.
+// ⚠️ O resto do app usa -700 nesses três tons em vários lugares (o
+// DeniedAttemptsFeed, entre outros): é o mesmo defeito, mais antigo, e está
+// inventariado no relatório em vez de corrigido de passagem — mexer nele muda a
+// aparência de telas que ninguém pediu para mudar nesta entrega.
+//
 // ⚠️ Ardósia e NÃO cinza-claro: o cinza-claro é a cor de MISSING_DOOR_MAPPING
 // no feed de negadas, que o operador aprendeu a ler como "coisa de
 // configuração". Este cinza tem borda e peso — é informação, não ruído.
@@ -23,18 +33,18 @@
 
 const REGIME_VISUAL = {
     AUTORISE: {
-        caixa: 'bg-success-50 border-success-500 text-success-700',
-        pastilha: 'bg-success-100 text-success-700',
+        caixa: 'bg-success-50 border-success-500 text-success-600',
+        pastilha: 'bg-success-100 text-success-600',
         icone: 'check-circle-2'
     },
     NON_AUTORISE: {
-        caixa: 'bg-danger-50 border-danger-500 text-danger-700',
-        pastilha: 'bg-danger-100 text-danger-700',
+        caixa: 'bg-danger-50 border-danger-500 text-danger-600',
+        pastilha: 'bg-danger-100 text-danger-600',
         icone: 'shield-alert'
     },
     A_VERIFIER: {
-        caixa: 'bg-warning-50 border-warning-500 text-warning-700',
-        pastilha: 'bg-warning-100 text-warning-700',
+        caixa: 'bg-warning-50 border-warning-500 text-warning-600',
+        pastilha: 'bg-warning-100 text-warning-600',
         icone: 'help-circle'
     },
     INCONNU: {

@@ -67,18 +67,27 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
       // cantina a consulta seria puro gasto.
       const ehPortao = String(point.id || '').toUpperCase().startsWith('PORT');
       const [veredictos, setVeredictos] = React.useState([]);
+      const [falhouRegime, setFalhouRegime] = React.useState(false);
 
       React.useEffect(() => {
             if (!ehPortao || !window.api?.veredictosNoPortao) { setVeredictos([]); return; }
             let vivo = true;
             const buscar = async () => {
                   const v = await window.api.veredictosNoPortao(point.id, 20);
-                  if (vivo) setVeredictos(Array.isArray(v) ? v : []);
+                  if (!vivo) return;
+                  // null = a consulta FALHOU; [] = não há saída de aluno hoje.
+                  // Sem distinguir, uma falha de rede fica idêntica a "está tudo
+                  // certo" na tela onde isso mais custa.
+                  setFalhouRegime(v === null);
+                  setVeredictos(Array.isArray(v) ? v : []);
             };
             buscar();
-            // Mesma cadência do resto da tela de setor (App.js, SECTOR_POLL_MS).
-            const id = setInterval(buscar, 3000);
-            return () => { vivo = false; clearInterval(id); };
+            return () => { vivo = false; };
+            // ⚠️ SEM setInterval PRÓPRIO. `accessLogs` está nas dependências e o
+            // App.js recarrega os logs a cada 3s trocando o array — este efeito
+            // já roda naquele ritmo. Com o intervalo TAMBÉM montado aqui eram
+            // duas chamadas por ciclo ao mesmo endpoint, cada uma com duas
+            // consultas por linha (painel de revisão, arquiteto, 14/08).
       }, [ehPortao, point.id, accessLogs]);
 
       /**
@@ -158,6 +167,12 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                   {/* A FAIXA: a última saída de aluno, grande, sem procurar. */}
                   {ehPortao && emDestaque && (
                         <RegimeVerdictBanner v={emDestaque} passagensDepois={passagensDepois} />
+                  )}
+                  {/* A ausência de faixa não pode significar duas coisas. */}
+                  {ehPortao && falhouRegime && (
+                        <p className="text-xs font-bold text-warning-600 bg-warning-50 border border-warning-500 rounded-xl px-3 py-2 mb-3">
+                              {t('regime.portao.indisponivel')}
+                        </p>
                   )}
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

@@ -58,6 +58,7 @@
     const DICIONARIOS = {
         fr: {
             'idioma.rotulo': 'Langue',
+            'regime.portao.indisponivel': 'Régime indisponible — serveur injoignable. Contrôlez le carnet.',
             'regime.portao.depois': '{n} autre(s) passage(s) depuis',
 
             'regime.form.familia.outro': 'Ce n’est pas ce responsable qui a signé',
@@ -1130,6 +1131,7 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+            'regime.portao.indisponivel': 'Regime indisponível — servidor inacessível. Confira o carnet.',
             'regime.portao.depois': '{n} passagem(ns) depois desta',
 
             'regime.form.familia.outro': 'Não foi este responsável que assinou',

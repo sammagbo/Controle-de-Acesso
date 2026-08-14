@@ -6,6 +6,7 @@ import com.magbo.access.dto.GateVerdict;
 import com.magbo.access.dto.RegimeDecision;
 import com.magbo.access.models.*;
 import com.magbo.access.repositories.AccessLogRepository;
+import com.magbo.access.repositories.StudentExitPermissionRepository;
 import com.magbo.access.repositories.StudentRegimeEventRepository;
 import com.magbo.access.repositories.StudentRegimeRepository;
 import com.magbo.access.repositories.UserRepository;
@@ -70,6 +71,24 @@ public class RegimeSortieService {
     private final ExitPermissionService exitPermissionService;
     private final AccessLogRepository accessLogRepository;
     private final RegimeProperties props;
+    private final StudentExitPermissionRepository permissionRepository;
+
+    /**
+     * Folga entre a hora da passagem e o `usedAt` da permissao consumida.
+     *
+     * Dois minutos porque sao dois relogios diferentes: a passagem carrega a
+     * hora do EVENTO (dateTime do aparelho) e o consumo carrega a hora da
+     * GRAVACAO. Numa fila offline esvaziada a distancia pode ser maior, e ai a
+     * permissao nao e reencontrada — o veredicto volta a ser o do regime, que e
+     * conservador e nao inventa autorizacao nenhuma.
+     */
+    private static final int JANELA_CONSUMO_MIN = 2;
+
+    /** Janela da tela do portao. Ver veredictosNoPortao. */
+    private static final int JANELA_PORTAO_HORAS = 2;
+
+    /** Teto de linhas examinadas por consulta — duas queries por linha. */
+    private static final int TETO_LINHAS_EXAMINADAS = 200;
 
     // ─────────────────────────────────────────────────────────────
     // AVALIACAO
@@ -123,6 +142,32 @@ public class RegimeSortieService {
             return new RegimeDecision(RegimeVerdict.AUTORISE,
                     "regime.motivo.permissao.pontual", null, null,
                     pontual.permissionId(), false);
+        }
+
+        // ⚠️ 2-bis. A PERMISSAO QUE ESTA SAIDA JA CONSUMIU.
+        //
+        // Uma permissao SINGLE e consumida no instante da passagem
+        // (AccessDecisionService -> consumeIfSingle: ACTIVE -> USED). Tres
+        // segundos depois, a tela do portao pede o veredicto DAQUELA passagem e
+        // o evaluate() acima nao encontra mais nada ativo — o aluno que saiu com
+        // autorizacao assinada aparecia em VERMELHO, "ne doit pas sortir seul",
+        // depois de ter saido legitimamente. Apanhado pelo chef d'etablissement
+        // no painel de 14/08/2026.
+        //
+        // Uma permissao consumida NO MOMENTO desta passagem e a prova de que ela
+        // estava valida: procura-se por ela, com folga para o intervalo entre o
+        // evento e a gravacao.
+        Optional<StudentExitPermission> consumidaAgora =
+                permissionRepository.findByUserIdAndStatus(userId, ExitPermissionStatus.USED)
+                        .stream()
+                        .filter(pp -> pp.getUsedAt() != null
+                                && !pp.getUsedAt().isBefore(agora.minusMinutes(JANELA_CONSUMO_MIN))
+                                && !pp.getUsedAt().isAfter(agora.plusMinutes(JANELA_CONSUMO_MIN)))
+                        .findFirst();
+        if (consumidaAgora.isPresent()) {
+            return new RegimeDecision(RegimeVerdict.AUTORISE,
+                    "regime.motivo.permissao.pontual", null, null,
+                    consumidaAgora.get().getId(), false);
         }
 
         Optional<StudentRegime> vigenteOpt = regimeRepository.findVigente(userId, agora.toLocalDate());
@@ -319,15 +364,33 @@ public class RegimeSortieService {
     public List<GateVerdict> veredictosNoPortao(String pointId, int limite) {
         int teto = Math.max(1, Math.min(limite, 50));
         LocalDateTime agora = LocalDateTime.now();
-        LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
+
+        // ⚠️ JANELA CURTA, e nao o dia inteiro.
+        //
+        // A primeira versao carregava todas as passagens do ponto desde a
+        // meia-noite e so depois cortava em 50. `access_logs` NAO TEM indice
+        // alem da PK — a V006 diz por escrito que nao se indexa aquela tabela
+        // nesta fase (~440k registros) —, entao o teto limitava a lista de
+        // saida, nao a varredura, e isso passou a rodar no laco de 3 s da tela
+        // do portao. Apanhado pelo arquiteto no painel de 14/08/2026.
+        //
+        // Duas horas cobrem qualquer fila de portao com folga; o que sai da
+        // janela ja nao e "a passagem que acabou de acontecer", que e o que esta
+        // tela mostra. O historico completo continua no Journal.
+        LocalDateTime desde = agora.minusHours(JANELA_PORTAO_HORAS);
 
         List<AccessLog> logs = accessLogRepository
                 .findByPointIdInAndTimestampBetweenOrderByTimestampDesc(
-                        List.of(pointId), inicioDoDia, agora);
+                        List.of(pointId), desde, agora);
 
         List<GateVerdict> out = new ArrayList<>();
+        int examinadas = 0;
         for (AccessLog l : logs) {
             if (out.size() >= teto) break;
+            // Teto tambem no que se EXAMINA: sem ele, um ponto com muito
+            // movimento de servidor faria centenas de consultas para devolver
+            // as poucas saidas de aluno que existem.
+            if (++examinadas > TETO_LINHAS_EXAMINADAS) break;
             if (l.getAction() != AccessAction.SAIDA || l.getUserId() == null) continue;
 
             User u = userRepository.findById(l.getUserId()).orElse(null);

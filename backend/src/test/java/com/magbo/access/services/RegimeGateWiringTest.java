@@ -56,6 +56,7 @@ class RegimeGateWiringTest {
     @Mock private AccessAttemptService attemptService;
     @Mock private MealEntitlementService mealEntitlementService;
     @Mock private ExitPermissionService exitPermissionService;
+    @Mock private com.magbo.access.repositories.StudentExitPermissionRepository permissionRepository;
     @Mock private SamePassageService samePassageService;
     @Mock private StudentRegimeRepository regimeRepository;
     @Mock private StudentRegimeEventRepository regimeEventRepository;
@@ -74,7 +75,7 @@ class RegimeGateWiringTest {
 
         RegimeSortieService regimeService = new RegimeSortieService(
                 regimeRepository, regimeEventRepository, userRepository,
-                exitPermissionService, accessLogRepository, regimeProps);
+                exitPermissionService, accessLogRepository, regimeProps, permissionRepository);
 
         service = new AccessDecisionService(
                 doorMappingService, userRepository, classScheduleRepository, accessLogRepository,

@@ -52,6 +52,7 @@ class RegimeSortieServiceTest {
     @Mock private StudentRegimeEventRepository eventRepository;
     @Mock private UserRepository userRepository;
     @Mock private ExitPermissionService exitPermissionService;
+    @Mock private com.magbo.access.repositories.StudentExitPermissionRepository permissionRepository;
     @Mock private com.magbo.access.repositories.AccessLogRepository accessLogRepository;
 
     private RegimeProperties props;
@@ -68,7 +69,7 @@ class RegimeSortieServiceTest {
         props.setHabilitado(true);
 
         service = new RegimeSortieService(regimeRepository, eventRepository,
-                userRepository, exitPermissionService, accessLogRepository, props);
+                userRepository, exitPermissionService, accessLogRepository, props, permissionRepository);
 
         // Por omissao: e aluno ativo, sem permissao pontual, sem regime.
         aluno(UserType.ALUNO);
@@ -144,6 +145,45 @@ class RegimeSortieServiceTest {
             assertThat(d.verdict()).isEqualTo(RegimeVerdict.AUTORISE);
             assertThat(d.permissionId()).isEqualTo(77L);
             assertThat(d.motivo()).isEqualTo("regime.motivo.permissao.pontual");
+        }
+
+        @Test
+        @DisplayName("★★★ a permissao JA CONSUMIDA por esta saida ainda vale — nao vira vermelho")
+        void permissaoConsumidaContinuaValendo() {
+            // Uma SINGLE e consumida no instante da passagem (ACTIVE -> USED).
+            // Tres segundos depois a tela do portao pede o veredicto DAQUELA
+            // passagem: sem esta regra, o evaluate() nao acha mais nada ativo e
+            // o aluno que saiu com autorizacao assinada aparece em VERMELHO,
+            // "nao deve sair sozinho", depois de ter saido legitimamente.
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            LocalDateTime passagem = LocalDateTime.of(HOJE, LocalTime.of(14, 0));
+            when(permissionRepository.findByUserIdAndStatus(eq(ALUNO), eq(ExitPermissionStatus.USED)))
+                    .thenReturn(List.of(StudentExitPermission.builder()
+                            .id(77L).userId(ALUNO).permissionType(ExitPermissionType.SINGLE)
+                            .status(ExitPermissionStatus.USED)
+                            .usedAt(passagem.plusSeconds(3))
+                            .build()));
+
+            RegimeDecision d = service.avaliar(ALUNO, passagem);
+            assertThat(d.verdict()).isEqualTo(RegimeVerdict.AUTORISE);
+            assertThat(d.permissionId()).isEqualTo(77L);
+        }
+
+        @Test
+        @DisplayName("★★ uma permissao consumida NOUTRA hora nao serve de alibi")
+        void consumoDistanteNaoVale() {
+            regimeVigente(RegimeSortie.REGIME_1, RegimeGeneral.DEMI_PENSIONNAIRE);
+            LocalDateTime passagem = LocalDateTime.of(HOJE, LocalTime.of(14, 0));
+            when(permissionRepository.findByUserIdAndStatus(eq(ALUNO), eq(ExitPermissionStatus.USED)))
+                    .thenReturn(List.of(StudentExitPermission.builder()
+                            .id(78L).userId(ALUNO).permissionType(ExitPermissionType.SINGLE)
+                            .status(ExitPermissionStatus.USED)
+                            .usedAt(passagem.minusHours(3))
+                            .build()));
+
+            assertThat(service.avaliar(ALUNO, passagem).verdict())
+                    .as("uma saida de tres horas antes nao autoriza esta")
+                    .isEqualTo(RegimeVerdict.NON_AUTORISE);
         }
 
         @Test

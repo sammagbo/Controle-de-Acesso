@@ -222,7 +222,15 @@ public class PpmsService {
                     .pessoas(e.getValue())
                     .build());
         }
-        zonas.sort(Comparator.comparingInt(PpmsSnapshot.Zona::getTotal).reversed());
+        // ⚠️ ZONAS FISICAS PRIMEIRO, EM_TRANSITO POR ULTIMO — e nao por tamanho.
+        // Por construcao EM_TRANSITO contem quase todo mundo (todos os que so
+        // passaram o portao e todos que fecharam a ultima visita), entao ordenar
+        // por total empurrava o CDI e a enfermaria — os lugares onde uma crianca
+        // fica PRESA numa evacuacao — para baixo de centenas de nomes, no
+        // telefone de quem esta no patio. Painel de revisao, chef, 14/08/2026.
+        zonas.sort(Comparator
+                .comparing((PpmsSnapshot.Zona z) -> ZONA_EM_TRANSITO.equals(z.getPointId()))
+                .thenComparing(Comparator.comparingInt(PpmsSnapshot.Zona::getTotal).reversed()));
 
         return PpmsSnapshot.builder()
                 .geradoEm(agora)

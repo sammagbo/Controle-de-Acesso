@@ -360,12 +360,32 @@ class PpmsServiceTest {
         }
 
         @Test
-        @DisplayName("★ a ordem das zonas põe a mais cheia primeiro")
+        @DisplayName("★ entre zonas físicas, a mais cheia primeiro")
         void zonaMaiorPrimeiro() {
             ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
             ev("0002", "BIBLIO", AccessAction.ENTRADA, 9, 1, null);
             ev("0003", "ENFERM", AccessAction.ENTRADA, 9, 2, null);
             assertThat(tirar().getZonas().get(0).getPointId()).isEqualTo("BIBLIO");
+        }
+
+        @Test
+        @DisplayName("★★★ EM_TRANSITO vai por ÚLTIMO mesmo sendo a maior — o CDI não pode ficar embaixo")
+        void transitoPorUltimo() {
+            // Numa evacuação, EM_TRANSITO conterá quase todo mundo. Ordenar por
+            // tamanho empurraria o CDI e a enfermaria — onde uma criança fica
+            // presa — para baixo de centenas de nomes no telefone de quem está
+            // no pátio.
+            ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
+            ev("0002", "PORT1", AccessAction.ENTRADA, 8, 1, null);
+            ev("0003", "PORT1", AccessAction.ENTRADA, 8, 2, null);
+            ev("0009", "ENFERM", AccessAction.ENTRADA, 9, 0, null);
+
+            PpmsSnapshot s = tirar();
+            assertThat(s.getZonas().get(0).getPointId())
+                    .as("a enfermaria vem primeiro, com uma pessoa, contra três em trânsito")
+                    .isEqualTo("ENFERM");
+            assertThat(s.getZonas().get(s.getZonas().size() - 1).getPointId())
+                    .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
         }
     }
 }

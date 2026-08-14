@@ -29,6 +29,28 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AccessController {
 
+    /**
+     * A entrada foi na hora? — a regra do "hors horaire" da cantina.
+     *
+     * ⚠️ EXTRAIDO PARA SER TESTAVEL, e a razao e concreta: o teste que cobria
+     * isto reimplementava o predicado dentro do proprio arquivo de teste, e uma
+     * mutacao provou que revertendo ESTA linha para o defeito antigo
+     * (`flag == null`) os sete testes continuavam verdes. A divida nao estava
+     * paga; estava reescrita, e constava como paga. Apanhado pelo agente de
+     * qualidade em 14/08/2026, por execucao.
+     *
+     * ⚠️ A FLAG PELO NOME, nao "tem flag". `access_logs.flag` e um campo UNICO
+     * que tambem recebe POSTO_FIXO, JA_PRESENTE e FECHAMENTO_AUTO: com
+     * `flag == null`, uma passagem que o proprio sistema classificou como ROTINA
+     * era apresentada ao operador da cantina como refeicao fora do horario — uma
+     * acusacao de irregularidade contra quem nao cometeu nenhuma.
+     *
+     * Coberto por RefectoryOnTimeTest, que chama ESTE metodo.
+     */
+    static boolean entrouNaHora(String flag) {
+        return !"FORA_HORARIO".equals(flag);
+    }
+
     private final AccessLogRepository accessLogRepository;
     private final SystemUserRepository systemUserRepository;
     private final UserRepository userRepository;
@@ -168,7 +190,7 @@ public class AccessController {
                     // irregularidade sobre quem nao cometeu nenhuma. O KPI
                     // equivalente da Vue d'ensemble ja conta pela flag certa
                     // (AccessLogRepository: flag='FORA_HORARIO').
-                    .onTime(!"FORA_HORARIO".equals(entrada.getFlag()))
+                    .onTime(entrouNaHora(entrada.getFlag()))
                     .exitRegistered(exitRegistered)
                     .build());
         }

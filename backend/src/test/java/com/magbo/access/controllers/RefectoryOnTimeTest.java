@@ -20,18 +20,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  * apontou, com razao, que a mudanca de semantica entrou SEM TESTE: nem antes,
  * nem depois. Este arquivo e a divida paga.
  *
- * ⚠️ A regra vive numa unica linha do AccessController
- * (`.onTime(!"FORA_HORARIO".equals(entrada.getFlag()))`). O que se prova aqui e
- * o PREDICADO, isolado do resto do controller — a lista de flags cresce
- * (POSTO_FIXO e JA_PRESENTE entraram depois de FORA_HORARIO existir) e o que
- * nao pode acontecer e a proxima flag nova voltar a virar "hors horaire".
+ * ⚠️ A regra vive em AccessController.entrouNaHora(String), e e ESSE metodo que
+ * este arquivo chama. Extrai-lo foi o conserto: enquanto o predicado estava
+ * embutido na montagem do DTO, o teste so conseguia reimplementa-lo — e um
+ * teste que testa a propria copia fica verde com o defeito de volta em
+ * producao. A lista de flags cresce (POSTO_FIXO e JA_PRESENTE entraram depois
+ * de FORA_HORARIO existir) e o que nao pode acontecer e a proxima flag nova
+ * voltar a virar "hors horaire".
  */
 @DisplayName("Cantina — 'hors horaire' vem da flag FORA_HORARIO, e so dela")
 class RefectoryOnTimeTest {
 
-    /** O mesmo predicado do AccessController, isolado. */
+    /**
+     * ⚠️ CHAMA O CODIGO DE PRODUCAO. A primeira versao deste arquivo
+     * reimplementava o predicado aqui dentro — e uma mutacao provou que,
+     * revertendo o AccessController para o defeito antigo, os sete testes
+     * continuavam verdes. Um teste que testa a propria copia nao prova nada
+     * sobre o sistema, e o pior e que ele CONSTA como prova.
+     */
     private static boolean onTime(String flag) {
-        return !"FORA_HORARIO".equals(flag);
+        return AccessController.entrouNaHora(flag);
     }
 
     private static AccessLog comFlag(String flag) {

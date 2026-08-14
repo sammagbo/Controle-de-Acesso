@@ -56,22 +56,17 @@ public class PpmsService {
     public static final String ZONA_EM_TRANSITO = "EM_TRANSITO";
 
     /**
-     * As flags que dizem "esta linha nao abre visita nova".
+     * ⚠️ NAO HA LISTA DE FLAGS AQUI, e a ausencia e a decisao.
      *
-     * ⚠️ Montado a partir das CONSTANTES dos services, como o VisitStatsService
-     * ja fazia — nao com os nomes escritos a mao. A primeira versao repetia
-     * "POSTO_FIXO"/"JA_PRESENTE" como literais: terceira copia da mesma lista
-     * num projeto onde ela vive UMA vez (AccessLogRepository.REPETICOES para as
-     * @Query, espelhada em js/utils/postoFixo.js), exatamente porque uma copia
-     * esquecida envelhece em silencio na proxima flag nova.
+     * O emparelhamento de VISITAS (relatorios) descarta a ENTRADA marcada como
+     * repeticao, porque ela criaria uma permanencia fantasma. Esta classe nao
+     * conta visitas: conta ESTADO — "esta dentro?" —, e estado e idempotente.
+     * Filtrar por flag aqui custava uma pessoa: quem tem posto fixo e reentra
+     * pelo portao tem a reentrada marcada POSTO_FIXO e sumia da lista de
+     * evacuacao estando dentro do predio.
      *
-     * ⚠️ O teste de guarda do repositorio NAO alcanca este Set (ele le @Query,
-     * e isto e Java) — mesma ressalva escrita no VisitStatsService. Flag nova de
-     * repeticao exige entrar aqui tambem.
+     * A unica assimetria que vale aqui e a da SAIDA: ela fecha, marcada ou nao.
      */
-    private static final Set<String> REPETICOES = Set.of(
-            PostoFixoService.FLAG_POSTO_FIXO,
-            PresencaAbertaService.FLAG_JA_PRESENTE);
 
     /**
      * O que este retrato NAO cobre. Chaves i18n, nunca frases prontas.
@@ -83,13 +78,16 @@ public class PpmsService {
      * lista afirmaria que alguem esta na enfermaria desde as 9h da manha quando
      * a pessoa saiu e ninguem registrou (objecao da enfermeira, painel 14/08).
      *
-     * Mostra-lo SEMPRE seria ruido; mostra-lo quando ha gente nesses pontos e
-     * dizer a coisa certa no momento em que ela importa.
+     * ⚠️ Le tambem o kill-switch: com magbo.presence.auto-close.enabled=false
+     * NENHUM ponto tem fechamento, mesmo os que estao no mapa de horarios, e o
+     * aviso passa a valer para todos (apanhado pelo revisor final).
      */
     private List<String> avisos(java.util.Set<String> pontosComGente) {
         List<String> out = new ArrayList<>(
                 List.of("ppms.aviso.leitores", "ppms.aviso.nao.chamada"));
-        java.util.Set<String> comFechamento = autoCloseProps.parsedTimes().keySet();
+        java.util.Set<String> comFechamento = autoCloseProps.isEnabled()
+                ? autoCloseProps.parsedTimes().keySet()
+                : java.util.Set.of();
         boolean algumSemFechamento = pontosComGente.stream()
                 .anyMatch(p -> !ZONA_EM_TRANSITO.equals(p) && !comFechamento.contains(p));
         if (algumSemFechamento) out.add("ppms.aviso.sem.fechamento");
@@ -127,11 +125,24 @@ public class PpmsService {
 
             String pid = l.getPointId() == null ? "" : l.getPointId().toUpperCase();
             boolean ehPortao = pid.startsWith("PORT");
-            boolean repeticao = l.getFlag() != null && REPETICOES.contains(l.getFlag());
 
             if (l.getAction() == AccessAction.ENTRADA) {
-                // Assimetria: a ENTRADA marcada não abre nada.
-                if (repeticao) continue;
+                // ⚠️ AQUI A ENTRADA MARCADA CONTA, e isto e uma diferenca
+                // deliberada em relacao ao emparelhamento de VISITAS.
+                //
+                // Nos relatorios, a ENTRADA marcada nao abre visita nova: ela
+                // criaria uma segunda permanencia fantasma para a mesma pessoa.
+                // Aqui nao se contam visitas, e sim ESTADO — "esta dentro?" —, e
+                // esse estado e idempotente: marcar duas vezes nao duplica nada,
+                // porque o mapa e por (pessoa, ponto).
+                //
+                // Descarta-la custava uma pessoa: o porteiro com posto fixo que
+                // sai as 9h e reentra as 9h05 tem a reentrada marcada
+                // POSTO_FIXO; pulando-a, ele sumia da lista de evacuacao estando
+                // dentro do predio. Apanhado pelo revisor final em 14/08/2026.
+                //
+                // A assimetria que continua valendo e a outra, e e a que importa:
+                // a SAIDA marcada FECHA (ver abaixo).
                 if (ehPortao) {
                     noPortao.put(uid, l);
                 } else {

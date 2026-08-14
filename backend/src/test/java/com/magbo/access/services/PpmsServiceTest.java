@@ -221,6 +221,24 @@ class PpmsServiceTest {
         }
 
         @Test
+        @DisplayName("★★★ posto fixo que SAI e REENTRA continua na lista — a reentrada é marcada")
+        void postoFixoQueReentraNaoSome() {
+            // O porteiro entra às 7h (sem marca), sai às 9h e reentra às 9h05 —
+            // e a reentrada vem marcada POSTO_FIXO. Descartando a ENTRADA
+            // marcada, ele sumia da lista de evacuação estando dentro do prédio.
+            // Aqui não se contam visitas, conta-se estado, e estado é
+            // idempotente. Revisor final, 14/08.
+            ev("9001", "PORT1", AccessAction.ENTRADA, 7, 0, null);
+            ev("9001", "PORT1", AccessAction.SAIDA, 9, 0, null);
+            ev("9001", "PORT1", AccessAction.ENTRADA, 9, 5, "POSTO_FIXO");
+
+            PpmsSnapshot s = tirar();
+            assertThat(s.getTotalDentro())
+                    .as("ele está no prédio; a marca diz que é rotina, não que ele não entrou")
+                    .isEqualTo(1);
+        }
+
+        @Test
         @DisplayName("★ POSTO_FIXO no meio do dia não muda quem está dentro")
         void postoFixoNaoDuplica() {
             ev("9001", "PORT1", AccessAction.ENTRADA, 7, 0, null);
@@ -343,6 +361,14 @@ class PpmsServiceTest {
             // nunca é lançada. Sem este aviso, a lista afirma que alguém está lá
             // desde as 9h quando a pessoa saiu e ninguém registrou.
             ev("0001", "ENFERM", AccessAction.ENTRADA, 9, 0, null);
+            assertThat(tirar().getAvisos()).contains("ppms.aviso.sem.fechamento");
+        }
+
+        @Test
+        @DisplayName("★★ com o fechamento automático DESLIGADO, o aviso vale para todos")
+        void killSwitchDesligaTodosOsFechamentos() {
+            autoCloseProps.setEnabled(false);
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
             assertThat(tirar().getAvisos()).contains("ppms.aviso.sem.fechamento");
         }
 

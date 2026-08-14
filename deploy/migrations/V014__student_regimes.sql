@@ -87,12 +87,16 @@ CREATE TABLE IF NOT EXISTS student_regime_events (
     new_regime_sortie  VARCHAR(32),
     old_regime_general VARCHAR(32),
     new_regime_general VARCHAR(32),
+    old_authorized_by  VARCHAR(255),
+    new_authorized_by  VARCHAR(255),
     changed_by         VARCHAR(64) NOT NULL,
     changed_at         TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     note               VARCHAR(500),
     source             VARCHAR(16) NOT NULL
 );
 
+COMMENT ON COLUMN student_regime_events.old_authorized_by IS
+    'Quem, na família, autorizava ANTES. É o único campo que a entidade chama de prova, e trocar quem assinou tem de deixar rastro.';
 COMMENT ON TABLE student_regime_events IS
     'Histórico obrigatório de student_regimes. Toda alteração grava aqui na MESMA transação.';
 

@@ -60,6 +60,20 @@ public class StudentRegimeEvent {
     @Column(name = "new_regime_general", length = 32)
     private RegimeGeneral newRegimeGeneral;
 
+    /**
+     * QUEM autorizou, antes e depois.
+     *
+     * ⚠️ E o unico campo que a propria entidade chama de PROVA, e ate 14/08/2026
+     * ele era o unico que o historico NAO guardava: trocar "a avo assinou" por
+     * "a mae assinou" nao deixava diferenca nenhuma na linha do tempo que a tela
+     * mostra. Apanhado pela enfermeira no painel de revisao.
+     */
+    @Column(name = "old_authorized_by", length = 255)
+    private String oldAuthorizedBy;
+
+    @Column(name = "new_authorized_by", length = 255)
+    private String newAuthorizedBy;
+
     @Column(name = "changed_by", nullable = false, length = 64)
     private String changedBy;
 

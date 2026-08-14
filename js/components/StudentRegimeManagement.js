@@ -98,13 +98,24 @@ function StudentRegimeManagement({ onBack }) {
         setOutroAutor(false);
         try {
             // O responsável vem do cadastro, não do teclado.
+            let doCadastro = null;
             try {
                 const ficha = await window.api.fetchUser(u.id);
                 if (ficha && ficha.responsavel && ficha.responsavel.nome) {
+                    doCadastro = ficha.responsavel;
                     setResponsavel(ficha.responsavel);
                 }
             } catch (e) { /* sem responsável no cadastro: cai no texto livre */ }
             const d = await window.api.getRegimeDoAluno(u.id);
+            // ⚠️ QUEM ESTÁ GRAVADO VENCE O CADASTRO. Se o regime vigente foi
+            // assinado pela avó e o aluno tem responsável cadastrado, mostrar o
+            // do cadastro na caixa verde faria a tela reescrever a prova em
+            // silêncio ao salvar. Divergindo, abre-se direto no modo exceção,
+            // com o nome que está no banco. (Painel, enfermeira, 14/08.)
+            const gravado = d && d.vigente ? d.vigente.authorizedByFamily : null;
+            if (gravado && (!doCadastro || doCadastro.nome !== gravado)) {
+                setOutroAutor(true);
+            }
             setDados(d);
             // Pré-preenche com o vigente: substituir um regime é o caso comum
             // (a família reviu a autorização), e redigitar tudo convida ao erro.

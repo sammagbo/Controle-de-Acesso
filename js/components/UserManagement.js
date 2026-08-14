@@ -114,6 +114,7 @@ function UserManagement() {
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('comum.nome')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.role')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.setores')),
+              React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.permissoes')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('comum.status')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, t('operadores.col.ultimo.login')),
               React.createElement('th', { className: 'px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider' }, '')
@@ -130,6 +131,10 @@ function UserManagement() {
                   }, u.role)
                 ),
                 React.createElement('td', { className: 'px-4 py-3 font-mono text-xs text-slate-500' }, u.setoresPermitidos || '—'),
+                // Vazio e o estado NORMAL de um operador: permissao e o extra,
+                // nao o padrao. O travessao diz "nenhuma", nao "nao carregou".
+                React.createElement('td', { className: 'px-4 py-3 font-mono text-xs text-slate-500' },
+                  u.role === 'ADMIN' ? t('operadores.permissao.admin.curto') : (u.permissoes || '—')),
                 React.createElement('td', { className: 'px-4 py-3 text-sm' },
                   u.ativo
                     ? React.createElement('span', { className: 'inline-flex items-center gap-1.5 text-success-600 font-semibold text-xs' },
@@ -174,6 +179,7 @@ function UserFormModal({ user, onClose, onSaved }) {
     nomeCompleto: user?.nomeCompleto || '',
     role: user?.role || 'OPERATOR',
     setoresPermitidos: user?.setoresPermitidos || '',
+    permissoes: user?.permissoes || '',
     password: '',
     ativo: user?.ativo ?? true
   });
@@ -200,6 +206,7 @@ function UserFormModal({ user, onClose, onSaved }) {
             nomeCompleto: form.nomeCompleto,
             role: form.role,
             setoresPermitidos: form.setoresPermitidos,
+            permissoes: form.permissoes,
             ativo: form.ativo,
             newPassword: form.password || null
           };
@@ -318,6 +325,70 @@ function UserFormModal({ user, onClose, onSaved }) {
                 })
               )
             )
+          ),
+
+          // -- Permissoes especificas ---------------------------------
+          // ⚠️ Sem este campo elas so se concediam por API. O backend as aceita
+          // no POST e no PUT desde a Fase H, a tela nunca as ofereceu, e o efeito
+          // era uma funcionalidade inteira acessivel so ao ADMIN — com o botao
+          // simplesmente ausente para quem deveria usa-la, sem erro nenhum.
+          // Descoberto ao percorrer o procedimento de deploy a letra (14/08):
+          // o texto mandava conceder a permissao numa coluna que nao existia.
+          //
+          // A lista vem de window.MagboPermissions.PERMISSIONS, que ja espelha
+          // security/Permissions.java. Uma lista escrita aqui seria a QUARTA
+          // copia dos mesmos nomes — e a que ninguem lembraria de atualizar.
+          React.createElement('div', null,
+            React.createElement('label', { className: 'block text-xs font-bold text-slate-500 mb-1' },
+              t('operadores.campo.permissoes')
+            ),
+            React.createElement('p', { className: 'text-[11px] text-slate-400 mb-2' },
+              t('operadores.permissao.ajuda')
+            ),
+            (() => {
+              const bruto = (form.permissoes || '').trim();
+              // ⚠️ '*' so vale SOZINHO (SystemUser.hasPermission compara a string
+              // inteira). Ele nao e oferecido como caixa de proposito: marca-lo
+              // concederia tambem as permissoes que ainda nao existem, e a
+              // proxima a nascer entraria em vigor sem ninguem decidir nada.
+              // Quem ja o tem (concedido por API) ve o aviso abaixo.
+              const tudo = bruto === '*';
+              const atuais = tudo ? [] : bruto.split(',').map(v => v.trim()).filter(Boolean);
+              const nomes = Object.values((window.MagboPermissions || {}).PERMISSIONS || {});
+              const ehAdmin = form.role === 'ADMIN';
+              return React.createElement(React.Fragment, null,
+                tudo && React.createElement('p', {
+                  className: 'text-[11px] text-warning-600 bg-warning-100 rounded-lg px-3 py-2 mb-2'
+                }, t('operadores.permissao.curinga')),
+                ehAdmin && React.createElement('p', {
+                  className: 'text-[11px] text-slate-500 bg-soft-100 rounded-lg px-3 py-2 mb-2'
+                }, t('operadores.permissao.admin')),
+                React.createElement('div', { className: 'grid grid-cols-2 gap-2' },
+                  nomes.map((perm) => {
+                    const marcada = atuais.includes(perm);
+                    return React.createElement('label', {
+                      key: perm,
+                      // Desabilitado, NUNCA escondido: o ADMIN as tem todas, e
+                      // esconder faria parecer que a permissao nao existe.
+                      className: `flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${marcada ? 'border-accent-500 bg-accent-500/5 text-accent-700 font-semibold' : 'border-soft-200 text-slate-600'} ${ehAdmin ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`
+                    },
+                      React.createElement('input', {
+                        type: 'checkbox',
+                        checked: marcada,
+                        disabled: ehAdmin,
+                        onChange: () => {
+                          const proximas = marcada
+                            ? atuais.filter(v => v !== perm)
+                            : atuais.concat(perm);
+                          setForm({ ...form, permissoes: proximas.join(',') });
+                        }
+                      }),
+                      t('operadores.permissao.' + perm)
+                    );
+                  })
+                )
+              );
+            })()
           ),
 
           // Password

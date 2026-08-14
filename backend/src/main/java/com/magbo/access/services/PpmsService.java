@@ -42,9 +42,59 @@ public class PpmsService {
 
     private final AccessLogRepository accessLogRepository;
     private final UserRepository userRepository;
+    private final com.magbo.access.config.PresenceAutoCloseProperties autoCloseProps;
 
     /** Marcas que significam "esta linha não abre visita nova". */
-    private static final Set<String> REPETICOES = Set.of("POSTO_FIXO", "JA_PRESENTE");
+    /**
+     * Zona de quem esta na escola mas nao dentro de nenhum ponto com leitor.
+     *
+     * ⚠️ NAO e "sem informacao": e a informacao correta. A escola tem corredores,
+     * patio e salas de aula sem leitor, e a esmagadora maioria das pessoas esta
+     * neles a maior parte do tempo. Dizer "CDI" porque foi o ultimo lugar por
+     * onde passou mandaria a equipe procurar no lugar errado.
+     */
+    public static final String ZONA_EM_TRANSITO = "EM_TRANSITO";
+
+    /**
+     * As flags que dizem "esta linha nao abre visita nova".
+     *
+     * ⚠️ Montado a partir das CONSTANTES dos services, como o VisitStatsService
+     * ja fazia — nao com os nomes escritos a mao. A primeira versao repetia
+     * "POSTO_FIXO"/"JA_PRESENTE" como literais: terceira copia da mesma lista
+     * num projeto onde ela vive UMA vez (AccessLogRepository.REPETICOES para as
+     * @Query, espelhada em js/utils/postoFixo.js), exatamente porque uma copia
+     * esquecida envelhece em silencio na proxima flag nova.
+     *
+     * ⚠️ O teste de guarda do repositorio NAO alcanca este Set (ele le @Query,
+     * e isto e Java) — mesma ressalva escrita no VisitStatsService. Flag nova de
+     * repeticao exige entrar aqui tambem.
+     */
+    private static final Set<String> REPETICOES = Set.of(
+            PostoFixoService.FLAG_POSTO_FIXO,
+            PresencaAbertaService.FLAG_JA_PRESENTE);
+
+    /**
+     * O que este retrato NAO cobre. Chaves i18n, nunca frases prontas.
+     *
+     * ⚠️ Os dois primeiros avisos sao sempre verdade. O terceiro so aparece
+     * quando ha alguem num ponto SEM fechamento automatico configurado — hoje a
+     * enfermaria, cujo registro e manual e cuja saida quase nunca e lancada.
+     * O PPMS acredita naquele ponto como acredita nos outros, e sem o aviso a
+     * lista afirmaria que alguem esta na enfermaria desde as 9h da manha quando
+     * a pessoa saiu e ninguem registrou (objecao da enfermeira, painel 14/08).
+     *
+     * Mostra-lo SEMPRE seria ruido; mostra-lo quando ha gente nesses pontos e
+     * dizer a coisa certa no momento em que ela importa.
+     */
+    private List<String> avisos(java.util.Set<String> pontosComGente) {
+        List<String> out = new ArrayList<>(
+                List.of("ppms.aviso.leitores", "ppms.aviso.nao.chamada"));
+        java.util.Set<String> comFechamento = autoCloseProps.parsedTimes().keySet();
+        boolean algumSemFechamento = pontosComGente.stream()
+                .anyMatch(p -> !ZONA_EM_TRANSITO.equals(p) && !comFechamento.contains(p));
+        if (algumSemFechamento) out.add("ppms.aviso.sem.fechamento");
+        return out;
+    }
 
     public PpmsSnapshot snapshot(LocalDateTime agora) {
         LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
@@ -112,13 +162,35 @@ public class PpmsService {
         Map<String, User> pessoas = new HashMap<>();
         for (User u : userRepository.findAllById(dentro)) pessoas.put(u.getId(), u);
 
-        // Agrupa pelo ponto onde a pessoa foi vista por último.
+        // ⚠️ A ZONA E A VISITA ABERTA, NAO O ULTIMO EVENTO.
+        //
+        // A primeira versao agrupava pelo ponto do ultimo evento — inclusive
+        // quando esse evento era uma SAIDA daquele ponto. Quem entrou no CDI as
+        // 10h e saiu as 10h30 aparecia sob "CDI", num card com contador que se
+        // le como ocupacao: a equipe de evacuacao era mandada procurar numa sala
+        // que a pessoa acabara de deixar. Cinco dos nove agentes do painel
+        // apontaram a mesma coisa.
+        //
+        // A resposta honesta quando o ultimo evento e uma SAIDA interna e que a
+        // pessoa esta NA ESCOLA e a zona e DESCONHECIDA — ela esta em algum
+        // corredor, patio ou sala sem leitor. Inventar uma zona seria mandar
+        // alguem procurar no lugar errado; omiti-la seria perder a pessoa. Vai
+        // para uma zona propria, EM_TRANSITO, com o ultimo lugar onde foi vista.
         Map<String, List<PpmsSnapshot.Pessoa>> porPonto = new LinkedHashMap<>();
         for (String uid : dentro) {
             AccessLog ultimo = ultimoEvento.get(uid);
             AccessLog entrada = noPortao.get(uid);
             User u = pessoas.get(uid);
-            String ponto = ultimo == null ? "?" : ultimo.getPointId();
+
+            Map<String, AccessLog> abertas = abertasPorPessoa.get(uid);
+            String pontoAberto = (abertas == null || abertas.isEmpty())
+                    ? null
+                    // Visita aberta mais recente: e onde a pessoa esta de fato.
+                    : abertas.values().stream()
+                        .max(Comparator.comparing(AccessLog::getTimestamp))
+                        .map(AccessLog::getPointId).orElse(null);
+
+            String ponto = pontoAberto != null ? pontoAberto : ZONA_EM_TRANSITO;
 
             porPonto.computeIfAbsent(ponto, k -> new ArrayList<>())
                     .add(PpmsSnapshot.Pessoa.builder()
@@ -126,7 +198,12 @@ public class PpmsService {
                             .nome(u == null ? uid : u.getNome())
                             .turma(u == null ? null : u.getTurma())
                             .tipo(u == null || u.getTipo() == null ? null : u.getTipo().name())
-                            .ultimoPonto(ponto)
+                            // ⚠️ Onde foi VISTA, que nao e a zona: a zona diz
+                            // onde ela esta (ou EM_TRANSITO, quando nao se
+                            // sabe), e isto diz o ultimo lugar por onde passou.
+                            // Numa evacuacao, e por aqui que se comeca a
+                            // procurar quem esta em transito.
+                            .ultimoPonto(ultimo == null ? null : ultimo.getPointId())
                             .ultimaHora(ultimo == null ? null : ultimo.getTimestamp())
                             .entrouAs(entrada == null ? null : entrada.getTimestamp())
                             .build());
@@ -138,7 +215,8 @@ public class PpmsService {
             e.getValue().sort(Comparator.comparing(
                     p -> p.getNome() == null ? "" : p.getNome().toLowerCase()));
             zonas.add(PpmsSnapshot.Zona.builder()
-                    .area(AreaMapping.areaForPoint(e.getKey()))
+                    .area(ZONA_EM_TRANSITO.equals(e.getKey())
+                            ? ZONA_EM_TRANSITO : AreaMapping.areaForPoint(e.getKey()))
                     .pointId(e.getKey())
                     .total(e.getValue().size())
                     .pessoas(e.getValue())
@@ -154,7 +232,7 @@ public class PpmsService {
                 // entre uma lista que ajuda e uma lista em que se confia
                 // demais. Numa evacuação, acreditar que a contagem é a chamada
                 // faz alguém parar de procurar.
-                .avisos(List.of("ppms.aviso.leitores", "ppms.aviso.nao.chamada"))
+                .avisos(avisos(porPonto.keySet()))
                 .build();
     }
 }

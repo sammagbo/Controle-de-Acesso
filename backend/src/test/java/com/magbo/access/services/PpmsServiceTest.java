@@ -48,13 +48,16 @@ class PpmsServiceTest {
     @Mock private AccessLogRepository accessLogRepository;
     @Mock private UserRepository userRepository;
 
+    private com.magbo.access.config.PresenceAutoCloseProperties autoCloseProps;
     private PpmsService service;
     private final List<AccessLog> logs = new ArrayList<>();
     private long seq = 1;
 
     @BeforeEach
     void setUp() {
-        service = new PpmsService(accessLogRepository, userRepository);
+        autoCloseProps = new com.magbo.access.config.PresenceAutoCloseProperties();
+        autoCloseProps.getTimes().put("BIBLIO", "17:00");
+        service = new PpmsService(accessLogRepository, userRepository, autoCloseProps);
         logs.clear();
         when(accessLogRepository.findByTimestampBetweenOrderByTimestampAsc(any(), any()))
                 .thenReturn(logs);
@@ -120,7 +123,7 @@ class PpmsServiceTest {
     class Onde {
 
         @Test
-        @DisplayName("★★ entrou no portão e foi ao CDI: aparece NO CDI")
+        @DisplayName("★★ entrou no portão e foi ao CDI: aparece NO CDI (visita aberta)")
         void ultimoPontoVence() {
             ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
             ev("0001", "BIBLIO", AccessAction.ENTRADA, 10, 0, null);
@@ -130,8 +133,13 @@ class PpmsServiceTest {
         }
 
         @Test
-        @DisplayName("★★ saiu do CDI mas continua na escola: volta a contar no portão")
+        @DisplayName("★★★ saiu do CDI e continua na escola: EM TRÂNSITO, não 'no CDI'")
         void saiuDaZonaMasNaoDaEscola() {
+            // A primeira versão agrupava pelo ÚLTIMO EVENTO e listava esta
+            // pessoa sob "CDI" — num card com contador que se lê como ocupação.
+            // A equipe de evacuação era mandada procurar numa sala que ela
+            // acabara de deixar. A resposta honesta é: está na escola, a zona é
+            // desconhecida, e o último lugar onde foi vista é o CDI.
             ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
             ev("0001", "BIBLIO", AccessAction.ENTRADA, 10, 0, null);
             ev("0001", "BIBLIO", AccessAction.SAIDA, 10, 30, null);
@@ -139,7 +147,28 @@ class PpmsServiceTest {
             assertThat(s.getTotalDentro())
                     .as("sair do CDI não é sair da escola")
                     .isEqualTo(1);
-            assertThat(s.getZonas().get(0).getPointId()).isEqualTo("BIBLIO");
+            assertThat(s.getZonas().get(0).getPointId())
+                    .as("não se manda ninguém procurar na sala que a pessoa deixou")
+                    .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
+            assertThat(s.getZonas().get(0).getPessoas().get(0).getUltimoPonto())
+                    .as("mas o último lugar onde foi vista continua dito")
+                    .isEqualTo("BIBLIO");
+        }
+
+        @Test
+        @DisplayName("★★ quem só passou o portão está EM TRÂNSITO — corredor, pátio, sala sem leitor")
+        void soPortaoEEmTransito() {
+            ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
+            assertThat(tirar().getZonas().get(0).getPointId())
+                    .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
+        }
+
+        @Test
+        @DisplayName("★★ com visita ABERTA, a zona é a visita — é onde a pessoa está")
+        void visitaAbertaVence() {
+            ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 10, 0, null);
+            assertThat(tirar().getZonas().get(0).getPointId()).isEqualTo("BIBLIO");
         }
 
         @Test
@@ -305,6 +334,23 @@ class PpmsServiceTest {
             assertThat(s.getAvisos())
                     .as("numa evacuação, acreditar que a contagem é a chamada faz alguém parar de procurar")
                     .contains("ppms.aviso.leitores", "ppms.aviso.nao.chamada");
+        }
+
+        @Test
+        @DisplayName("★★ ponto SEM fechamento automático ganha aviso próprio — a enfermaria")
+        void avisaPontoSemFechamento() {
+            // A enfermaria não tem hardware: o registro é manual e a saída quase
+            // nunca é lançada. Sem este aviso, a lista afirma que alguém está lá
+            // desde as 9h quando a pessoa saiu e ninguém registrou.
+            ev("0001", "ENFERM", AccessAction.ENTRADA, 9, 0, null);
+            assertThat(tirar().getAvisos()).contains("ppms.aviso.sem.fechamento");
+        }
+
+        @Test
+        @DisplayName("★ sem gente nesses pontos, o aviso não aparece — não é ruído fixo")
+        void semGenteNaoAvisa() {
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
+            assertThat(tirar().getAvisos()).doesNotContain("ppms.aviso.sem.fechamento");
         }
 
         @Test

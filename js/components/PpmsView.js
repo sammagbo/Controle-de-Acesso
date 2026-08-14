@@ -119,21 +119,17 @@ function PpmsView({ onBack }) {
         return n;
     });
 
-    const exportarCsv = () => {
-        if (!snap) return;
-        const linhas = [t('ppms.csv.header')];
-        (snap.zonas || []).forEach(z => (z.pessoas || []).forEach(p => {
-            const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-            linhas.push([z.pointId, p.id, p.nome, p.turma, p.tipo, hora(p.ultimaHora)].map(esc).join(','));
-        }));
-        const blob = new Blob(['﻿' + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ppms-${new Date().toISOString().slice(0, 16).replace(':', 'h')}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    };
+    // ⚠️ NÃO HÁ EXPORTAÇÃO CSV, e a ausência é a decisão.
+    //
+    // O PPMS exige contagem em PAPEL para a cellule de crise, e é isso que a
+    // mallette guarda — por isso o botão IMPRIMIR fica. Uma folha impressa é
+    // usada e descartada; um CSV com nome, matrícula e turma de todas as
+    // crianças da escola fica no laptop de alguém para sempre. Este projeto
+    // trata exportação em massa como decisão do dono e não como efeito
+    // colateral de uma feature (precedente: F7b congelada; as fotos têm teste
+    // que quebra se alguém criar rota de exportação em massa).
+    //
+    // Veto do agente de proteção de dados, mantido pelo dono em 14/08/2026.
 
     const totalPessoas = snap ? (snap.zonas || []).reduce((s, z) => s + (z.pessoas || []).length, 0) : 0;
 
@@ -160,10 +156,6 @@ function PpmsView({ onBack }) {
                     <button onClick={() => window.print()}
                         className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
                         {t('ppms.imprimir')}
-                    </button>
-                    <button onClick={exportarCsv}
-                        className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
-                        {t('ppms.exportar')}
                     </button>
                 </div>
             </div>
@@ -210,7 +202,19 @@ function PpmsView({ onBack }) {
                             {snap.zonas.map(z => (
                                 <div key={z.pointId} className="bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
                                     <div className="px-5 py-3 bg-soft-50 border-b border-soft-200 flex items-center justify-between">
-                                        <p className="font-black text-navy-500">{pointLabel(z.pointId, window.MagboI18n.getLang())}</p>
+                                        <div className="min-w-0">
+                                            {/* ⚠️ A zona sintética tem nome PRÓPRIO: dizer "CDI"
+                                                para quem acabou de sair do CDI mandaria a equipe
+                                                procurar numa sala vazia. */}
+                                            <p className="font-black text-navy-500 truncate">
+                                                {z.pointId === 'EM_TRANSITO'
+                                                    ? t('ppms.zona.transito')
+                                                    : pointLabel(z.pointId, window.MagboI18n.getLang())}
+                                            </p>
+                                            {z.pointId === 'EM_TRANSITO' && (
+                                                <p className="text-[11px] text-slate-400">{t('ppms.zona.transito.ajuda')}</p>
+                                            )}
+                                        </div>
                                         <span className="text-lg font-black text-navy-500">{z.total}</span>
                                     </div>
                                     <div>
@@ -229,6 +233,9 @@ function PpmsView({ onBack }) {
                                                         </span>
                                                         <span className="block text-xs text-slate-400">
                                                             {p.turma || '—'} · {p.id} · {t('ppms.visto.as', { hora: hora(p.ultimaHora) })}
+                                                            {z.pointId === 'EM_TRANSITO' && p.ultimoPonto
+                                                                ? ' · ' + pointLabel(p.ultimoPonto, window.MagboI18n.getLang())
+                                                                : ''}
                                                         </span>
                                                     </span>
                                                 </button>

@@ -59,6 +59,10 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            'ppms.aviso.sem.fechamento': 'Un des points listés n’a pas de clôture automatique (l’infirmerie) : quelqu’un peut y figurer alors qu’il est reparti sans que la sortie ait été saisie.',
+            'ppms.zona.transito': 'Dans l’établissement — zone inconnue',
+            'ppms.zona.transito.ajuda': 'Couloirs, cour, salles sans lecteur. Commencez par le dernier endroit vu.',
+
             'ppms.titulo': 'Qui est à l’intérieur',
             'ppms.subtitulo': 'PPMS · comptage des effectifs · Lycée Molière',
             'ppms.total': 'Personnes à l’intérieur',
@@ -1080,6 +1084,10 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            'ppms.aviso.sem.fechamento': 'Um dos pontos listados não tem fechamento automático (a enfermaria): alguém pode constar lá tendo saído sem que a saída fosse lançada.',
+            'ppms.zona.transito': 'No estabelecimento — zona desconhecida',
+            'ppms.zona.transito.ajuda': 'Corredores, pátio, salas sem leitor. Comece pelo último lugar visto.',
 
             'ppms.titulo': 'Quem está dentro',
             'ppms.subtitulo': 'PPMS · contagem de efetivos · Lycée Molière',

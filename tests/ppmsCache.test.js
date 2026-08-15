@@ -82,6 +82,35 @@ describe('ppmsCache — quando o retrato de menores é apagado do disco', () => 
     });
 
     // ─────────────────────────────────────────────────────────────
+    describe('★★★ que dia é HOJE — em BRT, nunca em UTC', () => {
+
+        it('★★★ às 21h30 BRT ainda é o MESMO dia (o UTC já virou)', () => {
+            // A regressão medida pelo painel: com toISOString() o retrato das
+            // 18h do próprio dia era apagado às 21h, e a tela de evacuação
+            // mostrava "sem relevo" com a rede fora — exatamente o momento para
+            // o qual o retrato foi guardado.
+            const noite = new Date(2026, 7, 15, 21, 30, 0);   // 15/08 21:30 local
+            expect(C.hojeNaEscola(noite)).toBe('2026-08-15');
+        });
+
+        it('★★ o retrato das 18h sobrevive às 21h30 do mesmo dia', () => {
+            const noite = new Date(2026, 7, 15, 21, 30, 0);
+            const retrato = { geradoEm: '2026-08-15T18:00:00', totalDentro: 40 };
+            expect(C.aindaServe(retrato, C.hojeNaEscola(noite))).toBe(retrato);
+        });
+
+        it('★★ e o de ontem continua sendo descartado', () => {
+            const manha = new Date(2026, 7, 16, 8, 0, 0);
+            const retrato = { geradoEm: '2026-08-15T18:00:00', totalDentro: 40 };
+            expect(C.aindaServe(retrato, C.hojeNaEscola(manha))).toBeNull();
+        });
+
+        it('zero à esquerda no mês e no dia', () => {
+            expect(C.hojeNaEscola(new Date(2026, 0, 5, 12, 0, 0))).toBe('2026-01-05');
+        });
+    });
+
+    // ─────────────────────────────────────────────────────────────
     describe('★★ apagar — nunca lança, numa tela de evacuação', () => {
 
         it('apaga usando a chave certa', () => {

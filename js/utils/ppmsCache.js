@@ -73,6 +73,29 @@
      * exatamente o que a regra 2 existe para impedir — na dúvida sobre QUANDO
      * aquela lista foi feita, ela não pode ser mostrada como se fosse de agora.
      */
+    /**
+     * O dia de HOJE no relógio DA ESCOLA, como 'YYYY-MM-DD'.
+     *
+     * ⚠️ NÃO use `new Date().toISOString().slice(0,10)`: isso é UTC, e o
+     * `geradoEm` do retrato é um LocalDateTime em BRT. A primeira versão desta
+     * refatoração deixou o cálculo de "hoje" no componente, e ele virou UTC —
+     * uma REGRESSÃO em relação à main, que comparava dia local com dia local.
+     * Entre 21h e a meia-noite BRT o UTC já é o dia seguinte, e o retrato do
+     * PRÓPRIO dia era apagado: numa noite de evento escolar, com a rede fora, a
+     * tela de evacuação mostraria "sem relevo" em vez da lista que ela guardou
+     * exatamente para esse momento.
+     *
+     * A linha pura/impura estava um degrau abaixo do necessário: o módulo era
+     * dono de "o que conta como o mesmo dia" mas não de "que dia é hoje".
+     * (Painel de revisão, leitor adversário, 15/08/2026.)
+     */
+    function hojeNaEscola(agora) {
+        const d = agora || new Date();
+        // Componentes LOCAIS, nunca ISO/UTC.
+        const p2 = (n) => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+    }
+
     function aindaServe(guardado, hojeISO) {
         if (!guardado || typeof guardado !== 'object') return null;
         const gerado = guardado.geradoEm;
@@ -96,6 +119,7 @@
 
     return {
         CHAVE: CHAVE,
+        hojeNaEscola: hojeNaEscola,
         recusaDePermissao: recusaDePermissao,
         aindaServe: aindaServe,
         apagar: apagar

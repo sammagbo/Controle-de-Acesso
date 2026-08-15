@@ -61,7 +61,9 @@ function PpmsView({ onBack }) {
             const g = localStorage.getItem(PPMS_CACHE);
             if (!g) return null;
             const d = JSON.parse(g);
-            const hoje = new Date().toISOString().slice(0, 10);
+            // ⚠️ hojeNaEscola(), nunca toISOString(): o segundo é UTC e
+            // apagaria o retrato do próprio dia depois das 21h BRT.
+            const hoje = window.MagboPpmsCache.hojeNaEscola();
             const servivel = window.MagboPpmsCache.aindaServe(d, hoje);
             if (!servivel) { window.MagboPpmsCache.apagar(); return null; }
             return servivel;

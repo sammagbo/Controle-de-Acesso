@@ -1,0 +1,85 @@
+-- =====================================================================
+-- V018 — ÍNDICE (timestamp) em access_logs
+-- =====================================================================
+-- A V016 indexou `(point_id, timestamp)` para a tela do PORTÃO. Ele não alcança
+-- as consultas que filtram **só por hora**: com `point_id` na frente, o
+-- planejador não consegue buscar por `timestamp` — ele varre o índice inteiro.
+--
+-- E são quatro consultas assim, todas no MESMO tique de 5 segundos do Painel
+-- Administrativo (`AdminDashboard.loadData`, duas requisições HTTP):
+--
+--   1. countRelevantesSince      passagens de hoje                (GET /api/stats/global)
+--   2. countBlockedSince         alertas de hoje                  (idem)
+--   3. countActiveUsersSince     quem está "dentro" — ANTI-JOIN   (idem)
+--   4. findFilteredLogs          últimos 500, sem filtro          (GET /api/access/logs/all)
+--
+-- ── MEDIÇÃO, num Postgres local com os 439.993 registros reais ───────
+-- Três execuções de cada, depois de aquecer o cache.
+--
+--                                    ANTES                DEPOIS
+--   1. countRelevantesSince      792 buf ·  16,8 ms      4 buf · 0,054-0,083 ms
+--   2. countBlockedSince         792 buf ·   1,7 ms      4 buf · 0,049-0,055 ms
+--   3. countActiveUsersSince    7529 buf ·  44,4 ms     11 buf · 0,147-0,153 ms
+--   4. findFilteredLogs         3756 buf ·  28,0 ms    316 buf · 0,195-0,240 ms
+--   ────────────────────────────────────────────────────────────────
+--   TOTAL DO TIQUE            12 869 buf ·  ~91 ms      335 buf ·   ~0,5 ms
+--
+--   ≈ 38× menos páginas e ≈ 200× mais rápido — a cada 5 segundos, por painel
+--   aberto. Antes, um painel esquecido aberto lia ~100 MB de páginas por tique.
+--
+-- ⚠️ A CONSULTA 3 PRECISOU DE DUAS COISAS, e o índice sozinho não bastaria.
+-- O anti-join tinha limite de tempo apenas CORRELACIONADO (`b.timestamp >
+-- a.timestamp`), nunca constante. O resultado já era o de hoje por
+-- transitividade, mas o planejador não deriva transitividade através de
+-- subconsulta correlacionada: ele materializava **todas** as SAIDAs da tabela
+-- (216 mil linhas em hash) para casar contra as poucas ENTRADAs do dia. O
+-- `AND b.timestamp >= :start` acrescentado em `AccessLogRepository` não remove
+-- nenhuma linha do resultado — é o mesmo predicado que a transitividade já
+-- garantia — e sozinho já levava a consulta de 44,4 ms para 3,3 ms
+-- (Parallel Hash Anti Join → Merge Anti Join). Com o índice, 0,134 ms.
+-- Um índice sem a correção da consulta deixaria a metade cara de pé.
+--
+-- ── POR QUE (timestamp) SOZINHO ──────────────────────────────────────
+-- É o único predicado que as quatro compartilham. Um índice mais largo
+-- (`INCLUDE (flag, action, user_id)`) evitaria a ida ao heap, mas o heap já
+-- custa 4 páginas nas três primeiras — pagar manutenção de índice largo em toda
+-- inserção do webhook para economizar 4 páginas é troca ruim. `access_logs`
+-- recebe passagem o dia inteiro; cada índice a mais é escrita a mais no caminho
+-- mais crítico do sistema.
+--
+-- Sem DESC: o btree é lido nos dois sentidos. O `ORDER BY timestamp DESC
+-- LIMIT 500` da consulta 4 vira "Index Scan Backward" e para na 500ª linha, em
+-- vez de ordenar 440 mil (`top-N heapsort`, 3756 páginas).
+--
+-- ── ⚠️ CONCURRENTLY, e por isso SEM BEGIN/COMMIT ─────────────────────
+-- Mesma razão da V016: `CREATE INDEX` comum trava ESCRITAS enquanto constrói, e
+-- num dia letivo um segundo de webhook bloqueado é uma passagem que o terminal
+-- reenvia ou perde. Este é o SEGUNDO arquivo de migração sem transação, e é de
+-- propósito.
+--
+-- ⚠️ Se falhar no meio, fica um índice INVÁLIDO — não usado e ocupando espaço.
+-- Conferir abaixo; se inválido, derrubar com R018 e repetir.
+--
+-- ADITIVA: nenhuma coluna, nenhum dado, nenhuma constraint. O PC com
+-- `ddl-auto=update` NÃO cria este índice (o Hibernate só gera os declarados em
+-- @Index, e access_logs não os declara) — é necessário nos DOIS ambientes.
+-- Rollback: rollback/R018__drop_access_logs_indice_hora.sql
+-- =====================================================================
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_access_logs_hora
+    ON access_logs (timestamp);
+
+COMMENT ON INDEX idx_access_logs_hora IS
+    'Painel administrativo: 4 consultas por tique de 5s filtrando só por hora. Ver V018 para a medição.';
+
+-- ── Conferência depois de aplicar ────────────────────────────────────
+-- 1. Existe e é VÁLIDO (f = construção interrompida — R018 e repetir):
+--      SELECT indisvalid FROM pg_index
+--       WHERE indexrelid = 'idx_access_logs_hora'::regclass;
+--
+-- 2. O planejador passou a usá-lo:
+--      EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM access_logs
+--       ORDER BY timestamp DESC LIMIT 500;
+--    Deve aparecer "Index Scan Backward using idx_access_logs_hora", e não
+--    "Sort ... top-N heapsort". Se continuar em Seq Scan com a tabela cheia,
+--    rodar ANALYZE access_logs e repetir.

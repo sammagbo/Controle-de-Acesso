@@ -77,6 +77,69 @@ class LegacyRegressionIT extends AbstractIT {
 
     // ─────────────── Derivadas / JPQL (todas portaveis) ───────────────
 
+    /**
+     * ★★★ O ANTI-JOIN de countActiveUsersSince: a otimizacao NAO pode mudar o
+     * numero.
+     *
+     * A consulta ganhou `AND b.timestamp >= :start` dentro do NOT EXISTS
+     * (15/08/2026, V018). O predicado e REDUNDANTE de proposito: por
+     * transitividade, b.timestamp > a.timestamp >= :start ja o garantia. Ele
+     * existe so para o planejador, que nao deriva transitividade atraves de
+     * subconsulta correlacionada e por isso materializava TODAS as SAIDAs da
+     * tabela — 216 mil linhas — para casar contra as poucas ENTRADAs do dia
+     * (7529 paginas / 44 ms, a cada 5 segundos, por painel aberto).
+     *
+     * ⚠️ ESTE TESTE EXISTE PORQUE "redundante" e uma AFIRMACAO, e uma afirmacao
+     * sobre SQL que ninguem exercita e uma crenca. Ele trava os tres casos onde
+     * um predicado de tempo mal colocado mudaria a resposta:
+     *
+     *   1. saida ANTERIOR a entrada, no mesmo dia — nao fecha (quem removesse o
+     *      `b.timestamp > a.timestamp` achando que o `>= :start` bastava faria
+     *      esta pessoa sumir da ocupacao: ela esta dentro e a tela diria que nao);
+     *   2. saida de ONTEM para uma entrada de hoje — nao fecha (mesma armadilha,
+     *      pelo outro lado);
+     *   3. entrada e saida na ordem certa — fecha, como sempre fechou.
+     */
+    @Test
+    @DisplayName("★★★ o anti-join: saida ANTES da entrada nao fecha a presenca")
+    void antiJoinNaoFechaComSaidaAnterior() {
+        LocalDate hoje = LocalDate.now();
+        LocalDateTime inicioDeHoje = hoje.atStartOfDay();
+
+        // Caso 1 — saida de manha, entrada a tarde: continua DENTRO.
+        legado("0000010", "PORT1", AccessAction.SAIDA,   hoje.atTime(8, 0));
+        legado("0000010", "PORT1", AccessAction.ENTRADA, hoje.atTime(9, 0));
+
+        // Caso 2 — saida ONTEM, entrada hoje: continua DENTRO.
+        legado("0000011", "PORT1", AccessAction.SAIDA,   ONTEM.atTime(17, 0));
+        legado("0000011", "PORT1", AccessAction.ENTRADA, hoje.atTime(9, 30));
+
+        // Caso 3 — par na ordem certa, hoje: FECHA.
+        legado("0000012", "PORT1", AccessAction.ENTRADA, hoje.atTime(10, 0));
+        legado("0000012", "PORT1", AccessAction.SAIDA,   hoje.atTime(10, 30));
+
+        assertThat(accessLogRepository.countActiveUsersSince(inicioDeHoje))
+                .as("0000010 e 0000011 estao dentro; 0000012 saiu. "
+                  + "O aluno C do setup entrou ha 2h e tambem esta dentro.")
+                .isEqualTo(3);
+    }
+
+    /** A contagem de hoje ignora quem so aparece em dias anteriores. */
+    @Test
+    @DisplayName("★★ o recorte de :start continua valendo — ontem nao entra na conta de hoje")
+    void antiJoinRecortaODia() {
+        LocalDateTime inicioDeHoje = LocalDate.now().atStartOfDay();
+
+        // O aluno D do setup entrou ONTEM as 16:00 e nunca saiu. Ele esta
+        // "dentro" na janela de ontem, e FORA da conta de hoje.
+        assertThat(accessLogRepository.countActiveUsersSince(janelaDe))
+                .as("janela desde ontem: C (portao, ha 2h) e D (cantina, ontem 16h)")
+                .isEqualTo(2);
+        assertThat(accessLogRepository.countActiveUsersSince(inicioDeHoje))
+                .as("janela de hoje: so C — a entrada de D e de ontem")
+                .isEqualTo(1);
+    }
+
     @Test
     @DisplayName("queries derivadas e JPQL rodam sobre logs legados sem excecao")
     void derivadasEJpqlSobreLegado() {

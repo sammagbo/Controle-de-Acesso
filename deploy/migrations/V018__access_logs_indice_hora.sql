@@ -14,18 +14,32 @@
 --   4. findFilteredLogs          últimos 500, sem filtro          (GET /api/access/logs/all)
 --
 -- ── MEDIÇÃO, num Postgres local com os 439.993 registros reais ───────
--- Três execuções de cada, depois de aquecer o cache.
+-- ⚠️ NUM DIA LETIVO CHEIO (29/01/2026, 3.457 passagens), três execuções de cada.
+-- A primeira versão deste cabeçalho anunciava "~200× mais rápido"; aquele número
+-- foi medido numa janela QUASE VAZIA — o último dia do dump tem 19 passagens, e
+-- "desde a meia-noite" ali é o custo de provar que não há nada. Medir o caminho
+-- feliz e publicá-lo como o caso geral é o defeito que esta nota existe para não
+-- repetir. Apanhado pelo painel de revisão (banco de dados) em 15/08/2026.
 --
---                                    ANTES                DEPOIS
---   1. countRelevantesSince      792 buf ·  16,8 ms      4 buf · 0,054-0,083 ms
---   2. countBlockedSince         792 buf ·   1,7 ms      4 buf · 0,049-0,055 ms
---   3. countActiveUsersSince    7529 buf ·  44,4 ms     11 buf · 0,147-0,153 ms
---   4. findFilteredLogs         3756 buf ·  28,0 ms    316 buf · 0,195-0,240 ms
+--                                    ANTES              DEPOIS
+--   1. countRelevantesSince        ~19,8 ms            ~1,1 ms      ~18×
+--   2. countBlockedSince           ~18,3 ms            ~0,5 ms      ~37×
+--   3. countActiveUsersSince (anti) ~48,8 ms           ~43,4 ms     ~1,1×
+--   4. findFilteredLogs (top 500)  ~31,1 ms            ~0,6 ms      ~52×
 --   ────────────────────────────────────────────────────────────────
---   TOTAL DO TIQUE            12 869 buf ·  ~91 ms      335 buf ·   ~0,5 ms
+--   TOTAL DO TIQUE                ~118 ms             ~46 ms       ~2,3×
 --
---   ≈ 38× menos páginas e ≈ 200× mais rápido — a cada 5 segundos, por painel
---   aberto. Antes, um painel esquecido aberto lia ~100 MB de páginas por tique.
+-- ⚠️ E O ANTI-JOIN QUASE NÃO MELHORA NUM DIA CHEIO — o número que mais parecia
+-- prometer é o que menos entrega. Medi as QUATRO combinações (consulta velha e
+-- nova, com e sem índice) e as quatro ficam entre 43 e 51 ms: com milhares de
+-- ENTRADAs do lado externo, o custo do pareamento domina e o índice não o
+-- alcança. O ganho grande dele (44 ms → 0,15 ms) é real, mas só aparece quando
+-- o dia tem POUCAS passagens — de manhã cedo, num feriado, ou às 8h de qualquer
+-- dia. É melhoria verdadeira e é a maior parte do tempo do dia; não é a do
+-- horário de pico.
+--
+-- O que entrega de verdade, e num dia cheio, são as consultas 1, 2 e 4: elas
+-- filtram só por hora, e é exatamente para elas que o índice existe.
 --
 -- ⚠️ A CONSULTA 3 PRECISOU DE DUAS COISAS, e o índice sozinho não bastaria.
 -- O anti-join tinha limite de tempo apenas CORRELACIONADO (`b.timestamp >
@@ -35,9 +49,11 @@
 -- (216 mil linhas em hash) para casar contra as poucas ENTRADAs do dia. O
 -- `AND b.timestamp >= :start` acrescentado em `AccessLogRepository` não remove
 -- nenhuma linha do resultado — é o mesmo predicado que a transitividade já
--- garantia — e sozinho já levava a consulta de 44,4 ms para 3,3 ms
--- (Parallel Hash Anti Join → Merge Anti Join). Com o índice, 0,134 ms.
--- Um índice sem a correção da consulta deixaria a metade cara de pé.
+-- garantia. ⚠️ O efeito dele DEPENDE do movimento do dia: num dia fraco leva
+-- a consulta de 44,4 ms para 3,3 ms (Parallel Hash Anti Join → Merge Anti
+-- Join); num dia cheio, medido, a diferença some no ruído (~49 ms contra
+-- ~43 ms). Fica porque é gratuito e ajuda na maior parte das horas do dia,
+-- não porque resolva o pico.
 --
 -- ── POR QUE (timestamp) SOZINHO ──────────────────────────────────────
 -- É o único predicado que as quatro compartilham. Um índice mais largo

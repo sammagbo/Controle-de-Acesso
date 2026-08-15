@@ -64,13 +64,17 @@ SAIDAs da tabela. Aplicar a migração sem o jar novo deixa a metade cara de pé
 Medido em 15/08/2026 num Postgres local com os 439.993 registros reais, as quatro consultas do
 mesmo tique de 5 segundos:
 
-| | antes | depois |
-|---|---|---|
-| `countRelevantesSince` | 792 pág · 16,8 ms | 4 pág · 0,06 ms |
-| `countBlockedSince` | 792 pág · 1,7 ms | 4 pág · 0,05 ms |
-| `countActiveUsersSince` (anti-join) | 7529 pág · 44,4 ms | 11 pág · 0,15 ms |
-| `findFilteredLogs` (últimos 500) | 3756 pág · 28,0 ms | 316 pág · 0,21 ms |
-| **total do tique** | **12 869 pág · ~91 ms** | **335 pág · ~0,5 ms** |
+⚠️ Medido **num dia letivo cheio** (29/01/2026, 3.457 passagens), três execuções de cada. Uma
+versão anterior desta tabela trazia números medidos numa janela quase vazia e anunciava ~200×;
+o ganho real é **2,3×**, e o anti-join quase não melhora com movimento.
+
+| | antes | depois | |
+|---|---|---|---|
+| `countRelevantesSince` | ~19,8 ms | ~1,1 ms | ~18× |
+| `countBlockedSince` | ~18,3 ms | ~0,5 ms | ~37× |
+| `countActiveUsersSince` (anti-join) | ~48,8 ms | ~43,4 ms | ~1,1× |
+| `findFilteredLogs` (últimos 500) | ~31,1 ms | ~0,6 ms | ~52× |
+| **total do tique** | **~118 ms** | **~46 ms** | **~2,3×** |
 
 ### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
 

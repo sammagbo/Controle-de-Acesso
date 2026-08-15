@@ -524,6 +524,75 @@ public class AccessController {
         return visits;
     }
 
+    /**
+     * OS MOVIMENTOS INCOMPLETOS — o "quais" de um numero que ja existia.
+     *
+     * O card "Sorties non enregistrees" do painel diz QUANTOS sao. Ninguem vai
+     * procurar um aluno com um numero na mao: a Vie Scolaire precisa do nome, da
+     * hora e do ponto. Este endpoint devolve as linhas; o contador continua onde
+     * sempre esteve, inalterado.
+     *
+     * ⚠️ NAO E' ADMIN. O `/overview`, que serve o contador, e' `hasRole('ADMIN')`
+     * — o painel da direcao. Mas quem VAI ATRAS da crianca e' a Vie Scolaire, e
+     * exigir o perfil de administrador para ler a lista transformaria o dado em
+     * algo que so' a direcao alcanca. A guarda e' por AREA, como nos outros dois
+     * endpoints de lista (`/infirmary/visits`, `/refectory/meals`): quem opera a
+     * cantina ou a enfermaria ve os movimentos daqueles pontos.
+     *
+     * ⚠️ E' preciso ter as DUAS areas porque a lista cobre os DOIS pontos numa
+     * consulta so'. Um operador de uma area so' receberia uma lista pela metade
+     * sem saber que esta' vendo metade — pior do que nao ver. Quem tem uma area
+     * so' continua com o endpoint da sua area, que ja existe e ja marca
+     * `exitRegistered=false`.
+     */
+    @PreAuthorize("hasRole('ADMIN') or (@areaSecurity.can('cantine') and @areaSecurity.can('infirmerie'))")
+    @GetMapping("/incomplete-movements")
+    public java.util.List<com.magbo.access.dto.MouvementIncomplet> incompleteMovements(
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
+                ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
+                : java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime to = (dateTo != null && !dateTo.isEmpty())
+                ? java.time.LocalDate.parse(dateTo).atTime(23, 59, 59)
+                : java.time.LocalDateTime.now();
+
+        java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        java.time.format.DateTimeFormatter hm = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+        java.util.List<com.magbo.access.dto.MouvementIncomplet> out = new java.util.ArrayList<>();
+
+        java.util.function.BiConsumer<java.util.List<AccessLog>, String> juntar = (logs, tipo) -> {
+            for (AccessLog log : logs) {
+                String userId = log.getUserId();
+                User u = userId == null ? null : userRepository.findById(userId).orElse(null);
+                out.add(com.magbo.access.dto.MouvementIncomplet.builder()
+                        .userId(userId)
+                        .nome(u != null ? u.getNome() : null)
+                        .turma(u != null ? u.getTurma() : "")
+                        .pointId(log.getPointId())
+                        .tipo(tipo)
+                        .date(log.getTimestamp().format(dayFmt))
+                        .hora(log.getTimestamp().format(hm))
+                        // A frase que impede a linha de ser lida como acusacao.
+                        // Chave, nunca prosa — ela existe nas duas linguas.
+                        .explicacao("ENTREE_SANS_SORTIE".equals(tipo)
+                                ? "incompletos.explica.entrada"
+                                : "incompletos.explica.saida")
+                        .build());
+            }
+        };
+
+        juntar.accept(accessLogRepository.findUnregisteredExits(from, to), "ENTREE_SANS_SORTIE");
+        juntar.accept(accessLogRepository.findOrphanExits(from, to), "SORTIE_SANS_ENTREE");
+
+        out.sort(java.util.Comparator
+                .comparing(com.magbo.access.dto.MouvementIncomplet::getDate)
+                .thenComparing(com.magbo.access.dto.MouvementIncomplet::getHora)
+                .reversed());
+        return out;
+    }
+
     @GetMapping("/overview")
     @PreAuthorize("hasRole('ADMIN')")
     public com.magbo.access.dto.OverviewStats overview(

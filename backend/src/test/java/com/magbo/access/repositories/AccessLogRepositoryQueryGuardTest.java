@@ -105,4 +105,80 @@ class AccessLogRepositoryQueryGuardTest {
                 .isGreaterThan(0);
         assertThat(comFlagSolta).isZero();
     }
+
+    /**
+     * ★★★ A LISTA E O CONTADOR TEM DE FAZER A MESMA PERGUNTA.
+     *
+     * `countUnregisteredExits` diz QUANTOS movimentos ficaram incompletos; o card
+     * "Sorties non enregistrees" mostra esse numero. `findUnregisteredExits`
+     * devolve QUAIS — os nomes que a Vie Scolaire precisa para ir procurar
+     * alguem. As duas consultas sao a MESMA pergunta com projecoes diferentes.
+     *
+     * ⚠️ No dia em que o card disser 7 e a lista trouxer 5, ninguem sabe qual
+     * dos dois esta certo, e a resposta racional e nao usar nenhum dos dois. A
+     * lista so vale enquanto ela FOR o contador.
+     *
+     * Nao da para executar a comparacao na suite: as duas sao PostgreSQL-only
+     * pelo literal `interval '4 hours'` (o H2 exige `INTERVAL '4' HOUR`), e
+     * gastar mais duas @Disabled quebraria a invariante do projeto — o criterio
+     * e 0 falhas e EXATAMENTE 2 @Disabled, e "Skipped != 2" e como se descobre
+     * que alguem desligou uma nativa. Entao vale aqui o mesmo remedio que a
+     * ocupacao usa desde 10/08: comparar as STRINGS.
+     *
+     * O teste extrai o WHERE das duas e exige que sejam identicos. Reformatar,
+     * indentar ou quebrar linha nao quebra (o espacamento e normalizado);
+     * mudar o predicado de uma sem mudar o da outra, quebra.
+     *
+     * Conferencia da CONTAGEM em PostgreSQL real: secao 6-bis do
+     * docs/frontend-smoke-checklist.md.
+     */
+    @Test
+    @DisplayName("★★★ findUnregisteredExits e countUnregisteredExits tem o MESMO where")
+    void listaEContadorFazemAMesmaPergunta() throws Exception {
+        String contador = sqlNormalizado("countUnregisteredExits", LocalDateTime.class, LocalDateTime.class);
+        String lista = sqlNormalizado("findUnregisteredExits", LocalDateTime.class, LocalDateTime.class);
+
+        String whereDoContador = contador.substring(contador.indexOf("WHERE"));
+        String whereDaLista = lista.substring(lista.indexOf("WHERE"));
+        // A lista ordena; o contador nao. O ORDER BY nao faz parte da pergunta.
+        int ob = whereDaLista.indexOf("ORDER BY");
+        if (ob > 0) whereDaLista = whereDaLista.substring(0, ob).trim();
+
+        assertThat(whereDaLista)
+                .as("o card mostraria um numero e a lista logo abaixo mostraria outro. "
+                        + "As duas consultas sao a mesma pergunta: se uma mudou, mude a outra "
+                        + "na MESMA entrega.")
+                .isEqualTo(whereDoContador);
+    }
+
+    /**
+     * ★★ A saida ORFA e a pergunta pelo outro lado — e nao pode virar a mesma.
+     *
+     * `findOrphanExits` procura SAIDA sem ENTRADA anterior; e' a especie que os
+     * dois endpoints de lista descartavam em silencio (`if (entrada == null)
+     * continue;`) e que ninguem nunca viu. Ela NAO entra no contador de
+     * proposito: mexer nele mudaria o significado da serie historica do painel
+     * sem aviso.
+     *
+     * Este teste prende os dois lados invertidos — action='SAIDA' fora,
+     * action='ENTRADA' dentro — porque copiar a consulta irma e esquecer de
+     * inverter produz uma lista que parece certa e repete a primeira.
+     */
+    @Test
+    @DisplayName("★★ findOrphanExits procura SAIDA sem ENTRADA — os lados invertidos")
+    void saidaOrfaProcuraOInverso() throws Exception {
+        String sql = sqlNormalizado("findOrphanExits", LocalDateTime.class, LocalDateTime.class);
+
+        assertThat(sql)
+                .as("o lado de FORA tem de ser a SAIDA")
+                .contains("s.action='SAIDA'");
+        assertThat(sql)
+                .as("e o NOT EXISTS tem de procurar a ENTRADA que faltou")
+                .contains("e.action='ENTRADA'");
+        assertThat(sql)
+                .as("a janela e' para TRAS (a entrada vem ANTES da saida) — com "
+                        + "`e.timestamp > s.timestamp` esta consulta procuraria no futuro "
+                        + "e devolveria a base inteira")
+                .contains("e.timestamp < s.timestamp");
+    }
 }

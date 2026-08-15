@@ -387,6 +387,47 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours')", nativeQuery = true)
     long countUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
+    /**
+     * AS LINHAS que `countUnregisteredExits` conta — o "quais" do "quantos".
+     *
+     * ⚠️ O CORPO DO WHERE E' COPIA LITERAL da consulta acima, e tem de continuar
+     * sendo. Se as duas divergirem, a tela mostra "7" num card e cinco nomes na
+     * lista logo abaixo — e a Vie Scolaire para de acreditar nas duas. Ha um
+     * teste que semeia dados e compara `count` com `size` (LegacyRegressionIT).
+     * Mudou uma? Mude a outra na mesma entrega.
+     *
+     * PostgreSQL-only pelo `interval '4 hours'` (o H2 exige `INTERVAL '4' HOUR`),
+     * como a irma dela.
+     */
+    @Query(value = "SELECT e.* FROM access_logs e " +
+           "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
+           "AND e.timestamp BETWEEN :from AND :to " +
+           "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
+           "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours') " +
+           "ORDER BY e.timestamp DESC", nativeQuery = true)
+    List<AccessLog> findUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    /**
+     * SAIDA sem ENTRADA anterior — a especie que NUNCA foi mostrada.
+     *
+     * ⚠️ Isto nao entra no contador `countUnregisteredExits` e nao muda o numero
+     * do card. E' a mesma pergunta pelo outro lado: uma saida sem entrada e'
+     * quase sempre a prova de que a ENTRADA e' que se perdeu. Ate 15/08/2026 ela
+     * era descartada em silencio nos dois endpoints de lista
+     * (`if (entrada == null) continue;`), entao ninguem nunca a viu.
+     *
+     * Mesma janela de 4 horas, para o outro lado, e a mesma assimetria de flag
+     * das consultas vizinhas: exclui a SAIDA marcada (e' repeticao, nao
+     * movimento), nunca a ENTRADA que a abriria.
+     */
+    @Query(value = "SELECT s.* FROM access_logs s " +
+           "WHERE s.action='SAIDA' AND s.point_id IN ('REFEI1','REFEI2','ENFERM') " +
+           "AND s.timestamp BETWEEN :from AND :to " +
+           "AND (s.flag IS NULL OR s.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
+           "AND NOT EXISTS (SELECT 1 FROM access_logs e WHERE e.user_id=s.user_id AND e.point_id=s.point_id AND e.action='ENTRADA' AND e.timestamp < s.timestamp AND e.timestamp > s.timestamp - interval '4 hours') " +
+           "ORDER BY s.timestamp DESC", nativeQuery = true)
+    List<AccessLog> findOrphanExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
     // Ocupação atual por setor: última ação de cada user em cada ponto = ENTRADA
     //
     // ⚠️ A exclusão é ASSIMÉTRICA — tira a ENTRADA marcada, NUNCA a SAÍDA.

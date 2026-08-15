@@ -782,6 +782,44 @@ function OverviewTab() {
      */
     const [incluirFuncionarios, setIncluirFuncionarios] = React.useState(false);
 
+    // ── A LISTA ATRÁS DO CONTADOR ────────────────────────────────────
+    // ⚠️ Sob demanda, nunca no load da tela. O Vue d'ensemble já dispara quatro
+    // requisições ao abrir; esta lista só interessa a quem clicou em "Ver quem",
+    // e carregá-la sempre seria uma quinta consulta para todo mundo por causa de
+    // um painel que a maioria nunca abre.
+    //
+    // ⚠️ Recarrega quando o PERÍODO muda. Sem isso, quem abre a lista na semana
+    // e depois troca para o mês vê o card com o número novo e a lista com os
+    // nomes velhos — o pior estado possível para uma tela cujo contrato é
+    // "estes são exatamente aqueles".
+    const [verIncompletos, setVerIncompletos] = React.useState(false);
+    const [incompletos, setIncompletos] = React.useState(null);
+    const [incompletosCarregando, setIncompletosCarregando] = React.useState(false);
+
+    const carregarIncompletos = React.useCallback(async () => {
+        setIncompletosCarregando(true);
+        try {
+            const r = typeof fetchIncompleteMovements === 'function'
+                ? await fetchIncompleteMovements({ dateFrom, dateTo })
+                : [];
+            setIncompletos(r || []);
+        } finally {
+            setIncompletosCarregando(false);
+        }
+    }, [dateFrom, dateTo]);
+
+    React.useEffect(() => {
+        // O período mudou: o que estava carregado não vale mais.
+        setIncompletos(null);
+        if (verIncompletos) carregarIncompletos();
+    }, [dateFrom, dateTo]);
+
+    const abrirIncompletos = () => {
+        if (verIncompletos) { setVerIncompletos(false); return; }
+        setVerIncompletos(true);
+        if (!incompletos) carregarIncompletos();
+    };
+
     const { dateFrom, dateTo } = React.useMemo(() => {
         const fmt = d => d.toISOString().slice(0, 10);
         if (period === 'custom') {
@@ -1259,11 +1297,29 @@ function OverviewTab() {
                                             <p className="text-2xl font-black text-warning-600">{attention.repasHorsHoraire}</p>
                                             <p className="text-xs text-slate-500 mt-1">{t('vue.alerta.refeicao.fora')}</p>
                                         </div>
+                                        {/* ⚠️ O NÚMERO NÃO MUDA — ele continua sendo
+                                            `unregisteredExits`, do mesmo endpoint, contando o
+                                            mesmo. O que muda é que agora dá para perguntar QUAIS:
+                                            um número não permite ir procurar ninguém. */}
                                         <div className="bg-white rounded-xl p-3 border border-danger-100">
                                             <p className="text-2xl font-black text-slate-600">{attention.sortiesNonEnreg}</p>
                                             <p className="text-xs text-slate-500 mt-1">{t('vue.card.saidas.nao.enreg')}</p>
+                                            {attention.sortiesNonEnreg > 0 && (
+                                                <button type="button" onClick={abrirIncompletos}
+                                                    className="mt-2 text-[11px] font-bold text-accent-600 hover:text-accent-700 underline">
+                                                    {verIncompletos ? t('incompletos.fechar') : t('incompletos.abrir')}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
+                                )}
+
+                                {verIncompletos && (
+                                    <MouvementsIncomplets
+                                        movimentos={incompletos}
+                                        carregando={incompletosCarregando}
+                                        onFechar={() => setVerIncompletos(false)}
+                                    />
                                 )}
 
                                 {/* ── Alertes récentes (aujourd'hui) ── */}

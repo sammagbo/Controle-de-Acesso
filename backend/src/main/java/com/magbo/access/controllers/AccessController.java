@@ -52,6 +52,7 @@ public class AccessController {
     }
 
     private final AccessLogRepository accessLogRepository;
+    private final com.magbo.access.security.AreaSecurity areaSecurity;
     private final SystemUserRepository systemUserRepository;
     private final UserRepository userRepository;
     private final com.magbo.access.services.VisitStatsService visitStatsService;
@@ -539,13 +540,22 @@ public class AccessController {
      * endpoints de lista (`/infirmary/visits`, `/refectory/meals`): quem opera a
      * cantina ou a enfermaria ve os movimentos daqueles pontos.
      *
-     * ⚠️ E' preciso ter as DUAS areas porque a lista cobre os DOIS pontos numa
-     * consulta so'. Um operador de uma area so' receberia uma lista pela metade
-     * sem saber que esta' vendo metade — pior do que nao ver. Quem tem uma area
-     * so' continua com o endpoint da sua area, que ja existe e ja marca
-     * `exitRegistered=false`.
+     * ⚠️ UMA area BASTA, e o resultado e' RECORTADO pelas areas de quem chama.
+     * A primeira versao exigia as DUAS (cantine E infirmerie) para evitar "meia
+     * lista sem avisar" — e o efeito real foi tornar a tela inalcancavel: dos
+     * cinco operadores da base, nenhum tem duas areas (cantina, infermaria, cdi,
+     * portail, admin). So' o ADMIN passava, no endpoint cujo proprio javadoc
+     * dizia "NAO E' ADMIN". Nao havia caixa a marcar na tela de permissoes que
+     * resolvesse isso. Apanhado pelo painel de revisao (Vie Scolaire e
+     * operacoes) em 15/08/2026.
+     *
+     * O recorte resolve os dois problemas de uma vez: quem tem `cantine` ve os
+     * pontos de refeicao, quem tem `infirmerie` ve a enfermaria, quem tem as
+     * duas ve tudo. Ninguem recebe metade sem saber, porque a lista e' completa
+     * PARA O ESCOPO de quem pergunta — e a tela diz quais pontos estao no
+     * escopo.
      */
-    @PreAuthorize("hasRole('ADMIN') or (@areaSecurity.can('cantine') and @areaSecurity.can('infirmerie'))")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.can('cantine') or @areaSecurity.can('infirmerie')")
     @GetMapping("/incomplete-movements")
     public java.util.List<com.magbo.access.dto.MouvementIncomplet> incompleteMovements(
             @RequestParam(required = false) String dateFrom,
@@ -585,6 +595,13 @@ public class AccessController {
 
         juntar.accept(accessLogRepository.findUnregisteredExits(from, to), "ENTREE_SANS_SORTIE");
         juntar.accept(accessLogRepository.findOrphanExits(from, to), "SORTIE_SANS_ENTREE");
+
+        // ⚠️ RECORTE POR AREA, depois da consulta. A consulta cobre os tres
+        // pontos de uma vez (e' o mesmo WHERE do contador, e nao pode divergir
+        // dele); o recorte acontece aqui, sobre o resultado. Quem tem so'
+        // `cantine` nao ve nome de quem esteve na enfermaria — e nao ve porque
+        // nao pode, nao porque a consulta o esqueceu.
+        out.removeIf(m -> !areaSecurity.can(com.magbo.access.config.AreaMapping.areaForPoint(m.getPointId())));
 
         out.sort(java.util.Comparator
                 .comparing(com.magbo.access.dto.MouvementIncomplet::getDate)

@@ -347,12 +347,25 @@ um número e a lista logo abaixo mostra outro. Nesse dia ninguém sabe qual dos
 dois está certo, e a resposta racional da Vie Scolaire passa a ser não usar
 nenhum dos dois — a lista deixa de servir justamente para o que ela existe.
 
+> ⚠️ **Antes de rodar:** obtenha o token e use uma janela RELATIVA. A primeira
+> versão desta seção usava um `$TOKEN` que nunca definia e uma janela fixa de
+> julho — em setembro ela devolveria `0 = 0` e se leria como aprovada.
+>
+> ```bash
+> TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login >   -H "Content-Type: application/json" >   -d '{"username":"admin","password":"SUA_SENHA"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+> DE=$(date -d '30 days ago' +%F); ATE=$(date +%F)
+> echo "janela: $DE a $ATE"   # tem de cobrir dias COM movimento
+> ```
+>
+> ⚠️ Se os dois números saírem **0 = 0**, a conferência **não passou** — ela não
+> teve o que comparar. Alargue a janela até o contador ser diferente de zero.
+
 ```bash
 # 1. o contador (o que o card mostra)
 docker exec magbo-postgres psql -U magbo -d magbodb -tAc "
   SELECT COUNT(*) FROM access_logs e
    WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM')
-     AND e.timestamp BETWEEN '2026-07-01' AND '2026-07-18'
+     AND e.timestamp BETWEEN '$DE' AND '$ATE'
      AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE'))
      AND NOT EXISTS (SELECT 1 FROM access_logs s
                       WHERE s.user_id=e.user_id AND s.point_id=e.point_id
@@ -360,7 +373,7 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc "
                         AND s.timestamp < e.timestamp + interval '4 hours');"
 
 # 2. a lista, pela API (mesmo período), contando as linhas do tipo certo
-curl -s -H "Authorization: Bearer $TOKEN"   "http://localhost:8080/api/access/incomplete-movements?dateFrom=2026-07-01&dateTo=2026-07-18"   | python -c "import json,sys; d=json.load(sys.stdin); print(len([x for x in d if x['tipo']=='ENTREE_SANS_SORTIE']))"
+curl -s -H "Authorization: Bearer $TOKEN"   "http://localhost:8080/api/access/incomplete-movements?dateFrom=$DE&dateTo=$ATE"   | grep -o '"tipo":"ENTREE_SANS_SORTIE"' | wc -l   # sem python: grep basta
 ```
 
 **Os dois números têm de ser IGUAIS.** Medido em 15/08/2026 sobre as 439.993

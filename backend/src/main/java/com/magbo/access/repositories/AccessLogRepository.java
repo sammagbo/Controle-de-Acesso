@@ -380,9 +380,38 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     //
     // ⚠️ Mesma assimetria da consulta acima, e pelo mesmo motivo: exclui a
     // ENTRADA marcada, nunca a SAÍDA que a fecha.
+    /**
+     * ⚠️ A CARÊNCIA DE 4 HORAS, e por que ela entrou nas TRÊS consultas.
+     *
+     * Uma ENTRADA feita ha dez minutos ainda nao tem saida — e nao deveria ter.
+     * Sem exigir que a janela de pareamento JA TENHA PASSADO, "entrada sem
+     * saida registrada" inclui todo mundo que esta la dentro AGORA.
+     *
+     * Medido em 15/08/2026 sobre as 439.993 passagens reais, no dia de maior
+     * movimento (29/01), consultando o proprio dia:
+     *
+     *       hora da consulta   sem carencia   com carencia
+     *              12:30             1              0
+     *              13:00            33              0     <-- almocando
+     *              18:00            41             39
+     *
+     * As 33 do meio-dia sao criancas sentadas no refeitorio. Como NUMERO isso
+     * passou tres semanas sem incomodar ninguem; como LISTA DE NOMES seria uma
+     * acusacao contra 33 alunos que nao fizeram nada — e o brief e' explicito:
+     * na segunda vez que alguem for nomeado errado, ninguem abre a tela de novo.
+     * As 18:00 a diferenca some (41 contra 39), que e' como tem de ser: o defeito
+     * so' existe ENQUANTO o dia corre.
+     *
+     * ⚠️ ISTO MUDA O NUMERO DO CARD durante o dia — e' uma mudanca de
+     * comportamento, deliberada, e o dono pode reverte-la. A alternativa era
+     * pior das duas formas: uma lista que nomeia quem esta almocando, ou uma
+     * lista que discorda do card. O numero de fim de dia, que e' o que entra em
+     * relatorio, praticamente nao muda.
+     */
     @Query(value = "SELECT COUNT(*) FROM access_logs e " +
            "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND e.timestamp BETWEEN :from AND :to " +
+           "AND e.timestamp < :to - interval '4 hours' " +
            "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours')", nativeQuery = true)
     long countUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
@@ -402,6 +431,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT e.* FROM access_logs e " +
            "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND e.timestamp BETWEEN :from AND :to " +
+           "AND e.timestamp < :to - interval '4 hours' " +
            "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours') " +
            "ORDER BY e.timestamp DESC", nativeQuery = true)
@@ -423,6 +453,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT s.* FROM access_logs s " +
            "WHERE s.action='SAIDA' AND s.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND s.timestamp BETWEEN :from AND :to " +
+           "AND s.timestamp < :to - interval '4 hours' " +
            "AND (s.flag IS NULL OR s.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs e WHERE e.user_id=s.user_id AND e.point_id=s.point_id AND e.action='ENTRADA' AND e.timestamp < s.timestamp AND e.timestamp > s.timestamp - interval '4 hours') " +
            "ORDER BY s.timestamp DESC", nativeQuery = true)

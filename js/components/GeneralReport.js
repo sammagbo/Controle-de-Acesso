@@ -782,6 +782,32 @@ function OverviewTab() {
      */
     const [incluirFuncionarios, setIncluirFuncionarios] = React.useState(false);
 
+
+    const { dateFrom, dateTo } = React.useMemo(() => {
+        const fmt = d => d.toISOString().slice(0, 10);
+        if (period === 'custom') {
+            const f = customFrom <= customTo ? customFrom : customTo;
+            const t = customFrom <= customTo ? customTo : customFrom;
+            return { dateFrom: f, dateTo: t };
+        }
+        const to = new Date();
+        const from = new Date();
+        if (period === 'week') from.setDate(to.getDate() - 6);
+        else if (period === 'month') from.setDate(to.getDate() - 29);
+        return { dateFrom: fmt(from), dateTo: fmt(to) };
+    }, [period, customFrom, customTo]);
+
+    // ⚠️ ESTE BLOCO FICA DEPOIS DO useMemo QUE PRODUZ dateFrom/dateTo — e a
+    // ordem é a correção, não o estilo. A primeira versão o pôs vinte e quatro
+    // linhas ACIMA daquela declaração: os arrays de dependência são avaliados
+    // durante o render, então valiam [undefined, undefined] em TODO render. O
+    // useCallback congelava no closure do primeiro período ('week') para
+    // sempre, e o useEffect que existe só para invalidar quando o período muda
+    // nunca disparava depois da montagem. O Babel vendorizado rebaixa `const` a
+    // `var`, então não havia sequer o ReferenceError da TDZ para avisar — só a
+    // lista da semana debaixo de um número do mês, que é exatamente o estado
+    // que o comentário abaixo declara impedir. Apanhado pelo painel de revisão
+    // (arquiteto) em 15/08/2026.
     // ── A LISTA ATRÁS DO CONTADOR ────────────────────────────────────
     // ⚠️ Sob demanda, nunca no load da tela. O Vue d'ensemble já dispara quatro
     // requisições ao abrir; esta lista só interessa a quem clicou em "Ver quem",
@@ -819,20 +845,6 @@ function OverviewTab() {
         setVerIncompletos(true);
         if (!incompletos) carregarIncompletos();
     };
-
-    const { dateFrom, dateTo } = React.useMemo(() => {
-        const fmt = d => d.toISOString().slice(0, 10);
-        if (period === 'custom') {
-            const f = customFrom <= customTo ? customFrom : customTo;
-            const t = customFrom <= customTo ? customTo : customFrom;
-            return { dateFrom: f, dateTo: t };
-        }
-        const to = new Date();
-        const from = new Date();
-        if (period === 'week') from.setDate(to.getDate() - 6);
-        else if (period === 'month') from.setDate(to.getDate() - 29);
-        return { dateFrom: fmt(from), dateTo: fmt(to) };
-    }, [period, customFrom, customTo]);
 
     const fmtHHmm = (d) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     const fmtHHmmss = (d) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });

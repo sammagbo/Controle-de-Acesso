@@ -28,7 +28,9 @@
 // herdada, indistinguível do resto da tela. Apanhado pelo agente de qualidade
 // em 14/08/2026.
 
-const PPMS_CACHE = 'magbo.ppms.ultimo';
+// ⚠️ A chave e as regras de apagar vivem em js/utils/ppmsCache.js, onde
+// elas TÊM teste. Estavam duplicadas como literal aqui e no auth.js.
+const PPMS_CACHE = window.MagboPpmsCache.CHAVE;
 
 function PpmsView({ onBack }) {
     const t = useI18n();
@@ -59,10 +61,10 @@ function PpmsView({ onBack }) {
             const g = localStorage.getItem(PPMS_CACHE);
             if (!g) return null;
             const d = JSON.parse(g);
-            const mesmoDia = d && d.geradoEm
-                && new Date(d.geradoEm).toDateString() === new Date().toDateString();
-            if (!mesmoDia) { localStorage.removeItem(PPMS_CACHE); return null; }
-            return d;
+            const hoje = new Date().toISOString().slice(0, 10);
+            const servivel = window.MagboPpmsCache.aindaServe(d, hoje);
+            if (!servivel) { window.MagboPpmsCache.apagar(); return null; }
+            return servivel;
         } catch (e) {
             localStorage.removeItem(PPMS_CACHE);
             return null;
@@ -98,8 +100,8 @@ function PpmsView({ onBack }) {
             // para quem o servidor tinha acabado de recusar — e o cache de um
             // login sem direito ainda ficava no aparelho. Painel de revisao
             // (seguranca/RGPD, 14/08).
-            if (res.status === 403 || res.status === 401) {
-                try { localStorage.removeItem(PPMS_CACHE); } catch (e2) { /* segue */ }
+            if (window.MagboPpmsCache.recusaDePermissao(res.status)) {
+                window.MagboPpmsCache.apagar();
                 setSnap(null);
                 setSemPermissao(true);
                 setOffline(false);

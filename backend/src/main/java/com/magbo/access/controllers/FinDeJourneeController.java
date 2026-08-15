@@ -71,7 +71,16 @@ public class FinDeJourneeController {
         // noticia, quando na verdade nada seria fechado nunca.
         if (fechamento == null) return ResponseEntity.noContent().build();
 
-        LocalDate dia = (date == null || date.isBlank()) ? LocalDate.now() : LocalDate.parse(date);
+        // ⚠️ O MESMO RELOGIO DO AGENDADOR. O job usa LocalDate.now(ZONA_ESCOLA) e
+        // @Scheduled(zone="America/Sao_Paulo"); usar LocalDate.now() cru aqui leria
+        // o fuso da JVM — e o container da VM roda em UTC (nao ha TZ no
+        // docker-compose). As 21h10 de um dia letivo, o preview consultaria o dia
+        // SEGUINTE e responderia "ninguem foi fechado hoje" sobre um dia em que
+        // houve fechamento. Esta tela promete ser exatamente o que o agendador vai
+        // fazer; a promessa inclui o dia. (Painel de revisao, arquiteto, 15/08.)
+        LocalDate dia = (date == null || date.isBlank())
+                ? LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"))
+                : LocalDate.parse(date);
         String horaFechamento = fechamento.format(HM);
 
         List<FinDeJournee> out = new ArrayList<>();

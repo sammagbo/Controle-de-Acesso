@@ -180,10 +180,6 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                         </p>
                   )}
 
-                  {/* Quem ainda está dentro e vai ser fechado. Some sozinho
-                      nos pontos sem fechamento configurado. */}
-                  <FinDeJournee pointId={point.id} />
-
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* LEFT PANEL — Action */}
                         <div className="lg:col-span-5">

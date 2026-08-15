@@ -117,8 +117,6 @@
       <script type="text/babel" src="js/components/Dashboard.js?v=8"></script>
       <!-- O veredicto do regime, lido no portão. Antes do SectorView, que o usa. -->
       <script type="text/babel" src="js/components/RegimeVerdictBadge.js?v=1"></script>
-      <!-- Painel "ainda dentro" do SectorView: carrega ANTES dele. -->
-      <script type="text/babel" src="js/components/FinDeJournee.js?v=1"></script>
       <script type="text/babel" src="js/components/SectorView.js?v=8"></script>
       <script type="text/babel" src="js/components/DeniedAttemptsFeed.js?v=1"></script>
       <script type="text/babel" src="js/components/MealEntitlementHistoryModal.js?v=1"></script>
@@ -153,6 +151,9 @@
       <!-- Local Backend (Single App Mode) -->
       <script type="text/babel" src="js/cdi/CdiBackend.js"></script>
 
+      <!-- Painel "ainda dentro" do CDI: carrega ANTES do BibliotecaView,
+           que o consome. O CDI é o único ponto com fechamento real. -->
+      <script type="text/babel" src="js/components/FinDeJournee.js?v=1"></script>
       <script type="text/babel" src="js/cdi/BibliotecaView.js"></script>
 
       <!-- App -->

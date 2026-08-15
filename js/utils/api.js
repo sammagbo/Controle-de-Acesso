@@ -244,6 +244,34 @@ async function fetchInfirmaryVisits(filters = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// fetchFinDeJournee(pointId, date?) — GET /api/presence/auto-close/preview
+//
+// ⚠️ TRES estados distintos, e a tela precisa dos tres:
+//   • null  → o ponto NAO tem fechamento configurado; a pergunta nao se aplica
+//             ali (o backend devolve 204). Mostrar "ninguem sera fechado" seria
+//             mentira com cara de boa noticia.
+//   • []    → tem fechamento e nao ha ninguem aberto. Boa noticia de verdade.
+//   • [...] → a lista.
+// Colapsar 204 em [] apagaria a diferenca entre "esta tudo certo" e "isto aqui
+// nunca fecha ninguem".
+// ─────────────────────────────────────────────────────────────
+async function fetchFinDeJournee(pointId, date) {
+    try {
+        const params = new URLSearchParams({ pointId });
+        if (date) params.set('date', date);
+        const res = await fetch(`${API_BASE}/presence/auto-close/preview?${params.toString()}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+        });
+        if (res.status === 204) return null;   // ponto sem fechamento configurado
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        console.error('[API] fetchFinDeJournee error:', e);
+        return null;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
 // MEAL ENTITLEMENTS (Phase H)
 // ─────────────────────────────────────────────────────────────
 

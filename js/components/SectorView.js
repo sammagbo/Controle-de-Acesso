@@ -58,6 +58,11 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
             }
       };
 
+      // ── FIM DE JORNADA: quem ainda está dentro, antes de o sistema fechar ──
+      // O componente decide sozinho se aparece: pergunta ao backend e some
+      // quando o ponto não tem fechamento configurado (204). Não há lista de
+      // pontos espelhada aqui — ela envelheceria em relação às properties.
+
       // ── RÉGIME DE SORTIE, ao vivo, no portão ──────────────────────────
       // ⚠️ SEM UM CLIQUE A MAIS. O veredicto chega sozinho, no mesmo ciclo em
       // que a passagem aparece: com duzentos alunos em movimento, qualquer
@@ -174,6 +179,10 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                               {t('regime.portao.indisponivel')}
                         </p>
                   )}
+
+                  {/* Quem ainda está dentro e vai ser fechado. Some sozinho
+                      nos pontos sem fechamento configurado. */}
+                  <FinDeJournee pointId={point.id} />
 
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* LEFT PANEL — Action */}

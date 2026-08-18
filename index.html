@@ -160,6 +160,9 @@
       <!-- Local Backend (Single App Mode) -->
       <script type="text/babel" src="js/cdi/CdiBackend.js"></script>
 
+      <!-- Painel "ainda dentro" do CDI: carrega ANTES do BibliotecaView,
+           que o consome. O CDI é o único ponto com fechamento real. -->
+      <script type="text/babel" src="js/components/FinDeJournee.js?v=1"></script>
       <script type="text/babel" src="js/cdi/BibliotecaView.js"></script>
 
       <!-- App -->

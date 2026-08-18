@@ -304,4 +304,86 @@ class PresenceAutoCloseIT extends AbstractIT {
                 .build());
     }
 
+
+    // ─────────────────────────────────────────────────────────────
+    // A PREVISAO — ver antes de fechar
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * ★★★ PREVER NAO PODE FECHAR.
+     *
+     * A tela existe para a Vie Scolaire olhar as 16h40 e ainda dar tempo de ir
+     * ao CDI. Uma tela de conferencia que grava o que conferiu nao e' uma tela
+     * de conferencia: bastaria alguem abri-la para que as SAIDAs sinteticas
+     * fossem carimbadas ANTES da hora, e a crianca constaria como tendo saido
+     * as 17:00 num momento em que ela estava sentada la' dentro.
+     *
+     * Ate 15/08/2026 nao havia como nem perguntar: o calculo so' existia dentro
+     * do metodo que gravava.
+     */
+    @Test
+    @DisplayName("★★★ candidatos() NAO grava nada — a previsao e' leitura pura")
+    void previsaoNaoFecha() {
+        entrada("0004048", LocalTime.of(14, 0));
+        long antes = accessLogRepository.count();
+
+        var previstos = autoCloseService.candidatos(CDI, ONTEM);
+
+        assertThat(previstos)
+                .as("a pessoa esta' aberta e apareceria na tela")
+                .hasSize(1);
+        assertThat(accessLogRepository.count())
+                .as("e NADA foi gravado por ter perguntado")
+                .isEqualTo(antes);
+        assertThat(accessLogRepository.findAll())
+                .as("nenhuma SAIDA de fechamento existe ainda")
+                .noneMatch(l -> PresenceAutoCloseService.FLAG_FECHAMENTO.equals(l.getFlag()));
+    }
+
+    /**
+     * ★★★ A PREVISAO E' A MESMA LISTA QUE O FECHAMENTO USA.
+     *
+     * Se a tela dissesse "quatro" e o fechamento gravasse tres, a tela seria
+     * pior do que nao existir — ela estaria nomeando alguem que nao vai ser
+     * fechado, e a Vie Scolaire iria procurar uma pessoa a toa. E' por isso que
+     * `closePoint` chama `candidatos` em vez de repetir o criterio: nao ha um
+     * segundo criterio, escrito noutro lugar, que possa divergir.
+     */
+    @Test
+    @DisplayName("★★★ o que a previsao mostra e' EXATAMENTE o que o fechamento grava")
+    void previsaoBateComOFechamento() {
+        entrada("0004048", LocalTime.of(14, 0));
+        entrada("0004049", LocalTime.of(14, 5));
+        // O segundo saiu de verdade: nao aparece na previsao nem e' fechado.
+        saida("0004049", LocalTime.of(15, 0));
+
+        int previstos = autoCloseService.candidatos(CDI, ONTEM).size();
+        int fechados = autoCloseService.closePoint(CDI, ONTEM, FECHAMENTO);
+
+        assertThat(previstos).as("so o primeiro ficou aberto").isEqualTo(1);
+        assertThat(fechados)
+                .as("a previsao prometeu %d e o fechamento gravou %d", previstos, fechados)
+                .isEqualTo(previstos);
+    }
+
+    /**
+     * ★★ Depois do fechamento a previsao esvazia — e o "ja' fechados" responde.
+     *
+     * Sem a segunda metade, a tela diria "ninguem" as 17h05 para um dia em que
+     * quatro pessoas foram fechadas. A pergunta "quem fechamos hoje?" continua
+     * valendo no dia seguinte, quando alguem for conferir.
+     */
+    @Test
+    @DisplayName("★★ depois de fechar: previsao vazia, e a lista do que foi fechado responde")
+    void depoisDeFecharAsDuasMetades() {
+        entrada("0004048", LocalTime.of(14, 0));
+        autoCloseService.closePoint(CDI, ONTEM, FECHAMENTO);
+
+        assertThat(autoCloseService.candidatos(CDI, ONTEM))
+                .as("ninguem mais para fechar — a idempotencia ja' garantia isto")
+                .isEmpty();
+        assertThat(autoCloseService.jaFechadas(CDI, ONTEM))
+                .as("mas a tela ainda sabe dizer QUEM foi fechado")
+                .hasSize(1);
+    }
 }

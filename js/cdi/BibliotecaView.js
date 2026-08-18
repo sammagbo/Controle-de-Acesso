@@ -420,6 +420,16 @@ function BibliotecaView({ onBack }) {
 
                   {toast && <CdiToast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+                  {/* ⚠️ AQUI, e não no SectorView. O painel "ainda dentro" nasceu
+                      montado no SectorView, e o CDI — o ÚNICO ponto com
+                      fechamento automático real (BIBLIO, 17:00) — nunca chega
+                      lá: o App.js devolve esta tela antes (js/App.js:358). O
+                      painel existia exatamente onde não tinha o que mostrar.
+                      Apanhado pelo painel de revisão (Vie Scolaire) em 15/08. */}
+                  <div className="px-6 pt-4">
+                        <FinDeJournee pointId="BIBLIO" />
+                  </div>
+
                   {/* CDI Header */}
                   <header className="h-12 bg-white border-b flex items-center justify-between px-5 shrink-0">
                         <div className="flex items-center gap-3">

@@ -106,6 +106,51 @@ public class PresenceAutoCloseService {
             return 0;
         }
 
+        LocalDateTime carimbo = dia.atTime(horaDeFechamento);
+        List<AccessLog> sinteticas = new ArrayList<>();
+        for (AccessLog entrada : candidatos(pointId, dia)) {
+            sinteticas.add(AccessLog.builder()
+                    .userId(entrada.getUserId())
+                    .pointId(pointId)
+                    .action(AccessAction.SAIDA)
+                    .timestamp(carimbo)
+                    .flag(FLAG_FECHAMENTO)
+                    .createdByUser(AUTOR_SISTEMA)
+                    .build());
+        }
+
+        if (sinteticas.isEmpty()) return 0;
+        accessLogRepository.saveAll(sinteticas);
+        return sinteticas.size();
+    }
+
+    /**
+     * QUEM SERIA FECHADO — sem fechar nada.
+     *
+     * ⚠️ ESTE METODO EXISTE PARA QUE A LISTA POSSA SER VISTA ANTES. Ate
+     * 15/08/2026 este calculo so' existia DENTRO de {@link #closePoint}: nao
+     * havia como perguntar "quem esta' aberto no CDI?" sem que a pergunta
+     * gravasse as SAIDAs sinteticas. Uma tela de conferencia que altera o que
+     * conferiu nao e' uma tela de conferencia.
+     *
+     * ⚠️ E' LEITURA PURA, e tem de continuar sendo. Nada de @Transactional que
+     * escreva, nada de efeito colateral, nada de "aproveitar que ja' carregou".
+     * O `closePoint` chama exatamente este metodo — sao a MESMA lista, e e' por
+     * isso que a previsao pode ser confiada: nao ha um segundo criterio,
+     * escrito noutro lugar, que possa divergir deste.
+     *
+     * A regra (inalterada): a pessoa entra na lista quando o ULTIMO evento dela
+     * no ponto, dentro do dia, e' uma ENTRADA, e quando ela ainda nao tem uma
+     * SAIDA de fechamento automatico gravada naquele dia. A lista vem em ordem
+     * crescente do repositorio, entao o `put` repetido deixa naturalmente o
+     * ultimo evento de cada pessoa.
+     *
+     * @return as ENTRADAS que ficaram abertas — a linha original de cada pessoa,
+     *         com a hora em que ela entrou.
+     */
+    public List<AccessLog> candidatos(String pointId, LocalDate dia) {
+        if (pointId == null || pointId.isBlank() || dia == null) return List.of();
+
         List<AccessLog> doDia = accessLogRepository.findByPointIdAndTimestampBetweenOrderByTimestampAsc(
                 pointId, dia.atStartOfDay(), dia.atTime(LocalTime.MAX));
 
@@ -121,23 +166,36 @@ public class PresenceAutoCloseService {
             }
         }
 
-        LocalDateTime carimbo = dia.atTime(horaDeFechamento);
-        List<AccessLog> sinteticas = new ArrayList<>();
+        List<AccessLog> abertas = new ArrayList<>();
         ultimoPorUsuario.forEach((userId, ultimo) -> {
             if (ultimo.getAction() != AccessAction.ENTRADA) return;
             if (jaFechados.contains(userId)) return;
-            sinteticas.add(AccessLog.builder()
-                    .userId(userId)
-                    .pointId(pointId)
-                    .action(AccessAction.SAIDA)
-                    .timestamp(carimbo)
-                    .flag(FLAG_FECHAMENTO)
-                    .createdByUser(AUTOR_SISTEMA)
-                    .build());
+            abertas.add(ultimo);
         });
+        return abertas;
+    }
 
-        if (sinteticas.isEmpty()) return 0;
-        accessLogRepository.saveAll(sinteticas);
-        return sinteticas.size();
+    /**
+     * As SAIDAS de fechamento automatico ja' gravadas neste ponto, neste dia.
+     *
+     * A tela precisa das duas metades: quem AINDA vai ser fechado (candidatos) e
+     * quem JA' foi. Depois das 17:00 a primeira lista fica vazia, e sem a
+     * segunda a tela diria "ninguem" para um dia em que quatro pessoas foram
+     * fechadas — a pergunta "quem fechamos hoje?" continua valendo no dia
+     * seguinte, quando alguem for conferir.
+     */
+    public List<AccessLog> jaFechadas(String pointId, LocalDate dia) {
+        if (pointId == null || pointId.isBlank() || dia == null) return List.of();
+        return accessLogRepository
+                .findByPointIdAndTimestampBetweenOrderByTimestampAsc(
+                        pointId, dia.atStartOfDay(), dia.atTime(LocalTime.MAX))
+                .stream()
+                .filter(l -> l.getAction() == AccessAction.SAIDA && FLAG_FECHAMENTO.equals(l.getFlag()))
+                .toList();
+    }
+
+    /** O mapa de pontos com fechamento configurado, ou vazio se o recurso esta' desligado. */
+    public Map<String, LocalTime> pontosComFechamento() {
+        return properties.isEnabled() ? properties.parsedTimes() : Map.of();
     }
 }

@@ -45,6 +45,7 @@ const MIGRADAS = [
     'js/cdi/LockScreen.js',
     'js/cdi/HistoryModal.js',
     'js/components/SectorView.js',
+    'js/components/FinDeJournee.js',
     'js/components/AccessModals.js',
     'js/components/CantineMonitor.js',
     'js/cdi/StudentManagerModal.js',

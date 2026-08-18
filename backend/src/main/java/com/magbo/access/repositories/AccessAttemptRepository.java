@@ -3,6 +3,8 @@ package com.magbo.access.repositories;
 import com.magbo.access.models.AccessAttempt;
 import com.magbo.access.models.DenialReason;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -12,6 +14,33 @@ import java.util.List;
 public interface AccessAttemptRepository extends JpaRepository<AccessAttempt, Long> {
 
     long countByTimestampGreaterThanEqual(LocalDateTime start);
+
+    /**
+     * NEGADAS de verdade — tudo menos o que e' apenas OBSERVACAO de que o MAGBO
+     * NAO SABE.
+     *
+     * ⚠️ REGIME_TO_VERIFY NAO E' RECUSA, e conta-la como tal conta contra o
+     * aluno uma limitacao do sistema. Ela nasce do regime 2 (semi-libre), cuja
+     * saida depende de ter havido ausencia de professor — informacao que vive
+     * na grade do Pronote e nunca chegou aqui. O MAGBO nao DISCORDA daquela
+     * saida: ele nao sabe, grava OBSERVATION (jamais DENIED) e diz isso na
+     * tela. Somada ao numero chamado "tentativas negadas", ela transformava
+     * "faltou-me um dado" em "esta crianca foi barrada" — e e' esse numero que
+     * a direcao le.
+     *
+     * As demais OBSERVATION continuam contadas: elas registram algo que TERIA
+     * sido negado se a politica estivesse em DENY, e e' isso que a direcao
+     * precisa ver antes de virar a chave. A diferenca nao e' o
+     * authorization_result: e' o motivo.
+     */
+    @Query("SELECT COUNT(a) FROM AccessAttempt a WHERE a.timestamp >= :start "
+         + "AND a.denialReason <> com.magbo.access.models.DenialReason.REGIME_TO_VERIFY")
+    long countNegadasSince(@Param("start") LocalDateTime start);
+
+    /** Quantas vezes o MAGBO registrou "nao sei" no portao hoje (regime 2). */
+    @Query("SELECT COUNT(a) FROM AccessAttempt a WHERE a.timestamp >= :start "
+         + "AND a.denialReason = com.magbo.access.models.DenialReason.REGIME_TO_VERIFY")
+    long countAVerificarSince(@Param("start") LocalDateTime start);
 
     long countByDenialReasonAndTimestampGreaterThanEqual(DenialReason reason, LocalDateTime start);
 

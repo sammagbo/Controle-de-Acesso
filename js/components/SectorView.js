@@ -69,20 +69,43 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
       const [veredictos, setVeredictos] = React.useState([]);
       const [falhouRegime, setFalhouRegime] = React.useState(false);
 
+      // A trava e o ponto corrente vivem em REFS, para sobreviverem às
+      // remontagens do efeito — é a sobrevivência que conserta o descarte de
+      // resposta boa. Ver js/utils/travaDeVoo.js.
+      const travaRegime = React.useRef(null);
+      if (travaRegime.current === null) travaRegime.current = window.MagboTravaDeVoo.criar();
+      const pontoAtualRef = React.useRef(point.id);
+      pontoAtualRef.current = point.id;
+
       React.useEffect(() => {
             if (!ehPortao || !window.api?.veredictosNoPortao) { setVeredictos([]); return; }
-            let vivo = true;
-            const buscar = async () => {
-                  const v = await window.api.veredictosNoPortao(point.id, 20);
-                  if (!vivo) return;
-                  // null = a consulta FALHOU; [] = não há saída de aluno hoje.
-                  // Sem distinguir, uma falha de rede fica idêntica a "está tudo
-                  // certo" na tela onde isso mais custa.
-                  setFalhouRegime(v === null);
-                  setVeredictos(Array.isArray(v) ? v : []);
-            };
-            buscar();
-            return () => { vivo = false; };
+            // Uma requisição no ar bloqueia a próxima. Sem isto, um endpoint
+            // mais lento que o ciclo de 3s empilha chamadas até esgotar as ~6
+            // conexões do navegador — e o polling de logos de que a tela
+            // depende passa fome.
+            if (!travaRegime.current.entrar()) return;
+            const pontoPedido = point.id;
+            (async () => {
+                  try {
+                        const v = await window.api.veredictosNoPortao(pontoPedido, 20);
+                        // ⚠️ Compara o PONTO, não "o efeito ainda está vivo". A
+                        // resposta do mesmo ponto serve mesmo que o efeito que a
+                        // pediu já tenha sido substituído por outro ciclo —
+                        // descartá-la é o que congelava a faixa com a rede
+                        // trabalhando.
+                        if (!travaRegime.current.aplicavel(pontoPedido, pontoAtualRef.current)) return;
+                        // null = a consulta FALHOU; [] = não há saída de aluno hoje.
+                        // Sem distinguir, uma falha de rede fica idêntica a "está
+                        // tudo certo" na tela onde isso mais custa.
+                        setFalhouRegime(v === null);
+                        setVeredictos(Array.isArray(v) ? v : []);
+                  } finally {
+                        // SEMPRE — uma falha que deixasse a trava fechada
+                        // congelaria a faixa para sempre, que é pior do que o
+                        // defeito que a trava conserta.
+                        travaRegime.current.sair();
+                  }
+            })();
             // ⚠️ SEM setInterval PRÓPRIO. `accessLogs` está nas dependências e o
             // App.js recarrega os logs a cada 3s trocando o array — este efeito
             // já roda naquele ritmo. Com o intervalo TAMBÉM montado aqui eram

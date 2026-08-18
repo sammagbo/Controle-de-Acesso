@@ -11,7 +11,7 @@ const path = require('path');
 //   NODE_ENV       — 'production' enables kiosk mode
 // =====================================================================
 
-const MAGBO_API_URL = process.env.MAGBO_API_URL || 'http://localhost:8080';
+const MAGBO_API_URL = process.env.MAGBO_API_URL || 'http://192.168.1.253:8080';
 const MAGBO_SECTOR = process.env.MAGBO_SECTOR || 'PORT1';
 const MAGBO_KIOSK_PIN = process.env.MAGBO_KIOSK_PIN || '1234';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';

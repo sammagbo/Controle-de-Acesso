@@ -55,26 +55,7 @@ para **Index Scan, 5 buffers, ~0,05 ms**.
 
 ### ⚠️ A V018 é a SEGUNDA sem transação, e vem com metade da correção no Java
 
-O índice `(timestamp)` resolve metade do problema do Painel Administrativo. A outra metade é
-uma linha em `AccessLogRepository.countActiveUsersSince`: o anti-join tinha limite de tempo só
-**correlacionado** (`b.timestamp > a.timestamp`), nunca constante — e o planejador não deriva
-transitividade através de subconsulta correlacionada, então materializava **todas** as 216 mil
-SAIDAs da tabela. Aplicar a migração sem o jar novo deixa a metade cara de pé.
-
-Medido em 15/08/2026 num Postgres local com os 439.993 registros reais, as quatro consultas do
-mesmo tique de 5 segundos:
-
-⚠️ Medido **num dia letivo cheio** (29/01/2026, 3.457 passagens), três execuções de cada. Uma
-versão anterior desta tabela trazia números medidos numa janela quase vazia e anunciava ~200×;
-o ganho real é **2,3×**, e o anti-join quase não melhora com movimento.
-
-| | antes | depois | |
-|---|---|---|---|
-| `countRelevantesSince` | ~19,8 ms | ~1,1 ms | ~18× |
-| `countBlockedSince` | ~18,3 ms | ~0,5 ms | ~37× |
-| `countActiveUsersSince` (anti-join) | ~48,8 ms | ~43,4 ms | ~1,1× |
-| `findFilteredLogs` (últimos 500) | ~31,1 ms | ~0,6 ms | ~52× |
-| **total do tique** | **~118 ms** | **~46 ms** | **~2,3×** |
+### ⚠️ A V017 fecha a ÚNICA divergência de schema conhecida entre duas instalações
 
 ### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
 
@@ -110,6 +91,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018__access_logs_indice_hora.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017__student_regimes_enum_checks.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -123,6 +105,7 @@ cabeçalho do próprio V012.
 ## 3. Ordem de aplicação
 
 Aplicar **na ordem** V001 → V018. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V017. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -145,6 +128,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V014_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015__denial_reason_regime.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018__access_logs_indice_hora.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017__student_regimes_enum_checks.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -163,6 +147,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018_
 | `V012__exit_permission_two_authorities.sql` | `student_exit_permissions`: +`authorized_by_family`, +`authorized_by_school`, **−`reason`** | Duas autoridades |
 | `V013__password_reset_requests.sql` | tabela `password_reset_requests` + CHECK de status | Esqueci a senha |
 | `V018__access_logs_indice_hora.sql` | índice `(timestamp)` em `access_logs` — o tique de 5s do painel | Painel administrativo |
+| `V017__student_regimes_enum_checks.sql` | os **6 CHECK de enum** que a `V014` não criou em `student_regimes` / `student_regime_events` | Uma verdade de schema |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

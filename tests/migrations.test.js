@@ -130,4 +130,142 @@ describe('migrações — o procedimento existe e está completo', () => {
             expect(sobrando, `No CHECK e não no enum: ${sobrando.join(', ')}`).toEqual([]);
         });
     });
+
+    /**
+     * ★★★ A REGRA GERAL — e o defeito que ela teria apanhado no dia.
+     *
+     * O bloco acima cobre UMA coluna (denial_reason), porque foi ela que doeu
+     * primeiro. A V014 mostrou que a regra é mais larga: ela criou
+     * student_regimes e student_regime_events À MÃO, com seis colunas de enum
+     * declaradas só como VARCHAR(32), e ninguém percebeu por três semanas.
+     *
+     * ⚠️ QUANDO UMA MIGRAÇÃO CRIA A TABELA, ELA PASSA A SER A AUTORA DO SCHEMA
+     * NAQUELE AMBIENTE — e o Hibernate não corrige depois: `ddl-auto=update`
+     * acrescenta coluna e tabela, nunca CHECK em tabela que já existe. O
+     * resultado são DUAS VERDADES: uma VM atualizada pelo procedimento fica sem
+     * o CHECK; uma VM nova (e o PC, e o H2 da suíte) nasce com ele, escrito pelo
+     * Hibernate a partir do @Enumerated(STRING).
+     *
+     * ⚠️ E a falha é INVERTIDA em relação à do denial_reason. Lá o CHECK existia
+     * e estava estreito: quebrava a VM e o PC ficava verde. Aqui o CHECK não
+     * existe na VM: no dia em que alguém acrescentar um valor ao enum, quebra o
+     * PC e a SUÍTE, e a VM aceita em silêncio — o valor novo entra na base de
+     * produção sem nunca ter passado por uma verificação. "Falha na minha
+     * máquina, funciona em produção" é o sintoma que ninguém procura.
+     *
+     * Este teste é a única coisa que faz a assimetria doer no minuto em que ela
+     * nasce, em vez de em setembro, na mão de quem herdar o sistema.
+     */
+    describe('★★★ toda coluna de enum de tabela CRIADA por migração tem CHECK', () => {
+        const MODELS = path.join(REPO, 'backend/src/main/java/com/magbo/access/models');
+
+        const semComentarios = (txt) => txt
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/\/\/.*$/gm, '');
+
+        /** Tabelas que alguma migração CRIA (e não apenas altera). */
+        function tabelasCriadasPorMigracao() {
+            const nomes = new Set();
+            for (const f of arquivos) {
+                const txt = fs.readFileSync(path.join(DIR, f), 'utf8');
+                for (const m of txt.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_]+)/gi)) {
+                    nomes.add(m[1].toLowerCase());
+                }
+            }
+            return nomes;
+        }
+
+        /** [{ entidade, tabela, coluna, enumClasse }] de todo @Enumerated(STRING). */
+        function colunasDeEnum() {
+            const out = [];
+            for (const nome of fs.readdirSync(MODELS).filter(f => f.endsWith('.java'))) {
+                const src = semComentarios(fs.readFileSync(path.join(MODELS, nome), 'utf8'));
+                const tab = src.match(/@Table\s*\(\s*name\s*=\s*"([a-z_]+)"/);
+                if (!tab) continue;
+                // @Enumerated(...STRING) · @Column(name="x") · private <Enum> campo;
+                // Parser por LINHAS, não por regex de salto: a versão anterior
+                // deixava o [\s\S]{0,400} passar POR CIMA da coluna do enum e
+                // casar com a @Column seguinte — e então acusava
+                // `access_attempts.terminal_ip (String)` de ser enum. Aqui, do
+                // @Enumerated até o primeiro `private`, sem pular nada.
+                const linhas = src.split('\n');
+                for (let i = 0; i < linhas.length; i++) {
+                    if (!/@Enumerated\s*\([^)]*STRING/.test(linhas[i])) continue;
+                    let coluna = null, tipo = null;
+                    for (let j = i + 1; j < Math.min(i + 8, linhas.length); j++) {
+                        const c = linhas[j].match(/@Column\s*\(\s*name\s*=\s*"([a-z_]+)"/);
+                        if (c) coluna = c[1];
+                        const d = linhas[j].match(/private\s+([A-Z]\w*)\s+\w+\s*;/);
+                        if (d) { tipo = d[1]; break; }
+                    }
+                    if (coluna && tipo) {
+                        out.push({ entidade: nome.replace('.java', ''), tabela: tab[1], coluna, enumClasse: tipo });
+                    }
+                }
+            }
+            return out;
+        }
+
+        /** Valores de um enum Java, ignorando comentários. */
+        function valoresDe(enumClasse) {
+            const f = path.join(MODELS, enumClasse + '.java');
+            if (!fs.existsSync(f)) return null;
+            const corpo = semComentarios(fs.readFileSync(f, 'utf8')).split('{')[1];
+            return [...corpo.matchAll(/^\s*([A-Z][A-Z0-9_]*)\s*(?:\([^)]*\))?\s*,?\s*$/gm)].map(m => m[1]);
+        }
+
+        /** Valores citados por algum CHECK de migração sobre aquela coluna. */
+        function valoresNoCheck(coluna) {
+            let achou = null;
+            for (const f of arquivos) {
+                const txt = fs.readFileSync(path.join(DIR, f), 'utf8');
+                const re = new RegExp(coluna + "\\s+IN\\s*\\(([^)]*)\\)", 'i');
+                const m = txt.match(re);
+                if (m) achou = [...m[1].matchAll(/'([A-Z0-9_]+)'/g)].map(x => x[1]);
+            }
+            return achou;
+        }
+
+        it('o cenário faz sentido (há tabelas criadas por migração e colunas de enum)', () => {
+            expect(tabelasCriadasPorMigracao().size).toBeGreaterThan(3);
+            expect(colunasDeEnum().length).toBeGreaterThan(10);
+        });
+
+        it('★★★ nenhuma coluna de enum fica sem CHECK numa tabela que a migração cria', () => {
+            const criadas = tabelasCriadasPorMigracao();
+            const alvo = colunasDeEnum().filter(c => criadas.has(c.tabela));
+            expect(alvo.length,
+                'nenhuma coluna alvo encontrada — o parser quebrou, não é que esteja tudo certo')
+                .toBeGreaterThan(5);
+
+            const semCheck = alvo
+                .filter(c => valoresNoCheck(c.coluna) === null)
+                .map(c => `${c.tabela}.${c.coluna} (${c.enumClasse})`);
+
+            expect(semCheck,
+                `Colunas de enum sem CHECK em migração: ${semCheck.join(', ')}. `
+                + 'A migração que CRIA a tabela é a autora do schema naquele ambiente, e o '
+                + 'Hibernate não corrige depois (ddl-auto=update nunca altera CHECK existente). '
+                + 'Sem o CHECK, uma VM atualizada e uma VM nova ficam com schemas DIFERENTES — e '
+                + 'no dia em que o enum ganhar um valor, quebra o PC e a suíte enquanto a VM '
+                + 'aceita em silêncio. Molde: V017.')
+                .toEqual([]);
+        });
+
+        it('★★ e o CHECK lista EXATAMENTE os valores do enum', () => {
+            const criadas = tabelasCriadasPorMigracao();
+            const divergentes = [];
+            for (const c of colunasDeEnum().filter(c => criadas.has(c.tabela))) {
+                const noCheck = valoresNoCheck(c.coluna);
+                const noEnum = valoresDe(c.enumClasse);
+                if (!noCheck || !noEnum) continue;
+                const faltando = noEnum.filter(v => !noCheck.includes(v));
+                const sobrando = noCheck.filter(v => !noEnum.includes(v));
+                if (faltando.length || sobrando.length) {
+                    divergentes.push(`${c.tabela}.${c.coluna}: falta [${faltando}] sobra [${sobrando}]`);
+                }
+            }
+            expect(divergentes, divergentes.join(' · ')).toEqual([]);
+        });
+    });
 });

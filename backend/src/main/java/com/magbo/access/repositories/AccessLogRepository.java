@@ -293,6 +293,26 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     // ⚠️ As ENTRADAs de posto fixo saem da contagem, mas as SAIDAs marcadas
     // continuam FECHANDO no NOT EXISTS: uma saida real fecha a presenca tenha
     // ela flag ou nao. Excluir dos dois lados deixaria de pe quem ja saiu.
+    //
+    // ⚠️ O `b.timestamp >= :start` do NOT EXISTS NAO MUDA O RESULTADO — e essa e
+    // exatamente a razao de ele existir. Por transitividade
+    // (b.timestamp > a.timestamp >= :start) ele ja era verdade para toda linha
+    // que o NOT EXISTS poderia encontrar; nenhuma linha entra nem sai da
+    // contagem. Mas o planejador NAO deriva transitividade atraves de uma
+    // subconsulta correlacionada: sem o predicado constante ele materializava
+    // TODAS as SAIDAs da tabela — 216 mil linhas em hash — para casar contra as
+    // poucas ENTRADAs do dia.
+    //
+    // Medido num Postgres local com os 439.993 registros reais (15/08/2026):
+    //   sem esta linha   Parallel Hash Anti Join · 7529 paginas · 44,4 ms
+    //   com esta linha   Merge Anti Join         · 1584 paginas ·  3,3 ms
+    //   + indice V018 (timestamp)                ·   11 paginas ·  0,134 ms
+    // Esta consulta roda a cada 5 segundos, por painel administrativo aberto.
+    //
+    // ⚠️ NAO acrescente `b.pointId = a.pointId` aqui achando que corrige um
+    // esquecimento: uma SAIDA em QUALQUER ponto fechar uma ENTRADA de outro e
+    // decisao declarada acima ("Simplificacao"), nao acidente. Mudar isso muda
+    // o NUMERO que a direcao le, e e outra conversa.
     @Query("""
         SELECT COUNT(DISTINCT a.userId) FROM AccessLog a
         WHERE a.timestamp >= :start
@@ -302,6 +322,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
               SELECT 1 FROM AccessLog b
               WHERE b.userId = a.userId
                 AND b.timestamp > a.timestamp
+                AND b.timestamp >= :start
                 AND b.action = com.magbo.access.models.AccessAction.SAIDA
           )
     """)

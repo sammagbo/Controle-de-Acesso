@@ -1,0 +1,23 @@
+-- =====================================================================
+-- R018 — desfaz V018 (índice (timestamp) em access_logs)
+-- =====================================================================
+-- Só derruba um índice: nenhum dado se perde. O Painel Administrativo volta a
+-- ler ~12.900 páginas (~100 MB) e ~91 ms a cada 5 segundos, por painel aberto —
+-- as quatro consultas do tique voltam a varrer a tabela.
+--
+-- ⚠️ CONCURRENTLY também aqui, e portanto SEM BEGIN/COMMIT: um DROP INDEX comum
+-- pega lock exclusivo na tabela e trava o webhook enquanto durar.
+--
+-- Uso legítimo: o índice ficou INVÁLIDO porque o CREATE CONCURRENTLY foi
+-- interrompido. Derrubar e recriar é o procedimento — índice inválido não é
+-- usado pelo planejador e continua ocupando espaço.
+--
+--   SELECT indisvalid FROM pg_index
+--    WHERE indexrelid = 'idx_access_logs_hora'::regclass;   → f = inválido
+--
+-- ⚠️ Derrubar este índice NÃO desfaz a correção do anti-join
+-- (`AND b.timestamp >= :start` em AccessLogRepository.countActiveUsersSince):
+-- ela vive no Java e é a metade que economiza mais. As duas são independentes.
+-- =====================================================================
+
+DROP INDEX CONCURRENTLY IF EXISTS idx_access_logs_hora;

@@ -28,4 +28,21 @@ public class GlobalStats {
     private long alertasHoje;       // = mesmo valor de blockedToday
     private long negadasHoje;       // total de access_attempts hoje
     private long divergenciaHoje;   // auth_result=SUCCESS AND authorization_result=DENIED
+
+    /**
+     * Quantas vezes o MAGBO registrou "NAO SEI" no portao hoje (regime 2).
+     *
+     * ⚠️ Sai de `negadasHoje` de proposito. Nao e' recusa — o MAGBO nao
+     * discorda daquela saida, falta-lhe a grade horaria. Contada a' parte para
+     * que o numero continue visivel (some-la seria esconder um rastro que o AED
+     * pediu) sem que ela infle o contador que a direcao le como "barrados".
+     */
+    // ⚠️ `verificarHoje`, e NAO `aVerificarHoje`/`aVerifierHoje`: um campo cujo
+    // nome comeca com UMA letra minuscula seguida de maiuscula gera o getter
+    // `getAVerifierHoje()`, e o Jackson o serializa como `averifierHoje` — com
+    // o A minusculo colado. Medido em 15/08/2026: a primeira versao deste campo
+    // simplesmente NAO APARECIA no JSON sob o nome esperado, e o front leria
+    // `undefined || 0` para sempre, sem erro nenhum, mostrando zero num
+    // contador que tem valor.
+    private long verificarHoje;
 }

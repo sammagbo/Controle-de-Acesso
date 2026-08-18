@@ -85,6 +85,60 @@ class StatsCompatIT extends AbstractIT {
                 .andExpect(jsonPath("$.divergenciaHoje").value(1));
     }
 
+    /**
+     * ★★★ "NAO SEI" NAO E' "BARRADO".
+     *
+     * REGIME_TO_VERIFY nasce do regime 2 (semi-libre): a saida depende de ter
+     * havido ausencia de professor, informacao que vive na grade do Pronote e
+     * nunca chegou aqui. O MAGBO nao DISCORDA daquela saida — ele grava
+     * OBSERVATION, nunca DENIED, e diz na tela que nao sabe.
+     *
+     * ⚠️ Ate 15/08/2026 essa linha entrava em `negadasHoje`, o numero que o
+     * painel intitula "tentativas negadas" e que a direcao le. Contar ali uma
+     * limitacao do SISTEMA como se fosse conduta do ALUNO e' o tipo de erro que
+     * ninguem percebe olhando a tela: o numero e' plausivel, so' esta errado
+     * sobre quem.
+     *
+     * O numero NAO some — ele continua visivel em `verificarHoje` e no card,
+     * escrito como "a verificar, nao e' recusa". Esconder o rastro seria o
+     * defeito oposto, e o AED pediu justamente para ve-lo.
+     */
+    @Test
+    @DisplayName("★★★ REGIME_TO_VERIFY sai de negadasHoje e aparece em verificarHoje")
+    void aVerificarNaoEhNegada() throws Exception {
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+
+        // Uma tentativa qualquer que E' recusa.
+        accessAttemptRepository.save(com.magbo.access.models.AccessAttempt.builder()
+                .employeeNoRaw("0000001")
+                .pointId("REFEI1")
+                .action(AccessAction.ENTRADA)
+                .authResult(com.magbo.access.models.AuthResult.SUCCESS)
+                .authorizationResult(com.magbo.access.models.AuthorizationResult.DENIED)
+                .denialReason(com.magbo.access.models.DenialReason.MEAL_NOT_ENTITLED)
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
+
+        // Duas observacoes de "nao sei" no portao.
+        for (int i = 0; i < 2; i++) {
+            accessAttemptRepository.save(com.magbo.access.models.AccessAttempt.builder()
+                    .employeeNoRaw("000000" + (2 + i))
+                    .pointId("PORT1")
+                    .action(AccessAction.SAIDA)
+                    .authResult(com.magbo.access.models.AuthResult.SUCCESS)
+                    .authorizationResult(com.magbo.access.models.AuthorizationResult.OBSERVATION)
+                    .denialReason(com.magbo.access.models.DenialReason.REGIME_TO_VERIFY)
+                    .timestamp(java.time.LocalDateTime.now())
+                    .build());
+        }
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/stats/global")
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.negadasHoje").value(1))
+                .andExpect(jsonPath("$.verificarHoje").value(2));
+    }
+
     @Test
     @DisplayName("/api/stats/global sem token -> negado (403, endpoint ADMIN)")
     void semTokenEhNegado() throws Exception {

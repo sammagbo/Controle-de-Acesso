@@ -18,7 +18,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
       const [stats, setStats] = React.useState({ 
             totalToday: 0, activeUsers: 0, totalUsers: 0, 
             blockedToday: 0, authorizedToday: 0,
-            alertasHoje: 0, negadasHoje: 0, divergenciaHoje: 0
+            alertasHoje: 0, negadasHoje: 0, divergenciaHoje: 0, verificarHoje: 0
       });
       const [loadingLogs, setLoadingLogs] = React.useState(true);
       const [loadingSync, setLoadingSync] = React.useState(false);
@@ -77,6 +77,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     authorizedToday: s.authorizedToday ?? (s.totalToday ?? 0),
                                     alertasHoje: s.alertasHoje || 0,
                                     negadasHoje: s.negadasHoje || 0,
+                                    verificarHoje: s.verificarHoje || 0,
                                     divergenciaHoje: s.divergenciaHoje || 0
                               });
                         }
@@ -354,6 +355,16 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     <div>
                                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('admin.kpi.negadas')}</p>
                                           <p className="text-3xl font-black text-navy-500 leading-tight">{stats.negadasHoje}</p>
+                                          {/* ⚠️ O "não sei" fica FORA do número
+                                              acima e VISÍVEL aqui. Somá-lo
+                                              contaria contra o aluno uma
+                                              limitação do sistema; escondê-lo
+                                              apagaria o rastro que o AED pediu. */}
+                                          {stats.verificarHoje > 0 && (
+                                                <p className="text-[10px] text-accent-700 font-bold mt-0.5">
+                                                      {t('admin.kpi.averificar', { n: stats.verificarHoje })}
+                                                </p>
+                                          )}
                                     </div>
                               </div>
                         </div>

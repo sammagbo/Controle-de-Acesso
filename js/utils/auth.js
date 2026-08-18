@@ -20,7 +20,8 @@
       // ⚠️ O retrato do PPMS é uma lista nominativa de menores em disco. A
       // sessão terminou; ela não pode sobreviver a isso. (Painel de revisão,
       // proteção de dados, 14/08.)
-      try { localStorage.removeItem('magbo.ppms.ultimo'); } catch (e) { /* ignora */ }
+      if (typeof window !== 'undefined' && window.MagboPpmsCache) window.MagboPpmsCache.apagar();
+      else try { localStorage.removeItem('magbo.ppms.ultimo'); } catch (e) { /* ignora */ }
     _token = null;
     _user = null;
     listeners.forEach(fn => fn(null));

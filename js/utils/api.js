@@ -268,6 +268,25 @@ async function fetchFinDeJournee(pointId, date) {
     } catch (e) {
         console.error('[API] fetchFinDeJournee error:', e);
         return null;
+// fetchIncompleteMovements(filters?) — GET /api/access/incomplete-movements
+//
+// O "quais" do número que o card já mostrava. Devolve [] em falha, como as
+// irmãs acima — a tela distingue vazio de erro pelo estado que ela mesma
+// mantém, e um throw aqui derrubaria o relatório inteiro por causa de um painel.
+// ─────────────────────────────────────────────────────────────
+async function fetchIncompleteMovements(filters = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        const res = await fetch(`${API_BASE}/access/incomplete-movements?${params.toString()}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+        });
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (e) {
+        console.error('[API] fetchIncompleteMovements error:', e);
+        return [];
     }
 }
 

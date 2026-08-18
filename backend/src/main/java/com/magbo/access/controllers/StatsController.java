@@ -39,7 +39,13 @@ public class StatsController {
         long activeUsers   = accessLogRepository.countActiveUsersSince(startOfDay);
         long totalUsers    = userRepository.count();
 
-        long negadas       = accessAttemptRepository.countByTimestampGreaterThanEqual(startOfDay);
+        // ⚠️ countNegadasSince, nao countByTimestampGreaterThanEqual: o
+        // REGIME_TO_VERIFY e' o registro de que o MAGBO NAO SABE (regime 2
+        // depende da grade do Pronote), nunca uma recusa. Contado a' parte,
+        // abaixo — visivel, sem inflar o numero que a direcao le como
+        // "barrados hoje".
+        long negadas       = accessAttemptRepository.countNegadasSince(startOfDay);
+        long aVerificar    = accessAttemptRepository.countAVerificarSince(startOfDay);
         long divergencia   = accessAttemptRepository.countDivergenceSince(startOfDay);
 
         GlobalStats stats = GlobalStats.builder()
@@ -50,6 +56,7 @@ public class StatsController {
             .totalUsers(totalUsers)
             .alertasHoje(alertas)
             .negadasHoje(negadas)
+            .verificarHoje(aVerificar)
             .divergenciaHoje(divergencia)
             .build();
 

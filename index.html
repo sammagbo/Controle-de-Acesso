@@ -59,6 +59,9 @@
            init() lê a preferência da MÁQUINA no localStorage. -->
       <script type="text/babel" src="js/utils/i18n.js?v=1"></script>
       <!-- Auth Utility -->
+      <!-- Regras do retrato do PPMS (chave + quando apagar). ANTES do auth,
+           que as usa no logout. Script clássico, como o auth. -->
+      <script src="js/utils/ppmsCache.js?v=1"></script>
       <script src="js/utils/auth.js?v=1"></script>
       <!-- A ligação do i18n com o React (hook useI18n). Separada porque
            i18n.js é puro e testado sem React; esta precisa dele carregado. -->
@@ -80,6 +83,9 @@
       <script type="text/babel" src="js/utils/listPaging.js?v=1"></script>
       <script type="text/babel" src="js/utils/barChart.js?v=1"></script>
       <script type="text/babel" src="js/utils/identity.js?v=1"></script>
+      <!-- Trava de requisição em voo (SectorView). Utilitário: carrega com
+           os outros utilitários, antes de qualquer componente. -->
+      <script type="text/babel" src="js/utils/travaDeVoo.js?v=1"></script>
       <script type="text/babel" src="js/utils/postoFixo.js?v=1"></script>
       <script type="text/babel" src="js/utils/photoCache.js?v=1"></script>
       <script type="text/babel" src="js/utils/permissions.js?v=1"></script>
@@ -130,6 +136,9 @@
       <script type="text/babel" src="js/components/CantineMonitor.js?v=1"></script>
       <script type="text/babel" src="js/components/RefectoryReport.js?v=1"></script>
       <script type="text/babel" src="js/components/InfirmaryReport.js?v=1"></script>
+      <!-- A lista atrás do card de "Sorties non enregistrées". Carrega
+           ANTES do GeneralReport, que a usa. -->
+      <script type="text/babel" src="js/components/MouvementsIncomplets.js?v=1"></script>
       <script type="text/babel" src="js/components/GeneralReport.js?v=1"></script>
       <script type="text/babel" src="js/components/AccessModals.js?v=8"></script>
       <script type="text/babel" src="js/components/AdminDashboard.js?v=1"></script>

@@ -60,6 +60,7 @@ const MIGRADAS = [
     'js/components/RefectoryReport.js',
     'js/components/InfirmaryReport.js',
     'js/components/GeneralReport.js',
+    'js/components/MouvementsIncomplets.js',
     'js/cdi/BibliotecaView.js',
     'js/cdi/SettingsModal.js',
     'js/components/ImportColumnList.js',

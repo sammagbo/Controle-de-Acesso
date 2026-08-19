@@ -262,12 +262,13 @@ async function fetchFinDeJournee(pointId, date) {
         const res = await fetch(`${API_BASE}/presence/auto-close/preview?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
         });
-        if (res.status === 204) return null;   // ponto sem fechamento configurado
-        if (!res.ok) return null;
-        return await res.json();
+        // 204 = o ponto não tem fechamento configurado: a pergunta não se aplica ali.
+        if (res.status === 204) return { estado: 'NAO_APLICAVEL', linhas: [] };
+        if (!res.ok) return { estado: 'ERRO', linhas: [] };
+        return { estado: 'OK', linhas: await res.json() };
     } catch (e) {
         console.error('[API] fetchFinDeJournee error:', e);
-        return null;
+        return { estado: 'ERRO', linhas: [] };
     }
 }
 

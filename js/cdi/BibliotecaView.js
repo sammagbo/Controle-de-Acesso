@@ -432,6 +432,12 @@ function BibliotecaView({ onBack }) {
                         </div>
                         <div className="flex items-center gap-2">
                               <CdiClock />
+                              {/* ⚠️ Pastilha, e não bloco. O painel fixo custava 256 dos
+                                  761 px da tela (medido, com 31 presenças) e mostrava
+                                  dois dos 31 nomes. Aqui custa ~32 px, o número fica
+                                  à vista e a lista abre num clique de quem for agir.
+                                  O componente é o mesmo; mudou o invólucro. */}
+                              <FinDeJourneeIndicador pointId="BIBLIO" cicloMs={CDI_POLL_MS} />
                               <button onClick={() => setModal('stats')} title={t('cdi.menu.estatisticas')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="bar-chart-3" size={18} /></button>
                               <button onClick={() => setModal('students')} title={t('cdi.menu.base')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="users" size={18} /></button>
                               <button onClick={() => setModal('history')} title={t('cdi.menu.historico')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="history" size={18} /></button>
@@ -440,25 +446,6 @@ function BibliotecaView({ onBack }) {
                               <button onClick={() => setModal('settings')} title={t('cdi.cfg.titulo')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="settings" size={18} /></button>
                         </div>
                   </header>
-
-                  {/* ⚠️ AQUI, e não no SectorView. O painel "ainda dentro" nasceu
-                      montado no SectorView, e o CDI — o ÚNICO ponto com
-                      fechamento automático real (BIBLIO, 17:00) — nunca chega
-                      lá: o App.js devolve esta tela antes (js/App.js:358). O
-                      painel existia exatamente onde não tinha o que mostrar.
-                      Apanhado pelo painel de revisão (Vie Scolaire) em 15/08.
-
-                      ⚠️ E DEPOIS DO CABEÇALHO, COM TETO DE ALTURA. A primeira
-                      versão o pôs ANTES do <header>, num div sem limite: com 31
-                      presenças abertas — número real de um dia de CDI — a lista
-                      cresce até empurrar o cabeçalho, a busca e as duas colunas
-                      para fora da tela. `max-h-64 overflow-y-auto` faz o painel
-                      rolar DENTRO de si mesmo, e `shrink-0` impede que o flex
-                      column o esprema contra o conteúdo de baixo. Um painel
-                      informativo nunca pode empurrar a ferramenta de trabalho. */}
-                  <div className="px-6 pt-3 max-h-64 overflow-y-auto shrink-0">
-                        <FinDeJournee pointId="BIBLIO" />
-                  </div>
 
                   {/* Main Split View */}
                   <main className="flex-1 flex overflow-hidden">

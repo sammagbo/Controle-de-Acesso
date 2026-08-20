@@ -1,0 +1,96 @@
+-- =====================================================================
+-- V019 — ÍNDICE (user_id) em access_logs
+-- =====================================================================
+-- `access_logs` nunca teve índice em `user_id`. A V006 indexou as tabelas da
+-- camada de decisão e o seu próprio README diz, por extenso, "nenhum em
+-- `access_logs`"; a V016 acrescentou `(point_id, timestamp)` e a V018
+-- `(timestamp)`. Nenhum dos dois alcança uma busca POR PESSOA: com `point_id`
+-- na frente, o planejador não pode entrar pelo `user_id`.
+--
+-- Quem paga a conta é a aba **Personnels** (Servidores) do Painel
+-- Administrativo. `StaffAdminService.listStaff` mostra o número de passagens de
+-- cada servidor — o número que decide se o cadastro pode ser APAGADO ou apenas
+-- inativado — e até 20/08/2026 perguntava uma vez POR SERVIDOR:
+--
+--     SELECT count(*) FROM access_logs WHERE user_id = ?     × ~194
+--
+-- ⚠️ ESTA MIGRAÇÃO É A SEGUNDA METADE DE UMA CORREÇÃO, NÃO A CORREÇÃO.
+-- A primeira metade é Java, no mesmo commit: `countByUserIdIn` substitui as
+-- ~194 declarações por UMA agrupada, e `listStaff` ganhou `@Transactional`
+-- (sem ele, cada uma das ~194 contagens abria a sua própria transação).
+-- Um índice sozinho deixaria as ~194 idas e voltas de rede e as ~194
+-- transações no lugar — tornaria cada uma rápida sem mudar a FORMA que fez a
+-- tela ficar lenta. É por isso que as duas viajam juntas.
+--
+-- ── MEDIÇÃO, num Postgres local com os 439.993 registros reais ───────
+-- 194 identificadores reais, `EXPLAIN (ANALYZE, BUFFERS)` e relógio de parede
+-- do lote completo. Cada linha foi medida, nenhuma foi estimada.
+--
+--                                          PLANO                 BUFFERS    TEMPO
+--   antes  194 contagens separadas ....... Parallel Seq Scan     ~715.000   3.775 ms
+--   depois 1 consulta agrupada, SEM índice Parallel Seq Scan       3.707      359 ms
+--   depois 1 consulta agrupada, COM índice Index Only Scan           660     16,6 ms
+--   ────────────────────────────────────────────────────────────────────────────
+--   só o Java ................................................. ~10× mais rápido
+--   Java + este índice ........................................ ~227× mais rápido
+--
+-- ⚠️ O QUE O ÍNDICE FAZ SOZINHO, e é a leitura honesta dele: leva a consulta
+-- agrupada de 30 ms para 12,9 ms de servidor. O salto de 3.775 ms para 359 ms
+-- foi do JAVA. Anunciar "227×" como mérito do índice seria repetir o erro que
+-- a V018 registra no próprio cabeçalho — medir uma coisa e creditar outra.
+--
+-- ── O SEGUNDO BENEFICIÁRIO, e este é só do índice ────────────────────
+-- `deleteStaff` (StaffAdminService) consulta `countByUserId` de UMA pessoa
+-- antes de apagar, e a reclassificação faz o mesmo nas prévias. Medido:
+--
+--   SELECT count(*) FROM access_logs WHERE user_id = 'FUNC-001';
+--     antes   Parallel Seq Scan ... 3.685 buffers (~29 MB) ... ~20 ms
+--     depois  Index Only Scan .....     3 buffers .............. ~0,02 ms
+--
+-- ── POR QUE (user_id) SOZINHO ────────────────────────────────────────
+-- É o único predicado dessas consultas. Um índice mais largo
+-- (`INCLUDE (timestamp, action)`) serviria a outras perguntas, mas
+-- `access_logs` recebe passagem o dia inteiro e cada coluna a mais no índice é
+-- escrita a mais no caminho MAIS CRÍTICO do sistema — o webhook das câmeras.
+-- Custo medido do índice: **3 MB** sobre 48 MB de tabela.
+--
+-- ⚠️ SEM filtro parcial de flags, de propósito. Seria tentador excluir
+-- POSTO_FIXO/JA_PRESENTE como fazem as consultas de tela, e estaria ERRADO
+-- aqui: esta contagem responde "existe histórico?", e é ela que autoriza
+-- APAGAR o cadastro. Um porteiro cujas linhas são quase todas marcadas
+-- apareceria com zero passagens, viraria apagável, e as linhas dele ficariam
+-- órfãs de um id que já não existe. `AccessLogRepositoryQueryGuardTest` só
+-- inspeciona consultas cujo SQL contém "flag" — esta fica de fora, e com razão.
+--
+-- ── ⚠️ CONCURRENTLY, e por isso SEM BEGIN/COMMIT ─────────────────────
+-- Mesma razão da V016 e da V018: `CREATE INDEX` comum trava ESCRITAS enquanto
+-- constrói, e num dia letivo um segundo de webhook bloqueado é uma passagem que
+-- o terminal reenvia — ou perde. Este é o TERCEIRO arquivo de migração sem
+-- transação, e é deliberado.
+--
+-- ⚠️ Se falhar no meio, fica um índice INVÁLIDO — não usado e ocupando espaço.
+-- Conferir abaixo; se inválido, derrubar com R019 e repetir.
+--
+-- ADITIVA: nenhuma coluna, nenhum dado, nenhuma constraint. O PC com
+-- `ddl-auto=update` NÃO cria este índice (o Hibernate só gera os declarados em
+-- @Index, e `access_logs` não os declara) — é necessário nos DOIS ambientes.
+-- Rollback: rollback/R019__drop_access_logs_indice_user_id.sql
+-- =====================================================================
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_access_logs_user_id
+    ON access_logs (user_id);
+
+COMMENT ON INDEX idx_access_logs_user_id IS
+    'Aba Personnels: contagem de passagens por servidor, e a guarda de remocao do cadastro. Ver V019 para a medicao.';
+
+-- ── Conferência depois de aplicar ────────────────────────────────────
+-- 1. Existe e é VÁLIDO (f = construção interrompida — R019 e repetir):
+--      SELECT indisvalid FROM pg_index
+--       WHERE indexrelid = 'idx_access_logs_user_id'::regclass;
+--
+-- 2. O planejador passou a usá-lo:
+--      EXPLAIN (ANALYZE, BUFFERS)
+--        SELECT count(*) FROM access_logs WHERE user_id = 'FUNC-001';
+--    Deve aparecer "Index Only Scan using idx_access_logs_user_id" e poucos
+--    buffers. Se continuar em Seq Scan com a tabela cheia, rodar
+--    `ANALYZE access_logs;` e repetir — o planejador precisa das estatísticas.

@@ -122,7 +122,7 @@ function CantineMonitor() {
             <div className={`flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border ${
                 variant === 'doit' ? 'border-warning-300' : horsHoraire ? 'border-danger-300' : 'border-soft-200'
             } ${dim ? 'opacity-30' : 'opacity-100'} transition-opacity`}>
-                <img src={(user && user.foto_url) || DEFAULT_AVATAR} alt="" className="w-12 h-12 rounded-xl shadow flex-shrink-0" onError={handleImgError} />
+                <PersonPhoto userId={user && user.id} nome={user && user.nome} fotoUrl={user && user.foto_url} alt="" className="w-12 h-12 rounded-xl shadow flex-shrink-0 object-cover" />
                 <div className="flex-1 min-w-0">
                     {/* Nome, nunca a matrícula sozinha — o operador da cantina
                         precisa saber QUEM está na fila, e 0003535 não diz. */}

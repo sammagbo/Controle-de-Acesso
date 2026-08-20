@@ -104,7 +104,7 @@ function ExitPermissionManagement() {
                                                 {permissions.map(perm => {
                                                       const user = window.userCache?.byId(perm.userId);
                                                       const userName = user ? user.nome : perm.userId;
-                                                      const photoUrl = user ? user.foto_url : window.localAvatar(perm.userId);
+                                                      const photoUrl = user ? user.foto_url : null;
                                                       // ⚠️ `permissionType` e `daysOfWeek` sao os nomes REAIS do ExitPermissionDto.
                                                       // Antes lia-se `perm.type` e `perm.allowedDays`, que nao existem
                                                       // no contrato: o tipo saia vazio e TODA autorizacao caia no ramo
@@ -118,7 +118,7 @@ function ExitPermissionManagement() {
                                                             <tr key={perm.id} className="hover:bg-soft-50/50 transition-colors">
                                                                   <td className="px-6 py-3">
                                                                         <div className="flex items-center gap-3">
-                                                                              <img src={photoUrl} className="w-8 h-8 rounded-full border border-slate-200" />
+                                                                              <PersonPhoto userId={perm.userId} nome={userName} fotoUrl={photoUrl} alt="" className="w-8 h-8 rounded-full border border-slate-200 object-cover" />
                                                                               <div>
                                                                                     <div className="text-sm font-bold text-navy-800">{userName}</div>
                                                                                     {user && <div className="text-[10px] font-bold text-slate-500">{user.turma}</div>}
@@ -325,8 +325,8 @@ function NewExitPermissionModal({ onClose, onSaved }) {
 
                                     {aluno ? (
                                           <div className="flex items-center gap-3 bg-success-50 border border-success-200 rounded-xl px-4 py-3">
-                                                <img src={aluno.foto_url || window.localAvatar(aluno.nome || aluno.id)}
-                                                      className="w-9 h-9 rounded-full border border-success-200" alt="" />
+                                                <PersonPhoto userId={aluno.id} nome={aluno.nome} fotoUrl={aluno.foto_url}
+                                                      className="w-9 h-9 rounded-full border border-success-200 object-cover" alt="" />
                                                 <div className="flex-1 min-w-0">
                                                       <div className="text-sm font-bold text-navy-800 truncate">{aluno.nome}</div>
                                                       <div className="text-[11px] text-slate-600">

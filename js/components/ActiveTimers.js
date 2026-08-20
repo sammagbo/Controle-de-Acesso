@@ -31,7 +31,7 @@ function ActiveTimers({ activeTimers, pointId }) {
                               const elapsed = (typeof timer.startTime === 'number' && !isNaN(timer.startTime)) ? Date.now() - timer.startTime : 0;
                               return (
                                     <div key={timer.userId} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
-                                          <img src={user?.foto_url || DEFAULT_AVATAR} alt="" className="w-8 h-8 rounded-lg" onError={handleImgError} />
+                                          <PersonPhoto userId={user?.id} nome={user?.nome} fotoUrl={user?.foto_url} alt="" className="w-8 h-8 rounded-lg object-cover" />
                                           <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-semibold text-navy-500 truncate">{user?.nome}</p>
                                                 <p className="text-xs text-slate-400">{user?.turma}</p>

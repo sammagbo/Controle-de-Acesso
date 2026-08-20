@@ -485,7 +485,7 @@ function MealEntitlementManagement() {
                                                             <tr key={item.userId} className="hover:bg-soft-50/50 transition-colors">
                                                                   <td className="px-6 py-3">
                                                                         <div className="flex items-center gap-3">
-                                                                              <img src={item.foto_url} className="w-8 h-8 rounded-full border border-slate-200" />
+                                                                              <PersonPhoto userId={item.userId} nome={item.nome} fotoUrl={item.foto_url} alt="" className="w-8 h-8 rounded-full border border-slate-200 object-cover" />
                                                                               <div>
                                                                                     <div className="text-sm font-bold text-navy-800">{item.nome}</div>
                                                                                     <div className="text-[10px] font-mono text-slate-400">{item.userId}</div>

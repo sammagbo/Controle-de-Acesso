@@ -14,7 +14,7 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                     {/* ALUNOS ROWS */}
                     {alunos.map(aluno => (
                         <div key={aluno.id} className="flex items-center gap-8 bg-soft-50 p-6 rounded-3xl border border-soft-200">
-                            <img src={aluno.foto_url || DEFAULT_AVATAR} alt={aluno.nome || ''} className="w-24 h-24 rounded-full shadow-md border-4 border-white flex-shrink-0" onError={handleImgError} />
+                            <PersonPhoto userId={aluno.id} nome={aluno.nome} fotoUrl={aluno.foto_url} alt={aluno.nome || ''} className="w-24 h-24 rounded-full shadow-md border-4 border-white flex-shrink-0 object-cover" />
                             <div className="flex-1 space-y-3 min-w-0">
                                 <div className="bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t('modal.nome.aluno')}</p>
@@ -37,7 +37,7 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                     {/* RESPONSAVEL ROW */}
                     <div className="flex items-center gap-8 bg-white p-6 rounded-3xl border-2 border-accent-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-accent-50 rounded-bl-full opacity-50"></div>
-                        <img src={responsavel.foto_url || DEFAULT_AVATAR} alt={responsavel.nome || ''} className="w-28 h-28 rounded-full shadow-md border-4 border-white flex-shrink-0 relative z-10" onError={handleImgError} />
+                        <PersonPhoto userId={responsavel.id} nome={responsavel.nome} fotoUrl={responsavel.foto_url} alt={responsavel.nome || ''} className="w-28 h-28 rounded-full shadow-md border-4 border-white flex-shrink-0 relative z-10 object-cover" />
                         <div className="flex-1 space-y-3 relative z-10 min-w-0">
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-2 shadow-sm">
                                 <p className="text-[10px] font-bold text-accent-600 uppercase tracking-wider mb-1">{t('modal.responsavel')}</p>
@@ -60,7 +60,7 @@ function PortariaModal({ responsavel, alunos = [], onConfirm, onCancel }) {
                         onClick={onCancel}
                         className="py-4 rounded-2xl bg-danger-50 text-danger-600 font-bold text-lg hover:bg-danger-100 transition-colors border border-danger-200"
                     >
-                        CANCELAR
+                        {t('acao.cancelar')}
                     </button>
                     <button
                         onClick={onConfirm}
@@ -98,11 +98,12 @@ function PermanenciaModal({ user, bannerProps, onClose }) {
             <div className="bg-white/95 rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden border border-white/20 animate-zoom-in">
                 <div className="p-8 flex flex-col items-center text-center">
 
-                    <img
-                        src={user.foto_url || DEFAULT_AVATAR}
+                    <PersonPhoto
+                        userId={user.id}
+                        nome={user.nome}
+                        fotoUrl={user.foto_url}
                         alt={user.nome || ''}
-                        className="w-40 h-40 rounded-full shadow-xl border-4 border-white mb-6"
-                        onError={handleImgError}
+                        className="w-40 h-40 rounded-full shadow-xl border-4 border-white mb-6 object-cover"
                     />
 
                     <div className={`w-full py-4 px-6 rounded-2xl ${bannerBg} shadow-xl ${bannerShadow} mb-8 transform transition-all`}>

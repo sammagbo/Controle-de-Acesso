@@ -192,7 +192,11 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                           const userName = quem.nome;
                                           const userTurma = user ? user.turma : (attempt.turma || null);
                                           const isUnknown = !quem.reconhecido;
-                                          const photoUrl = (user && user.foto_url) || localAvatar(quem.nome);
+                                          // ⚠️ `attempt.userId` é NULO numa tentativa de desconhecido
+                                          // (UNKNOWN_FACE) — e é o caso mais comum deste feed. O
+                                          // PersonPhoto trata: sem id não busca, e cai direto nas
+                                          // iniciais do nome que o terminal leu.
+                                          const photoUrl = user && user.foto_url;
 
                                           // Nome do ponto, nunca o código seco (pointLabel resolve
                                           // e rotula o desconhecido como "Ponto X").
@@ -202,7 +206,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
 
                                           return (
                                                 <div key={attempt.id} className={`flex gap-3 p-2 rounded-xl border transition-colors ${isNew ? 'border-danger-400 bg-danger-50 ring-2 ring-danger-300 animate-pulse' : 'border-danger-100 bg-white hover:bg-danger-50/50'}`}>
-                                                      <img src={photoUrl} className="w-10 h-10 rounded-lg flex-shrink-0 border border-slate-200" onError={handleImgError} />
+                                                      <PersonPhoto userId={attempt.userId} nome={quem.nome} fotoUrl={photoUrl} alt="" className="w-10 h-10 rounded-lg flex-shrink-0 border border-slate-200 object-cover" />
                                                       <div className="flex-1 min-w-0">
                                                             <div className="flex items-start justify-between gap-2">
                                                                   <p className={`text-sm font-bold truncate ${isUnknown ? 'text-slate-500 italic' : 'text-navy-600'}`}>

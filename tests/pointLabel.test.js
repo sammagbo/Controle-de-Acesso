@@ -22,7 +22,7 @@ describe('pointLabel', () => {
 
     it('★ ponto conhecido devolve o NOME, nunca o código', () => {
         expect(pointLabel('PORT1')).toBe('Portail Principal');
-        expect(pointLabel('BIBLIO')).toBe('CDI - Biblioteca');
+        expect(pointLabel('BIBLIO')).toBe('CDI');
         expect(pointLabel('REFEI1')).toBe('Cantine Principale');
     });
 

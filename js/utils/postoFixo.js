@@ -44,7 +44,7 @@
         { id: 'PORT1', label: 'Portail Principal' },
         { id: 'PORT2', label: 'Portail Terrain' },
         { id: 'PORT3', label: 'Garage' },
-        { id: 'BIBLIO', label: 'CDI - Biblioteca' },
+        { id: 'BIBLIO', label: 'CDI' },
         { id: 'ENFERM', label: 'Infirmerie' },
         { id: 'REFEI1', label: 'Cantine Principale' },
         { id: 'REFEI2', label: 'Cantine Secondaire' },

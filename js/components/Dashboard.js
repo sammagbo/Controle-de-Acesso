@@ -4,6 +4,10 @@
 
 function Dashboard({ onSelectPoint, accessLogs }) {
       const t = useI18n();
+      // Agrupamento de milhar segue o IDIOMA DA TELA, nao um pais cravado:
+      // 1.295 (pt-BR) contra 1 295 (fr-FR). Estava 'pt-BR' fixo no numero
+      // mais visivel do painel principal.
+      const locale = useLocale();
       const [, setCacheTick] = React.useState(0);
       React.useEffect(() => {
             const handler = () => setCacheTick(t => t + 1);
@@ -61,7 +65,7 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               </div>
                               <div>
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.movimentacoes')}</p>
-                                    <p className="text-2xl font-bold text-navy-500">{todayCount == null ? '—' : todayCount.toLocaleString('pt-BR')}</p>
+                                    <p className="text-2xl font-bold text-navy-500">{todayCount == null ? '—' : todayCount.toLocaleString(locale)}</p>
                               </div>
                         </div>
                         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 shadow-sm border border-soft-200">

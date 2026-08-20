@@ -106,7 +106,12 @@ async function enterAdminPanel(page, pin = '1234') {
 
 /** Dashboard → Monitor Cantine (card clicável direto; feed poll 3s). */
 async function gotoMonitorCantine(page) {
-      await page.getByText('Monitor Cantine', { exact: false }).first().click();
+      // ⚠️ O rótulo veio de ACCESS_POINTS (js/data/constants.js). Renomeado
+      // 'Monitor Cantine' -> 'Surveillance Cantine' em 20/08/2026: "Monitor"
+      // não é palavra francesa neste sentido, e o cartão está na tela de
+      // abertura. A regex aceita os dois para o caso de um posto ainda não
+      // atualizado (o pacote do Electron é separado do backend).
+      await page.getByText(/(Surveillance|Monitor) Cantine/i).first().click();
       await page.waitForFunction(() => /tentatives refus/i.test(document.body.innerText), null, { timeout: 20000 });
       await page.waitForTimeout(4000); // 1º poll
 }

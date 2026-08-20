@@ -190,7 +190,7 @@ describe('postoFixo — os pontos', () => {
 
     it('rotuloDoPonto devolve o nome legível, e o id cru quando não conhece', () => {
         expect(P.rotuloDoPonto('PORT1')).toBe('Portail Principal');
-        expect(P.rotuloDoPonto('BIBLIO')).toBe('CDI - Biblioteca');
+        expect(P.rotuloDoPonto('BIBLIO')).toBe('CDI');
         expect(P.rotuloDoPonto('XPTO')).toBe('XPTO');
         expect(P.rotuloDoPonto(null)).toBe('');
     });

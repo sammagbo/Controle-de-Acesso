@@ -86,7 +86,9 @@
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || ((typeof window !== 'undefined' && window.MagboI18n) ? window.MagboI18n.t('api.credenciais') : 'api.credenciais'));
+      const traduzido = (typeof window !== 'undefined' && window.MagboI18n)
+            ? window.MagboI18n.t('api.credenciais') : null;
+      throw new Error(traduzido || err.error || 'api.credenciais');
     }
     const data = await res.json();
     setAuth(data.token, {

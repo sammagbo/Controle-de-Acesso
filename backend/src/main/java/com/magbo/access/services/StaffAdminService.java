@@ -73,14 +73,43 @@ public class StaffAdminService {
      * ser REMOVIDO ou apenas inativado — e quem está na tela precisa ver o
      * número antes de escolher, não descobrir depois numa mensagem de erro.
      */
+    @Transactional(readOnly = true)
     public List<StaffRow> listStaff() {
-        return userRepository.findAll().stream()
+        // ⚠️ ISTO ERA UM N+1 DE VERDADE, nao uma subconsulta correlacionada: o
+        // .map() chamava countByUserId uma vez POR SERVIDOR — 1 + ~194
+        // declaracoes por abertura da aba, cada uma varrendo access_logs
+        // inteira (nao ha indice em user_id ate a V019), e cada uma na PROPRIA
+        // transacao, porque este metodo nao tinha @Transactional.
+        //
+        // MEDIDO em 20/08/2026 contra os 439.993 registros reais:
+        //     antes  194 contagens separadas ... 3.775 ms
+        //     depois 1 consulta agrupada ....... 359 ms   (30 ms no servidor)
+        //     com o indice da V019 ............. 16,6 ms  (12,9 ms)
+        List<User> servidores = userRepository.findAll().stream()
                 .filter(u -> TIPOS_DE_SERVIDOR.contains(u.getTipo()))
                 .sorted((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(
                         a.getNome() == null ? "" : a.getNome(),
                         b.getNome() == null ? "" : b.getNome()))
+                .toList();
+
+        // ⚠️ `IN ()` vazio nao e SQL valido, e a lista vazia e um caminho REAL
+        // (uma base so com alunos — StaffAdminIT#alunoNaoApareceNaLista).
+        java.util.Map<String, Long> passagensPorId = servidores.isEmpty()
+                ? java.util.Map.of()
+                : accessLogRepository
+                        .countByUserIdIn(servidores.stream().map(User::getId).toList())
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                linha -> (String) linha[0],
+                                linha -> ((Number) linha[1]).longValue()));
+
+        return servidores.stream()
                 .map(u -> {
-                    long passagens = accessLogRepository.countByUserId(u.getId());
+                    // Ausente do mapa = nenhuma passagem. O GROUP BY nao devolve
+                    // linha para quem nao tem nenhuma, e e o zero que faz
+                    // `podeRemover` ser verdadeiro — tratar ausencia como
+                    // desconhecido bloquearia a remocao de todo cadastro novo.
+                    long passagens = passagensPorId.getOrDefault(u.getId(), 0L);
                     return new StaffRow(u.getId(), u.getNome(), u.getTipo().name(),
                             u.getDepartamento(), u.getHikvisionEmployeeId(),
                             Boolean.TRUE.equals(u.getAtivo()), passagens, passagens == 0,

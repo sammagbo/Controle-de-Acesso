@@ -53,9 +53,48 @@ Medição que justifica o índice (Postgres local, 439.993 registros reais,
 14/08/2026): a consulta do portão passou de **Seq Scan, 3687 buffers, ~14,5 ms**
 para **Index Scan, 5 buffers, ~0,05 ms**.
 
+### ⚠️ A V019 é a TERCEIRA sem transação, e a outra metade dela é Java
+
+`access_logs` nunca teve índice em `user_id` — a `V006` indexou as tabelas da
+camada de decisão e diz isso por extenso, a `V016` fez `(point_id, timestamp)` e a
+`V018` fez `(timestamp)`. Nenhum alcança uma busca **por pessoa**.
+
+Quem pagava era a aba **Personnels**: `listStaff` perguntava
+`SELECT count(*) ... WHERE user_id = ?` uma vez **por servidor** (~194 por
+abertura da aba), cada uma varrendo a tabela inteira, cada uma na sua própria
+transação (o método não tinha `@Transactional`).
+
+Medido em 20/08/2026, 439.993 registros reais, 194 identificadores reais:
+
+| | plano | buffers | tempo |
+|---|---|---|---|
+| antes — 194 contagens separadas | Parallel Seq Scan | ~715.000 | **3.775 ms** |
+| depois — 1 consulta agrupada, sem índice | Parallel Seq Scan | 3.707 | **359 ms** |
+| depois — 1 consulta agrupada, com o índice | Index Only Scan | 660 | **16,6 ms** |
+
+⚠️ **O salto grande é do Java, não do índice.** `countByUserIdIn` + o
+`@Transactional` levam de 3.775 ms a 359 ms; o índice leva de 359 ms a 16,6 ms.
+Aplicar só o índice deixaria as ~194 idas e voltas de rede no lugar — cada uma
+rápida, a forma inalterada. Por isso as duas metades viajam no mesmo commit, e
+por isso o `R019` avisa que derrubar o índice **não** ressuscita o N+1.
+
+O segundo beneficiário é só do índice: a guarda de remoção de cadastro
+(`deleteStaff`) conta as passagens de UMA pessoa e passou de **3.685 buffers
+(~29 MB) / ~20 ms** para **3 buffers / ~0,02 ms**. Custo do índice: **3 MB**.
+
 ### ⚠️ A V018 é a SEGUNDA sem transação, e vem com metade da correção no Java
 
+Índice `(timestamp)` para as quatro consultas do tique de 5 s do Painel
+Administrativo; a outra metade é a correção do anti-join em
+`countActiveUsersSince`. A medição completa — incluindo a nota honesta de que o
+anti-join **quase não melhora num dia cheio** — vive no cabeçalho do próprio
+`V018__access_logs_indice_hora.sql`.
+
 ### ⚠️ A V017 fecha a ÚNICA divergência de schema conhecida entre duas instalações
+
+Cria os **6 CHECK de enum** que a `V014` não criou em `student_regimes` e
+`student_regime_events`. Detalhes no cabeçalho de
+`V017__student_regimes_enum_checks.sql`.
 
 ### ⚠️ A V015 arma uma falha ADIADA se ficar de fora
 
@@ -92,6 +131,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018__access_logs_indice_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017__student_regimes_enum_checks.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V019__access_logs_indice_user_id.sql
 ```
 
 Conferência: `\d student_exit_permissions` mostra `authorized_by_family` e
@@ -104,8 +144,7 @@ cabeçalho do próprio V012.
 
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V018. As migrations V001..V004 devem estar aplicadas **antes** de
-Aplicar **na ordem** V001 → V017. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V019. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -129,6 +168,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V015_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016__access_logs_indice_ponto_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018__access_logs_indice_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017__student_regimes_enum_checks.sql
+docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V019__access_logs_indice_user_id.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -147,6 +187,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017_
 | `V012__exit_permission_two_authorities.sql` | `student_exit_permissions`: +`authorized_by_family`, +`authorized_by_school`, **−`reason`** | Duas autoridades |
 | `V013__password_reset_requests.sql` | tabela `password_reset_requests` + CHECK de status | Esqueci a senha |
 | `V018__access_logs_indice_hora.sql` | índice `(timestamp)` em `access_logs` — o tique de 5s do painel | Painel administrativo |
+| `V019__access_logs_indice_user_id.sql` | índice `(user_id)` em `access_logs` — a aba Personnels e a guarda de remoção | Personnels |
 | `V017__student_regimes_enum_checks.sql` | os **6 CHECK de enum** que a `V014` não criou em `student_regimes` / `student_regime_events` | Uma verdade de schema |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**

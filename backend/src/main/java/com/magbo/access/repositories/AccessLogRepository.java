@@ -272,6 +272,33 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     /** Histórico de uma pessoa — decide se um cadastro pode ser apagado ou só inativado. */
     long countByUserId(String userId);
 
+    /**
+     * Contagem de passagens de VARIAS pessoas de uma vez.
+     *
+     * A aba de servidores mostra o numero de passagens em cada linha, e o
+     * caminho anterior perguntava uma vez POR SERVIDOR: ~194 SELECTs, cada um
+     * varrendo access_logs inteira. MEDIDO em 20/08/2026 contra os 439.993
+     * registros reais:
+     *
+     *     194 contagens separadas ... 3.775 ms de relogio, ~715.000 buffers
+     *     1 consulta agrupada ......... 359 ms (30 ms no servidor), 3.707 buffers
+     *     idem, com o indice da V019 ... 16,6 ms (12,9 ms), 660 buffers
+     *
+     * ⚠️ CRUA de proposito, exatamente como {@link #countByUserId}: conta
+     * POSTO_FIXO e JA_PRESENTE tambem. Este numero decide se o cadastro PODE
+     * SER APAGADO — filtrar as repeticoes faria um porteiro, cujas linhas sao
+     * quase todas marcadas, aparecer com zero passagens e virar apagavel,
+     * deixando essas linhas orfas. E a contagem de "existe historico?", nao a
+     * de tela. Por isso ela NAO cai na doutrina das REPETICOES, e o
+     * AccessLogRepositoryQueryGuardTest so inspeciona consultas cujo SQL
+     * contem "flag" — esta fica de fora com razao.
+     *
+     * Quem nao tem passagem nenhuma NAO volta na lista; o chamador completa
+     * com zero.
+     */
+    @Query("SELECT a.userId, COUNT(a) FROM AccessLog a WHERE a.userId IN :ids GROUP BY a.userId")
+    List<Object[]> countByUserIdIn(@Param("ids") java.util.Collection<String> ids);
+
     // Conta acessos barrados hoje (com flag definida)
     //
     // ⚠️ POSTO_FIXO fica de fora, e esta e a exclusao mais importante de todas:

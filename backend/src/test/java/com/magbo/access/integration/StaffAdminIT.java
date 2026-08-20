@@ -34,6 +34,63 @@ class StaffAdminIT extends AbstractIT {
     // ───────────────── Lista ─────────────────
 
     @Test
+    @DisplayName("★ a contagem em LOTE dá o mesmo número que a contagem uma-a-uma")
+    void contagemEmLoteBate() throws Exception {
+        // ⚠️ Esta é a asserção que protege a troca do N+1 pela consulta
+        // agrupada. Um GROUP BY não devolve linha para quem tem ZERO
+        // passagens: se o chamador tratasse "ausente" como desconhecido em vez
+        // de zero, todo cadastro novo deixaria de ser removível — e o operador
+        // descobriria isso na hora de apagar, não aqui.
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+        servidor("FUNC-100", "Com Duas", "1000000100", "PORTARIA");
+        servidor("FUNC-101", "Com Uma", "1000000101", "CDI");
+        servidor("FUNC-102", "Sem Nenhuma", "1000000102", "DIRECAO");
+        passagem("FUNC-100");
+        passagem("FUNC-100");
+        passagem("FUNC-101");
+
+        mockMvc.perform(MockMvcRequestBuilders.get(URL)
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                // ordenados por nome: Com Duas, Com Uma, Sem Nenhuma
+                .andExpect(jsonPath("$[0].id").value("FUNC-100"))
+                .andExpect(jsonPath("$[0].passagens").value(2))
+                .andExpect(jsonPath("$[0].podeRemover").value(false))
+                .andExpect(jsonPath("$[1].id").value("FUNC-101"))
+                .andExpect(jsonPath("$[1].passagens").value(1))
+                .andExpect(jsonPath("$[1].podeRemover").value(false))
+                // o que o GROUP BY NÃO devolve tem de virar zero, não sumir
+                .andExpect(jsonPath("$[2].id").value("FUNC-102"))
+                .andExpect(jsonPath("$[2].passagens").value(0))
+                .andExpect(jsonPath("$[2].podeRemover").value(true));
+    }
+
+    @Test
+    @DisplayName("★ a contagem do lote conta as REPETIÇÕES — é 'existe histórico?', não a de tela")
+    void loteContaRepeticoes() throws Exception {
+        // ⚠️ Seria tentador excluir POSTO_FIXO/JA_PRESENTE aqui, como fazem as
+        // consultas de tela, e estaria ERRADO: este número autoriza APAGAR o
+        // cadastro. Um porteiro cujas linhas são quase todas marcadas
+        // apareceria com zero passagens, viraria apagável, e as linhas dele
+        // ficariam órfãs de um id que já não existe.
+        String token = TestAuthHelper.loginAdmin(mockMvc);
+        servidor("FUNC-200", "Porteiro Postado", "1000000200", "PORTARIA");
+        accessLogRepository.save(AccessLog.builder()
+                .userId("FUNC-200").pointId("PORT1").action(AccessAction.ENTRADA)
+                .timestamp(LocalDateTime.now().minusHours(3)).flag("POSTO_FIXO").build());
+        accessLogRepository.save(AccessLog.builder()
+                .userId("FUNC-200").pointId("PORT1").action(AccessAction.ENTRADA)
+                .timestamp(LocalDateTime.now().minusHours(2)).flag("JA_PRESENTE").build());
+
+        mockMvc.perform(MockMvcRequestBuilders.get(URL)
+                        .header(HttpHeaders.AUTHORIZATION, TestAuthHelper.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].passagens").value(2))
+                .andExpect(jsonPath("$[0].podeRemover").value(false));
+    }
+
+    @Test
     @DisplayName("lista traz servidores com departamento, identificador e histórico")
     void listaServidores() throws Exception {
         String token = TestAuthHelper.loginAdmin(mockMvc);

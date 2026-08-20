@@ -1,0 +1,28 @@
+-- =====================================================================
+-- R019 — desfaz V019 (índice (user_id) em access_logs)
+-- =====================================================================
+-- Só derruba um índice: nenhum dado se perde.
+--
+-- O que volta a acontecer: a aba **Personnels** volta a varrer a tabela inteira
+-- para contar as passagens dos ~194 servidores (medido: 3.707 buffers, ~30 ms
+-- de servidor em vez de 660 buffers e ~13 ms), e a guarda de remoção de
+-- cadastro em `deleteStaff` volta de 3 buffers para ~3.685 (~29 MB) por pessoa.
+--
+-- ⚠️ Derrubar este índice NÃO ressuscita o N+1. A correção que vale ~10× vive
+-- no JAVA — `AccessLogRepository.countByUserIdIn` e o `@Transactional` de
+-- `StaffAdminService.listStaff` — e continua no lugar. As duas metades são
+-- independentes: sem o índice a tela fica ~2× mais lenta, não ~227×.
+-- Para desfazer a outra metade é preciso voltar o jar, não rodar SQL.
+--
+-- ⚠️ CONCURRENTLY também aqui, e portanto SEM BEGIN/COMMIT: um DROP INDEX
+-- comum pega lock exclusivo na tabela e trava o webhook enquanto durar.
+--
+-- Uso legítimo: o índice ficou INVÁLIDO porque o CREATE CONCURRENTLY foi
+-- interrompido. Derrubar e recriar é o procedimento — índice inválido não é
+-- usado pelo planejador e continua ocupando espaço (3 MB medidos).
+--
+--   SELECT indisvalid FROM pg_index
+--    WHERE indexrelid = 'idx_access_logs_user_id'::regclass;   → f = inválido
+-- =====================================================================
+
+DROP INDEX CONCURRENTLY IF EXISTS idx_access_logs_user_id;

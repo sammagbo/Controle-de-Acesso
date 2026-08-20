@@ -20,7 +20,16 @@ import path from 'node:path';
  */
 
 const REPO = path.resolve(__dirname, '..');
-const ler = (...p) => fs.readFileSync(path.join(REPO, ...p), 'utf8');
+/**
+ * ⚠️ CRLF NORMALIZADO NA LEITURA, e nao e detalhe: o `core.autocrlf` do Git
+ * reescreve estes arquivos com CRLF ao fazer checkout no Windows. Um teste que
+ * casa texto contendo quebra de linha passa ANTES do commit e reprova DEPOIS
+ * dele — foi exatamente o que aconteceu aqui em 20/08/2026, e a mensagem
+ * («expected -1 to be greater than -1») nao aponta para line ending nenhum.
+ * Normalizar na leitura tira a plataforma da equacao.
+ */
+const ler = (...p) =>
+    fs.readFileSync(path.join(REPO, ...p), 'utf8').split(String.fromCharCode(13)).join('');
 
 /**
  * Remove comentários antes de procurar por CÓDIGO.

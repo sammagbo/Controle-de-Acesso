@@ -48,7 +48,29 @@ public class SecurityConfig {
                     // Token no caminho, para a camera DeepinView que descarta a
                     // query string. O guard do proprio controller valida o token.
                     "/api/hikvision/webhook/t/**",
-                    "/h2-console/**"
+                    "/h2-console/**",
+                    // ⚠️ /error PRECISA ESTAR AQUI, e a ausencia dele mentia para
+                    // o operador. Quando um controller falha, o Spring ENCAMINHA
+                    // internamente para /error; com a rota autenticada, essa
+                    // segunda passagem pela seguranca vira 403 de CORPO VAZIO — e
+                    // o status e a mensagem reais nunca chegam ao front.
+                    //
+                    // Dois casos medidos em 20-21/08/2026, ambos com token valido:
+                    //   • 500 do PostgreSQL em /api/access/overview  -> front via 403
+                    //   • 400 "Cannot deserialize LocalDate" no bulk -> front via 403
+                    //
+                    // O segundo era o pior: o front trata 403 como sessao expirada,
+                    // entao a importacao de direitos de refeicao falhava dizendo
+                    // "Session expirée. Reconnectez-vous." — a pessoa reconectava e
+                    // falhava de novo, sem nunca ver qual linha da planilha estava
+                    // errada. Um erro que MENTE sobre a sua causa custa mais que o
+                    // erro.
+                    //
+                    // ⚠️ Nao abre nada: /error so devolve o erro da requisicao que
+                    // ja aconteceu, e nenhum dado protegido passa por ele. O que
+                    // ele publica e o motivo da falha, que e exatamente o que o
+                    // operador precisa ler.
+                    "/error"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

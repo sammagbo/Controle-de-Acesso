@@ -129,7 +129,13 @@ public class MealEntitlementImportService {
         Set<String> duplicadasBenignas = new HashSet<>();
 
         for (int i = 0; i < linhas.size(); i++) {
-            planos.add(planejarLinha(linhas.get(i), i + 2, alunos, direitos,
+            // ⚠️ A linha VEM DO FRONT quando ele a manda: so ele sabe de qual
+            // linha do arquivo cada item saiu, porque e ele quem descarta as
+            // vazias e as de data ilegivel. `i + 2` fica como volta para pedidos
+            // sem o campo, e acerta apenas quando nada foi descartado.
+            planos.add(planejarLinha(linhas.get(i),
+                    linhas.get(i).getLinha() != null ? linhas.get(i).getLinha() : i + 2,
+                    alunos, direitos,
                     jaVistos, duplicadasBenignas, gravar, changedBy));
         }
 

@@ -41,7 +41,14 @@ const api = {
      * e respostas HTTP de erro.
      */
     async handleResponse(response) {
-        if (response.status === 401 || response.status === 403) {
+        // ⚠️ SO 401 E SESSAO — ver o comentario longo em js/utils/api.js.
+        // Deslogar por 403 fazia a importacao de refeicoes dizer "sessao
+        // expirada" para um erro de FORMATO DE DATA.
+        if (response.status === 401) {
+            window.auth?.logout();
+            throw new Error(T('api.sessao.expirada'));
+        }
+        if (response.status === 403 && !window.auth?.getToken?.()) {
             window.auth?.logout();
             throw new Error(T('api.sessao.expirada'));
         }

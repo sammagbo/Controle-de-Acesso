@@ -140,10 +140,42 @@ function MealEntitlementManagement() {
                               t('cantina.gestao.import.nada'));
                   }
 
-                  setImportRows(rows);
+                  // ⚠️ AS LINHAS COM DATA ILEGÍVEL NÃO VÃO AO SERVIDOR — e não
+                  // porque sejam menos importantes, mas porque o Jackson recusa
+                  // o CORPO INTEIRO quando uma única data não é ISO. Era esse o
+                  // defeito: uma célula `09/01/2026` derrubava a planilha toda
+                  // com 400, e a tela dizia "Session expirée". Agora elas viram
+                  // CONFLITO da própria linha, com o número dela, e as outras
+                  // seguem. (21/08/2026.)
+                  const comData = rows.filter(r => !r.erroData);
+                  const semData = rows.filter(r => r.erroData);
+
+                  setImportRows(comData);
                   setImportPlan(null);
                   // Simula ANTES de gravar. Nada é escrito aqui.
-                  setImportPlan(await window.api.previewMealEntitlementImport(rows));
+                  const plano = await window.api.previewMealEntitlementImport(comData);
+
+                  // Junta os conflitos locais ao plano do servidor, na MESMA
+                  // forma, para a tela não ter dois vocabulários de erro.
+                  if (semData.length) {
+                        const linhasConflito = semData.map(r => ({
+                              linha: r.linha,
+                              userId: r.userId,
+                              nome: null,
+                              turma: null,
+                              statusAtual: null,
+                              statusNovo: null,
+                              acao: 'CONFLITO',
+                              detalhe: t('cantina.import.data.ilegivel', {
+                                    valor: r.erroData.map(e => e.valor).join(', ')
+                              })
+                        }));
+                        plano.linhas = linhasConflito.concat(plano.linhas || []);
+                        plano.totais = Object.assign({}, plano.totais);
+                        plano.totais.CONFLITO = (plano.totais.CONFLITO || 0) + semData.length;
+                        plano.totais.TOTAL = (plano.totais.TOTAL || 0) + semData.length;
+                  }
+                  setImportPlan(plano);
             } catch (err) {
                   limparImport();
                   alert(t('cantina.gestao.import.erro') + ' ' + err.message);

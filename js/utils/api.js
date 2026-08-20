@@ -59,8 +59,25 @@ function normaliseLog(raw) {
       };
 }
 
+      // ⚠️ SO 401 E SESSAO. O 403 e RECUSA DE PERMISSAO — outra coisa, e
+      // deslogar por causa dele mente para quem esta usando o sistema.
+      //
+      // Custou caro: enquanto /error nao estava no permitAll, TODO erro do
+      // backend (400, 404, 500) chegava aqui como 403 de corpo vazio. A
+      // importacao de direitos de refeicao falhava por uma data em formato
+      // frances e a tela dizia "Session expirée. Reconnectez-vous." — a pessoa
+      // reconectava, tentava de novo e falhava igual, sem nunca ver que o
+      // problema era uma linha da planilha. (21/08/2026.)
+      //
+      // ⚠️ Divida conhecida do projeto: um endpoint @PreAuthorize chamado SEM
+      // token devolve 403, nao 401. Por isso o 403 continua deslogando QUANDO
+      // nao ha token guardado — a distincao esta no token, nao no numero.
 function checkAuthError(res) {
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
+            window.auth?.logout();
+            throw new Error(T('api.sessao.expirada'));
+      }
+      if (res.status === 403 && !window.auth?.getToken?.()) {
             window.auth?.logout();
             throw new Error(T('api.sessao.expirada'));
       }

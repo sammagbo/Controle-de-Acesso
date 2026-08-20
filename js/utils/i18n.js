@@ -59,6 +59,33 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            // ── Écran en erreur (ErrorBoundary) ──
+            // ⚠️ Ces clés sont lues par une CLASSE React, qui n'a pas de hook :
+            // js/components/ErrorBoundary.js passe par window.MagboI18n.t() dans
+            // un try/catch, avec le français ci-dessous écrit EN DUR comme dernier
+            // recours. Renommer une clé ici ne casse donc rien de visible — le
+            // texte de secours prend le relais, en silence. Renommez les deux.
+            'erro.titulo': "Cet écran n'a pas pu s'afficher",
+            'erro.modal.titulo': "Cette fenêtre n'a pas pu s'afficher",
+            'erro.subtitulo': "Le reste de l'application continue de fonctionner.",
+            'erro.ecran': 'Écran concerné',
+            'erro.ecran.desconhecido': 'cet écran',
+            'erro.aviso.dados': "Aucune donnée n'a été perdue : cet écran ne fait qu'afficher des enregistrements déjà en base.",
+            'erro.voltar': 'Retour au tableau de bord',
+            'erro.fechar': 'Fermer',
+            'erro.reessayer': 'Réessayer',
+            'erro.recarregar': "Recharger l'application",
+            'erro.detalhe.mostrar': 'Détails techniques',
+            'erro.detalhe.esconder': 'Masquer les détails techniques',
+            // Noms d'écran affichés dans le fallback. Le nom d'un POINT vient
+            // de pointLabel() ; ceux-ci sont les écrans qui n'en ont pas.
+            'erro.tela.login': 'Connexion',
+            'erro.tela.dashboard': 'Tableau de bord',
+            'erro.tela.admin': 'Panneau d’administration',
+            'erro.tela.parametres': 'Paramètres',
+            'erro.tela.modal.portaria': 'Fenêtre de passage — portail',
+            'erro.tela.modal.passagem': 'Fenêtre de passage',
+
             'ppms.aviso.sem.fechamento': 'Un des points listés n’a pas de clôture automatique (l’infirmerie) : quelqu’un peut y figurer alors qu’il est reparti sans que la sortie ait été saisie.',
             'ppms.zona.transito': 'Dans l’établissement — zone inconnue',
             'ppms.zona.transito.ajuda': 'Couloirs, cour, salles sans lecteur. Commencez par le dernier endroit vu.',
@@ -1247,6 +1274,26 @@
         },
         pt: {
             'idioma.rotulo': 'Idioma',
+
+            // ── Tela em erro (ErrorBoundary) — ver o bloco em `fr` ──
+            'erro.titulo': 'Esta tela não pôde ser exibida',
+            'erro.modal.titulo': 'Esta janela não pôde ser exibida',
+            'erro.subtitulo': 'O restante do aplicativo continua funcionando.',
+            'erro.ecran': 'Tela afetada',
+            'erro.ecran.desconhecido': 'esta tela',
+            'erro.aviso.dados': 'Nenhum dado foi perdido: esta tela apenas exibe registros que já estão no banco.',
+            'erro.voltar': 'Voltar ao painel',
+            'erro.fechar': 'Fechar',
+            'erro.reessayer': 'Tentar novamente',
+            'erro.recarregar': 'Recarregar o aplicativo',
+            'erro.detalhe.mostrar': 'Detalhes técnicos',
+            'erro.detalhe.esconder': 'Ocultar detalhes técnicos',
+            'erro.tela.login': 'Entrada',
+            'erro.tela.dashboard': 'Painel',
+            'erro.tela.admin': 'Painel administrativo',
+            'erro.tela.parametres': 'Configurações',
+            'erro.tela.modal.portaria': 'Janela de passagem — portaria',
+            'erro.tela.modal.passagem': 'Janela de passagem',
 
             'ppms.aviso.sem.fechamento': 'Um dos pontos listados não tem fechamento automático (a enfermaria): alguém pode constar lá tendo saído sem que a saída fosse lançada.',
             'ppms.zona.transito': 'No estabelecimento — zona desconhecida',

@@ -53,17 +53,38 @@ const api = {
             throw new Error(T('api.sessao.expirada'));
         }
         if (!response.ok) {
-            let errorMsg = T('app.erro.comunicacao');
+            let errorMsg = null;
             try {
                 const data = await response.json();
-                if (data && data.message) errorMsg = data.message;
+                // ⚠️ O BACKEND FALA DOIS DIALETOS DE ERRO, e este ramo lia só um:
+                //   {"error": "..."}                     Access, ExitPermission,
+                //                                        MealEntitlement, SystemUser, User
+                //   {"status":"error","message":"..."}   Staff, Regime, Photo, Totvs
+                // Ler apenas `message` jogava METADE das razões reais no lixo e
+                // punha "Erreur de communication avec le serveur" no lugar. É por
+                // isso que as telas de foto e de pessoal pareciam bem e o portão
+                // não: era o dialeto, não a tela.
+                if (data) errorMsg = data.message || data.error || null;
             } catch (e) {
-                // Ignore json parsing error if response is not JSON
+                // corpo não-JSON: cai nos genéricos abaixo
+            }
+            if (!errorMsg) {
+                // ⚠️ FORA do catch, e é ESTE o ponto. Não há @ControllerAdvice no
+                // backend, então uma exceção não tratada cai no /error do Spring,
+                // que devolve JSON VÁLIDO e SEM `message`
+                // (server.error.include-message=on_param). Com estes ramos dentro
+                // do catch, `response.json()` tinha sucesso, o catch nunca corria,
+                // e um 500 de verdade chegava ao operador como "erro de
+                // comunicação" — ou seja, como problema de REDE. Eram código morto
+                // em produção.
                 if (response.status === 404) errorMsg = T('api.nao.encontrado');
                 else if (response.status === 409) errorMsg = T('api.duplicidade');
+                else if (response.status === 403) errorMsg = T('api.sem.permissao.acao');
                 else if (response.status >= 500) errorMsg = T('api.erro.servidor');
+                else errorMsg = T('api.erro.requisicao') + ' (HTTP ' + response.status + ')';
             }
             const erro = new Error(errorMsg);
+            erro.status = response.status;
             // O App detecta refeição duplicada pelo code — a mensagem agora
             // muda de idioma e não serve mais de sentinela sozinha.
             if (response.status === 409) erro.code = 'DUPLICATE';

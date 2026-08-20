@@ -247,6 +247,11 @@
             'api.nao.encontrado': 'Utilisateur ou ressource introuvable',
             'api.duplicidade': 'Enregistrement en double',
             'api.erro.servidor': 'Erreur interne du serveur Java',
+            // Genericos usados quando o corpo do erro nao traz razao nenhuma
+            // (o /error do Spring devolve JSON valido e SEM `message`).
+            'api.sem.permissao.acao': "Vous n'avez pas le droit d'effectuer cette action.",
+            'pin.sem.permissao': "Votre compte n'a pas le rôle administrateur — ce n'est pas le PIN qui est en cause.",
+            'api.erro.requisicao': 'La demande a été refusée par le serveur',
             'api.indisponivel': 'Serveur indisponible. Vérifiez votre connexion.',
             'api.indisponivel.logs': 'Serveur indisponible lors du chargement des passages. Vérifiez la connexion.',
             'api.indisponivel.relatorios': 'Serveur indisponible lors du chargement des rapports.',
@@ -932,6 +937,8 @@
             'acao.salvar': 'Enregistrer',
             'acao.descartar': 'Abandonner',
 
+            'comum.erro': 'Erreur',
+            'comum.sucesso': 'Succès',
             'comum.nome': 'Nom',
             'comum.id': 'ID',
             'comum.ativo': 'Actif',
@@ -1456,6 +1463,9 @@
             'api.nao.encontrado': 'Usuário ou recurso não encontrado',
             'api.duplicidade': 'Duplicidade de registro',
             'api.erro.servidor': 'Erro interno no servidor Java',
+            'api.sem.permissao.acao': 'Você não tem permissão para esta ação.',
+            'pin.sem.permissao': 'Sua conta não tem o papel de administrador — não é o PIN que está errado.',
+            'api.erro.requisicao': 'A requisição foi recusada pelo servidor',
             'api.indisponivel': 'Servidor indisponível. Verifique sua conexão.',
             'api.indisponivel.logs': 'Servidor indisponível ao buscar logs. Verifique a conexão.',
             'api.indisponivel.relatorios': 'Servidor indisponível ao buscar relatórios.',
@@ -2134,6 +2144,8 @@
             'acao.salvar': 'Salvar',
             'acao.descartar': 'Descartar',
 
+            'comum.erro': 'Erro',
+            'comum.sucesso': 'Sucesso',
             'comum.nome': 'Nome',
             'comum.id': 'ID',
             'comum.ativo': 'Ativo',

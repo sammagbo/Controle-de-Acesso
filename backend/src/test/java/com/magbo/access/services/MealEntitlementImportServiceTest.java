@@ -155,7 +155,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("0001111", "AUTORIZADO"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.ATUALIZAR);
-            assertThat(r.detalhe()).contains("Não autorizado").contains("Autorizado");
+            assertThat(r.detalhe()).contains("Non autorise").contains("Autorise");
         }
 
         @Test
@@ -167,7 +167,7 @@ class MealEntitlementImportServiceTest {
             var p = service().plan(List.of(linha("0001111", "AUTORIZADO")));
 
             assertThat(primeira(p).acao()).isEqualTo(MealEntitlementImportService.Acao.PULAR);
-            assertThat(primeira(p).detalhe()).contains("nada a alterar");
+            assertThat(primeira(p).detalhe()).contains("rien a modifier");
         }
 
         @Test
@@ -192,7 +192,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("FUNC-007", "AUTORIZADO"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
-            assertThat(r.detalhe()).contains("não de aluno");
+            assertThat(r.detalhe()).contains("pas un eleve");
         }
 
         @Test
@@ -204,7 +204,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("0001111", "AUTORIZADO"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.PULAR);
-            assertThat(r.detalhe()).contains("inativo");
+            assertThat(r.detalhe()).contains("inactif");
         }
 
         @Test
@@ -223,7 +223,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("0001111", "talvez"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
-            assertThat(r.detalhe()).contains("inválido");
+            assertThat(r.detalhe()).contains("invalide");
         }
     }
 
@@ -246,7 +246,7 @@ class MealEntitlementImportServiceTest {
             assertThat(p.linhas().get(1).acao())
                     .as("aplicar 'a última' seria decidir por sorteio quem almoça")
                     .isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
-            assertThat(p.linhas().get(1).detalhe()).contains("repetida");
+            assertThat(p.linhas().get(1).detalhe()).contains("repete");
         }
 
         @Test
@@ -415,6 +415,74 @@ class MealEntitlementImportServiceTest {
 
             assertThat(primeira(service().plan(List.of(i))).acao())
                     .isEqualTo(MealEntitlementImportService.Acao.ATUALIZAR);
+        }
+
+        @Test
+        @DisplayName("★ vigência INVERTIDA vira CONFLITO — na simulação E na aplicação")
+        void vigenciaInvertidaViraConflito() {
+            // ⚠️ O CASO C21 do arquivo de prova do Sam (início 31/12, fim 01/09),
+            // que o commit 49ac00c registrou honestamente como NÃO exercitado.
+            // Falhava pior do que o defeito que aquele commit corrigiu: o único
+            // guarda vivia no `upsert`, que só é chamado quando gravar=true —
+            // então a SIMULAÇÃO pintava a linha de verde e o estrago vinha
+            // depois de o operador confirmar.
+            base(List.of(aluno("0001111", "Ana", "2A")), List.of());
+            MealEntitlementBulkItem i = linha("0001111", "AUTORIZADO");
+            i.setValidFrom(LocalDate.of(2026, 12, 31));
+            i.setValidUntil(LocalDate.of(2026, 9, 1));
+
+            // 1) A SIMULAÇÃO tem de acusar. Era aqui que a linha passava verde.
+            var simulado = primeira(service().plan(List.of(i)));
+            assertThat(simulado.acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
+            assertThat(simulado.linha()).isEqualTo(2);
+            assertThat(simulado.detalhe()).contains("2026-12-31").contains("2026-09-01");
+
+            // 2) E a APLICAÇÃO não pode chamar o upsert — porque o upsert é
+            // REQUIRES_NEW: cada linha commita na própria transação, então a
+            // exceção da linha N deixava 1..N-1 GRAVADAS enquanto a tela dizia
+            // «importation non appliquée». O sistema afirmava o contrário do
+            // que tinha feito.
+            var aplicado = primeira(service().apply(List.of(i), OPERADOR));
+            assertThat(aplicado.acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
+            verify(mealEntitlementService, never()).upsert(anyString(), any(), any(), any(),
+                    anyString(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("★ o lote CONTINUA depois de uma vigência invertida")
+        void loteContinuaDepoisDoConflito() {
+            // Uma célula errada não pode custar as outras 900 linhas. É a mesma
+            // regra que 49ac00c aplicou à data ilegível.
+            base(List.of(aluno("0001111", "Ana", "2A"), aluno("0002222", "Bruno", "2B")), List.of());
+            MealEntitlementBulkItem ruim = linha("0001111", "AUTORIZADO");
+            ruim.setValidFrom(LocalDate.of(2026, 12, 31));
+            ruim.setValidUntil(LocalDate.of(2026, 9, 1));
+
+            var p = service().apply(List.of(ruim, linha("0002222", "AUTORIZADO")), OPERADOR);
+
+            assertThat(p.linhas()).hasSize(2);
+            assertThat(p.linhas().get(0).acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
+            assertThat(p.linhas().get(1).acao()).isEqualTo(MealEntitlementImportService.Acao.CRIAR);
+            // a linha boa foi gravada; a ruim, não
+            verify(mealEntitlementService).upsert("0002222", EntitlementStatus.AUTHORIZED,
+                    null, null, MealEntitlementImportService.NOTA_PADRAO, OPERADOR,
+                    MealEntitlementImportService.SOURCE);
+            verify(mealEntitlementService, never()).upsert("0001111", EntitlementStatus.AUTHORIZED,
+                    LocalDate.of(2026, 12, 31), LocalDate.of(2026, 9, 1),
+                    MealEntitlementImportService.NOTA_PADRAO, OPERADOR,
+                    MealEntitlementImportService.SOURCE);
+        }
+
+        @Test
+        @DisplayName("uma vigência bem ordenada continua a passar")
+        void vigenciaNormalPassa() {
+            base(List.of(aluno("0001111", "Ana", "2A")), List.of());
+            MealEntitlementBulkItem i = linha("0001111", "AUTORIZADO");
+            i.setValidFrom(LocalDate.of(2026, 9, 1));
+            i.setValidUntil(LocalDate.of(2026, 12, 31));
+
+            assertThat(primeira(service().plan(List.of(i))).acao())
+                    .isEqualTo(MealEntitlementImportService.Acao.CRIAR);
         }
 
         @Test

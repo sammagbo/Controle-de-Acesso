@@ -24,7 +24,7 @@ function UserListPanel({ onClose, onShowToast }) {
       setUsers(data.users || []);
     } catch (e) {
       console.error(e);
-      if (onShowToast) onShowToast({ title: 'Erro', message: e.message, type: 'error' });
+      if (onShowToast) onShowToast({ title: t('comum.erro'), message: e.message, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -36,11 +36,11 @@ function UserListPanel({ onClose, onShowToast }) {
     if (!confirm(t('usuarios.desativar.confirma'))) return;
     try {
       await window.api.deleteUser(id);
-      if (onShowToast) onShowToast({ title: 'Sucesso', message: t('usuarios.desativado'), type: 'success' });
+      if (onShowToast) onShowToast({ title: t('comum.sucesso'), message: t('usuarios.desativado'), type: 'success' });
       load();
       window.userCache?.reload(); // Atualiza o cache global
     } catch (e) {
-      if (onShowToast) onShowToast({ title: 'Erro', message: e.message, type: 'error' });
+      if (onShowToast) onShowToast({ title: t('comum.erro'), message: e.message, type: 'error' });
     }
   };
 
@@ -157,7 +157,7 @@ function UserListPanel({ onClose, onShowToast }) {
             setShowForm(false); 
             load(); 
             window.userCache?.reload(); // Atualiza cache global
-            if (onShowToast) onShowToast({ title: 'Sucesso', message: t('usuarios.atualizado'), type: 'success' });
+            if (onShowToast) onShowToast({ title: t('comum.sucesso'), message: t('usuarios.atualizado'), type: 'success' });
           }}
           onShowToast={onShowToast}
         />
@@ -197,7 +197,7 @@ function UserEditModal({ user, onClose, onSaved, onShowToast }) {
       await window.api.updateUser(user.id, updateData);
       onSaved();
     } catch (e) {
-      if (onShowToast) onShowToast({ title: 'Erro', message: e.message, type: 'error' });
+      if (onShowToast) onShowToast({ title: t('comum.erro'), message: e.message, type: 'error' });
     } finally {
       setSaving(false);
     }

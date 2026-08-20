@@ -84,8 +84,15 @@ function MealEntitlementManagement() {
                         const sum = await window.api.getMealEntitlementSummary();
                         setSummary(sum);
                   } else {
-                        // 200 sem corpo (contrato do upsert): NUNCA injetar null no
-                        // estado — recarregar a verdade do servidor.
+                        // ⚠️ CAMINHO DE COMPATIBILIDADE, e ele importa: até
+                        // 20/08/2026 o PUT devolvia 200 COM CORPO VAZIO, então
+                        // `updated` era SEMPRE null e a atualização em memória
+                        // acima nunca correu uma única vez em produção — era
+                        // código morto, e todo clique caía aqui, recarregando a
+                        // lista inteira. O backend agora devolve a linha; este
+                        // ramo fica para o posto cujo Electron esteja à frente
+                        // do backend (os dois pacotes são separados).
+                        // NUNCA injetar null no estado: recarrega a verdade.
                         await loadData();
                   }
             } catch (err) {
@@ -447,7 +454,17 @@ function MealEntitlementManagement() {
 
                   {/* Lista */}
                   <div className="bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
-                        {loading ? (
+                        {/* ⚠️ O SPINNER SÓ SUBSTITUI A TABELA NA PRIMEIRA CARGA.
+                            Esta era a causa VISÍVEL do salto da rolagem: trocar
+                            uma tabela de 100 linhas (vários milhares de px) por
+                            uma caixa de ~100px encolhe o DOCUMENTO — não há
+                            container de rolagem nesta tela —, e o navegador
+                            prende a rolagem no topo antes de as linhas novas
+                            existirem. O operador perdia o lugar a cada clique e
+                            tinha de procurar o próximo aluno de novo.
+                            Recarga COM dado na tela mantém a tabela montada e
+                            só a esmaece. */}
+                        {(loading && mergedList.length === 0) ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <LucideIcon name="loader-2" size={24} className="animate-spin mb-2" />
                                     <p className="text-sm">{t('cantina.gestao.carregando')}</p>

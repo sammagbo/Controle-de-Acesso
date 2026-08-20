@@ -272,6 +272,36 @@ async function fetchFinDeJournee(pointId, date) {
     }
 }
 
+// ⚠️ ESTA FUNCAO JA SUMIU UMA VEZ. Ela entrou em f28a879 e desapareceu no
+// remendo do merge 9fc4961 ("restore api.js — the merge resolution left it
+// unparseable"). Ninguem percebeu por cinco dias porque o chamador a protege com
+// `typeof fetchIncompleteMovements === 'function'` (js/components/GeneralReport.js):
+// sem a funcao, o botao "Voir qui" devolvia lista VAZIA, em silencio, sem um
+// erro no console — a tela dizia "nenhum movimento incompleto" e quem lesse
+// acreditaria. Restaurada literalmente do commit de origem em 20/08/2026.
+// ─────────────────────────────────────────────────────────────
+// fetchIncompleteMovements(filters?) — GET /api/access/incomplete-movements
+//
+// O "quais" do número que o card já mostrava. Devolve [] em falha, como as
+// irmãs acima — a tela distingue vazio de erro pelo estado que ela mesma
+// mantém, e um throw aqui derrubaria o relatório inteiro por causa de um painel.
+// ─────────────────────────────────────────────────────────────
+async function fetchIncompleteMovements(filters = {}) {
+    try {
+        const params = new URLSearchParams();
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        const res = await fetch(`${API_BASE}/access/incomplete-movements?${params.toString()}`, {
+            headers: window.authHeaders ? window.authHeaders() : {}
+        });
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (e) {
+        console.error('[API] fetchIncompleteMovements error:', e);
+        return [];
+    }
+}
+
 // ─────────────────────────────────────────────────────────────
 // MEAL ENTITLEMENTS (Phase H)
 // ─────────────────────────────────────────────────────────────

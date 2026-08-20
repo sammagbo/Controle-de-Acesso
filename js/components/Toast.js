@@ -8,7 +8,17 @@ function Toast({ toast, onDismiss }) {
       // ⚠️ O useEffect FICA ACIMA DO `return null`, e a guarda mora DENTRO dele.
       //
       // Com a ordem invertida — `if (!toast) return null;` antes do hook — este
-      // componente chamava UM hook quando não havia toast e DOIS quando havia.
+      // componente chamava DOIS hooks quando não havia toast e TRÊS quando havia.
+      // (O próprio useI18n() já chama dois: React.useState + React.useEffect —
+      // ver js/utils/i18nReact.js:33-42. A primeira versão deste comentário dizia
+      // "um e dois"; o mecanismo estava certo, a aritmética não. Corrigido pelo
+      // painel de verificação em 20/08/2026.)
+      //
+      // ⚠️ E A ORDEM ERRADA NÃO ERA FATAL DESDE SEMPRE. Ela existe desde 30/04,
+      // e sem nada acima do `return` o React usava o dispatcher de MONTAGEM e não
+      // reclamava. Quem armou a bomba foi 4799af8 (12/08, o commit do i18n), ao
+      // inserir `const t = useI18n();` ACIMA do return — a partir dali a
+      // renderização anterior passou a ter hooks, e o extra virou o #310.
       // O React conta os hooks por renderização: ver um a mais na segunda é o
       // erro #310 ("Rendered more hooks than during the previous render"), e ele
       // não é recuperável — a árvore inteira desmonta e a janela fica BRANCA,

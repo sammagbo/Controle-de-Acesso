@@ -128,7 +128,15 @@ function PermanenciaModal({ user, bannerProps, onClose }) {
                             </div>
                             <div className="bg-soft-50 border border-soft-200 rounded-xl px-4 py-3 shadow-sm">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('comum.tipo')}</p>
-                                <p className="text-base font-bold text-navy-500">{user.tipo}</p>
+                                {/* ⚠️ tEnum, nunca {user.tipo} cru. O valor vem do
+                                    banco em PORTUGUES (ALUNO, FUNCIONARIO) e este
+                                    modal salta a CADA passagem — era a tela mais
+                                    vista do sistema escrevendo portugues no meio de
+                                    uma interface francesa. As chaves ja existiam
+                                    (enum.tipo.*) e nao eram usadas. O guarda do i18n
+                                    nao pega isto: ele procura literais, e isto e
+                                    variavel. */}
+                                <p className="text-base font-bold text-navy-500">{window.MagboI18n.tEnum('tipo', user.tipo)}</p>
                             </div>
                         </div>
                     </div>

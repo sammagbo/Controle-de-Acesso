@@ -181,4 +181,69 @@ class AccessLogRepositoryQueryGuardTest {
                         + "e devolveria a base inteira")
                 .contains("e.timestamp < s.timestamp");
     }
+
+    /**
+     * ★★★ O BIND PRECISA DE CAST — e este teste existe porque a medicao mentiu.
+     *
+     * Em 15/08 acrescentei a carencia de 4 horas as tres consultas de movimentos
+     * incompletos, e MEDI no psql assim:
+     *
+     *     ... AND e.timestamp < '2026-01-29 13:00'::timestamp - interval '4 hours'
+     *     -> 106683 linhas, tudo certo
+     *
+     * O aplicativo nao chama com literal: chama com PARAMETRO. E o PostgreSQL
+     * nao infere o tipo de um bind — `? - interval '4 hours'` resolve
+     * `unknown - interval` como INTERVAL, e a comparacao vira
+     * `timestamp < interval`, que nao existe:
+     *
+     *     ERROR: operator does not exist: timestamp without time zone < interval
+     *
+     * ⚠️ O SINTOMA NAO PARECIA SQL. O /error do Spring nao esta no permitAll,
+     * entao o 500 chegava ao front como 403 de corpo VAZIO; o fetchOverview
+     * engolia o !res.ok e devolvia null; e o Rapport — a primeira tela que a
+     * direcao abre — mostrava os cinco KPIs em ZERO com o farol "Serveur hors
+     * ligne", com 440 mil passagens no banco. Sistema funcionando com cara de
+     * fora do ar. Descoberto na vespera da demonstracao de 21/08/2026.
+     *
+     * ⚠️ POR QUE UM GUARDA DE STRING E NAO UMA EXECUCAO: as tres consultas sao
+     * PostgreSQL-only pelo literal `interval '4 hours'` (o H2 exige
+     * `INTERVAL '4' HOUR`), e o criterio do projeto e 0 falhas com EXATAMENTE 2
+     * @Disabled — gastar mais tres quebraria o sinal que denuncia quem desligou
+     * uma nativa. A execucao com bind ficou provada a mao, nos dois sentidos:
+     *
+     *     PREPARE p(text) AS SELECT count(*) FROM access_logs e
+     *       WHERE e.timestamp < $1 - interval '4 hours';
+     *     -> ERROR: operator does not exist: text - interval
+     *
+     *     PREPARE p(text) AS SELECT count(*) FROM access_logs e
+     *       WHERE e.timestamp < CAST($1 AS timestamp) - interval '4 hours';
+     *     -> 106683
+     *
+     * A licao que este teste guarda: medir com LITERAL o que a aplicacao chama
+     * com PARAMETRO nao e medir.
+     */
+    @Test
+    @DisplayName("★★★ toda subtracao de interval sobre um BIND leva CAST explicito")
+    void bindComIntervalPrecisaDeCast() throws Exception {
+        String[] metodos = { "countUnregisteredExits", "findUnregisteredExits", "findOrphanExits" };
+        java.util.List<String> semCast = new java.util.ArrayList<>();
+
+        for (String m : metodos) {
+            String sql = sqlNormalizado(m, LocalDateTime.class, LocalDateTime.class);
+            // A forma PERIGOSA: um parametro nomeado seguido de "- interval".
+            // Forma PERIGOSA, sem regex: o bind cru colado no "- interval".
+            if (sql.contains(":to - interval") || sql.contains(":from - interval")) {
+                semCast.add(m + " (bind cru antes de '- interval')");
+            }
+            // E a forma CERTA tem de estar la.
+            if (!sql.contains("CAST(:to AS timestamp) - interval")) semCast.add(m + " (falta CAST(:to AS timestamp))");
+        }
+
+        assertThat(semCast)
+                .as("Sem o CAST, o PostgreSQL le `unknown - interval` como INTERVAL e a "
+                  + "comparacao vira `timestamp < interval` — o endpoint devolve 500, o "
+                  + "front recebe 403 vazio e a tela mostra tudo ZERO com cara de servidor "
+                  + "fora do ar. Medir com literal nao pega isto: o literal tem tipo, o bind nao.")
+                .isEmpty();
+    }
 }

@@ -825,6 +825,14 @@ function OverviewTab() {
     const carregarIncompletos = React.useCallback(async () => {
         setIncompletosCarregando(true);
         try {
+            // ⚠️ ESTE GUARDA JA MASCAROU UM DEFEITO POR CINCO DIAS. A funcao
+            // sumiu no remendo do merge 9fc4961 e o `typeof` a fez faltar em
+            // SILENCIO: o botao "Voir qui" devolvia lista vazia, sem erro no
+            // console, e a tela dizia "nenhum movimento incompleto" — quem lesse
+            // acreditaria. Um guarda que transforma "a funcao nao existe" em "nao
+            // ha nada a mostrar" e pior do que a excecao que ele evita. Fica
+            // porque a ordem dos <script> nao e garantida por teste; mas se um dia
+            // houver esse teste, este `typeof` deve sair junto.
             const r = typeof fetchIncompleteMovements === 'function'
                 ? await fetchIncompleteMovements({ dateFrom, dateTo })
                 : [];

@@ -423,6 +423,28 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
      * As 18:00 a diferenca some (41 contra 39), que e' como tem de ser: o defeito
      * so' existe ENQUANTO o dia corre.
      *
+     * ⚠️⚠️ O `CAST(:to AS timestamp)` NAO E ENFEITE — sem ele o endpoint QUEBRA.
+     * O PostgreSQL nao infere o tipo de um bind: `? - interval '4 hours'` resolve
+     * `unknown - interval` como INTERVAL, e a comparacao vira
+     * `timestamp < interval`, que nao existe. Erro real, medido em 20/08/2026:
+     *
+     *     ERROR: operator does not exist: timestamp without time zone < interval
+     *
+     * ⚠️ E foi por isso que a medicao de 15/08 passou e a producao quebrou: eu
+     * medi no psql com LITERAL ('2026-01-29 13:00'::timestamp - interval '4
+     * hours' -> 106683 linhas), e o app chama com PARAMETRO. As duas formas nao
+     * sao equivalentes, e a diferenca so aparece com bind. Provado nos dois
+     * sentidos:
+     *     literal   ... '2026-01-29 13:00'::timestamp - interval '4 hours'  OK
+     *     parametro ... $1 - interval '4 hours'                             ERRO
+     *
+     * ⚠️ O sintoma nao parecia um erro de SQL: o /error do Spring nao esta no
+     * permitAll, entao o 500 chegava ao front como 403 de corpo vazio, o
+     * fetchOverview engolia e devolvia null, e o Rapport mostrava os cinco KPIs
+     * em ZERO com o farol "Serveur hors ligne" — sistema funcionando com cara de
+     * fora do ar. Medir com literal o que a aplicacao chama com parametro e o
+     * erro que este bloco existe para nao deixar repetir.
+     *
      * ⚠️ ISTO MUDA O NUMERO DO CARD durante o dia — e' uma mudanca de
      * comportamento, deliberada, e o dono pode reverte-la. A alternativa era
      * pior das duas formas: uma lista que nomeia quem esta almocando, ou uma
@@ -432,7 +454,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT COUNT(*) FROM access_logs e " +
            "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND e.timestamp BETWEEN :from AND :to " +
-           "AND e.timestamp < :to - interval '4 hours' " +
+           "AND e.timestamp < CAST(:to AS timestamp) - interval '4 hours' " +
            "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours')", nativeQuery = true)
     long countUnregisteredExits(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
@@ -452,7 +474,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT e.* FROM access_logs e " +
            "WHERE e.action='ENTRADA' AND e.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND e.timestamp BETWEEN :from AND :to " +
-           "AND e.timestamp < :to - interval '4 hours' " +
+           "AND e.timestamp < CAST(:to AS timestamp) - interval '4 hours' " +
            "AND (e.flag IS NULL OR e.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs s WHERE s.user_id=e.user_id AND s.point_id=e.point_id AND s.action='SAIDA' AND s.timestamp > e.timestamp AND s.timestamp < e.timestamp + interval '4 hours') " +
            "ORDER BY e.timestamp DESC", nativeQuery = true)
@@ -474,7 +496,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     @Query(value = "SELECT s.* FROM access_logs s " +
            "WHERE s.action='SAIDA' AND s.point_id IN ('REFEI1','REFEI2','ENFERM') " +
            "AND s.timestamp BETWEEN :from AND :to " +
-           "AND s.timestamp < :to - interval '4 hours' " +
+           "AND s.timestamp < CAST(:to AS timestamp) - interval '4 hours' " +
            "AND (s.flag IS NULL OR s.flag NOT IN ('POSTO_FIXO','JA_PRESENTE')) " +
            "AND NOT EXISTS (SELECT 1 FROM access_logs e WHERE e.user_id=s.user_id AND e.point_id=s.point_id AND e.action='ENTRADA' AND e.timestamp < s.timestamp AND e.timestamp > s.timestamp - interval '4 hours') " +
            "ORDER BY s.timestamp DESC", nativeQuery = true)

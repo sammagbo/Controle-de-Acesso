@@ -7,7 +7,7 @@ import P from '../js/utils/listPaging.js';
  * O relatório real do HikCentral tem 1197 linhas e renderizá-las de uma vez
  * congela a janela do Electron por segundos — daí o teto de 200 com "mostrar
  * mais". O que se testa aqui é o que erra em silêncio: um off-by-one mostra
- * "200 de 1197" quando são 199, ou esconde a última linha da lista.
+ * "200 sur 1197" quando são 199, ou esconde a última linha da lista.
  */
 describe('listPaging', () => {
 
@@ -27,11 +27,11 @@ describe('listPaging', () => {
     });
 
     describe('lista truncada', () => {
-        it('★ mostra 200 de 1197 e informa quantas faltam', () => {
+        it('★ mostra 200 sur 1197 e informa quantas faltam', () => {
             const s = P.pageState(1197, 200);
             expect(s).toMatchObject({
                 visiveis: 200, restantes: 997, truncada: true,
-                rotulo: '200 de 1197', proximoLote: 200,
+                rotulo: '200 sur 1197', proximoLote: 200,
             });
         });
 
@@ -49,7 +49,7 @@ describe('listPaging', () => {
 
         it('BORDA: 201 linhas é truncada por uma', () => {
             const s = P.pageState(201, 200);
-            expect(s).toMatchObject({ truncada: true, restantes: 1, rotulo: '200 de 201', proximoLote: 1 });
+            expect(s).toMatchObject({ truncada: true, restantes: 1, rotulo: '200 sur 201', proximoLote: 1 });
         });
     });
 

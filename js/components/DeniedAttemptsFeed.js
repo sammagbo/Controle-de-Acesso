@@ -6,6 +6,8 @@
 function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) {
       const [attempts, setAttempts] = React.useState([]);
       const t = useI18n();
+      // Datas e horas seguem o idioma da tela, não um país cravado.
+      const locale = useLocale();
       const [loading, setLoading] = React.useState(true);
       const [error, setError] = React.useState(false);
       // F7a — destaque + som para itens novos entre polls
@@ -58,9 +60,25 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
             };
       }, [fetchFn, pollingMs]);
 
-      const formatTimeOnly = (isoString) => {
+      /**
+       * Hora, e a DATA quando não é hoje.
+       *
+       * ⚠️ Este feed NÃO tem limite de tempo no Rapport Général: é
+       * `getAllAttempts` com `?size=50` e nenhuma janela — o CLAUDE.md chama-o
+       * de «histórico (últimos 50)». Numa semana calma esses 50 atravessam
+       * vários dias, e todos apareciam como «14:32:05» seco, sem nada a
+       * distingui-los. (Nos feeds da cantina e do portão a janela é de 12 h e
+       * a data quase nunca aparece — o custo é zero e a regra é uma só.)
+       *
+       * ⚠️ E a hora estava cravada em 'pt-BR' numa interface francesa. Não se
+       * via porque pt-BR e fr-FR imprimem HH:mm:ss igual — mas a data NÃO é
+       * igual em toda a parte, e o cravado passaria despercebido outra vez.
+       */
+      const formatQuando = (isoString) => {
             const date = new Date(isoString);
-            return isNaN(date) ? '--:--' : date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            if (isNaN(date)) return '--:--';
+            const hora = date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return ehHoje(date) ? hora : formatDate(date, locale) + ' ' + hora;
       };
 
       const getReasonBadge = (reason) => {
@@ -187,7 +205,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                                 userId: attempt.userId,
                                                 employeeNoRaw: attempt.employeeNoRaw,
                                                 nome: attempt.nome
-                                          }, { lang: 'pt' });
+                                          }, { lang: window.MagboI18n ? window.MagboI18n.getLang() : 'fr' });
 
                                           const userName = quem.nome;
                                           const userTurma = user ? user.turma : (attempt.turma || null);
@@ -200,7 +218,11 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
 
                                           // Nome do ponto, nunca o código seco (pointLabel resolve
                                           // e rotula o desconhecido como "Ponto X").
-                                          const pointName = pointLabel(attempt.pointId, 'pt');
+                                          // ⚠️ O idioma era 'pt' CRAVADO, numa interface francesa. Só não
+                                          // se via porque `pointLabel` usa o idioma apenas no rótulo do
+                                          // ponto DESCONHECIDO («Ponto X» contra «Point X») — que é
+                                          // justamente a linha que aparece quando algo corre mal.
+                                          const pointName = pointLabel(attempt.pointId);
 
                                           const isNew = newIds.has(attempt.id); // F7a — destaque ~8s
 
@@ -220,7 +242,7 @@ function DeniedAttemptsFeed({ fetchFn, pollingMs = 5000, title, emptyMessage }) 
                                                                         <p className="text-[10px] font-mono text-slate-400 leading-tight">{quem.matricula}</p>
                                                                   )}
                                                                   <span className="text-[10px] font-mono font-medium text-slate-400 flex-shrink-0">
-                                                                        {formatTimeOnly(attempt.timestamp)}
+                                                                        {formatQuando(attempt.timestamp)}
                                                                   </span>
                                                             </div>
                                                             

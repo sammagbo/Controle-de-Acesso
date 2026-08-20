@@ -32,9 +32,22 @@
             visiveis: visiveis,
             restantes: restantes,
             truncada: restantes > 0,
-            // Rótulo do contador: "200 de 1197" enquanto corta, só "9" quando
-            // cabe tudo — número solto com "de" sugere que falta coisa.
-            rotulo: restantes > 0 ? visiveis + ' de ' + t : String(t),
+            // Rótulo do contador: "200 sur 1197" enquanto corta, só "9" quando
+            // cabe tudo — número solto com conector sugere que falta coisa.
+            //
+            // ⚠️ O conector estava CRAVADO em português (' de '), e aparecia
+            // assim na tela francesa: «200 de 1197» em vez de «200 sur 1197».
+            // O guarda do i18n nunca o veria: ele percorre js/components,
+            // js/cdi e js/App.js, e este literal vive num UTILITÁRIO. É a mesma
+            // porta pela qual passou o 'Reconectando...' do rodapé.
+            //
+            // O módulo é PURO (testado no Vitest sem DOM): consulta o i18n se
+            // ele existir e cai no francês — a língua de trabalho — se não.
+            rotulo: restantes > 0
+                ? visiveis + (typeof window !== 'undefined' && window.MagboI18n
+                        ? ' ' + window.MagboI18n.t('comum.sobre') + ' '
+                        : ' sur ') + t
+                : String(t),
             proximoLote: Math.min(tam, restantes)
         };
     }

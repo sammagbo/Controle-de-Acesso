@@ -70,7 +70,17 @@ public class MealEntitlementController {
                     userId, req.getStatus(), req.getValidFrom(), req.getValidUntil(),
                     req.getNote(), changedBy, "UI"
             );
-            return ResponseEntity.ok().build();
+            // ⚠️ O CORPO EXISTE PARA A TELA, e a sua ausencia era o defeito.
+            // Sem ele o front nao tinha como atualizar UMA linha e era
+            // obrigado a recarregar a lista inteira a cada clique; recarregar
+            // desmonta a tabela, o documento encolhe, e o navegador joga a
+            // rolagem para o topo. O operador perdia o lugar e tinha de
+            // procurar o proximo aluno outra vez, 900 vezes.
+            //
+            // A leitura e FEITA DEPOIS do commit do REQUIRES_NEW do upsert,
+            // para que `updatedAt` (@PreUpdate) venha com o valor ja gravado
+            // e nao com o anterior.
+            return ResponseEntity.ok(mealEntitlementService.getOrPending(userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

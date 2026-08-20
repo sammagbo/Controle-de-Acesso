@@ -49,13 +49,39 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                         },
                         body: JSON.stringify({ pin })
                   });
+                  // ⚠️ NÃO HAVIA VERIFICAÇÃO DE res.ok, e a consequência era
+                  // uma acusação falsa. /admin/verify é hasRole('ADMIN'), e pela
+                  // dívida conhecida deste projeto um não-admin recebe 403, não
+                  // 401. O corpo do /error não tem `valid`, então `data.valid`
+                  // era undefined, caía no ramo de erro, e a tela dizia «PIN
+                  // incorrect. Tentative 1» — culpando quem digitou certo por
+                  // uma recusa de PAPEL. Um 500 fazia exatamente o mesmo.
+                  if (!res.ok) {
+                        const corpo = await res.json().catch(() => ({}));
+                        setError(corpo.error || corpo.message
+                              || (res.status === 403 ? t('pin.sem.permissao')
+                                                     : t('api.erro.servidor')));
+                        setPin('');
+                        if (inputRef.current) inputRef.current.focus();
+                        return;
+                  }
                   const data = await res.json();
                   if (data.valid) {
                         onSuccess();
                   } else {
                         const newAttempts = attempts + 1;
                         setAttempts(newAttempts);
-                        if (data.message && data.message !== t('pin.erro')) {
+                        // ⚠️ A guarda comparava a mensagem do servidor com o
+                        // texto TRADUZIDO. O backend manda o literal «PIN
+                        // incorreto» (português); em francês as strings diferem,
+                        // a guarda deixava passar, e a tela francesa imprimia
+                        // PORTUGUÊS a cada tentativa errada. Em português a
+                        // guarda casava e o vazamento ficava invisível — foi por
+                        // isso que sobreviveu. Agora reconhece a mensagem
+                        // genérica nas duas línguas e só mostra a do servidor
+                        // quando ela diz algo mais.
+                        const generica = /^\s*PIN\s+(incorreto|incorrect)\s*$/i;
+                        if (data.message && !generica.test(data.message)) {
                               setError(data.message);
                         } else if (newAttempts >= 3) {
                               setError(t('pin.incorreto.n', { n: newAttempts }));

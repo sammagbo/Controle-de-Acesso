@@ -14,6 +14,9 @@ function UserManagement() {
   // Pedidos de "esqueci a senha" (tela de login → aqui). O admin redefine a
   // senha pelo formulário de edição que já existe e fecha o bilhete.
   const [resetRequests, setResetRequests] = React.useState([]);
+  // Erro de CARREGAMENTO da lista. Vive aqui e não no formulário (que tem o
+  // seu próprio `error`, mais abaixo, noutro componente).
+  const [erroLista, setErroLista] = React.useState('');
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -21,7 +24,22 @@ function UserManagement() {
       const res = await fetch(`${API_BASE_URL}/system-users`, {
         headers: { Authorization: `Bearer ${window.auth.getToken()}` }
       });
-      setUsers(await res.json());
+      // ⚠️ ANTES ERA `setUsers(await res.json())` SEM CHECAR res.ok. Num 403 ou
+      // 500 o corpo do /error do Spring é um OBJETO JSON perfeitamente válido —
+      // então `users` deixava de ser array e `users.map(...)` estourava DENTRO
+      // da renderização. Sem error boundary (não havia nenhum neste projeto até
+      // 20/08/2026), isso era TELA BRANCA, não uma mensagem.
+      // Lista vazia é uma verdade ("não consegui carregar"); um objeto é uma
+      // bomba com atraso.
+      if (!res.ok) {
+        const corpo = await res.json().catch(() => ({}));
+        setUsers([]);
+        setErroLista(corpo.error || corpo.message || t('usuarios.erro.carregar'));
+        return;
+      }
+      const lista = await res.json();
+      setUsers(Array.isArray(lista) ? lista : []);
+      setErroLista('');
       const rr = await fetch(`${API_BASE_URL}/admin/password-reset-requests`, {
         headers: { Authorization: `Bearer ${window.auth.getToken()}` }
       });
@@ -105,6 +123,13 @@ function UserManagement() {
         React.createElement(LucideIcon, { name: 'loader-2', size: 24, className: 'text-slate-300 animate-spin' }),
         React.createElement('span', { className: 'ml-3 text-sm text-slate-400' }, t('operadores.carregando'))
       ),
+
+      // O erro de carregamento é DITO. Antes, uma recusa do servidor deixava
+      // a tela com uma tabela vazia e nenhuma explicação — indistinguível de
+      // "não há operadores cadastrados".
+      erroLista && React.createElement('div', {
+        className: 'mb-4 px-4 py-3 rounded-xl bg-danger-50 border border-danger-200 text-sm text-danger-700'
+      }, erroLista),
 
       !loading && React.createElement('div', { className: 'overflow-x-auto' },
         React.createElement('table', { className: 'w-full' },

@@ -118,7 +118,24 @@ async function registerAccess(payload) {
                   body: JSON.stringify(payload),
             });
             checkAuthError(res);
-            if (!res.ok) return null;
+            if (!res.ok) {
+                  // ⚠️ ISTO DEVOLVIA `null`, E NULL NÃO TEM RAZÃO NENHUMA.
+                  // Este é o caminho de ação principal do app (App.js:263). Um
+                  // 403 do AccessController diz, por extenso, «Você não tem
+                  // permissão para operar o setor PORT1» — e o operador via
+                  // «Erreur de communication / Échec de l'enregistrement du
+                  // passage», ou seja, um problema de REDE, com a frase certa
+                  // por ler dentro do corpo da resposta. No portão, isso manda
+                  // a pessoa chamar a informática em vez de pedir o direito.
+                  const corpo = await res.json().catch(() => ({}));
+                  const erro = new Error(corpo.error || corpo.message
+                        || (res.status === 403 ? T('api.sem.permissao.acao')
+                                               : T('api.erro.requisicao') + ' (HTTP ' + res.status + ')'));
+                  erro.status = res.status;
+                  // Preserva a sentinela de refeição duplicada (App.js:267).
+                  if (res.status === 409) erro.code = 'DUPLICATE';
+                  throw erro;
+            }
             const data = await res.json();
             return normaliseLog(data);
       } catch (err) {
@@ -379,7 +396,10 @@ async function putMealEntitlement(userId, payload) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || err.message || T('api.erro.sauvegarde'));
       }
-      // O upsert devolve 200 SEM corpo (ok().build()) — tolerar vazio.
+      // ⚠️ Tolera corpo vazio. Até 20/08/2026 o upsert devolvia 200 SEM
+      // corpo, o que obrigava a tela a recarregar a lista inteira a cada
+      // clique (e a rolagem saltava para o topo). O backend agora devolve a
+      // linha; a tolerância fica para o posto cujo Electron esteja à frente.
       const text = await res.text();
       return text ? JSON.parse(text) : null;
 }

@@ -96,12 +96,28 @@ async function login(page, user = 'admin', pass = 'admin1234') {
 /** Painel Administrativo: cadeado no header → modal de PIN (default dev 1234).
  *  Lockout do backend: 5 erros → 60s. Não insistir com PIN errado. */
 async function enterAdminPanel(page, pin = '1234') {
-      await page.locator('button[title="Painel Administrativo"]').click();
+      // ⚠️ NÃO CASAR POR TEXTO EM UMA LÍNGUA SÓ. Este seletor era
+      // `button[title="Painel Administrativo"]` e deixou de casar quando a
+      // interface passou a francês: o título vem de t('header.admin.abrir'),
+      // que é 'Panneau administratif (PIN)' em FR. Um driver preso a uma
+      // língua reprova por motivo errado — e faz parecer defeito do app.
+      await page.locator('button[title*="administratif" i], button[title*="Administrativo" i]').first().click();
       await page.waitForTimeout(1200);
       await page.keyboard.type(pin);
       await page.keyboard.press('Enter');
-      await page.waitForFunction(() => document.body.innerText.includes('Painel Administrativo'), null, { timeout: 10000 });
+      await page.waitForFunction(
+            () => /panneau administratif|painel administrativo/i.test(document.body.innerText),
+            null, { timeout: 10000 });
       await page.waitForTimeout(800);
+}
+
+/** AdminPanel → Droits Repas (o card TEM botão próprio, como o Rapport). */
+async function gotoDroitsRepas(page) {
+      await page.getByRole('button', { name: /droits repas|g[ée]rer les droits|direitos/i }).first().click();
+      await page.waitForFunction(
+            () => /droits repas|direitos de refei/i.test(document.body.innerText),
+            null, { timeout: 20000 });
+      await page.waitForTimeout(3000);
 }
 
 /** Dashboard → Monitor Cantine (card clicável direto; feed poll 3s). */
@@ -172,7 +188,7 @@ async function smoke(network = 'kiosk') {
       }
 }
 
-module.exports = { ROOT, launchMagbo, login, enterAdminPanel, gotoMonitorCantine, gotoRapportGeneral, spyBeep, countHighlights, screenshot, sql, insertTestAttempt, deleteAttempts, smoke };
+module.exports = { ROOT, launchMagbo, login, enterAdminPanel, gotoDroitsRepas, gotoMonitorCantine, gotoRapportGeneral, spyBeep, countHighlights, screenshot, sql, insertTestAttempt, deleteAttempts, smoke };
 
 if (require.main === module) {
       const [cmd, arg] = process.argv.slice(2);

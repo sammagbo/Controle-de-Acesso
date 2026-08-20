@@ -10,6 +10,18 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
       const [isSearching, setIsSearching] = React.useState(false);
       const searchRef = React.useRef(null);
       const logListRef = React.useRef(null);
+      /**
+       * Quantas passagens mostrar.
+       *
+       * ⚠️ ERA `slice(0, 50)` CRAVADO, e o crachá duas linhas acima anunciava
+       * o total VERDADEIRO das 24 h. Com movimento de dia letivo isso lia
+       * «187 passages (24 h)» sobre uma lista de 50, sem nada dizer que as
+       * outras 137 tinham sido descartadas. É a mesma família de
+       * sub-reportagem que os comentários deste arquivo já documentam: a tela
+       * parece funcionar e mostra menos do que aconteceu, e quem opera não tem
+       * como desconfiar do que não vê.
+       */
+      const [limite, setLimite] = React.useState(50);
 
       React.useEffect(() => {
             if (searchRef.current) searchRef.current.focus();
@@ -332,6 +344,25 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                 <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full whitespace-nowrap">
                                                       {pointLogs.length} {t('setor.acessos24h')}
                                                 </span>
+                                                {/* Quantas linhas mostrar — a escolha é de quem opera.
+                                                    Aparece só quando há mais do que o menor degrau, para
+                                                    não pôr um seletor numa tela de 3 passagens. */}
+                                                {pointLogs.length > 25 && (
+                                                      <label className="flex items-center gap-1.5 text-xs text-slate-400 whitespace-nowrap">
+                                                            {t('setor.linhas')}
+                                                            <select
+                                                                  value={limite}
+                                                                  onChange={(e) => setLimite(Number(e.target.value))}
+                                                                  className="text-xs font-semibold text-navy-500 bg-white border border-soft-200 rounded-lg px-2 py-1"
+                                                            >
+                                                                  <option value={25}>25</option>
+                                                                  <option value={50}>50</option>
+                                                                  <option value={100}>100</option>
+                                                                  <option value={250}>250</option>
+                                                                  <option value={0}>{t('setor.linhas.todas')}</option>
+                                                            </select>
+                                                      </label>
+                                                )}
                                           </div>
                                     </div>
 
@@ -345,7 +376,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       <p className="text-xs text-slate-300">{t('setor.sem.registro.dica')}</p>
                                                 </div>
                                           )}
-                                          {pointLogs.slice(0, 50).map((log, idx) => {
+                                          {(limite > 0 ? pointLogs.slice(0, limite) : pointLogs).map((log, idx) => {
                                                 const user = (window.userCache?.byId(log.userId)) || null;
                                                 // ⚠️ ERA `if (!user) return null` — a passagem DESAPARECIA
                                                 // da tela quando a pessoa não estava no cache (cache ainda
@@ -419,6 +450,16 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                   </div>
                                                             </div>
                                                             <div className="flex-shrink-0 text-right">
+                                                                  {/* ⚠️ A JANELA É DE 24 HORAS, não «hoje» — o backend
+                                                                      serve now().minusHours(24) e o crachá diz «(24 h)».
+                                                                      Só com a hora, uma passagem das 16h de ontem é
+                                                                      indistinguível de uma das 16h de hoje, e às 10h30
+                                                                      a lista intercala as duas. «Hier» e não a data
+                                                                      porque, numa janela de 24 h, o que não é hoje É
+                                                                      ontem — e a palavra lê-se mais depressa no portão. */}
+                                                                  {!ehHoje(time) && (
+                                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-warning-600 leading-none mb-0.5">{t('comum.ontem')}</p>
+                                                                  )}
                                                                   <p className="text-sm font-bold font-mono text-navy-500">{formatTime(time)}</p>
                                                                   <span className={`inline-flex items-center gap-1 text-xs font-semibold mt-0.5 px-2 py-0.5 rounded-full ${isEntrada ? 'text-success-600 bg-success-50' : 'text-danger-600 bg-danger-50'}`}>
                                                                         {isEntrada ? t('acao.entrada.emoji') : t('acao.saida.emoji')}
@@ -434,6 +475,19 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       </div>
                                                 );
                                           })}
+                                          {/* ⚠️ O QUE FICOU DE FORA É DITO. Antes a lista era
+                                              cortada em 50 sem uma palavra, enquanto o crachá
+                                              anunciava o total das 24 h — «187 passages» sobre 50
+                                              linhas. Um número que ninguém consegue reconciliar
+                                              com o que vê é pior que um número menor. */}
+                                          {limite > 0 && pointLogs.length > limite && (
+                                                <button
+                                                      onClick={() => setLimite(0)}
+                                                      className="w-full py-3 text-center text-xs font-semibold text-accent-600 hover:bg-soft-50 border-t border-soft-100 transition-colors"
+                                                >
+                                                      {t('setor.ocultas', { n: pointLogs.length - limite })}
+                                                </button>
+                                          )}
                                     </div>
                               </div>
                         </div>

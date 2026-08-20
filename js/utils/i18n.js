@@ -938,6 +938,7 @@
             'acao.descartar': 'Abandonner',
 
             'comum.erro': 'Erreur',
+            'comum.sobre': 'sur',
             'comum.sucesso': 'Succès',
             'comum.nome': 'Nom',
             'comum.id': 'ID',
@@ -1147,6 +1148,10 @@
             'setor.repeticoes.ajuda': "Répétitions qui n'ouvrent pas de nouvelle visite : qui est posté à ce point (gardien, permanence) et qui entre en étant déjà à l'intérieur. Enregistrées, mais hors de cette liste et des compteurs.",
             'setor.repeticao.etiqueta': 'Répétition — enregistrée, hors des compteurs',
             'setor.acessos24h': 'passages (24 h)',
+            'setor.linhas': 'Lignes',
+            'setor.linhas.todas': 'Toutes',
+            'setor.ocultas': 'Afficher les {n} passages plus anciens',
+            'comum.ontem': 'Hier',
             'setor.sem.registro': 'Aucun enregistrement',
             'setor.sem.registro.dica': 'Les passages apparaîtront ici en temps réel',
 
@@ -2145,6 +2150,7 @@
             'acao.descartar': 'Descartar',
 
             'comum.erro': 'Erro',
+            'comum.sobre': 'de',
             'comum.sucesso': 'Sucesso',
             'comum.nome': 'Nome',
             'comum.id': 'ID',
@@ -2347,6 +2353,10 @@
             'setor.repeticoes.ajuda': 'Repetições que não abrem visita nova: quem fica postado neste ponto (porteiro, plantão) e quem entra estando já dentro. Ficam gravadas, mas fora desta lista e das contagens.',
             'setor.repeticao.etiqueta': 'Repetição — gravada, mas fora das contagens',
             'setor.acessos24h': 'acessos (24 h)',
+            'setor.linhas': 'Linhas',
+            'setor.linhas.todas': 'Todas',
+            'setor.ocultas': 'Mostrar as {n} passagens mais antigas',
+            'comum.ontem': 'Ontem',
             'setor.sem.registro': 'Nenhum registro',
             'setor.sem.registro.dica': 'Os acessos aparecerão aqui em tempo real',
 

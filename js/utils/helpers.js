@@ -59,6 +59,43 @@ function formatTime(date) {
       return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+/**
+ * Idioma em vigor FORA do React — helpers.js não é componente e não tem hook.
+ * Espelha o useLocale() de js/utils/i18nReact.js.
+ */
+function localeAtual() {
+      return (window.MagboI18n && window.MagboI18n.getLang() === 'pt') ? 'pt-BR' : 'fr-FR';
+}
+
+/** Data curta no idioma em vigor (20/08/2026 nas duas línguas). */
+function formatDate(date, locale) {
+      if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '--/--/----';
+      return date.toLocaleDateString(locale || localeAtual());
+}
+
+/**
+ * Chave do dia LOCAL.
+ *
+ * ⚠️⚠️ NUNCA `toISOString().slice(0,10)` PARA AGRUPAR POR DIA. Em BRT (UTC-3)
+ * toda hora a partir das 21:00 é arquivada no dia SEGUINTE — uma passagem das
+ * 21:30 de quarta aparece como quinta. O defeito já existe em
+ * GeneralReport.js (`logsByDay` e `todayStr`), onde depois das 21h o filtro de
+ * data do Journal abre no dia de amanhã; este helper existe para que ele não
+ * seja copiado para mais nenhum lugar.
+ */
+function dayKey(date) {
+      const d = date instanceof Date ? date : new Date(safeDateParse(date));
+      if (isNaN(d.getTime())) return '';
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+             + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/** true quando a data cai no dia de HOJE, hora local. */
+function ehHoje(date) {
+      const k = dayKey(date);
+      return k !== '' && k === dayKey(new Date());
+}
+
 function formatDuration(ms) {
       if (ms == null || isNaN(ms) || ms < 0) return '00m 00s';
       const totalSeconds = Math.floor(ms / 1000);

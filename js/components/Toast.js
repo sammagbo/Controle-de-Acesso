@@ -4,12 +4,31 @@
 
 function Toast({ toast, onDismiss }) {
       const t = useI18n();
-      if (!toast) return null;
 
+      // ⚠️ O useEffect FICA ACIMA DO `return null`, e a guarda mora DENTRO dele.
+      //
+      // Com a ordem invertida — `if (!toast) return null;` antes do hook — este
+      // componente chamava UM hook quando não havia toast e DOIS quando havia.
+      // O React conta os hooks por renderização: ver um a mais na segunda é o
+      // erro #310 ("Rendered more hooks than during the previous render"), e ele
+      // não é recuperável — a árvore inteira desmonta e a janela fica BRANCA,
+      // travada, só saindo no X.
+      //
+      // Como o Toast é montado por quase toda tela, o efeito era: QUALQUER ação
+      // que mostrasse uma notificação derrubava o aplicativo. Reproduzido em
+      // 20/08/2026 em Réactiver um agente e em reclassificar servidor→aluno;
+      // valia para salvar, importar e tudo o mais que notifica.
+      //
+      // ⚠️ Nenhum teste pega isto: o defeito só existe na SEGUNDA renderização,
+      // com o valor mudando de null para objeto, e nenhuma suíte deste projeto
+      // renderiza React. A prova é abrir a tela.
       React.useEffect(() => {
+            if (!toast) return;
             const timer = setTimeout(() => onDismiss(), toast.duration || 6000);
             return () => clearTimeout(timer);
       }, [toast, onDismiss]);
+
+      if (!toast) return null;
 
       // Variante 1: Notificação de Responsável Vinculado (existente)
       if (toast.responsavelId) {

@@ -76,7 +76,7 @@ spyBeep, countHighlights, screenshot, sql, insertTestAttempt, deleteAttempts, sm
   regex `/i` (`/tentatives refus/i`), nunca `includes('Tentatives Refusées')`.
 - **"ACCÉDER" casa 2 elementos** (parágrafo + botão) → `getByRole('button', {name})`.
 - **O card "Rapport Général" do Painel Admin NÃO é clicável** — o clicável é o botão
-  **"Ouvrir le rapport"** dentro dele. Monitor Cantine é card clicável direto.
+  **"Ouvrir le rapport"** dentro dele. Surveillance Cantine é card clicável direto.
 - **Painel Administrativo exige PIN** (dev: 1234; lockout do backend: 5 erros → 60s —
   não insistir com PIN errado em loop).
 - **`psql -t -A` com `RETURNING` devolve 2 linhas** (`id` + `INSERT 0 1`) → usar só a

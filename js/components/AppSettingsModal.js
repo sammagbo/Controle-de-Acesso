@@ -14,7 +14,7 @@ const DEPARTAMENTOS_SUGERIDOS = [
     'Manutenção',
     'Cantina',
     'Portaria',
-    'Biblioteca / CDI'
+    'CDI'
 ];
 
 /** Tipos que são servidor da escola — o resto segue o fluxo antigo. */

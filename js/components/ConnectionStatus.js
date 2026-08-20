@@ -53,7 +53,7 @@ function ConnectionStatus() {
       let dotColor, label, animate;
       if (recovering) {
             dotColor = 'bg-warning-500';
-            label = 'Reconectando...';
+            label = t('status.reconectando');
             animate = 'animate-pulse';
       } else if (online) {
             dotColor = 'bg-success-500';

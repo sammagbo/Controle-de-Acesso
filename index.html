@@ -105,6 +105,12 @@
       <script type="text/babel" src="js/utils/audio.js?v=1"></script>
       <script type="text/babel" src="js/utils/connectionMonitor.js?v=1"></script>
       <!-- Components -->
+      <!-- ⚠️ ErrorBoundary PRIMEIRO entre os componentes, e a razão é literal:
+           ele é a rede de quem vem depois. Um componente que se envolve num
+           boundary que ainda não existe recebe `undefined` como tipo de
+           elemento e quebra na renderização — exatamente o desastre que este
+           arquivo existe para evitar, causado pela ordem do <script>. -->
+      <script type="text/babel" src="js/components/ErrorBoundary.js?v=1"></script>
       <!-- ListaLimitada é usada pela aba HikCentral E pela importação de direitos
            de refeição: carrega antes das duas. -->
       <script type="text/babel" src="js/components/ListaLimitada.js?v=1"></script>

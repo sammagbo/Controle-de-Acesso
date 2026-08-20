@@ -351,14 +351,28 @@ function App() {
 
       // Se não logado → mostra LoginScreen
       if (!currentUser) {
-            return <LoginScreen onLoginSuccess={(data) => setCurrentUser(window.auth.getUser())} />;
+            // Sem `onRetour`: da tela de login não há para onde voltar. Sobra
+            // "Recharger l'application", que é exatamente o gesto certo aqui.
+            return (
+                  <ErrorBoundary nom={t('erro.tela.login')}>
+                        <LoginScreen onLoginSuccess={(data) => setCurrentUser(window.auth.getUser())} />
+                  </ErrorBoundary>
+            );
       }
 
       // ── Biblioteca → Full CDI experience ──
       if (currentPoint && currentPoint.id === 'BIBLIO') {
+            // O CDI é uma aplicação inteira dentro da outra (tela cheia, sem o
+            // Header do MAGBO). Um erro aqui não tem cromo nenhum para sobrar —
+            // por isso o boundary é o próprio caminho de volta ao painel.
             return (
                   <div className="h-screen overflow-hidden">
-                        <BibliotecaView onBack={() => setCurrentPoint(null)} />
+                        <ErrorBoundary
+                              nom={pointLabel('BIBLIO')}
+                              onRetour={() => setCurrentPoint(null)}
+                              labelRetour={t('erro.voltar')}>
+                              <BibliotecaView onBack={() => setCurrentPoint(null)} />
+                        </ErrorBoundary>
                   </div>
             );
       }
@@ -385,6 +399,25 @@ function App() {
                   }
             />
 
+            {/* ⚠️ UMA rede por TELA, e é aqui que ela vale mais.
+                O erro de uma tela custa a tela: o Header continua desenhado,
+                o botão de volta continua funcionando, e as outras telas
+                continuam alcançáveis. Sem isto — e foi assim até 20/08/2026 —
+                qualquer exceção de renderização subia até a raiz, o React
+                desmontava a árvore inteira e a janela ficava BRANCA e travada.
+
+                `resetKey` é o que impede o boundary de ficar preso: sem ele,
+                uma tela que quebrou deixaria o fallback no lugar mesmo depois
+                de o operador navegar para outra. */}
+            <ErrorBoundary
+                  nom={adminView ? t('erro.tela.admin')
+                        : !currentPoint ? t('erro.tela.dashboard')
+                        : pointLabel(currentPoint.id)}
+                  resetKey={adminView ? 'ADMIN' : (currentPoint ? currentPoint.id : 'DASHBOARD')}
+                  onRetour={(adminView || currentPoint)
+                        ? () => { setCurrentPoint(null); setAdminView(false); setOrigemAdmin(false); }
+                        : null}
+                  labelRetour={t('erro.voltar')}>
             {adminView ? (
                   <AdminDashboard
                         onBack={() => setAdminView(false)}
@@ -445,7 +478,16 @@ function App() {
                         onToggleRepeticoes={setIncluirRepeticoes}
                   />
             )}
-                  <Toast toast={toast} onDismiss={() => setToast(null)} />
+            </ErrorBoundary>
+
+                  {/* CROMO — variante `discret`: não desenha NADA em caso de erro.
+                      Um Toast quebrado (foi exatamente o defeito de 48ffa19) deve
+                      custar a notificação, nunca a tela de quem está trabalhando;
+                      e um aviso vermelho permanente no lugar do sino seria a
+                      segunda maneira de estragar a mesma tela. */}
+                  <ErrorBoundary nom="Toast" variante="discret">
+                        <Toast toast={toast} onDismiss={() => setToast(null)} />
+                  </ErrorBoundary>
 
                   <AdminPinModal
                         open={showAdminPinModal}
@@ -457,6 +499,8 @@ function App() {
                   />
 
                   {accessModal && accessModal.type === 'portaria' && (
+                        <ErrorBoundary nom={t('erro.tela.modal.portaria')} variante="modal"
+                              onRetour={() => setAccessModal(null)} labelRetour={t('erro.fechar')}>
                         <PortariaModal
                               responsavel={accessModal.responsavel}
                               alunos={accessModal.alunos}
@@ -468,21 +512,28 @@ function App() {
                                     setAccessModal(null);
                               }}
                         />
+                        </ErrorBoundary>
                   )}
 
                   {accessModal && accessModal.type === 'sector' && (
+                        <ErrorBoundary nom={t('erro.tela.modal.passagem')} variante="modal"
+                              onRetour={() => setAccessModal(null)} labelRetour={t('erro.fechar')}>
                         <PermanenciaModal
                               user={accessModal.user}
                               bannerProps={accessModal.bannerProps}
                               onClose={() => setAccessModal(null)}
                         />
+                        </ErrorBoundary>
                   )}
 
                   {showSettings && (
+                        <ErrorBoundary nom={t('erro.tela.parametres')} variante="modal"
+                              onRetour={() => setShowSettings(false)} labelRetour={t('erro.fechar')}>
                         <AppSettingsModal
                               onClose={() => setShowSettings(false)}
                               onShowToast={setToast}
                         />
+                        </ErrorBoundary>
                   )}
 
                   {/* Footer */}
@@ -492,7 +543,9 @@ function App() {
                                     MAGBO Access Control v1.0 · Lycée Molière · 2026 ·{' '}
                                     <a href="https://www.sammagbo.com" target="_blank" rel="noopener noreferrer" className="text-[#00234b] font-semibold hover:underline">MAGBO STUDIO</a>
                               </p>
-                              <ConnectionStatus />
+                              <ErrorBoundary nom="ConnectionStatus" variante="discret">
+                                    <ConnectionStatus />
+                              </ErrorBoundary>
                         </div>
                   </footer>
             </div>
@@ -504,4 +557,18 @@ function App() {
 // =====================================================================
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+
+// ⚠️ A REDE DA RAIZ é a última, e cobre o que nenhuma outra cobre: um erro no
+// PRÓPRIO App (os seus hooks, os seus efeitos, o Header) acontece ACIMA de
+// todos os boundaries internos. Sem ela, esse caso continuaria produzindo a
+// tela branca — que é precisamente o desastre de 48ffa19, cujo defeito
+// (ordem de hooks no Toast) estourava na renderização do App.
+//
+// Sem `onRetour` de propósito: aqui não existe "voltar" — o estado de
+// navegação mora dentro do componente que acabou de falhar. O que resta, e
+// funciona sempre, é recarregar.
+root.render(
+      <ErrorBoundary nom="MAGBO Access Control">
+            <App />
+      </ErrorBoundary>
+);

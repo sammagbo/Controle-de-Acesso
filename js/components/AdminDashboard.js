@@ -365,6 +365,21 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                                       {t('admin.kpi.averificar', { n: stats.verificarHoje })}
                                                 </p>
                                           )}
+                                          {/* ⚠️ CE QUE LE NOMBRE COMPTE, ÉCRIT À CÔTÉ DU NOMBRE.
+                                              Mesuré sur la VM le 21/08 : 469 « tentatives refusées »
+                                              la veille, dont 469 SANS AUCUNE IDENTITÉ — la caméra du
+                                              portail donne sur la rue et voit les parents, les
+                                              livreurs, les frères et sœurs non inscrits. Sur sept
+                                              jours : 0 élève réel. Depuis toujours : 12 sur 7 408.
+                                              Sans cette ligne, un directeur financier lit « le
+                                              système refuse la moitié de ce qu'il voit ».
+                                              ⚠️ Formulé en « comprend » et non en « ce ne sont pas
+                                              des élèves » : la première formulation reste vraie le
+                                              jour où un vrai refus d'élève apparaîtra, la seconde
+                                              deviendrait un mensonge ce jour-là. */}
+                                          <p className="text-[10px] text-slate-400 mt-1 leading-snug max-w-[15rem]">
+                                                {t('admin.kpi.negadas.explica')}
+                                          </p>
                                     </div>
                               </div>
                         </div>

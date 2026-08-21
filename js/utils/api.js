@@ -72,6 +72,27 @@ function normaliseLog(raw) {
       // ⚠️ Divida conhecida do projeto: um endpoint @PreAuthorize chamado SEM
       // token devolve 403, nao 401. Por isso o 403 continua deslogando QUANDO
       // nao ha token guardado — a distincao esta no token, nao no numero.
+/**
+ * A razão do servidor, ou null quando o corpo é o envelope do /error do Spring.
+ *
+ * ⚠️ Gémea da de js/api.js, e existe pela mesma razão medida em 20/08/2026: o
+ * envelope do /error do Spring tem um campo `error` que é a REASON PHRASE HTTP
+ * EM INGLÊS («Forbidden», «Not Found»), e lê-lo cru põe inglês numa tela
+ * francesa. Os dois formatos distinguem-se sem ambiguidade: o envelope do
+ * Spring traz `status` E `path`.
+ *
+ * ⚠️ DUAS CÓPIAS de propósito, e não uma terceira camada HTTP: as duas camadas
+ * (js/api.js e este arquivo) são a dívida D1 do projeto, e a regra é NÃO criar
+ * uma terceira. Doze linhas duplicadas custam menos que um módulo novo entre
+ * elas — mas mudá-las é mudar as DUAS.
+ */
+function razaoDoServidor(data) {
+      if (!data || typeof data !== 'object') return null;
+      const envelopeDoSpring = ('path' in data) && ('status' in data) && typeof data.status === 'number';
+      if (envelopeDoSpring) return null;
+      return data.message || data.error || null;
+}
+
 function checkAuthError(res) {
       if (res.status === 401) {
             window.auth?.logout();
@@ -128,7 +149,7 @@ async function registerAccess(payload) {
                   // por ler dentro do corpo da resposta. No portão, isso manda
                   // a pessoa chamar a informática em vez de pedir o direito.
                   const corpo = await res.json().catch(() => ({}));
-                  const erro = new Error(corpo.error || corpo.message
+                  const erro = new Error(razaoDoServidor(corpo)
                         || (res.status === 403 ? T('api.sem.permissao.acao')
                                                : T('api.erro.requisicao') + ' (HTTP ' + res.status + ')'));
                   erro.status = res.status;
@@ -394,7 +415,7 @@ async function putMealEntitlement(userId, payload) {
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || T('api.erro.sauvegarde'));
+            throw new Error(razaoDoServidor(err) || T('api.erro.sauvegarde'));
       }
       // ⚠️ Tolera corpo vazio. Até 20/08/2026 o upsert devolvia 200 SEM
       // corpo, o que obrigava a tela a recarregar a lista inteira a cada
@@ -442,7 +463,7 @@ async function postImportDeRefeicao(caminho, items) {
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || T('api.erro.importacao'));
+            throw new Error(razaoDoServidor(err) || T('api.erro.importacao'));
       }
       return await res.json();
 }
@@ -457,7 +478,7 @@ async function postMealEntitlementBulk(items, overwrite = false) {
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || T('api.erro.importacao.massa'));
+            throw new Error(razaoDoServidor(err) || T('api.erro.importacao.massa'));
       }
       return await res.json();
 }
@@ -521,7 +542,7 @@ async function postExitPermission(payload) {
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.criar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || T('api.erro.autorizacao.salvar'));
+            throw new Error(razaoDoServidor(err) || T('api.erro.autorizacao.salvar'));
       }
       return await res.json();
 }
@@ -536,7 +557,7 @@ async function revokeExitPermission(id, note) {
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.revogar'));
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || err.message || T('api.erro.autorizacao.revogar'));
+            throw new Error(razaoDoServidor(err) || T('api.erro.autorizacao.revogar'));
       }
       return await res.json();
 }

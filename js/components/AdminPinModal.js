@@ -58,7 +58,10 @@ function AdminPinModal({ open, onSuccess, onClose }) {
                   // uma recusa de PAPEL. Um 500 fazia exatamente o mesmo.
                   if (!res.ok) {
                         const corpo = await res.json().catch(() => ({}));
-                        setError(corpo.error || corpo.message
+                        // ⚠️ razaoDoServidor e nao `corpo.error`: o envelope do
+                        // /error do Spring tem um campo `error` que e a reason
+                        // phrase HTTP EM INGLES («Forbidden»). Medido em 20/08.
+                        setError(razaoDoServidor(corpo)
                               || (res.status === 403 ? t('pin.sem.permissao')
                                                      : t('api.erro.servidor')));
                         setPin('');

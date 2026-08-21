@@ -3,6 +3,33 @@
 // =====================================================================
 
 // API URL: reads from Electron preload config (production) or falls back to localhost (dev)
+/**
+ * A razão do servidor, ou null quando o corpo é o envelope do /error do Spring.
+ *
+ * ⚠️ ESTA FUNÇÃO EXISTE POR CAUSA DE UM DEFEITO QUE EU MESMO CRIEI EM 20/08/2026.
+ * Ao ensinar o front a ler os DOIS dialetos de erro do backend
+ * (`{error}` e `{status,message}`), passei a preferir `data.error` — e o
+ * envelope do /error do Spring TAMBÉM tem um campo `error`, que é a
+ * REASON PHRASE HTTP EM INGLÊS:
+ *
+ *     { "timestamp": "...", "status": 403, "error": "Forbidden", "path": "..." }
+ *
+ * Resultado medido com uma conta OPERATOR real: a aba Personnels mostrava um
+ * toast dizendo «Forbidden» — inglês, numa interface francesa — em vez do
+ * texto traduzido. Antes da minha mudança caía no genérico; depois dela,
+ * piorou. Achado ao PERCORRER A TELA, não pelos testes.
+ *
+ * Os dois formatos distinguem-se sem ambiguidade: o envelope do Spring traz
+ * `status` E `path`; um erro de aplicação deste backend traz `error` (ou
+ * `status:"error"` + `message`) e nunca `path`.
+ */
+function razaoDoServidor(data) {
+      if (!data || typeof data !== 'object') return null;
+      const envelopeDoSpring = ('path' in data) && ('status' in data) && typeof data.status === 'number';
+      if (envelopeDoSpring) return null;   // `error` ali é "Forbidden"/"Not Found", não uma razão
+      return data.message || data.error || null;
+}
+
 const API_BASE_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
 function authHeaders(extra = {}) {
@@ -64,7 +91,7 @@ const api = {
                 // punha "Erreur de communication avec le serveur" no lugar. É por
                 // isso que as telas de foto e de pessoal pareciam bem e o portão
                 // não: era o dialeto, não a tela.
-                if (data) errorMsg = data.message || data.error || null;
+                errorMsg = razaoDoServidor(data);
             } catch (e) {
                 // corpo não-JSON: cai nos genéricos abaixo
             }

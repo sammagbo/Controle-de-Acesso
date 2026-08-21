@@ -51,6 +51,8 @@ class PpmsServiceTest {
     private com.magbo.access.config.PresenceAutoCloseProperties autoCloseProps;
     private PpmsService service;
     private final List<AccessLog> logs = new ArrayList<>();
+    private final java.util.Map<String, UserType> tipoPorId = new java.util.HashMap<>();
+    private final java.util.Set<String> semFicha = new java.util.HashSet<>();
     private long seq = 1;
 
     @BeforeEach
@@ -59,13 +61,21 @@ class PpmsServiceTest {
         autoCloseProps.getTimes().put("BIBLIO", "17:00");
         service = new PpmsService(accessLogRepository, userRepository, autoCloseProps);
         logs.clear();
+        tipoPorId.clear();
+        semFicha.clear();
         when(accessLogRepository.findByTimestampBetweenOrderByTimestampAsc(any(), any()))
                 .thenReturn(logs);
         when(userRepository.findAllById(any())).thenAnswer(inv -> {
             List<User> us = new ArrayList<>();
             for (Object id : (Iterable<?>) inv.getArgument(0)) {
-                us.add(User.builder().id((String) id).nome("Aluno " + id)
-                        .turma("2A").tipo(UserType.ALUNO).ativo(true).build());
+                String sid = (String) id;
+                // Convencao destes testes: `tipoPorId` escolhe o tipo (ALUNO por
+                // omissao) e um id em `semFicha` NAO devolve User nenhum — e o
+                // caso OUTRO, alguem dentro que o sistema nao sabe nomear.
+                if (semFicha.contains(sid)) continue;
+                UserType tipo = tipoPorId.getOrDefault(sid, UserType.ALUNO);
+                us.add(User.builder().id(sid).nome("Pessoa " + sid)
+                        .turma(tipo == UserType.ALUNO ? "2A" : null).tipo(tipo).ativo(true).build());
             }
             return us;
         });
@@ -78,6 +88,20 @@ class PpmsServiceTest {
 
     private PpmsSnapshot tirar() {
         return service.snapshot(AGORA);
+    }
+
+    /**
+     * A zona de um ponto, por NOME e nunca por indice.
+     *
+     * ⚠️ Cinco testes indexavam `getZonas().get(0)` a contar com "a primeira
+     * zona e a que tem gente". Deixou de ser verdade quando as zonas VAZIAS
+     * passaram a ser emitidas — e o sintoma foi um ArrayIndexOutOfBounds, que
+     * nao diz nada sobre o que se queria provar. A ORDEM tem o seu proprio
+     * teste (`transitoPorUltimo`); nenhum outro deve depender dela.
+     */
+    private PpmsSnapshot.Zona zonaDe(PpmsSnapshot s, String ponto) {
+        return s.getZonas().stream().filter(z -> ponto.equals(z.getPointId()))
+                .findFirst().orElseThrow(() -> new AssertionError("zona ausente: " + ponto));
     }
 
     private List<String> nomesDentro(PpmsSnapshot s) {
@@ -113,7 +137,16 @@ class PpmsServiceTest {
         void diaVazio() {
             PpmsSnapshot s = tirar();
             assertThat(s.getTotalDentro()).isZero();
-            assertThat(s.getZonas()).isEmpty();
+            // ⚠️ O CONTRATO MUDOU DE PROPOSITO: as zonas vazias sao agora
+            // EMITIDAS, porque "o CDI esta vazio" e uma resposta e a ausencia da
+            // linha dizia "nao sei". O que este teste garante continua a ser o
+            // mesmo — ninguem dentro — afirmado sobre o contrato novo.
+            assertThat(s.getZonas()).isNotEmpty();
+            assertThat(s.getZonas()).allSatisfy(z -> {
+                assertThat(z.getTotal()).isZero();
+                assertThat(z.getPessoas()).isEmpty();
+                assertThat(z.getGrupos()).isEmpty();
+            });
         }
     }
 
@@ -129,7 +162,7 @@ class PpmsServiceTest {
             ev("0001", "BIBLIO", AccessAction.ENTRADA, 10, 0, null);
             PpmsSnapshot s = tirar();
             assertThat(s.getTotalDentro()).isEqualTo(1);
-            assertThat(s.getZonas().get(0).getPointId()).isEqualTo("BIBLIO");
+            assertThat(zonaDe(s, "BIBLIO").getTotal()).isEqualTo(1);
         }
 
         @Test
@@ -147,10 +180,11 @@ class PpmsServiceTest {
             assertThat(s.getTotalDentro())
                     .as("sair do CDI não é sair da escola")
                     .isEqualTo(1);
-            assertThat(s.getZonas().get(0).getPointId())
+            assertThat(zonaDe(s, "BIBLIO").getTotal())
                     .as("não se manda ninguém procurar na sala que a pessoa deixou")
-                    .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
-            assertThat(s.getZonas().get(0).getPessoas().get(0).getUltimoPonto())
+                    .isZero();
+            assertThat(zonaDe(s, PpmsService.ZONA_EM_TRANSITO).getTotal()).isEqualTo(1);
+            assertThat(zonaDe(s, PpmsService.ZONA_EM_TRANSITO).getPessoas().get(0).getUltimoPonto())
                     .as("mas o último lugar onde foi vista continua dito")
                     .isEqualTo("BIBLIO");
         }
@@ -159,8 +193,7 @@ class PpmsServiceTest {
         @DisplayName("★★ quem só passou o portão está EM TRÂNSITO — corredor, pátio, sala sem leitor")
         void soPortaoEEmTransito() {
             ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
-            assertThat(tirar().getZonas().get(0).getPointId())
-                    .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
+            assertThat(zonaDe(tirar(), PpmsService.ZONA_EM_TRANSITO).getTotal()).isEqualTo(1);
         }
 
         @Test
@@ -168,7 +201,17 @@ class PpmsServiceTest {
         void visitaAbertaVence() {
             ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
             ev("0001", "BIBLIO", AccessAction.ENTRADA, 10, 0, null);
-            assertThat(tirar().getZonas().get(0).getPointId()).isEqualTo("BIBLIO");
+            PpmsSnapshot s = tirar();
+            assertThat(zonaDe(s, "BIBLIO").getTotal()).isEqualTo(1);
+            // ⚠️ EM_TRANSITO nao aparece: e um RESIDUO, nao uma sala. As zonas
+            // com leitor mostram zero porque "o CDI esta vazio" e uma resposta;
+            // "zona desconhecida: 0" nao e resposta nenhuma, e ocuparia uma
+            // linha do telefone para dizer que nao ha nada a dizer.
+            assertThat(s.getZonas()).extracting(PpmsSnapshot.Zona::getPointId)
+                    .doesNotContain(PpmsService.ZONA_EM_TRANSITO);
+            // e ninguem esta em mais lado nenhum
+            assertThat(s.getZonas().stream().mapToInt(PpmsSnapshot.Zona::getTotal).sum())
+                    .isEqualTo(1);
         }
 
         @Test
@@ -284,7 +327,8 @@ class PpmsServiceTest {
             ev("0777", "PORT1", AccessAction.ENTRADA, 8, 0, null);
             PpmsSnapshot s = tirar();
             assertThat(s.getTotalDentro()).isEqualTo(1);
-            assertThat(s.getZonas().get(0).getPessoas().get(0).getNome()).isEqualTo("0777");
+            assertThat(zonaDe(s, PpmsService.ZONA_EM_TRANSITO).getPessoas().get(0).getNome())
+                    .isEqualTo("0777");
         }
 
         @Test
@@ -412,6 +456,120 @@ class PpmsServiceTest {
                     .isEqualTo("ENFERM");
             assertThat(s.getZonas().get(s.getZonas().size() - 1).getPointId())
                     .isEqualTo(PpmsService.ZONA_EM_TRANSITO);
+        }
+    }
+
+    // ────────────────────
+    @Nested
+    @DisplayName("★★ grupos por tipo, e o zero que e informacao")
+    class Grupos {
+
+        private PpmsSnapshot.Zona zona(PpmsSnapshot s, String ponto) {
+            return s.getZonas().stream().filter(z -> ponto.equals(z.getPointId()))
+                    .findFirst().orElseThrow(() -> new AssertionError("zona ausente: " + ponto));
+        }
+
+        private int grupo(PpmsSnapshot.Zona z, String tipo) {
+            return z.getGrupos().stream().filter(g -> tipo.equals(g.getTipo()))
+                    .findFirst().map(PpmsSnapshot.Grupo::getTotal).orElse(0);
+        }
+
+        @Test
+        @DisplayName("★★ a contagem por tipo vem do SERVIDOR, e a soma bate com o total")
+        void contagemPorTipo() {
+            tipoPorId.put("P01", UserType.PROFESSOR);
+            tipoPorId.put("F01", UserType.FUNCIONARIO);
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
+            ev("0002", "BIBLIO", AccessAction.ENTRADA, 9, 1, null);
+            ev("P01", "BIBLIO", AccessAction.ENTRADA, 9, 2, null);
+            ev("F01", "BIBLIO", AccessAction.ENTRADA, 9, 3, null);
+
+            PpmsSnapshot.Zona cdi = zona(tirar(), "BIBLIO");
+            assertThat(cdi.getTotal()).isEqualTo(4);
+            assertThat(grupo(cdi, "ALUNO")).isEqualTo(2);
+            assertThat(grupo(cdi, "PROFESSOR")).isEqualTo(1);
+            assertThat(grupo(cdi, "FUNCIONARIO")).isEqualTo(1);
+            assertThat(cdi.getGrupos().stream().mapToInt(PpmsSnapshot.Grupo::getTotal).sum())
+                    .as("nenhuma pessoa cai fora de um grupo")
+                    .isEqualTo(cdi.getTotal());
+        }
+
+        @Test
+        @DisplayName("★★★ ALUNO vem PRIMEIRO — num patio pergunta-se quantos alunos")
+        void alunoPrimeiro() {
+            tipoPorId.put("P01", UserType.PROFESSOR);
+            tipoPorId.put("F01", UserType.FUNCIONARIO);
+            ev("F01", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
+            ev("P01", "BIBLIO", AccessAction.ENTRADA, 9, 1, null);
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 2, null);
+
+            assertThat(zona(tirar(), "BIBLIO").getGrupos().get(0).getTipo()).isEqualTo("ALUNO");
+        }
+
+        @Test
+        @DisplayName("★★ grupo VAZIO nao entra — mas a ZONA vazia entra")
+        void grupoVazioNaoEntra() {
+            ev("0001", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
+
+            PpmsSnapshot s = tirar();
+            PpmsSnapshot.Zona cdi = zona(s, "BIBLIO");
+            assertThat(cdi.getGrupos()).hasSize(1);
+            assertThat(cdi.getGrupos().get(0).getTipo()).isEqualTo("ALUNO");
+
+            PpmsSnapshot.Zona enf = zona(s, "ENFERM");
+            assertThat(enf.getTotal()).isZero();
+            assertThat(enf.getGrupos()).isEmpty();
+            assertThat(enf.getPessoas()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("★★★ zonas vazias sao EMITIDAS — le CDI est vide e uma resposta")
+        void zonasVaziasSaoEmitidas() {
+            PpmsSnapshot s = tirar();
+            assertThat(s.getZonas()).extracting(PpmsSnapshot.Zona::getPointId)
+                    .contains("BIBLIO", "ENFERM", "REFEI1", "REFEI2");
+            assertThat(s.getZonas()).allSatisfy(z -> assertThat(z.getTotal()).isZero());
+        }
+
+        @Test
+        @DisplayName("★★★ o PORTAO nao vira zona com zero — ninguem esta dentro do portao")
+        void portaoNaoEZona() {
+            ev("0001", "PORT1", AccessAction.ENTRADA, 8, 0, null);
+
+            PpmsSnapshot s = tirar();
+            assertThat(s.getZonas()).extracting(PpmsSnapshot.Zona::getPointId)
+                    .as("uma linha Portail 0 afirmaria que o portao esta vazio "
+                      + "quando foi por onde todos passaram")
+                    .doesNotContain("PORT1", "PORT2", "PORT3");
+            assertThat(zona(s, PpmsService.ZONA_EM_TRANSITO).getTotal()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("★★★ quem esta dentro e o sistema nao sabe nomear cai em OUTRO, nao some")
+        void semFichaViraOutro() {
+            // Medido em producao em 21/08/2026: ZERO ocorrencias. Mas se
+            // acontecer, e alguem dentro do predio que a escola nao identifica —
+            // a linha mais urgente da tela, e some se nao houver grupo para ela.
+            semFicha.add("XYZ");
+            ev("XYZ", "BIBLIO", AccessAction.ENTRADA, 9, 0, null);
+
+            PpmsSnapshot.Zona cdi = zona(tirar(), "BIBLIO");
+            assertThat(cdi.getTotal()).isEqualTo(1);
+            assertThat(grupo(cdi, PpmsSnapshot.TIPO_OUTRO)).isEqualTo(1);
+            assertThat(cdi.getPessoas().get(0).getId()).isEqualTo("XYZ");
+        }
+
+        @Test
+        @DisplayName("★★ a lista de zonas-zero e ADITIVA: um ponto fora dela ainda aparece com gente")
+        void pontoForaDaListaAindaAparece() {
+            // CANTINA1 nao esta no AreaMapping.pointToArea() — e exatamente o
+            // caso que ja custou um aluno em 14/08. Ele nao ganha linha-zero,
+            // mas NAO pode sumir quando ha alguem la.
+            ev("0001", "CANTINA1", AccessAction.ENTRADA, 12, 0, null);
+
+            PpmsSnapshot s = tirar();
+            assertThat(zona(s, "CANTINA1").getTotal()).isEqualTo(1);
+            assertThat(s.getTotalDentro()).isEqualTo(1);
         }
     }
 }

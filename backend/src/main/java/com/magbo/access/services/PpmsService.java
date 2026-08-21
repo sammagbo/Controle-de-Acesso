@@ -94,6 +94,57 @@ public class PpmsService {
         return out;
     }
 
+    /**
+     * Pontos que aparecem com ZERO quando ninguem esta la.
+     *
+     * ⚠️ SO PONTOS INTERNOS. O PORTAO nao entra, e nao por esquecimento: pela
+     * mecanica desta classe, uma ENTRADA de portao vai para `noPortao` e nunca
+     * abre visita — logo NINGUEM ESTA NUNCA "dentro do portao". Uma linha
+     * "Portail 0" permanente afirmaria que o portao esta vazio quando na verdade
+     * foi por onde passaram as 340 pessoas que estao no predio. Quem entrou pelo
+     * portao e nao esta numa sala com leitor esta em EM_TRANSITO, que tem nome
+     * proprio e diz por onde comecar a procurar.
+     */
+    private java.util.List<String> pontosQueMostramZero() {
+        return AreaMapping.pointToArea().entrySet().stream()
+                .filter(e -> !AreaMapping.AREA_PORTAO.equals(e.getValue()))
+                .map(Map.Entry::getKey)
+                .sorted()
+                .toList();
+    }
+
+    /**
+     * Contagem por tipo, na ordem em que a evacuacao pergunta.
+     *
+     * ⚠️ A ORDEM E ALUNO PRIMEIRO, e nao alfabetica nem por tamanho. Num patio,
+     * a primeira pergunta e "quantos alunos", nunca "quantas pessoas": os
+     * adultos saem sozinhos, as criancas e que sao procuradas.
+     *
+     * ⚠️ Grupo com ZERO NAO entra na lista. Numa zona so de alunos, escrever
+     * "Professores 0 · Agentes 0" gasta duas linhas de um telefone segurado com
+     * uma mao no meio de uma evacuacao. O zero que importa e o da ZONA, e esse
+     * e sempre emitido.
+     */
+    private java.util.List<PpmsSnapshot.Grupo> agrupar(java.util.List<PpmsSnapshot.Pessoa> pessoas) {
+        java.util.Map<String, Integer> contagem = new java.util.HashMap<>();
+        for (PpmsSnapshot.Pessoa p : pessoas) {
+            String tipo = (p.getTipo() == null || p.getTipo().isBlank())
+                    ? PpmsSnapshot.TIPO_OUTRO : p.getTipo();
+            contagem.merge(tipo, 1, Integer::sum);
+        }
+        java.util.List<String> ordem = new java.util.ArrayList<>(
+                List.of("ALUNO", "PROFESSOR", "FUNCIONARIO", PpmsSnapshot.TIPO_OUTRO));
+        // Um tipo novo no enum UserType aparece no fim em vez de sumir.
+        contagem.keySet().stream().filter(k -> !ordem.contains(k)).sorted().forEach(ordem::add);
+
+        java.util.List<PpmsSnapshot.Grupo> out = new java.util.ArrayList<>();
+        for (String tipo : ordem) {
+            int n = contagem.getOrDefault(tipo, 0);
+            if (n > 0) out.add(PpmsSnapshot.Grupo.builder().tipo(tipo).total(n).build());
+        }
+        return out;
+    }
+
     public PpmsSnapshot snapshot(LocalDateTime agora) {
         LocalDateTime inicioDoDia = agora.toLocalDate().atStartOfDay();
 
@@ -230,9 +281,37 @@ public class PpmsService {
                             ? ZONA_EM_TRANSITO : AreaMapping.areaForPoint(e.getKey()))
                     .pointId(e.getKey())
                     .total(e.getValue().size())
+                    .grupos(agrupar(e.getValue()))
                     .pessoas(e.getValue())
                     .build());
         }
+        // ⚠️ AS ZONAS VAZIAS SAO EMITIDAS, e "zero" e uma informacao.
+        //
+        // Numa evacuacao, "o CDI esta vazio" e uma resposta — significa que
+        // ninguem precisa subir la. A ausencia da zona na tela nao diz isso:
+        // diz "nao sei", e quem esta no patio manda alguem verificar assim
+        // mesmo. O papel da cellule de crise tem uma linha por zona, sempre.
+        //
+        // ⚠️⚠️ ESTA LISTA E ADITIVA, NUNCA UM FILTRO — e a distincao e a razao
+        // pela qual o comentario do inicio deste metodo proibe lista branca de
+        // pontos. Ela so acrescenta linhas com ZERO para pontos conhecidos; ela
+        // NAO decide quem esta dentro nem em que zona. Um ponto novo
+        // comissionado em door_mappings continua entrando sozinho no instante em
+        // que alguem e visto la — apenas nao aparece com zero antes disso, o que
+        // e o pior caso aceitavel (uma linha a menos numa zona onde nunca houve
+        // ninguem), e nao o inaceitavel (uma pessoa a menos).
+        for (String ponto : pontosQueMostramZero()) {
+            if (!porPonto.containsKey(ponto)) {
+                zonas.add(PpmsSnapshot.Zona.builder()
+                        .area(AreaMapping.areaForPoint(ponto))
+                        .pointId(ponto)
+                        .total(0)
+                        .grupos(List.of())
+                        .pessoas(List.of())
+                        .build());
+            }
+        }
+
         // ⚠️ ZONAS FISICAS PRIMEIRO, EM_TRANSITO POR ULTIMO — e nao por tamanho.
         // Por construcao EM_TRANSITO contem quase todo mundo (todos os que so
         // passaram o portao e todos que fecharam a ultima visita), entao ordenar

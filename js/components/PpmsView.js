@@ -162,43 +162,133 @@ function PpmsView({ onBack }) {
     //
     // Veto do agente de proteção de dados, mantido pelo dono em 14/08/2026.
 
-    const totalPessoas = snap ? (snap.zonas || []).reduce((s, z) => s + (z.pessoas || []).length, 0) : 0;
+    // ⚠️ OS TOTAIS VEM DO SERVIDOR (`z.total`, `g.total`), nunca de
+    // `pessoas.length`. Hoje os dois coincidem — nada e truncado —, mas
+    // "hoje coincidem" e uma coincidencia, nao um contrato: no dia em que
+    // alguem paginar a lista para nao mandar 300 nomes de uma vez, contar o
+    // comprimento diria "12 eleves" onde ha 200, sem erro nenhum, numa
+    // evacuacao. Ver PpmsSnapshot.Zona.grupos.
+    const totalPessoas = snap ? (snap.zonas || []).reduce((acc, z) => acc + (z.total || 0), 0) : 0;
+
+    // Zonas abertas. Comeca VAZIO: a tela abre na lista de zonas, que e a
+    // pergunta do patio ("onde ainda ha gente?"), nao numa parede de nomes.
+    const [abertas, setAbertas] = useState(() => new Set());
+    const alternarZona = (id) => setAbertas(prev => {
+        const n = new Set(prev);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return n;
+    });
+    const zonasComGente = (snap ? (snap.zonas || []) : []).filter(z => (z.total || 0) > 0);
+    const todasAbertas = zonasComGente.length > 0 && zonasComGente.every(z => abertas.has(z.pointId));
+    const alternarTodas = () => setAbertas(todasAbertas ? new Set() : new Set(zonasComGente.map(z => z.pointId)));
+
+    /** Rotulo de um grupo. Codigo cru se o tipo for novo — nunca a chave i18n. */
+    const rotuloGrupo = (tipo) => {
+        const k = 'ppms.grupo.' + tipo;
+        const v = t(k);
+        return v === k ? tipo : v;
+    };
+
+    const nomeDaZona = (z) => z.pointId === 'EM_TRANSITO'
+        ? t('ppms.zona.transito')
+        : pointLabel(z.pointId, window.MagboI18n.getLang());
+
+    /** As pessoas de uma zona, na ordem dos grupos que o SERVIDOR mandou. */
+    const porGrupo = (z) => {
+        const pessoas = z.pessoas || [];
+        return (z.grupos || []).map(g => ({
+            tipo: g.tipo,
+            total: g.total,
+            pessoas: pessoas.filter(p => (p.tipo || 'OUTRO') === g.tipo)
+        }));
+    };
+
+    const linhaPessoa = (p, z) => {
+        const feito = conferidos.has(p.id);
+        // Hora de ENTRADA quando ha evento de portao; senao a ultima vez vista.
+        const quando = p.entrouAs
+            ? t('ppms.entrou.as', { hora: hora(p.entrouAs) })
+            : t('ppms.visto.as', { hora: hora(p.ultimaHora) });
+        return (
+            <button key={p.id} onClick={() => alternar(p.id)}
+                className={`w-full text-left px-4 py-3 min-h-[60px] border-b border-soft-100 last:border-0 flex items-center gap-3 transition-colors ${feito ? 'bg-success-50' : 'active:bg-soft-100'}`}>
+                {/* Alvo de toque grande: um polegar, de pe, no patio. */}
+                <span className={`ppms-marca w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${feito ? 'bg-success-500 text-white' : 'bg-soft-200'}`}>
+                    {feito && <LucideIcon name="check" size={16} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className={`block text-lg font-bold leading-tight ${feito ? 'text-slate-400 line-through' : 'text-navy-500'}`}>
+                        {p.nome}
+                    </span>
+                    <span className="block text-xs text-slate-400 mt-0.5">
+                        {p.turma ? p.turma + ' · ' : ''}{p.id} · {quando}
+                        {z.pointId === 'EM_TRANSITO' && p.ultimoPonto
+                            ? ' · ' + pointLabel(p.ultimoPonto, window.MagboI18n.getLang())
+                            : ''}
+                    </span>
+                </span>
+            </button>
+        );
+    };
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-6 animate-fade-in" id="ppms-print">
-            <style>{`@media print { body * { visibility: hidden; } #ppms-print, #ppms-print * { visibility: visible; } #ppms-print { position: absolute; left: 0; top: 0; width: 100%; } .ppms-nao-imprime { display: none; } }`}</style>
+        <div className="max-w-3xl mx-auto px-3 py-5 animate-fade-in" id="ppms-print">
+            {/* ⚠️ A IMPRESSAO ABRE TUDO, sempre — o papel vai para a cellule
+                de crise e e lido por quem nunca viu a tela. As zonas fechadas
+                sao escondidas por CSS (`.ppms-replie`), NUNCA desmontadas: um
+                `display:none` o print reabre, um componente que nao foi
+                renderizado o print nao inventa. Nada de expandir-tudo por JS
+                antes de `window.print()` — o dialogo abre antes do React pintar. */}
+            <style>{`
+                @media print {
+                    body * { visibility: hidden; }
+                    #ppms-print, #ppms-print * { visibility: visible; }
+                    #ppms-print { position: absolute; left: 0; top: 0; width: 100%; }
+                    /* ⚠️ No papel a pastilha de "conferido" vira uma CAIXA VAZIA:
+                       a folha da mallette e riscada A CANETA enquanto se conta.
+                       Um circulo cinzento cheio so gasta tinta e nao se risca. */
+                    .ppms-marca { background: #fff !important; border: 1.5px solid #64748b !important;
+                                  border-radius: 3px !important; }
+                    .ppms-nao-imprime { display: none !important; }
+                    .ppms-replie { display: block !important; }
+                    .ppms-so-impressao { display: block !important; }
+                    .ppms-zona { break-inside: avoid; page-break-inside: avoid; }
+                    .ppms-grupo { break-inside: avoid; page-break-inside: avoid; }
+                }
+                .ppms-so-impressao { display: none; }
+            `}</style>
 
-            <div className="flex items-center justify-between mb-4 ppms-nao-imprime">
-                <div className="flex items-center gap-3">
-                    <button onClick={onBack}
-                        className="w-10 h-10 rounded-xl bg-white border border-soft-200 shadow-sm flex items-center justify-center">
-                        <LucideIcon name="arrow-left" size={18} className="text-navy-500" />
+            <div className="flex items-center justify-between gap-2 mb-4 ppms-nao-imprime">
+                <div className="flex items-center gap-3 min-w-0">
+                    <button onClick={onBack} aria-label={t('header.dashboard')}
+                        className="w-12 h-12 rounded-xl bg-white border border-soft-200 shadow-sm flex items-center justify-center shrink-0">
+                        <LucideIcon name="arrow-left" size={20} className="text-navy-500" />
                     </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-navy-500">{t('ppms.titulo')}</h1>
-                        <p className="text-xs text-slate-400">{t('ppms.subtitulo')}</p>
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold text-navy-500 truncate">{t('ppms.titulo')}</h1>
+                        <p className="text-xs text-slate-400 truncate">{t('ppms.subtitulo')}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <button onClick={carregar} disabled={carregando}
-                        className="px-3 py-2 rounded-xl bg-accent-500 text-white text-sm font-bold disabled:opacity-50">
+                        className="h-12 px-4 rounded-xl bg-accent-500 text-white text-sm font-bold disabled:opacity-50">
                         {t('ppms.atualizar')}
                     </button>
                     <button onClick={() => window.print()}
-                        className="px-3 py-2 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
+                        className="h-12 px-4 rounded-xl bg-soft-100 text-navy-500 text-sm font-bold">
                         {t('ppms.imprimir')}
                     </button>
                 </div>
             </div>
 
-            {/* ⚠️ Sem rede: a hora do retrato em destaque, nunca escondida. */}
+            {/* Sem rede: a hora do retrato em destaque, nunca escondida. */}
             {offline && (
                 <p className="text-sm font-bold text-warning-600 bg-warning-100 border-2 border-warning-500 rounded-xl px-4 py-3 mb-4">
                     {snap ? t('ppms.offline', { hora: carimbo(snap.geradoEm) }) : t('ppms.sem.relevo')}
                 </p>
             )}
 
-            {/* Os avisos ficam AQUI, antes do número. */}
+            {/* Os avisos ficam AQUI, antes do numero — e tambem no papel. */}
             {snap && (snap.avisos || []).length > 0 && (
                 <div className="mb-4 space-y-1">
                     {snap.avisos.map(a => (
@@ -210,9 +300,6 @@ function PpmsView({ onBack }) {
             )}
 
             {semPermissao ? (
-                // Recusa NOMEADA — nunca a cara de "sem dados" nem a de "sem
-                // rede". Quem precisa da lista numa evacuacao tem de saber que o
-                // caminho e pedir a permissao, nao esperar o wifi voltar.
                 <p className="text-sm font-bold text-danger-600 bg-danger-50 border-2 border-danger-500 rounded-xl px-4 py-6 text-center">
                     {t('ppms.sem.permissao')}
                 </p>
@@ -222,68 +309,106 @@ function PpmsView({ onBack }) {
                 <p className="text-sm text-slate-400 py-10 text-center">{t('ppms.sem.relevo')}</p>
             ) : (
                 <>
-                    <div className="bg-navy-500 text-white rounded-2xl p-6 mb-5 text-center">
+                    <div className="bg-navy-500 text-white rounded-2xl p-5 mb-4 text-center ppms-zona">
                         <p className="text-6xl font-black leading-none">{snap.totalDentro}</p>
                         <p className="text-sm font-semibold mt-2 opacity-90">{t('ppms.total')}</p>
-                        <p className="text-xs opacity-60 mt-1">{t('ppms.gerado', { hora: carimbo(snap.geradoEm) })}</p>
+                        <p className="text-xs opacity-70 mt-1">{t('ppms.gerado', { hora: carimbo(snap.geradoEm) })}</p>
                         {totalPessoas > 0 && (
-                            <p className="text-xs opacity-75 mt-2">
+                            <p className="text-xs opacity-75 mt-2 ppms-nao-imprime">
                                 {t('ppms.conferidos', { n: conferidos.size, total: totalPessoas })}
                             </p>
                         )}
                     </div>
 
-                    {(snap.zonas || []).length === 0 ? (
-                        <p className="text-sm text-slate-400 py-8 text-center">{t('ppms.vazio')}</p>
-                    ) : (
-                        <div className="space-y-5">
-                            {snap.zonas.map(z => (
-                                <div key={z.pointId} className="bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
-                                    <div className="px-5 py-3 bg-soft-50 border-b border-soft-200 flex items-center justify-between">
-                                        <div className="min-w-0">
-                                            {/* ⚠️ A zona sintética tem nome PRÓPRIO: dizer "CDI"
-                                                para quem acabou de sair do CDI mandaria a equipe
-                                                procurar numa sala vazia. */}
-                                            <p className="font-black text-navy-500 truncate">
-                                                {z.pointId === 'EM_TRANSITO'
-                                                    ? t('ppms.zona.transito')
-                                                    : pointLabel(z.pointId, window.MagboI18n.getLang())}
-                                            </p>
-                                            {z.pointId === 'EM_TRANSITO' && (
-                                                <p className="text-[11px] text-slate-400">{t('ppms.zona.transito.ajuda')}</p>
-                                            )}
-                                        </div>
-                                        <span className="text-lg font-black text-navy-500">{z.total}</span>
-                                    </div>
-                                    <div>
-                                        {(z.pessoas || []).map(p => {
-                                            const feito = conferidos.has(p.id);
-                                            return (
-                                                <button key={p.id} onClick={() => alternar(p.id)}
-                                                    className={`w-full text-left px-5 py-3 border-b border-soft-100 last:border-0 flex items-center gap-3 transition-colors ${feito ? 'bg-success-50' : 'hover:bg-soft-50'}`}>
-                                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${feito ? 'bg-success-500 text-white' : 'bg-soft-200'}`}>
-                                                        {feito && <LucideIcon name="check" size={14} />}
-                                                    </span>
-                                                    <span className="min-w-0 flex-1">
-                                                        {/* Nome GRANDE: alguém lê isto em voz alta. */}
-                                                        <span className={`block text-lg font-bold truncate ${feito ? 'text-slate-400 line-through' : 'text-navy-500'}`}>
-                                                            {p.nome}
-                                                        </span>
-                                                        <span className="block text-xs text-slate-400">
-                                                            {p.turma || '—'} · {p.id} · {t('ppms.visto.as', { hora: hora(p.ultimaHora) })}
-                                                            {z.pointId === 'EM_TRANSITO' && p.ultimoPonto
-                                                                ? ' · ' + pointLabel(p.ultimoPonto, window.MagboI18n.getLang())
-                                                                : ''}
-                                                        </span>
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
+                    {zonasComGente.length > 0 && (
+                        <div className="flex justify-end mb-2 ppms-nao-imprime">
+                            <button onClick={alternarTodas}
+                                className="h-10 px-3 rounded-lg bg-white border border-soft-200 text-xs font-bold text-navy-500">
+                                {todasAbertas ? t('ppms.tout.fermer') : t('ppms.tout.ouvrir')}
+                            </button>
                         </div>
                     )}
+
+                    <div className="space-y-3">
+                        {(snap.zonas || []).map(z => {
+                            const vazia = (z.total || 0) === 0;
+                            const aberta = abertas.has(z.pointId);
+                            return (
+                                <div key={z.pointId} className="ppms-zona bg-white rounded-2xl border border-soft-200 shadow-sm overflow-hidden">
+                                    {/* ⚠️ O CABECALHO INTEIRO E O BOTAO — 64px de altura,
+                                        um polegar de pe. Nada aqui depende de hover. */}
+                                    <button
+                                        onClick={() => !vazia && alternarZona(z.pointId)}
+                                        disabled={vazia}
+                                        aria-expanded={aberta}
+                                        className={`w-full text-left px-4 py-3 min-h-[64px] flex items-center gap-3 ${vazia ? 'bg-soft-50/60' : 'bg-soft-50 active:bg-soft-100'}`}>
+                                        <span className="min-w-0 flex-1">
+                                            {/* ⚠️ QUEBRA, nao trunca. Com `truncate` num telefone de
+                                                390px o nome da zona maior saia como
+                                                «Dans l'établissement — z…» — e e a zona onde estao
+                                                202 das 208 pessoas. Um nome cortado numa tela de
+                                                evacuacao e pior que uma linha a mais. */}
+                                            <span className={`block font-black leading-tight ${vazia ? 'text-slate-400' : 'text-navy-500'}`}>
+                                                {nomeDaZona(z)}
+                                            </span>
+                                            {/* A REPARTICAO POR TIPO, sem um clique. Numa
+                                                evacuacao a primeira pergunta e "quantos
+                                                alunos", nunca "quantas pessoas". */}
+                                            {vazia ? (
+                                                <span className="block text-[11px] text-slate-400 mt-0.5">{t('ppms.zona.vide')}</span>
+                                            ) : (
+                                                <span className="block text-[11px] text-slate-500 mt-0.5 truncate">
+                                                    {(z.grupos || []).map(g => rotuloGrupo(g.tipo) + ' ' + g.total).join(' · ')}
+                                                </span>
+                                            )}
+                                            {z.pointId === 'EM_TRANSITO' && (
+                                                <span className="block text-[11px] text-slate-400 mt-0.5">{t('ppms.zona.transito.ajuda')}</span>
+                                            )}
+                                        </span>
+                                        <span className={`text-3xl font-black tabular-nums ${vazia ? 'text-slate-300' : 'text-navy-500'}`}>
+                                            {z.total || 0}
+                                        </span>
+                                        {!vazia && (
+                                            <LucideIcon name={aberta ? 'chevron-up' : 'chevron-down'} size={20}
+                                                className="text-slate-400 shrink-0 ppms-nao-imprime" />
+                                        )}
+                                    </button>
+
+                                    {!vazia && (
+                                        <div className={aberta ? '' : 'ppms-replie hidden'}>
+                                            {porGrupo(z).map(g => (
+                                                <div key={g.tipo} className="ppms-grupo">
+                                                    {/* Cabecalho de GRUPO: rotulo + contagem do servidor. */}
+                                                    <div className="px-4 py-2 bg-navy-500/5 border-y border-soft-200 flex items-center justify-between">
+                                                        <span className="text-[11px] font-black uppercase tracking-wider text-navy-500">
+                                                            {rotuloGrupo(g.tipo)}
+                                                        </span>
+                                                        <span className="text-sm font-black text-navy-500 tabular-nums">{g.total}</span>
+                                                    </div>
+                                                    {g.tipo === 'OUTRO' && (
+                                                        <p className="px-4 py-2 text-[11px] text-warning-600 bg-warning-50">
+                                                            {t('ppms.grupo.OUTRO.ajuda')}
+                                                        </p>
+                                                    )}
+                                                    {g.pessoas.map(pe => linhaPessoa(pe, z))}
+                                                </div>
+                                            ))}
+                                            {/* So no papel: o total da zona repetido no fim,
+                                                para quem conta a folha sem ver o cabecalho. */}
+                                            <p className="ppms-so-impressao px-4 py-2 text-xs font-bold text-navy-500 border-t border-soft-200">
+                                                {t('ppms.imprime.zona.total', { n: z.total || 0 })}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Rodape do PAPEL: a regra fica com a folha, nao so com a tela. */}
+                    <p className="ppms-so-impressao mt-4 pt-2 border-t border-soft-300 text-[11px] text-slate-600">
+                        {t('ppms.imprime.rodape')}
+                    </p>
                 </>
             )}
         </div>

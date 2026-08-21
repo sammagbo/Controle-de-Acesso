@@ -170,7 +170,7 @@ public class MealEntitlementImportService {
         EntitlementStatus novo = parseStatus(statusBruto);
         if (novo == null) {
             return new RowPlan(linha, userId, null, null, null, statusBruto, Acao.CONFLITO,
-                    "Statut invalide (" + statusBruto + ") - attendus : AUTORISE, NON AUTORISE");
+                    "Statut invalide (" + statusBruto + ") \u2014 attendus : AUTORIS\u00c9, NON AUTORIS\u00c9");
         }
 
         // ── A mesma matricula ja apareceu neste arquivo ──
@@ -181,30 +181,30 @@ public class MealEntitlementImportService {
                 // "a ultima" seria decidir por sorteio quem almoca.
                 return new RowPlan(linha, userId, nomeDe(alunos, userId), turmaDe(alunos, userId),
                         statusAnterior, novo.name(), Acao.CONFLITO,
-                        "Matricule repete dans le fichier avec un statut different (ligne precedente : "
+                        "Matricule r\u00e9p\u00e9t\u00e9 dans le fichier avec un statut diff\u00e9rent (ligne pr\u00e9c\u00e9dente : "
                                 + rotulo(statusAnterior) + ")");
             }
             duplicadasBenignas.add(userId);
             return pular(linha, userId, nomeDe(alunos, userId), turmaDe(alunos, userId),
-                    statusAnterior, novo.name(), "Matricule repete dans le fichier, meme statut");
+                    statusAnterior, novo.name(), "Matricule r\u00e9p\u00e9t\u00e9 dans le fichier, m\u00eame statut");
         }
 
         // ── O aluno tem de existir ──
         User aluno = alunos.get(userId);
         if (aluno == null) {
             return pular(linha, userId, null, null, null, novo.name(),
-                    "Eleve absent du MAGBO - la fiche vient de l'import Pronote");
+                    "\u00c9l\u00e8ve absent du MAGBO \u2014 la fiche vient de l'import Pronote");
         }
         if (aluno.getTipo() != UserType.ALUNO) {
             // Matricula de servidor numa planilha de direitos de refeicao e quase
             // sempre engano de quem montou o arquivo; gravar em silencio esconde.
             return new RowPlan(linha, userId, aluno.getNome(), aluno.getTurma(), null, novo.name(),
                     Acao.CONFLITO,
-                    "Le matricule est un " + aluno.getTipo() + ", pas un eleve");
+                    "Le matricule est un " + aluno.getTipo() + ", pas un \u00e9l\u00e8ve");
         }
         if (Boolean.FALSE.equals(aluno.getAtivo())) {
             return pular(linha, userId, aluno.getNome(), aluno.getTurma(), null, novo.name(),
-                    "Eleve inactif - reactivez la fiche avant d'accorder le droit");
+                    "\u00c9l\u00e8ve inactif \u2014 r\u00e9activez la fiche avant d'accorder le droit");
         }
 
         // ⚠️⚠️ VIGENCIA INVERTIDA (caso C21 do arquivo de prova do Sam:
@@ -230,8 +230,8 @@ public class MealEntitlementImportService {
                     direitos.get(userId) == null ? EntitlementStatus.PENDING.name()
                             : direitos.get(userId).getStatus().name(),
                     novo.name(), Acao.CONFLITO,
-                    "Validite inversee : debut (" + item.getValidFrom()
-                            + ") posterieur a la fin (" + item.getValidUntil() + ")");
+                    "Validit\u00e9 invers\u00e9e : d\u00e9but (" + item.getValidFrom()
+                            + ") post\u00e9rieur \u00e0 la fin (" + item.getValidUntil() + ")");
         }
 
         // ── Comparacao com o que ja esta gravado ──
@@ -245,7 +245,7 @@ public class MealEntitlementImportService {
             if (!mudaStatus && !mudaDe && !mudaAte) {
                 jaVistos.put(userId, novo.name());
                 return pular(linha, userId, aluno.getNome(), aluno.getTurma(),
-                        statusAtual, novo.name(), "Deja ainsi - rien a modifier");
+                        statusAtual, novo.name(), "D\u00e9j\u00e0 ainsi \u2014 rien \u00e0 modifier");
             }
         }
 
@@ -263,7 +263,7 @@ public class MealEntitlementImportService {
         return new RowPlan(linha, userId, aluno.getNome(), aluno.getTurma(),
                 statusAtual, novo.name(), acao,
                 acao == Acao.CRIAR
-                        ? "Droit cree : " + rotulo(novo.name())
+                        ? "Droit cr\u00e9\u00e9 : " + rotulo(novo.name())
                         : rotulo(statusAtual) + " -> " + rotulo(novo.name()));
     }
 
@@ -323,8 +323,8 @@ public class MealEntitlementImportService {
         // Estes rotulos sao lidos CRUOS pela tela (o front renderiza
         // {l.detalhe}), numa interface francesa. Estavam em portugues.
         // Sem acentos, como o resto deste arquivo .java.
-        if (EntitlementStatus.AUTHORIZED.name().equals(status)) return "Autorise";
-        if (EntitlementStatus.NOT_AUTHORIZED.name().equals(status)) return "Non autorise";
+        if (EntitlementStatus.AUTHORIZED.name().equals(status)) return "Autoris\u00e9";
+        if (EntitlementStatus.NOT_AUTHORIZED.name().equals(status)) return "Non autoris\u00e9";
         if (EntitlementStatus.PENDING.name().equals(status)) return "En attente";
         return String.valueOf(status);
     }

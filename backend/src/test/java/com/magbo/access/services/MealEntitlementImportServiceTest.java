@@ -155,7 +155,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("0001111", "AUTORIZADO"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.ATUALIZAR);
-            assertThat(r.detalhe()).contains("Non autorise").contains("Autorise");
+            assertThat(r.detalhe()).contains("Non autorisé").contains("Autorisé");
         }
 
         @Test
@@ -167,7 +167,7 @@ class MealEntitlementImportServiceTest {
             var p = service().plan(List.of(linha("0001111", "AUTORIZADO")));
 
             assertThat(primeira(p).acao()).isEqualTo(MealEntitlementImportService.Acao.PULAR);
-            assertThat(primeira(p).detalhe()).contains("rien a modifier");
+            assertThat(primeira(p).detalhe()).contains("rien à modifier");
         }
 
         @Test
@@ -192,7 +192,7 @@ class MealEntitlementImportServiceTest {
             var r = primeira(service().plan(List.of(linha("FUNC-007", "AUTORIZADO"))));
 
             assertThat(r.acao()).isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
-            assertThat(r.detalhe()).contains("pas un eleve");
+            assertThat(r.detalhe()).contains("pas un élève");
         }
 
         @Test
@@ -246,7 +246,7 @@ class MealEntitlementImportServiceTest {
             assertThat(p.linhas().get(1).acao())
                     .as("aplicar 'a última' seria decidir por sorteio quem almoça")
                     .isEqualTo(MealEntitlementImportService.Acao.CONFLITO);
-            assertThat(p.linhas().get(1).detalhe()).contains("repete");
+            assertThat(p.linhas().get(1).detalhe()).contains("répété");
         }
 
         @Test

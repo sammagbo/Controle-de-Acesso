@@ -34,7 +34,9 @@ function UserManagement() {
       if (!res.ok) {
         const corpo = await res.json().catch(() => ({}));
         setUsers([]);
-        setErroLista(corpo.error || corpo.message || t('usuarios.erro.carregar'));
+        // ⚠️ razaoDoServidor: ver o comentario em js/utils/api.js — `corpo.error`
+        // no envelope do Spring e «Forbidden», ingles numa tela francesa.
+        setErroLista(razaoDoServidor(corpo) || t('usuarios.erro.carregar'));
         return;
       }
       const lista = await res.json();

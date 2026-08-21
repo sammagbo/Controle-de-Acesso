@@ -2,6 +2,16 @@
 // SECTOR VIEW (Split View)
 // =====================================================================
 
+/**
+ * Teto de linhas que o SERVIDOR devolve para a janela de 24 h.
+ *
+ * ⚠️ ESPELHO CONSCIENTE de `PageRequest.of(0, 500)` em
+ * AccessController.java (caminho original das telas de setor). Mudar lá
+ * exige mudar aqui, senão a tela volta a afirmar completude sobre uma
+ * lista cortada — que foi exatamente o defeito vetado em 21/08/2026.
+ */
+const TETO_SERVIDOR = 500;
+
 function SectorView({ point, accessLogs, onProcess, activeTimers,
                       incluirRepeticoes = false, onToggleRepeticoes }) {
       const t = useI18n();
@@ -192,6 +202,12 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
       // Quantas das linhas em tela são REPETIÇÃO (posto fixo ou já presente).
       // Só faz sentido quando o botão está ligado — desligado, o servidor nem
       // as mandou, e o número seria sempre zero.
+      /**
+       * O servidor pode ter cortado. `>=` e não `===`: se um dia o teto
+       * subir no backend e não aqui, avisar a mais é o erro seguro.
+       */
+      const truncadoPeloServidor = pointLogs.length >= TETO_SERVIDOR;
+
       const repeticoesEmTela = React.useMemo(
             () => window.MagboPostoFixo ? window.MagboPostoFixo.contarRepeticoes(pointLogs) : 0,
             [pointLogs]
@@ -342,7 +358,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       </label>
                                                 )}
                                                 <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full whitespace-nowrap">
-                                                      {pointLogs.length} {t('setor.acessos24h')}
+                                                      {truncadoPeloServidor ? TETO_SERVIDOR + '+' : pointLogs.length} {t('setor.acessos24h')}
                                                 </span>
                                                 {/* Quantas linhas mostrar — a escolha é de quem opera.
                                                     Aparece só quando há mais do que o menor degrau, para
@@ -359,7 +375,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                                   <option value={50}>50</option>
                                                                   <option value={100}>100</option>
                                                                   <option value={250}>250</option>
-                                                                  <option value={0}>{t('setor.linhas.todas')}</option>
+                                                                  <option value={TETO_SERVIDOR}>{TETO_SERVIDOR}</option>
                                                             </select>
                                                       </label>
                                                 )}
@@ -376,7 +392,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       <p className="text-xs text-slate-300">{t('setor.sem.registro.dica')}</p>
                                                 </div>
                                           )}
-                                          {(limite > 0 ? pointLogs.slice(0, limite) : pointLogs).map((log, idx) => {
+                                          {pointLogs.slice(0, limite).map((log, idx) => {
                                                 const user = (window.userCache?.byId(log.userId)) || null;
                                                 // ⚠️ ERA `if (!user) return null` — a passagem DESAPARECIA
                                                 // da tela quando a pessoa não estava no cache (cache ainda
@@ -480,13 +496,32 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                               anunciava o total das 24 h — «187 passages» sobre 50
                                               linhas. Um número que ninguém consegue reconciliar
                                               com o que vê é pior que um número menor. */}
-                                          {limite > 0 && pointLogs.length > limite && (
+                                          {pointLogs.length > limite && (
                                                 <button
                                                       onClick={() => setLimite(0)}
                                                       className="w-full py-3 text-center text-xs font-semibold text-accent-600 hover:bg-soft-50 border-t border-soft-100 transition-colors"
                                                 >
                                                       {t('setor.ocultas', { n: pointLogs.length - limite })}
                                                 </button>
+                                          )}
+                                          {/* ⚠️⚠️ O TETO NÃO É DA TELA, É DO SERVIDOR, e foi por
+                                              não dizer isto que a primeira versão desta entrega
+                                              levou um VETO. O endpoint das 24 h devolve no máximo
+                                              500 linhas (AccessController.java, `PageRequest.of(0,
+                                              500)`), e a versão anterior oferecia uma opção
+                                              «Toutes» que, ao ser escolhida, ESCONDIA o aviso de
+                                              linhas ocultas — a tela afirmava mostrar tudo em cima
+                                              de uma lista que o servidor já tinha cortado.
+                                              Medido na VM em 21/08/2026: PORT1 na janela de 24 h
+                                              das 10h30 tem 448 passagens sem repetições, mas 594
+                                              COM as repetições ligadas — acima do teto. Prometer
+                                              «tudo» ali é a mesma sub-reportagem que esta entrega
+                                              existia para matar, movida uma camada abaixo e com
+                                              uma palavra que a torna crível. */}
+                                          {truncadoPeloServidor && (
+                                                <p className="px-4 py-3 text-center text-[11px] text-warning-700 bg-warning-50 border-t border-warning-200">
+                                                      {t('setor.teto.servidor', { n: TETO_SERVIDOR })}
+                                                </p>
                                           )}
                                     </div>
                               </div>

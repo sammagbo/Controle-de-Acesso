@@ -100,7 +100,7 @@ describe('A razão do servidor chega à tela', () => {
         // por extenso qual setor foi recusado; o operador via «erro de
         // comunicação» e ia chamar a informática em vez de pedir o direito.
         expect(UTILS).not.toMatch(/checkAuthError\(res\);\s*\n\s*if \(!res\.ok\) return null;\s*\n\s*const data = await res\.json\(\);\s*\n\s*return normaliseLog/);
-        expect(UTILS).toMatch(/corpo\.error \|\| corpo\.message/);
+        expect(UTILS).toMatch(/razaoDoServidor\(corpo\)/);
     });
 
     it('★ a sentinela de refeição duplicada (409 → code DUPLICATE) sobreviveu', () => {
@@ -174,5 +174,54 @@ describe('Droits Repas — a lista não desmonta a cada clique', () => {
         const C = ler('backend', 'src', 'main', 'java', 'com', 'magbo', 'access',
                       'controllers', 'MealEntitlementController.java');
         expect(C).toMatch(/return ResponseEntity\.ok\(mealEntitlementService\.getOrPending\(userId\)\);/);
+    });
+});
+
+describe('O envelope do /error do Spring não pode virar texto de tela', () => {
+
+    it('★ as DUAS camadas têm razaoDoServidor, e ela recusa o envelope', () => {
+        // ⚠️ ESTE TESTE EXISTE POR CAUSA DE UM DEFEITO QUE A CORREÇÃO DESTA MESMA
+        // NOITE INTRODUZIU. Ao ensinar o front a ler os dois dialetos de erro
+        // passei a preferir `data.error` — e o envelope do /error do Spring
+        // TAMBÉM tem `error`, que é a reason phrase HTTP EM INGLÊS:
+        //     {"timestamp":"…","status":403,"error":"Forbidden","path":"…"}
+        // Medido com uma conta OPERATOR real: a aba Personnels mostrava um toast
+        // dizendo «Forbidden» numa interface francesa. Antes da minha mudança
+        // caía no genérico traduzido; depois dela, piorou.
+        // Achado ao PERCORRER A TELA, não por teste nenhum.
+        for (const [nome, src] of [['js/api.js', API], ['js/utils/api.js', UTILS]]) {
+            expect(src, nome).toMatch(/function razaoDoServidor/);
+            expect(src, nome).toMatch(/'path' in data/);
+            expect(src, nome).toMatch(/'status' in data/);
+        }
+    });
+
+    it('★ ninguém lê `data.error` cru para pôr na tela', () => {
+        // A forma `x.error || x.message` é exatamente a que deixava o
+        // «Forbidden» passar. Se voltar, volta o inglês.
+        const alvos = [['js/api.js', API], ['js/utils/api.js', UTILS],
+                       ['AdminPinModal', PIN], ['UserManagement', USERS]];
+        for (const [nome, src] of alvos) {
+            expect(src, nome + ' lê data.error cru').not.toMatch(/\w+\.error \|\| \w+\.message/);
+        }
+    });
+
+    it('★ a regra funciona nos dois corpos REAIS (medidos contra o backend)', () => {
+        // Executa a função tal como ela está escrita no arquivo, contra os dois
+        // corpos que o backend realmente devolve.
+        const inicio = API.indexOf('function razaoDoServidor');
+        const corpo = API.slice(inicio, API.indexOf('\n}', inicio) + 2);
+        const fn = new Function(corpo + ' return razaoDoServidor;')();
+
+        // envelope do Spring, capturado de GET /api/users/staff sem token
+        expect(fn({ timestamp: '2026-08-20T19:36:33.016-03:00', status: 403,
+                    error: 'Forbidden', path: '/api/users/staff' })).toBe(null);
+        // erro de aplicação, capturado de POST /api/admin/meal-entitlements/import
+        expect(fn({ error: 'Lote vazio ou nulo' })).toBe('Lote vazio ou nulo');
+        // o outro dialeto
+        expect(fn({ status: 'error', message: 'Servidor atualizado' })).toBe('Servidor atualizado');
+        // ⚠️ `status:'error'` é STRING, não número — não é o envelope do Spring.
+        expect(fn(null)).toBe(null);
+        expect(fn('texto')).toBe(null);
     });
 });

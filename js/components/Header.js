@@ -122,6 +122,27 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                           <LucideIcon name={adminView ? 'lock-open' : 'lock'} size={14} />
                                           <span className="hidden md:inline">{t('header.admin')}</span>
                                     </button>
+                                    {/* ⚠️ RÉGLAGES É ADMIN, E A ENGRENAGEM NÃO DIZIA ISSO.
+                                        Ela era desenhada para TODO usuário logado, e cada uma
+                                        das suas abas chama endpoints hasRole('ADMIN')
+                                        (StaffController inteiro, /api/admin/photos, …).
+                                        Medido em 20/08/2026 com uma conta OPERATOR real: a aba
+                                        Personnels abria por completo — título, busca, cabeçalho
+                                        de tabela — e mostrava «0 personnel(s)», com a única
+                                        pista sendo um toast que passava dizendo «Forbidden», em
+                                        INGLÊS. Uma tela que responde «não há nenhum» a uma
+                                        recusa de permissão está a mentir, e é a mesma família
+                                        de defeito que esta noite passou a corrigir.
+
+                                        ⚠️ POR QUE ESCONDER, e não desabilitar: a regra de
+                                        .claude/rules/frontend.md manda DESABILITAR em vez de
+                                        esconder, mas ela fala de PERMISSÃO GRANULAR
+                                        (MEAL_ENTITLEMENT_WRITE…), onde a LEITURA continua
+                                        liberada por área e o operador tem o que ver. Aqui não
+                                        há nada para ler: as sete abas são administração, e o
+                                        operador não tem acesso a nenhuma. Deixar a porta
+                                        desenhada só ensina a bater nela. */}
+                                    {window.auth && window.auth.isAdmin && window.auth.isAdmin() && (
                                     <button
                                           onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                           className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
@@ -129,6 +150,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     >
                                           <LucideIcon name="cog" size={16} />
                                     </button>
+                                    )}
                                     {window.auth && window.auth.isLoggedIn() && window.auth.getUser() && (
                                           <div className="flex items-center gap-3 ml-2 pl-4 border-l border-white/10">
                                                 <div className="text-right hidden sm:block">

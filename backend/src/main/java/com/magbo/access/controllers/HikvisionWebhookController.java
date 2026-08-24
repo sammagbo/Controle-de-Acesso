@@ -328,17 +328,77 @@ public class HikvisionWebhookController {
             boolean viuPartDescartavel = false;
             String ct = request.getContentType() != null ? request.getContentType().toLowerCase() : "";
             if (ct.contains("multipart")) {
-                jakarta.servlet.http.Part chosen = null;
-                for (jakarta.servlet.http.Part part : request.getParts()) {
-                    String pct = part.getContentType();
-                    String nome = part.getName();
+                // ⚠️⚠️ A LEITURA E NOSSA, E NAO DO `request.getParts()`.
+                //
+                // CANTINA, 24/08/2026: os dois terminais de ENTRADA perderam 95
+                // eventos num dia (.10 = 4 lidos / 65 perdidos, .12 = 0 / 30),
+                // enquanto os dois de SAIDA nao perderam nenhum. A tela dizia
+                // "Dentro: 0" com gente a almocar.
+                //
+                // O aparelho anuncia um Content-Length maior do que o corpo que
+                // envia — corta a meio da imagem do rosto, que e a ultima part.
+                // O parser do container espera o resto, encontra o fim do fluxo,
+                // e lanca EOFException; e ao lancar deita fora TAMBEM a part
+                // JSON que ja tinha chegado inteira. O evento estava ali.
+                //
+                // Reproduzido antes de corrigir, e as duas malformacoes dao
+                // sintomas diferentes — so uma corresponde a producao:
+                //   sem terminador final -> MalformedStreamException -> HTTP 500 (producao: 0)
+                //   corpo < Content-Length -> EOFException           -> HTTP 200 (producao: 95)
+                //
+                // Depois de `getParts()` lancar o fluxo ja foi consumido e nao
+                // ha como aproveitar o que chegou. Por isso lemos os bytes
+                // primeiro e interpretamos depois: ver MultipartTolerante.
+                byte[] cru = com.magbo.access.services.MultipartTolerante
+                        .lerAteOndeDer(request.getInputStream());
+                String boundary = com.magbo.access.services.MultipartTolerante
+                        .boundaryDe(request.getContentType());
+                com.magbo.access.services.MultipartTolerante.Corpo corpo =
+                        com.magbo.access.services.MultipartTolerante.repartir(cru, boundary);
+
+                java.util.List<com.magbo.access.services.MultipartTolerante.Parte> partes = corpo.partes();
+
+                if (!partes.isEmpty() && corpo.truncado()) {
+                    // Nao e ruido: e a assinatura do aparelho que corta o corpo.
+                    // Sem esta linha, a correcao esconderia o problema do
+                    // aparelho em vez de o tornar visivel.
+                    log.info("Webhook: corpo multipart CORTADO (ip={}, bytes={}, contentLength={}, partes aproveitadas={})",
+                            sourceIp, cru.length, request.getContentLength(), partes.size());
+                }
+
+                if (partes.isEmpty()) {
+                    // ⚠️ SEM CORPO CRU: cai no parser do container.
+                    //
+                    // Acontece quando o pedido nao veio de um socket — e o caso
+                    // do MockMvc, que monta as parts em memoria e deixa o
+                    // getInputStream() vazio. Mais de cem testes de integracao
+                    // deste projeto entram por aqui.
+                    //
+                    // ⚠️ E A CONSEQUENCIA TEM DE ESTAR ESCRITA: esses testes
+                    // exercitam ESTE ramo, nao o de cima. A leitura tolerante
+                    // tem os seus proprios testes (MultipartToleranteTest) e foi
+                    // provada contra o fio de verdade, com um corpo cortado a
+                    // meio da imagem (24/08/2026). Quem mexer aqui nao pode
+                    // contar com a suite de integracao para apanhar uma
+                    // regressao no parser tolerante.
+                    for (jakarta.servlet.http.Part part : request.getParts()) {
+                        partes = partes.isEmpty() ? new java.util.ArrayList<>() : partes;
+                        partes.add(new com.magbo.access.services.MultipartTolerante.Parte(
+                                part.getName(), part.getContentType(),
+                                part.getInputStream().readAllBytes()));
+                    }
+                }
+
+                com.magbo.access.services.MultipartTolerante.Parte chosen = null;
+                for (com.magbo.access.services.MultipartTolerante.Parte part : partes) {
+                    String pct = part.contentType();
+                    String nome = part.nome();
 
                     // Part de comparacao facial das cameras DeepinView. Lida
                     // SEMPRE, mesmo quando outra part JSON aparece antes: ela e
                     // o evento, as outras sao contexto da mesma deteccao.
                     if (PART_ALARM_RESULT.equalsIgnoreCase(nome)) {
-                        alarmJson = new String(part.getInputStream().readAllBytes(),
-                                java.nio.charset.StandardCharsets.UTF_8);
+                        alarmJson = part.texto();
                         continue;
                     }
 
@@ -370,9 +430,8 @@ public class HikvisionWebhookController {
                     if (chosen == null) chosen = part;
                 }
                 if (chosen != null) {
-                    partName = chosen.getName();
-                    json = new String(chosen.getInputStream().readAllBytes(),
-                            java.nio.charset.StandardCharsets.UTF_8);
+                    partName = chosen.nome();
+                    json = chosen.texto();
                 }
             } else {
                 json = new String(request.getInputStream().readAllBytes(),

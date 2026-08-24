@@ -375,7 +375,17 @@ public class AccessDecisionService {
         //
         // Vale ainda mais na portaria: a camera nao espera ninguem encostar
         // nela, entao quem para em frente ao portao gera evento atras de evento.
+        // ⚠️ DUAS PERGUNTAS, E AS DUAS SAO PRECISAS.
+        // A do BANCO cobre o que ja esta gravado (inclusive depois de um
+        // reinicio). A RESERVA cobre o que ainda esta em voo: com quatro
+        // aparelhos na cantina, dois leem a mesma pessoa com ~300 ms de
+        // intervalo e a segunda transacao consulta ANTES de a primeira
+        // commitar — as duas leem "nao existe" e as duas gravam (medido em
+        // producao, 24/08/2026, FUNC-001 e FUNC-042).
         if (samePassageService.alreadyRegistered(p.userId(), p.resolved().pointId(),
+                p.resolved().action(), p.eventTime())
+                || samePassageService.alreadyClaimed(SamePassageService.Escopo.ACESSO,
+                p.userId(), p.resolved().pointId(),
                 p.resolved().action(), p.eventTime())) {
             log.debug("Mesma passagem ignorada (user={}, point={}, action={}, janela={}s)",
                     p.userId(), p.resolved().pointId(), p.resolved().action(),

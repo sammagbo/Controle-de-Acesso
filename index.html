@@ -76,6 +76,11 @@
            window.MagboReport / MagboHikSheet / MagboListPaging aqui e
            module.exports no Node. Carregam ANTES dos componentes, que as usam. -->
       <script type="text/babel" src="js/utils/reportFilters.js?v=1"></script>
+      <!-- As regras do Moniteur Cantine (colunas, faixas de duração,
+           decantação). ⚠️ ANTES do reportConfig: é ele quem entrega a este
+           módulo o bloco `cantine` da MESMA resposta que traz o piso de
+           visita. Carregado depois, o consumidor não o encontrava. -->
+      <script type="text/babel" src="js/utils/cantine.js?v=1"></script>
 
       <script type="text/babel" src="js/utils/reportConfig.js?v=1"></script>
       <script type="text/babel" src="js/utils/importPlan.js?v=1"></script>

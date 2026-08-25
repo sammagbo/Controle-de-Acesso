@@ -83,7 +83,7 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                regimeService);
+                regimeService, new com.magbo.access.config.CantineProperties());
 
         // Portao, SAIDA. E o cenario de todo teste desta classe salvo aviso.
         when(doorMappingService.resolve(any(), any(), anyString()))
@@ -145,7 +145,7 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                espiao);
+                espiao, new com.magbo.access.config.CantineProperties());
 
         LocalDateTime horaDaPassagem = LocalDateTime.of(DIA, LocalTime.of(10, 0));
         comEspiao.processCameraRecognition(pessoa(UserType.ALUNO), "0000000000003535",

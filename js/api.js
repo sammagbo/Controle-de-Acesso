@@ -485,6 +485,40 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    // ── Moniteur Cantine: retirar uma linha (V020) ────────────────────────
+    // ⚠️ Nada disto toca em `access_logs`. É um gesto de ECRÃ: a passagem
+    // continua gravada, a presença do PPMS continua aberta e os relatórios de
+    // visita não mudam. Ver o cabeçalho de V020__cantine_removals.sql.
+
+    /** As retiradas ATIVAS de hoje. Leitura por área — quem vê o efeito vê a causa. */
+    async fetchCantineRemovals() {
+        const res = await fetch(`${API_BASE_URL}/admin/cantine/removals`, { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    /**
+     * Retira a linha desta pessoa NESTE PONTO.
+     *
+     * ⚠️ O ponto vai no caminho porque é ele que o `@PreAuthorize` do backend
+     * lê (`@areaSecurity.can(#pointId)`): a permissão granular é global, o
+     * direito sobre o ponto não é. Mandar só a matrícula deixaria o servidor
+     * sem o que verificar.
+     */
+    async removeCantineLine(pointId, userId, motivo) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/cantine/removals/${encodeURIComponent(pointId)}/${encodeURIComponent(userId)}`,
+            { method: 'POST', headers: authHeaders(), body: JSON.stringify({ motivo: motivo || null }) });
+        return await this.handleResponse(res);
+    },
+
+    /** Devolve a linha à tela. Idempotente do lado do servidor. */
+    async undoCantineRemoval(pointId, userId) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/cantine/removals/${encodeURIComponent(pointId)}/${encodeURIComponent(userId)}`,
+            { method: 'DELETE', headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
     /** Remoção definitiva — o backend recusa quando há histórico. */
     async deleteStaff(id) {
         const res = await fetch(`${API_BASE_URL}/users/staff/${encodeURIComponent(id)}`, {

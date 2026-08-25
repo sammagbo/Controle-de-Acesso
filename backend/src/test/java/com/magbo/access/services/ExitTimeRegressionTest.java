@@ -28,6 +28,22 @@ import static org.mockito.Mockito.when;
  * BLINDAGEM — congela a regra de tempo maximo na cantina (EXCEDEU_TEMPO),
  * validada com hardware. Ver o javadoc de EntryWindowRegressionTest para a
  * justificativa do uso de reflexao.
+ *
+ * ⚠️ O TETO MUDOU DE 1 HORA PARA 30 MINUTOS EM 24/08/2026, por decisao do Sam.
+ * Uma hora e mais do que o servico inteiro de uma turma: o alerta quase nunca
+ * disparava, e a coluna «Doit sortir» so se enchia de quem sai sem ser lido.
+ *
+ * ⚠️ O QUE ESTA BLINDAGEM PROTEGE NAO E O NUMERO — e a FORMA da regra, e ela
+ * nao mudou:
+ *   • a comparacao e estritamente MAIOR (`compareTo(...) > 0`): o valor exato
+ *     do teto NAO alerta;
+ *   • saida sem entrada registada nunca alerta (nao e culpa de quem passou);
+ *   • duracao negativa degrada em silencio;
+ *   • a consulta e pelo par (userId, pointId) com acao ENTRADA.
+ * Por isso os casos-limite abaixo passaram a ser escritos CONTRA A PROPERTY e
+ * nao contra um literal: se o teto voltar a mudar, eles continuam a provar a
+ * mesma coisa em vez de terem de ser reescritos — e ha um teste dedicado a
+ * provar que o valor vem mesmo da configuracao.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -37,6 +53,17 @@ class ExitTimeRegressionTest {
     private static final com.magbo.access.config.RegimeProperties REGIME_DESLIGADO =
             new com.magbo.access.config.RegimeProperties();
     static { REGIME_DESLIGADO.setHabilitado(false); }
+
+    /**
+     * Horarios e duracoes da cantina, com os defaults do application.properties.
+     *
+     * Cada teste que precise de outro numero muda-o AQUI, no seu proprio
+     * setUp — que e o ponto de os ter tirado de `static final`: ate 24/08/2026
+     * o teto de permanencia era uma constante compilada e nenhum teste podia
+     * exercer outro valor sem reescrever o service.
+     */
+    private final com.magbo.access.config.CantineProperties cantineProperties =
+            new com.magbo.access.config.CantineProperties();
 
     @Mock private DoorMappingService doorMappingService;
     @Mock private UserRepository userRepository;
@@ -72,7 +99,8 @@ class ExitTimeRegressionTest {
                 // dependencia nenhuma (por isso os nulos), e o que eles provavam
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
-                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null));
+                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null),
+                cantineProperties);
     }
 
     private String validar() {
@@ -102,11 +130,21 @@ class ExitTimeRegressionTest {
     }
 
     @Test
-    @DisplayName("30 minutos dentro -> sem alerta")
-    void trintaMinutos() {
-        ultimaEntradaHa(Duration.ofMinutes(30));
+    @DisplayName("20 minutos dentro -> sem alerta (uma refeicao normal)")
+    void vinteMinutos() {
+        ultimaEntradaHa(Duration.ofMinutes(20));
 
         assertThat(validar()).isNull();
+    }
+
+    @Test
+    @DisplayName("★★★ 40 minutos dentro -> EXCEDEU_TEMPO (com o teto antigo de 1h, nao alertava)")
+    void quarentaMinutos() {
+        // O caso que motivou a mudanca: 40 minutos no refeitorio passavam
+        // despercebidos porque o teto era uma hora.
+        ultimaEntradaHa(Duration.ofMinutes(40));
+
+        assertThat(validar()).isEqualTo(EXCEDEU);
     }
 
     @Test
@@ -118,34 +156,69 @@ class ExitTimeRegressionTest {
     }
 
     /**
-     * LIMITE EXATO — este e o caso que a spec 13.2 exige explicitamente.
-     * A comparacao e `inside.compareTo(MAX_CANTINA_TIME) > 0`: exatamente 1h da
-     * 0, que nao e > 0, entao NAO alerta. Se alguem trocar por >=, este teste cai.
+     * LIMITE EXATO — o caso que a spec 13.2 exige explicitamente.
+     * A comparacao e `inside.compareTo(...) > 0`: o teto cravado da 0, que nao
+     * e > 0, entao NAO alerta. Se alguem trocar por >=, este teste cai.
+     *
+     * Escrito contra a property e nao contra um literal: o que se blinda e a
+     * comparacao estrita, que vale seja qual for o teto configurado.
      */
     @Test
-    @DisplayName("LIMITE: exatamente 1 hora -> sem alerta (compareTo > 0, nao >=)")
-    void exatamenteUmaHora() {
-        ultimaEntradaHa(Duration.ofHours(1));
+    @DisplayName("LIMITE: exatamente o teto -> sem alerta (compareTo > 0, nao >=)")
+    void exatamenteNoTeto() {
+        ultimaEntradaHa(cantineProperties.duracaoMaxima());
 
         assertThat(validar())
-                .as("1h cravada nao excede: a comparacao e estritamente maior")
+                .as("o teto cravado nao excede: a comparacao e estritamente maior")
                 .isNull();
     }
 
     @Test
-    @DisplayName("LIMITE: 1 hora e 1 segundo -> EXCEDEU_TEMPO")
-    void umaHoraEUmSegundo() {
-        ultimaEntradaHa(Duration.ofHours(1).plusSeconds(1));
+    @DisplayName("LIMITE: o teto mais um segundo -> EXCEDEU_TEMPO")
+    void tetoMaisUmSegundo() {
+        ultimaEntradaHa(cantineProperties.duracaoMaxima().plusSeconds(1));
 
         assertThat(validar()).isEqualTo(EXCEDEU);
     }
 
     @Test
-    @DisplayName("LIMITE: 59 minutos e 59 segundos -> sem alerta")
-    void quaseUmaHora() {
-        ultimaEntradaHa(Duration.ofMinutes(59).plusSeconds(59));
+    @DisplayName("LIMITE: um segundo antes do teto -> sem alerta")
+    void umSegundoAntesDoTeto() {
+        ultimaEntradaHa(cantineProperties.duracaoMaxima().minusSeconds(1));
 
         assertThat(validar()).isNull();
+    }
+
+    /**
+     * ⚠️ O TESTE QUE PROVA QUE O NUMERO VEM MESMO DA CONFIGURACAO.
+     *
+     * Sem ele, `duracaoMaxima()` podia devolver um valor fixo e todos os
+     * limites acima continuariam verdes — provariam a forma da comparacao e
+     * nada sobre a origem do numero, que e exatamente o que esta entrega mudou.
+     */
+    @Test
+    @DisplayName("★★★ o teto vem da property: com 45 min configurados, 46 alerta e 45 nao")
+    void oTetoVemDaProperty() {
+        cantineProperties.setDuracaoMaximaMinutos(45);
+
+        ultimaEntradaHa(Duration.ofMinutes(45));
+        assertThat(validar())
+                .as("45 min com o teto em 45: nao excede")
+                .isNull();
+
+        ultimaEntradaHa(Duration.ofMinutes(46));
+        assertThat(validar())
+                .as("46 min com o teto em 45: excede — o numero NAO esta compilado")
+                .isEqualTo(EXCEDEU);
+    }
+
+    @Test
+    @DisplayName("★★ o default do service e o default do application.properties: 30 min")
+    void defaultSaoTrintaMinutos() {
+        // Espelho vivo do que esta em application.properties. Se alguem mudar
+        // um sem o outro, isto cai — e a alternativa era descobri-lo em
+        // producao, com a coluna cheia ou vazia sem explicacao.
+        assertThat(cantineProperties.duracaoMaxima()).isEqualTo(Duration.ofMinutes(30));
     }
 
     @Test
@@ -154,7 +227,7 @@ class ExitTimeRegressionTest {
         ultimaEntradaHa(Duration.ofHours(-1));
 
         assertThat(validar())
-                .as("duracao negativa nao e > 1h — degrada em silencio")
+                .as("duracao negativa nao excede teto nenhum — degrada em silencio")
                 .isNull();
     }
 

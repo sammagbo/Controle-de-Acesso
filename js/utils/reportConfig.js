@@ -30,12 +30,13 @@
      * exceção ali derrubaria a montagem da tela por causa de um número de
      * ajuste fino.
      *
-     * @param api    objeto com fetchReportConfig() (window.api)
-     * @param report objeto com configure() e effectiveMinVisitSeconds() (window.MagboReport)
-     * @param log    opcional, para o aviso de falha (console)
+     * @param api     objeto com fetchReportConfig() (window.api)
+     * @param report  objeto com configure() e effectiveMinVisitSeconds() (window.MagboReport)
+     * @param log     opcional, para o aviso de falha (console)
+     * @param cantine opcional, objeto com configurar() (window.MagboCantine)
      * @returns {Promise<{ok: boolean, minVisitSeconds: number, motivo: string|null}>}
      */
-    async function carregar(api, report, log) {
+    async function carregar(api, report, log, cantine) {
         const aviso = (log && typeof log.warn === 'function') ? log.warn.bind(log) : function () {};
 
         if (!report || typeof report.configure !== 'function') {
@@ -51,6 +52,21 @@
         try {
             const cfg = await api.fetchReportConfig();
             report.configure(cfg);
+
+            // ⚠️ MESMA RESPOSTA, SEGUNDO CONSUMIDOR — e num try/catch próprio.
+            // O Moniteur Cantine lê os horários e as durações do mesmo bloco.
+            // Uma falha a configurar a cantina não pode derrubar o piso de
+            // visita do Rapport CDI, que é o motivo original desta busca: são
+            // duas telas diferentes e nenhuma depende da outra.
+            if (cantine && typeof cantine.configurar === 'function') {
+                try {
+                    if (!cantine.configurar(cfg)) {
+                        aviso('[report-config] bloco cantine ausente ou inutilizável; a tela segue com o fallback');
+                    }
+                } catch (e) {
+                    aviso('[report-config] cantine: ' + (e && e.message));
+                }
+            }
             // configure() já recusa lixo e volta ao fallback sozinho; aqui só se
             // reporta o que ficou VALENDO, que é o que importa para quem chama.
             const configurado = typeof report.isConfigured === 'function'

@@ -56,6 +56,17 @@ class AccessDecisionServiceTest {
             new com.magbo.access.config.RegimeProperties();
     static { REGIME_DESLIGADO.setHabilitado(false); }
 
+    /**
+     * Horarios e duracoes da cantina, com os defaults do application.properties.
+     *
+     * Cada teste que precise de outro numero muda-o AQUI, no seu proprio
+     * setUp — que e o ponto de os ter tirado de `static final`: ate 24/08/2026
+     * o teto de permanencia era uma constante compilada e nenhum teste podia
+     * exercer outro valor sem reescrever o service.
+     */
+    private final com.magbo.access.config.CantineProperties cantineProperties =
+            new com.magbo.access.config.CantineProperties();
+
     @Mock private DoorMappingService doorMappingService;
     @Mock private UserRepository userRepository;
     @Mock private ClassScheduleRepository classScheduleRepository;
@@ -106,7 +117,8 @@ class AccessDecisionServiceTest {
                 // dependencia nenhuma (por isso os nulos), e o que eles provavam
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
-                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null));
+                new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null),
+                cantineProperties);
 
         when(userRepository.findByHikvisionEmployeeId(EMPLOYEE))
                 .thenReturn(Optional.of(aluno(TURMA_SEM_REFEICAO)));

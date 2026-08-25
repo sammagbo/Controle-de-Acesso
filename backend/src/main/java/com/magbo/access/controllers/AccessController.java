@@ -52,6 +52,7 @@ public class AccessController {
     }
 
     private final AccessLogRepository accessLogRepository;
+    private final com.magbo.access.config.CantineProperties cantineProperties;
     private final com.magbo.access.security.AreaSecurity areaSecurity;
     private final SystemUserRepository systemUserRepository;
     private final UserRepository userRepository;
@@ -441,7 +442,19 @@ public class AccessController {
                 // Rapport do CDI é calculado no cliente, e um teto espelhado
                 // como constante no JS faria a mesma tela mostrar dois
                 // números para o mesmo dia assim que a property mudasse.
-                "maxVisitSeconds", visitStatsService.maxVisitSeconds()));
+                "maxVisitSeconds", visitStatsService.maxVisitSeconds(),
+                // ⚠️ MESMA RAZÃO, MESMO CAMINHO. O Moniteur Cantine decide no
+                // CLIENTE em que coluna cada pessoa cai e quando uma linha
+                // decanta. Enquanto esses números viviam como constantes no JS
+                // (STAY_LIMIT_MS = 1h), mudar a property do backend deixava a
+                // tela a dizer outra coisa — e nada acusava a divergência. É o
+                // defeito que este endpoint existe para não repetir.
+                "cantine", Map.of(
+                        "lyceeInicio", cantineProperties.getLyceeInicio().toString(),
+                        "lyceeFim", cantineProperties.getLyceeFim().toString(),
+                        "duracaoCurtaMinutos", cantineProperties.getDuracaoCurtaMinutos(),
+                        "duracaoMaximaMinutos", cantineProperties.getDuracaoMaximaMinutos(),
+                        "decantacaoMinutos", cantineProperties.getDecantacaoMinutos())));
     }
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;

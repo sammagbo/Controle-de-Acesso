@@ -34,6 +34,36 @@ rollback, e quando o CHECK de `access_attempts.denial_reason` deixa de fora um
 valor do enum `DenialReason.java`. Não substitui aplicar o SQL num Postgres —
 substitui a lembrança de que ele existe.
 
+### ⚠️⚠️ `psql` SAI COM 0 MESMO QUANDO O SQL FALHA — use `ON_ERROR_STOP=1`
+
+**Medido no container `magbo-postgres` em 25/08/2026**, com um ficheiro que
+contém um `SELECT` sobre uma tabela inexistente entre dois `SELECT` válidos:
+
+```
+docker exec -i magbo-postgres psql -U magbo -d magbodb < erro.sql
+  → ERROR: relation "tabela_que_nao_existe" does not exist
+  → exit code 0        ← o script continuou e o shell diz que correu bem
+
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < erro.sql
+  → exit code 3        ← para na primeira falha e diz que falhou
+```
+
+⚠️ Sem a opção, `psql` **continua depois do erro** e devolve 0. Numa sessão de
+deploy em que se aplicam vários ficheiros seguidos, isso significa que uma
+migração pode falhar por inteiro, o terminal não acusar nada, o `&&` do comando
+seguinte passar, e o backend subir contra um schema que não é o que se pensa —
+que é exactamente a classe de falha adiada que a V015 e a V017 documentam.
+
+⚠️ **Os comandos das secções 3 e 4 abaixo são históricos e NÃO trazem a
+opção.** Ela não foi acrescentada retroactivamente para não reescrever um
+procedimento já executado nesta forma; a partir da **V020**, todo comando novo
+deste README a inclui. Ao repetir um comando antigo, acrescente-a.
+
+⚠️ `ON_ERROR_STOP` **não** substitui a transação: ele para o *script*, não
+desfaz o que já foi aplicado. Os ficheiros com `BEGIN/COMMIT` (todos excepto
+V016/V018/V019) desfazem-se sozinhos; nos três `CONCURRENTLY` a paragem é tudo
+o que há, e a conferência do índice inválido continua obrigatória.
+
 ### ⚠️ A V016 é a única SEM transação (CONCURRENTLY)
 
 `CREATE INDEX CONCURRENTLY` não pode rodar dentro de `BEGIN/COMMIT`, e é por
@@ -142,9 +172,62 @@ Por que a exceção foi aceita: a tabela tinha **uma** linha em produção, com 
 "motivo": o formulário gravava nela o nome de quem autorizou. Detalhe do raciocínio no
 cabeçalho do próprio V012.
 
+### ⚠️ A V020 tem de ser aplicada À MÃO na VM — o `ddl-auto` **não** a faz por si
+
+A **V020** cria `cantine_removals` (a retirada manual de uma linha do Moniteur
+Cantine). Ela é **aditiva**, e a regra geral deste README diria que o
+`ddl-auto=update` a resolve sozinho. **Não vale aqui**, e a razão não é que o
+Hibernate falhe — é que ele **conseguiria**:
+
+Quem cria a tabela escreve o schema naquele ambiente, e o `ddl-auto=update`
+**nunca corrige depois** (acrescenta coluna e tabela, jamais altera constraint
+já existente). Se o backend novo subir primeiro, a VM fica com a tabela escrita
+pelo Hibernate e este ficheiro deixa de ter efeito — as duas instalações passam
+a ter autores diferentes, que é exactamente a divergência que a **V017** existiu
+para fechar, e o sintoma aparece semanas depois.
+
+**Aplicar ANTES de subir o backend novo.** Comando exacto, com a opção que faz
+`psql` falhar quando o SQL falha:
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
+  < deploy/migrations/V020__cantine_removals.sql
+echo "exit=$?"    # 0 = aplicada · qualquer outro valor = NÃO aplicada, não subir o backend
+```
+
+Conferência (as três, e a terceira é a que ninguém pensa em fazer):
+
+```bash
+# 1. a tabela e a UNIQUE existem
+docker exec magbo-postgres psql -U magbo -d magbodb -c "\d cantine_removals"
+
+# 2. as 9 colunas, com os tamanhos deste ficheiro e não outros
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT column_name, data_type, character_maximum_length FROM information_schema.columns \
+    WHERE table_name = 'cantine_removals' ORDER BY ordinal_position;"
+
+# 3. NENHUM CHECK — a tabela não tem coluna de enum, e é isso que se confere.
+#    Um CHECK aqui significa que alguém acrescentou um enum ao modelo sem a
+#    migração correspondente, e a VM e o PC já divergem.
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT conname, contype FROM pg_constraint WHERE conrelid = 'cantine_removals'::regclass;"
+#    Esperado: só 'p' (primary key) e 'u' (unique).
+```
+
+⚠️ **A permissão nova não vem com a migração.** `CANTINE_REMOVAL_WRITE` vive na
+coluna `system_users.permissoes` (V005) e é concedida na tela de operadores.
+Ninguém a tem no dia do deploy — nem é preciso: o ADMIN passa sempre. Sem a
+conceder, o × simplesmente não aparece para os operadores, e o monitor continua
+a funcionar como antes.
+
+Rollback: `rollback/R020__drop_cantine_removals.sql`. ⚠️ Ele **apaga** o registo
+das retiradas (não há cópia noutro sítio) e **não é seguro com o jar novo no
+ar** — voltar o backend primeiro. Nenhuma passagem se perde: a retirada nunca
+tocou em `access_logs`.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V019. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V020. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -169,6 +252,10 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V016_
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V018__access_logs_indice_hora.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V017__student_regimes_enum_checks.sql
 docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V019__access_logs_indice_user_id.sql
+# ⚠️ A partir daqui, com ON_ERROR_STOP=1 — ver a secção 2. `psql` sai com 0
+# mesmo quando o SQL falha, e uma migração que falha em silêncio é um backend
+# a subir contra um schema que ninguém verificou.
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V020__cantine_removals.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -189,6 +276,7 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V019_
 | `V018__access_logs_indice_hora.sql` | índice `(timestamp)` em `access_logs` — o tique de 5s do painel | Painel administrativo |
 | `V019__access_logs_indice_user_id.sql` | índice `(user_id)` em `access_logs` — a aba Personnels e a guarda de remoção | Personnels |
 | `V017__student_regimes_enum_checks.sql` | os **6 CHECK de enum** que a `V014` não criou em `student_regimes` / `student_regime_events` | Uma verdade de schema |
+| `V020__cantine_removals.sql` | tabela `cantine_removals` — a retirada manual de uma linha do Moniteur Cantine (**sem coluna de enum, logo sem CHECK, de propósito**) | Moniteur Cantine |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

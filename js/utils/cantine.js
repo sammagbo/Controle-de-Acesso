@@ -27,18 +27,26 @@
     if (root) root.MagboCantine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
 
+    // Quanto tempo quem saiu continua visível na coluna SORTIS.
+    //
+    // ⚠️ PASSOU A VIR DO SERVIDOR (`magbo.cantine.sortis-visiveis-minutos`).
+    // A versão anterior deste comentário dizia «NÃO é configurável de
+    // propósito», e estava errada pela mesma razão que o teto de permanência:
+    // é um ajuste que se faz a olho durante um serviço, e tê-lo aqui obrigava
+    // a editar um ficheiro para o mudar. O fallback continua a existir para a
+    // tela nunca ficar sem regra.
+    const SORTIS_VISIVEL_PADRAO_MIN = 40;
+
     // Espelho dos defaults de CantineProperties.java. Mudar os dois juntos.
     const FALLBACK = {
         lyceeInicio: '11:00',
         lyceeFim: '15:00',
         duracaoCurtaMinutos: 15,
         duracaoMaximaMinutos: 30,
-        decantacaoMinutos: 15
+        decantacaoMinutos: 15,
+        sortisVisiveisMinutos: SORTIS_VISIVEL_PADRAO_MIN
     };
 
-    // Quanto tempo quem saiu continua visível. NÃO é configurável de propósito:
-    // não é uma afirmação sobre a escola, é o tamanho da memória curta da tela.
-    const SORTIS_VISIVEL_MS = 40 * 60 * 1000;
 
     let atual = Object.assign({}, FALLBACK);
     let veioDoServidor = false;
@@ -58,7 +66,8 @@
         ['lyceeInicio', 'lyceeFim'].forEach(function (k) {
             if (validarHora(bloco[k])) { atual[k] = bloco[k]; algum = true; }
         });
-        ['duracaoCurtaMinutos', 'duracaoMaximaMinutos', 'decantacaoMinutos'].forEach(function (k) {
+        ['duracaoCurtaMinutos', 'duracaoMaximaMinutos', 'decantacaoMinutos',
+         'sortisVisiveisMinutos'].forEach(function (k) {
             const n = Number(bloco[k]);
             if (isFinite(n) && n >= 0) { atual[k] = n; algum = true; }
         });
@@ -225,7 +234,7 @@
                     dans.push(ultimo);
                 }
             } else if (ultimo.action === 'SAIDA') {
-                if (decorrido >= SORTIS_VISIVEL_MS) continue;
+                if (decorrido >= c.sortisVisiveisMinutos * 60 * 1000) continue;
 
                 // A ENTRADA emparelhada: a mais recente ESTRITAMENTE antes
                 // desta saída. Se não houver, a pessoa saiu sem ter sido vista
@@ -273,7 +282,7 @@
         faixaDe: faixaDe,
         minutosDe: minutosDe,
         FALLBACK: FALLBACK,
-        SORTIS_VISIVEL_MS: SORTIS_VISIVEL_MS,
+        SORTIS_VISIVEL_PADRAO_MIN: SORTIS_VISIVEL_PADRAO_MIN,
         _reset: _reset
     };
 });

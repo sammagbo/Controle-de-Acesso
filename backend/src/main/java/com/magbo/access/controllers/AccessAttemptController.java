@@ -23,6 +23,7 @@ import java.util.List;
 public class AccessAttemptController {
 
     private final AccessAttemptQueryService queryService;
+    private final com.magbo.access.config.CantineProperties cantineProperties;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('ATTEMPTS_READ')")
@@ -52,7 +53,7 @@ public class AccessAttemptController {
     @GetMapping("/refectory")
     @PreAuthorize("@areaSecurity.can('cantine')")
     public ResponseEntity<List<AccessAttemptDto>> getRefectoryFeed() {
-        return ResponseEntity.ok(queryService.getByPoints(List.of("REFEI1", "REFEI2", "CANTINA1")));
+        return ResponseEntity.ok(queryService.getByPoints(cantineProperties.getPontos()));
     }
 
     @GetMapping("/gate")

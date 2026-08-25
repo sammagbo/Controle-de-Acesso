@@ -93,7 +93,8 @@ public class AccessController {
             @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "500") Integer limit) {
 
-        List<String> refIds = List.of("REFEI1", "REFEI2", "CANTINA1");
+        // ⚠️ UMA lista, em `magbo.cantine.pontos`. Ver CantineProperties.
+        List<String> refIds = cantineProperties.getPontos();
 
         LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
                 ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
@@ -124,7 +125,7 @@ public class AccessController {
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo) {
 
-        java.util.List<String> refIds = java.util.List.of("REFEI1", "REFEI2", "CANTINA1");
+        java.util.List<String> refIds = cantineProperties.getPontos();
 
         java.time.LocalDateTime from = (dateFrom != null && !dateFrom.isEmpty())
                 ? java.time.LocalDate.parse(dateFrom).atStartOfDay()
@@ -454,7 +455,8 @@ public class AccessController {
                         "lyceeFim", cantineProperties.getLyceeFim().toString(),
                         "duracaoCurtaMinutos", cantineProperties.getDuracaoCurtaMinutos(),
                         "duracaoMaximaMinutos", cantineProperties.getDuracaoMaximaMinutos(),
-                        "decantacaoMinutos", cantineProperties.getDecantacaoMinutos())));
+                        "decantacaoMinutos", cantineProperties.getDecantacaoMinutos(),
+                        "sortisVisiveisMinutos", cantineProperties.getSortisVisiveisMinutos())));
     }
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;

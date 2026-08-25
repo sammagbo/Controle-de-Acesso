@@ -485,6 +485,25 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    // ── Recherche globale / parcours du jour ──────────────────────────────
+    // ⚠️ Endpoint PROPRE, guardado por PARCOURS_READ. Não passa por
+    // /api/users/search (isAuthenticated()): a dívida de segurança nº1 do
+    // projeto fica exatamente do tamanho que tinha.
+
+    async searchParcours(q) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/parcours/search?q=${encodeURIComponent(q)}`,
+            { headers: authHeaders() });
+        const d = await this.handleResponse(res);
+        return Array.isArray(d) ? d : [];
+    },
+
+    async fetchParcours(userId) {
+        const res = await fetch(`${API_BASE_URL}/admin/parcours/${encodeURIComponent(userId)}`,
+            { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
     // ── Moniteur Cantine: retirar uma linha (V020) ────────────────────────
     // ⚠️ Nada disto toca em `access_logs`. É um gesto de ECRÃ: a passagem
     // continua gravada, a presença do PPMS continua aberta e os relatórios de

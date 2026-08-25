@@ -36,7 +36,10 @@
         PPMS_READ: 'PPMS_READ',
         // Moniteur Cantine (V020): retirar uma linha da vista de todos. LER o
         // monitor continua por área — isto governa só o gesto de apagar.
-        CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE'
+        CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE',
+        // Parcours du jour (recherche globale): traverse toute l'école,
+        // donc une permission et non un secteur.
+        PARCOURS_READ: 'PARCOURS_READ'
     };
 
     /**

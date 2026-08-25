@@ -53,6 +53,16 @@ public final class Permissions {
     public static final String CANTINE_REMOVAL_WRITE  = "CANTINE_REMOVAL_WRITE";
 
     /**
+     * Ler o PARCOURS do dia de uma pessoa — todos os pontos, todas as horas.
+     *
+     * ⚠️ E mais do que qualquer AREA concede: o operador da cantina ve a
+     * cantina, nao a passagem pela enfermaria. Um parcours atravessa a
+     * escola inteira, e por isso e uma permissao e nao um setor. Mesmo
+     * raciocinio do PPMS_READ: restringir, nao fechar.
+     */
+    public static final String PARCOURS_READ          = "PARCOURS_READ";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -76,5 +86,6 @@ public final class Permissions {
             ATTEMPTS_READ,
             REGIME_WRITE,
             PPMS_READ,
-            CANTINE_REMOVAL_WRITE);
+            CANTINE_REMOVAL_WRITE,
+            PARCOURS_READ);
 }

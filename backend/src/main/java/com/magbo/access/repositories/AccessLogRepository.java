@@ -126,6 +126,22 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     Optional<AccessLog> findTopByUserIdAndPointIdAndActionOrderByTimestampDesc(
             String userId, String pointId, AccessAction action);
 
+    /**
+     * O parcours do DIA de uma pessoa, em ordem.
+     *
+     * ⚠️ Consulta indexada, NAO um findAll() filtrado em Java. A tabela tem
+     * ~440 mil linhas e o indice (user_id) da V019 existe exatamente para
+     * isto — a primeira versao deste ecra varria a tabela inteira a cada
+     * pesquisa. Medido na V019: 3 buffers com indice contra ~3.685 sem ele.
+     *
+     * ⚠️ SEM filtro de flag: um parcours mostra TUDO o que a pessoa fez,
+     * incluindo as repeticoes (POSTO_FIXO, JA_PRESENTE). A tela marca-as; a
+     * consulta nao as esconde. Esconder aqui faria o parcours de um porteiro
+     * parecer o de alguem que passou uma vez e desapareceu.
+     */
+    List<AccessLog> findByUserIdAndTimestampGreaterThanEqualOrderByTimestampAsc(
+            String userId, java.time.LocalDateTime desde);
+
     List<AccessLog> findByUserIdAndPointIdAndActionAndTimestampAfter(
             String userId, String pointId, AccessAction action, LocalDateTime after);
 

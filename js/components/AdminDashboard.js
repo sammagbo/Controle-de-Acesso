@@ -3,6 +3,31 @@
 // =====================================================================
 
 function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime }) {
+
+      // ⚠️ MASCARER, JAMAIS SUPPRIMER. Le réglage cache les cartes KPI de CET
+      // écran, pour CE poste (localStorage) — les chiffres continuent d'être
+      // calculés et l'endpoint ne change pas. Un opérateur qui n'utilise pas
+      // les KPI récupère la place; celui qui s'en sert ne perd rien, et par
+      // défaut RIEN NE CHANGE.
+      //
+      // ⚠️ localStorage lu dans un try/catch : en mode kiosque ou fenêtre
+      // privée l'accès peut lancer, et un tableau de bord qui refuse de
+      // s'afficher parce qu'une préférence est illisible serait pire que la
+      // préférence perdue.
+      const [kpisVisiveis, setKpisVisiveis] = React.useState(() => {
+            try {
+                  return localStorage.getItem('magbo.admin.kpis') !== 'off';
+            } catch (e) {
+                  return true;
+            }
+      });
+      const alternarKpis = () => {
+            setKpisVisiveis(v => {
+                  const novo = !v;
+                  try { localStorage.setItem('magbo.admin.kpis', novo ? 'on' : 'off'); } catch (e) {}
+                  return novo;
+            });
+      };
       const t = useI18n();
       const locale = useLocale();
       const lang = window.MagboI18n.getLang();
@@ -274,10 +299,30 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         </div>
                   </div>
 
+                  {/* ⚠️ LA RECHERCHE EST L'ÉLÉMENT PRINCIPAL DE L'ÉCRAN, et elle
+                      passe AVANT les KPI. Quelqu'un qui ouvre ce tableau de bord
+                      cherche presque toujours UNE personne ; les chiffres
+                      répondent à une question qu'on ne se pose qu'ensuite.
+                      Le composant se retire tout seul si le compte n'a pas
+                      PARCOURS_READ. */}
+                  <RechercheGlobale />
+
                   {/* ══════════════════════════════════════════════════════════ */}
-                  {/* SECTION 1 — KPI CARDS                                     */}
+                  {/* SECTION 1 — KPI CARDS (masquables)                        */}
                   {/* ══════════════════════════════════════════════════════════ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+                  {/* ⚠️ MASQUER, JAMAIS SUPPRIMER — et par défaut RIEN NE CHANGE.
+                      Le bouton ne touche ni au calcul ni aux endpoints : il rend
+                      la place à qui ne lit pas les chiffres, sans rien retirer à
+                      qui les lit. */}
+                  <div className="flex justify-end mb-2">
+                        <button type="button" onClick={alternarKpis}
+                              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-navy-500">
+                              <LucideIcon name={kpisVisiveis ? 'eye-off' : 'eye'} size={14} />
+                              {kpisVisiveis ? t('admin.kpi.esconder') : t('admin.kpi.mostrar')}
+                        </button>
+                  </div>
+
+                  <div className={`grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8 ${kpisVisiveis ? '' : 'hidden'}`}>
 
                         {/* KPI: Total Acessos Hoje */}
                         <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
@@ -332,7 +377,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 ${kpisVisiveis ? '' : 'hidden'}`}>
                         {/* KPI: Alertas Hoje */}
                         <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm">
                               <div className="flex items-center gap-4">

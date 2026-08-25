@@ -72,7 +72,11 @@ function App() {
             // js/utils/reportConfig.js, com teste — inclusive o caso que
             // importa, que é o servidor não responder e a tela seguir com o
             // fallback em vez de ficar sem piso.
-            window.MagboReportConfig.carregar(window.api, window.MagboReport, console)
+            // A MESMA busca serve duas telas: o piso de visita do Rapport
+            // CDI e os horários/durações do Moniteur Cantine. Uma requisição,
+            // uma fonte — foi por terem números espelhados no JS que a mesma
+            // tela chegou a mostrar dois valores para o mesmo dia.
+            window.MagboReportConfig.carregar(window.api, window.MagboReport, console, window.MagboCantine)
                   .then(r => { if (vivo && !r.ok) console.warn('[report-config]', r.motivo); });
             return () => { vivo = false; };
       }, [currentUser]);

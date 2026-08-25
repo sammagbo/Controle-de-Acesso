@@ -51,6 +51,7 @@ public class AccessDecisionService {
     private final PostoFixoService postoFixoService;
     private final PresencaAbertaService presencaAbertaService;
     private final RegimeSortieService regimeSortieService;
+    private final com.magbo.access.config.CantineProperties cantineProperties;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -59,9 +60,11 @@ public class AccessDecisionService {
             "2E1", "2E2", "2E3"
     );
 
-    private static final LocalTime LYCEE_START = LocalTime.of(11, 0);
-    private static final LocalTime LYCEE_END = LocalTime.of(15, 0);
-    private static final Duration MAX_CANTINA_TIME = Duration.ofHours(1);
+    // ⚠️ LYCEE_START, LYCEE_END e MAX_CANTINA_TIME saíram daqui para
+    // CantineProperties em 24/08/2026. Eram `static final`: mudar o horário do
+    // almoço desta escola exigia editar Java, recompilar e redistribuir o jar.
+    // A LISTA de turmas fica — ela é a REGRA (quais turmas têm janela própria),
+    // e regra não é o mesmo que número.
     private static final Duration LUNCH_WINDOW = Duration.ofHours(1);
 
     /**
@@ -687,7 +690,8 @@ public class AccessDecisionService {
 
         // Lycée: janela fixa 11h-15h, qualquer dia
         if (LYCEE_CLASSES.contains(turma)) {
-            if (time.isBefore(LYCEE_START) || time.isAfter(LYCEE_END)) {
+            if (time.isBefore(cantineProperties.getLyceeInicio())
+                    || time.isAfter(cantineProperties.getLyceeFim())) {
                 return "FORA_HORARIO";
             }
             return null;
@@ -716,7 +720,13 @@ public class AccessDecisionService {
 
     /**
      * Valida tempo dentro da cantina (na SAIDA).
-     * Retorna "EXCEDEU_TEMPO" se passou mais de 1h desde a ENTRADA mais recente.
+     * Retorna "EXCEDEU_TEMPO" se passou mais do que
+     * `magbo.cantine.duracao-maxima-minutos` (30 min por omissão, era 1h fixa
+     * até 24/08/2026) desde a ENTRADA mais recente.
+     *
+     * ⚠️ SÓ A CANTINA. Este método só é chamado dentro do ramo `isRefectory`
+     * (pontos REFEI e CANTINA) — o CDI e a enfermaria nunca passam por aqui, e a
+     * mudança de uma hora para trinta minutos não os alcança.
      *
      * ⚠️ `saidaEm` e a hora do EVENTO de saida, nao a hora da decisao.
      *
@@ -744,7 +754,7 @@ public class AccessDecisionService {
         if (lastEntry.isEmpty()) return null;
 
         Duration inside = Duration.between(lastEntry.get().getTimestamp(), saidaEm);
-        if (inside.compareTo(MAX_CANTINA_TIME) > 0) {
+        if (inside.compareTo(cantineProperties.duracaoMaxima()) > 0) {
             return "EXCEDEU_TEMPO";
         }
         return null;

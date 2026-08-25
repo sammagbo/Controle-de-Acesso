@@ -62,6 +62,20 @@ class RegimeGateWiringTest {
     @Mock private StudentRegimeEventRepository regimeEventRepository;
 
     private RegimeProperties regimeProps;
+    /**
+     * ⚠️ A janela da cantina saiu daqui para o `MealSlotService` (V021).
+     *
+     * O default do mock e DENTRO — nao por comodidade, mas porque e o que
+     * PRESERVA o que estes testes provavam: no comportamento antigo, uma turma
+     * sem grade devolvia `null` (sem flag, sem tentativa registada), que e
+     * exatamente o efeito de DENTRO. Um mock a devolver `null` faria
+     * `janela.naoConfigurado()` estourar em NullPointerException e trocaria
+     * dezenas de falhas verdadeiras por uma falha de andaime.
+     *
+     * Quem prova a REGRA nova e o `MealSlotServiceTest` e o `MealSlotWiringTest`.
+     */
+    @Mock private MealSlotService mealSlotService;
+
     private AccessDecisionService service;
 
     @BeforeEach
@@ -83,7 +97,12 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                regimeService, new com.magbo.access.config.CantineProperties());
+                regimeService, new com.magbo.access.config.CantineProperties(), mealSlotService);
+        // Ver o javadoc do campo: DENTRO preserva o efeito do comportamento antigo.
+        org.mockito.Mockito.lenient().when(mealSlotService.resolver(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new MealSlotService.Resultado(
+                        MealSlotService.Veredicto.DENTRO, null, java.util.List.of(), false));
 
         // Portao, SAIDA. E o cenario de todo teste desta classe salvo aviso.
         when(doorMappingService.resolve(any(), any(), anyString()))
@@ -145,7 +164,7 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                espiao, new com.magbo.access.config.CantineProperties());
+                espiao, new com.magbo.access.config.CantineProperties(), mealSlotService);
 
         LocalDateTime horaDaPassagem = LocalDateTime.of(DIA, LocalTime.of(10, 0));
         comEspiao.processCameraRecognition(pessoa(UserType.ALUNO), "0000000000003535",

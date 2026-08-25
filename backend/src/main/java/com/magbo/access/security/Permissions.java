@@ -53,6 +53,16 @@ public final class Permissions {
     public static final String CANTINE_REMOVAL_WRITE  = "CANTINE_REMOVAL_WRITE";
 
     /**
+     * Alterar o PLANNING da cantina — os creneaux, as turmas e as excecoes
+     * por aluno (V021).
+     *
+     * LER o planning continua por area (`cantine`): quem opera a cantina
+     * precisa de o ver para perceber um alerta. Mudar a grade da escola
+     * inteira e outra coisa, e e o que esta permissao governa.
+     */
+    public static final String MEAL_SLOT_WRITE        = "MEAL_SLOT_WRITE";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -76,5 +86,6 @@ public final class Permissions {
             ATTEMPTS_READ,
             REGIME_WRITE,
             PPMS_READ,
-            CANTINE_REMOVAL_WRITE);
+            CANTINE_REMOVAL_WRITE,
+            MEAL_SLOT_WRITE);
 }

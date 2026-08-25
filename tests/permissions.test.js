@@ -223,7 +223,9 @@ describe('permissions — gate de escrita', () => {
                 // PPMS: a lista nominativa deixou de ser isAuthenticated() em 14/08.
                 PPMS_READ: 'PPMS_READ',
                 // Moniteur Cantine (V020): retirar uma linha da vista de todos.
-                CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE'
+                CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE',
+                // Planning da cantina (V021).
+                MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE'
             });
         });
     });

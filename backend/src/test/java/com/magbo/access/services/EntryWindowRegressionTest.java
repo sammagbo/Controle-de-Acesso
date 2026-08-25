@@ -74,6 +74,20 @@ class EntryWindowRegressionTest {
     @Mock private ExitPermissionService exitPermissionService;
     @Mock private SamePassageService samePassageService;
 
+    /**
+     * ⚠️ A janela da cantina saiu daqui para o `MealSlotService` (V021).
+     *
+     * O default do mock e DENTRO — nao por comodidade, mas porque e o que
+     * PRESERVA o que estes testes provavam: no comportamento antigo, uma turma
+     * sem grade devolvia `null` (sem flag, sem tentativa registada), que e
+     * exatamente o efeito de DENTRO. Um mock a devolver `null` faria
+     * `janela.naoConfigurado()` estourar em NullPointerException e trocaria
+     * dezenas de falhas verdadeiras por uma falha de andaime.
+     *
+     * Quem prova a REGRA nova e o `MealSlotServiceTest` e o `MealSlotWiringTest`.
+     */
+    @Mock private MealSlotService mealSlotService;
+
     private AccessDecisionService service;
 
     private static final String FORA_HORARIO = "FORA_HORARIO";
@@ -98,7 +112,12 @@ class EntryWindowRegressionTest {
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
                 new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null),
-                cantineProperties);
+                cantineProperties, mealSlotService);
+        // Ver o javadoc do campo: DENTRO preserva o efeito do comportamento antigo.
+        org.mockito.Mockito.lenient().when(mealSlotService.resolver(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new MealSlotService.Resultado(
+                        MealSlotService.Veredicto.DENTRO, null, java.util.List.of(), false));
     }
 
     private String validar(User user, LocalTime hora) {

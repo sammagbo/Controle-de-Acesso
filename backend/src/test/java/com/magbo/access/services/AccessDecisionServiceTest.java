@@ -81,6 +81,20 @@ class AccessDecisionServiceTest {
     private final HikvisionEventClassifier classifier = new HikvisionEventClassifier();
 
     private PolicyProperties policy;
+    /**
+     * ⚠️ A janela da cantina saiu daqui para o `MealSlotService` (V021).
+     *
+     * O default do mock e DENTRO — nao por comodidade, mas porque e o que
+     * PRESERVA o que estes testes provavam: no comportamento antigo, uma turma
+     * sem grade devolvia `null` (sem flag, sem tentativa registada), que e
+     * exatamente o efeito de DENTRO. Um mock a devolver `null` faria
+     * `janela.naoConfigurado()` estourar em NullPointerException e trocaria
+     * dezenas de falhas verdadeiras por uma falha de andaime.
+     *
+     * Quem prova a REGRA nova e o `MealSlotServiceTest` e o `MealSlotWiringTest`.
+     */
+    @Mock private MealSlotService mealSlotService;
+
     private AccessDecisionService service;
 
     private static final String EMPLOYEE = "9999999";
@@ -118,7 +132,12 @@ class AccessDecisionServiceTest {
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
                 new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null),
-                cantineProperties);
+                cantineProperties, mealSlotService);
+        // Ver o javadoc do campo: DENTRO preserva o efeito do comportamento antigo.
+        org.mockito.Mockito.lenient().when(mealSlotService.resolver(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new MealSlotService.Resultado(
+                        MealSlotService.Veredicto.DENTRO, null, java.util.List.of(), false));
 
         when(userRepository.findByHikvisionEmployeeId(EMPLOYEE))
                 .thenReturn(Optional.of(aluno(TURMA_SEM_REFEICAO)));
@@ -270,6 +289,13 @@ class AccessDecisionServiceTest {
         verify(exitPermissionService, never()).consumeIfSingle(any());
     }
 
+    /** O MealSlotService responde FORA da janela para esta passagem. */
+    private void foraDaJanela() {
+        org.mockito.Mockito.lenient().when(mealSlotService.resolver(any(), any()))
+                .thenReturn(new MealSlotService.Resultado(
+                        MealSlotService.Veredicto.FORA, null, java.util.List.of(), false));
+    }
+
     // ───────────────── Fiacao (o que a reflexao nao cobre) ─────────────────
 
     /**
@@ -285,6 +311,11 @@ class AccessDecisionServiceTest {
     void flagForaHorarioChegaAoAccessLog() {
         policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
         autorizado();
+        // ⚠️ A janela deixou de sair de `class_schedules` (V021): quem a decide
+        // agora e o MealSlotService, e por isso e ele que este teste conduz. O
+        // que continua a ser provado e o MESMO: que o flag calculado chega ao
+        // AccessLog gravado, e nao morre pelo caminho.
+        foraDaJanela();
 
         service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
@@ -338,31 +369,44 @@ class AccessDecisionServiceTest {
     }
 
     /**
-     * FRONTEIRA DE ESCOPO, congelada de proposito.
+     * ⚠️⚠️ ESTA FRONTEIRA MUDOU EM 26/08/2026, POR DECISAO DO SAM.
      *
-     * eventTime e o relogio do REGISTRO. As regras (janela da cantina, dedup de
-     * refeicao, permissao de saida, tempo dentro da cantina) continuam sendo
-     * avaliadas contra a hora em que o MAGBO decide. Com a turma 'N' em todos
-     * os dias, o flag FORA_HORARIO sai a qualquer hora — e continua saindo
-     * mesmo com a hora do evento vindo de 3h atras, o que prova que a decisao
-     * nao passou a depender do dateTime do aparelho.
+     * A versao anterior deste teste congelava o CONTRARIO — «a regra de janela
+     * continua rodando contra o relogio da decisao» — e o proprio javadoc dizia
+     * que mudar isso «altera DENY/ALLOW em producao: e decisao do Sam, nao
+     * efeito colateral de corrigir timestamp». A decisao veio, e esta escrita
+     * na entrega dos creneaux: «la fenetre est jugee a l'heure de l'EVENEMENT,
+     * jamais du traitement».
      *
-     * Mudar isto altera DENY/ALLOW em producao: e decisao do Sam, nao efeito
-     * colateral de corrigir timestamp.
+     * POR QUE: julgada por `now`, uma fila offline de 33 eventos esvaziada as
+     * 18h marcaria TODAS as passagens do meio-dia como fora do horario —
+     * dezenas de alertas inventados sobre criancas que chegaram na hora certa.
+     * E o incidente de 03/08/2026 outra vez, agora a acusar em vez de medir.
+     *
+     * ⚠️ E A FRONTEIRA CONTINUA A EXISTIR, so mudou de sitio: dedup de refeicao,
+     * permissao de saida e utilizador inativo CONTINUAM avaliados contra o
+     * relogio da decisao. So a JANELA passou para a hora do evento.
+     *
+     * ⚠️ Captura o ARGUMENTO, nao o veredicto — mesma disciplina do
+     * `RegimeGateWiringTest#regimeUsaAHoraDaPassagem`. Um teste que olhasse
+     * apenas a cor do resultado passaria verde num dia em que as duas horas
+     * calhassem no mesmo creneau, e so quebraria por acaso.
      */
     @Test
-    @DisplayName("ESCOPO: a hora do evento NAO desloca a avaliacao das regras")
-    void horaDoEventoNaoMudaAvaliacaoDasRegras() {
+    @DisplayName("ESCOPO: a JANELA e julgada na hora do EVENTO; as outras regras, na da decisao")
+    void janelaUsaAHoraDoEvento() {
         policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
         autorizado();
 
         service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
-        ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
-        verify(accessLogRepository).save(captor.capture());
-        assertThat(captor.getValue().getFlag())
-                .as("a regra de janela continua rodando contra o relogio da decisao")
-                .isEqualTo("FORA_HORARIO");
+        ArgumentCaptor<java.time.LocalDateTime> quando =
+                ArgumentCaptor.forClass(java.time.LocalDateTime.class);
+        verify(mealSlotService).resolver(any(), quando.capture());
+
+        assertThat(quando.getValue())
+                .as("a janela tem de ser julgada na hora da PASSAGEM, nao na do processamento")
+                .isEqualTo(HORA_DO_EVENTO);
     }
 
     // ───────────────── Congelamento de comportamento sabidamente errado ─────────────────

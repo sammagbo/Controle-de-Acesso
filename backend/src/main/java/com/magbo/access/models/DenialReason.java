@@ -77,5 +77,22 @@ public enum DenialReason {
      */
     REGIME_TO_VERIFY,
 
+    /**
+     * Ninguem disse a que horas esta pessoa come (V021/V022).
+     *
+     * ⚠️ NAO E RECUSA, e o rotulo tem de continuar a dizer isso. E uma pergunta
+     * dirigida ao ADULTO que mantem o planning, nao um reproche a uma crianca:
+     * a maternal e o elementar nao figuram na afixacao e nao podem ser punidos
+     * por uma casa vazia. A politica associada
+     * (`magbo.policy.meal-slot-not-configured`) nasce OBSERVATION e nao deve
+     * passar a DENY — um sistema que confunde «nao sei» com «nao pode»
+     * transforma a propria ignorancia em sancao.
+     *
+     * ⚠️ Valor novo no enum = CHECK novo em `access_attempts` (V022). Sem a
+     * migracao, o INSERT falha SO NA VM, dentro da transacao, derrubando junto
+     * o access_log de uma passagem real.
+     */
+    MEAL_SLOT_NOT_CONFIGURED,
+
     NORMAL
 }

@@ -24,6 +24,10 @@ const ACCESS_POINTS = [
       { id: 'INFIRMARY_REPORT', nome: 'Rapport Infirmerie', icon: 'clipboard-list', description: 'Visites et séjours', category: 'monitor', area: 'infirmerie' },
       { id: 'GENERAL_REPORT',   nome: 'Rapport Général',    icon: 'layout-dashboard', description: 'Vue consolidée — KPIs, élèves, journal', category: 'monitor', area: 'admin', hidden: true },
       { id: 'MEAL_ENTITLEMENT_MANAGEMENT', nome: 'Droits Repas', icon: 'utensils', description: 'Gestion des droits', category: 'monitor', area: 'admin', hidden: true },
+      // Planning da cantina (V021). `hidden` como as outras telas de gestão:
+      // entra-se pelo Painel Administrativo, ou pelo atalho de quem tem a
+      // permissão granular.
+      { id: 'MEAL_SLOT_MANAGEMENT', nome: 'Planning Cantine', icon: 'calendar-clock', description: 'Créneaux de restauration', category: 'monitor', area: 'admin', hidden: true },
       { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
       // Régime de sortie — o direito ANUAL, distinto das autorizações pontuais
       // acima. As duas telas coexistem porque as duas coisas coexistem

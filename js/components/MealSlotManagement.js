@@ -27,6 +27,11 @@ function MealSlotManagement({ onBack }) {
     const [ocupado, setOcupado] = React.useState(false);
     const [busca, setBusca] = React.useState('');
     const [aluno, setAluno] = React.useState(null);
+    // ⚠️ A afixação é uma VISTA da mesma grade já carregada, não um segundo
+    // pedido. Buscar outra vez abriria a porta a imprimir um estado
+    // diferente do que está no ecrã — e é a divergência entre o mur e a base
+    // que este chantier veio fechar.
+    const [vistaAfixacao, setVistaAfixacao] = React.useState(false);
 
     const podeEscrever = window.MagboPermissions
         ? window.MagboPermissions.canWrite(window.auth, 'MEAL_SLOT_WRITE')
@@ -110,10 +115,18 @@ function MealSlotManagement({ onBack }) {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => window.open('#affiche', '_self') || window.print()}
+                        onClick={() => setVistaAfixacao(v => !v)}
                         className="flex items-center gap-2 text-xs font-bold text-navy-500 bg-soft-100 hover:bg-soft-200 px-3 py-2 rounded-full">
-                        <LucideIcon name="printer" size={14} /> {t('creneaux.imprimir')}
+                        <LucideIcon name={vistaAfixacao ? 'pencil' : 'printer'} size={14} />
+                        {vistaAfixacao ? t('creneaux.voltar.edicao') : t('creneaux.imprimir')}
                     </button>
+                    {vistaAfixacao && (
+                        <button
+                            onClick={() => window.print()}
+                            className="flex items-center gap-2 text-xs font-bold text-white bg-navy-500 px-3 py-2 rounded-full">
+                            <LucideIcon name="printer" size={14} /> {t('affiche.imprimir.agora')}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -169,8 +182,13 @@ function MealSlotManagement({ onBack }) {
                 )}
             </form>
 
+            {/* ⚠️ A afixação substitui a grade de edição em vez de conviver com
+                ela: são a MESMA informação em duas formas, e mostrá-las juntas
+                convidaria a imprimir uma e ler a outra. */}
+            {vistaAfixacao && <AfficheCantine grade={grade} annee={new Date().getFullYear()} />}
+
             {/* La grille, jour par jour — comme l'affiche */}
-            <div className="space-y-4">
+            <div className={`space-y-4 ${vistaAfixacao ? 'hidden' : ''}`}>
                 {JOURS_ORDRE.map(d => (
                     <div key={d} className="bg-soft-50/50 rounded-2xl p-3">
                         <h3 className="text-sm font-black text-navy-500 uppercase tracking-wide mb-2 px-1">

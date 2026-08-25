@@ -105,12 +105,51 @@
     }
 
     /**
+     * ESTA LINHA FOI RETIRADA À MÃO?
+     *
+     * ⚠️ A RETIRADA ESCONDE A LINHA COMO ELA ESTAVA, NUNCA A PESSOA PELO DIA.
+     * Só conta se a passagem for ANTERIOR ao instante da retirada. Se a pessoa
+     * voltar a entrar às 13h depois de ter sido retirada às 12h30, a entrada
+     * nova reaparece — e tem de reaparecer: quem carregou no × às 12h30 não
+     * sabia nada sobre as 13h, e um ecrã que continuasse calado estaria a
+     * obedecer a uma ordem que ninguém deu.
+     *
+     * A chave é (pessoa, PONTO): o monitor mostra REFEI1, REFEI2 e CANTINA1 na
+     * mesma tela e a mesma pessoa pode ter linha em mais do que uma.
+     *
+     * @param mapa  Map de "userId|pointId" -> instante da retirada (ms)
+     */
+    function foiRetirada(mapa, ev) {
+        if (!mapa || mapa.size === 0) return false;
+        const quando = mapa.get(ev.userId + '|' + (ev.pointId || ''));
+        return quando !== undefined && ev._t <= quando;
+    }
+
+    /**
+     * Indexa as retiradas vindas de GET /api/admin/cantine/removals.
+     *
+     * Uma linha sem `removidoEm` legível é IGNORADA em vez de esconder para
+     * sempre: sem instante não há como saber o que ela cala, e o erro seguro
+     * numa tela que diz quem está no refeitório é mostrar a mais.
+     */
+    function indexarRetiradas(retiradas) {
+        const mapa = new Map();
+        for (const r of (retiradas || [])) {
+            if (!r || !r.userId) continue;
+            const ms = new Date(r.removidoEm).getTime();
+            if (!isFinite(ms)) continue;
+            mapa.set(r.userId + '|' + (r.pointId || ''), ms);
+        }
+        return mapa;
+    }
+
+    /**
      * Reparte os eventos do dia nas colunas da tela.
      *
      * @param logs   eventos crus (userId, action, timestamp já em ms no campo _t
      *               ou parseáveis pelo `parseMs` recebido)
      * @param agora  Date.now() da tela
-     * @param opts   { pisoMs, parseMs }
+     * @param opts   { pisoMs, parseMs, retiradas }
      *
      * Devolve { dans, doitSortir, decantados, sortis, antesDaAbertura }.
      *
@@ -124,6 +163,7 @@
         const o = opts || {};
         const parseMs = o.parseMs || function (x) { return new Date(x).getTime(); };
         const piso = typeof o.pisoMs === 'number' ? o.pisoMs : 0;
+        const retiradas = indexarRetiradas(o.retiradas);
         const c = atual;
 
         const tetoMs = c.duracaoMaximaMinutos * 60 * 1000;
@@ -142,6 +182,19 @@
         const dans = [], doitSortir = [], decantados = [], sortis = [];
         const aberturaMin = minutosDe(c.lyceeInicio);
         let antesDaAbertura = 0;
+        // Quantas linhas o operador tirou da vista. O ecrã DIZ este número em
+        // vez de as fazer desaparecer sem rasto: uma linha que some sem
+        // explicação é indistinguível de um defeito, e este sistema já perdeu
+        // 95 entradas num dia sem ninguém reparar.
+        let retiradosDaVista = 0;
+        // ⚠️ QUAIS, e não só quantas. O rodapé conta as linhas escondidas AGORA;
+        // a lista de retiradas do servidor traz todas as de hoje, incluindo as
+        // que já não escondem nada (a pessoa saiu depois, e a saída é um facto
+        // novo que a retirada não alcança). Mostrar os dois números lado a lado
+        // — «1 ligne retirée» e um modal com três — faria o operador procurar
+        // um defeito que não existe. As chaves deixam a tela listar exatamente
+        // o que ela está a contar.
+        const chavesRetiradas = new Set();
 
         for (const eventos of porPessoa.values()) {
             eventos.sort(function (a, b) { return a._t - b._t; });
@@ -156,7 +209,15 @@
             const decorrido = agora - ultimo._t;
 
             if (ultimo.action === 'ENTRADA') {
-                if (decorrido > tetoMs) {
+                // ⚠️ A retirada só alcança quem o ecrã dá como AINDA LÁ DENTRO —
+                // as três famílias abaixo. Não alcança SORTIS, e é de propósito:
+                // uma SAIDA é um facto NOVO, lido por um terminal depois de o
+                // operador ter carimbado a linha como resolvida. Escondê-la
+                // apagaria a prova de que ele tinha razão.
+                if (foiRetirada(retiradas, ultimo)) {
+                    retiradosDaVista++;
+                    chavesRetiradas.add(ultimo.userId + '|' + (ultimo.pointId || ''));
+                } else if (decorrido > tetoMs) {
                     // Passou o teto. Fica na coluna enquanto for acionável;
                     // depois decanta para a pastilha — sem sair da conta.
                     (decorrido > tetoMs + decantaMs ? decantados : doitSortir).push(ultimo);
@@ -196,7 +257,9 @@
             doitSortir: doitSortir,
             decantados: decantados,
             sortis: sortis,
-            antesDaAbertura: antesDaAbertura
+            antesDaAbertura: antesDaAbertura,
+            retiradosDaVista: retiradosDaVista,
+            chavesRetiradas: chavesRetiradas
         };
     }
 
@@ -205,6 +268,8 @@
         configurado: configurado,
         config: config,
         classificar: classificar,
+        indexarRetiradas: indexarRetiradas,
+        foiRetirada: foiRetirada,
         faixaDe: faixaDe,
         minutosDe: minutosDe,
         FALLBACK: FALLBACK,

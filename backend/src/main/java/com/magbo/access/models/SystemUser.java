@@ -44,7 +44,9 @@ public class SystemUser {
 
     /**
      * CSV de permissões granulares deste operador.
-     * Valores reconhecidos: MEAL_ENTITLEMENT_WRITE, EXIT_PERMISSION_WRITE, ATTEMPTS_READ.
+     * Valores reconhecidos: ver security/Permissions.TODAS (MEAL_ENTITLEMENT_WRITE,
+     * EXIT_PERMISSION_WRITE, ATTEMPTS_READ, REGIME_WRITE, PPMS_READ,
+     * CANTINE_REMOVAL_WRITE). A lista viva e aquela; esta frase e so orientacao.
      * "*" = todas. null = nenhuma permissão granular (não remove nada do que
      * setoresPermitidos já concede — apenas escrita de entitlements/permissões exige isto).
      */

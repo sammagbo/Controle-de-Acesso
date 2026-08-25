@@ -38,6 +38,21 @@ public final class Permissions {
     public static final String PPMS_READ              = "PPMS_READ";
 
     /**
+     * Retirar uma linha do Moniteur Cantine (V020).
+     *
+     * ⚠️ LER o monitor continua a ser por AREA — qualquer operador da cantina
+     * abre a tela. O que esta permissao governa e APAGAR uma linha da vista de
+     * toda a gente: um gesto que muda o que os outros veem, e que sem registo
+     * seria indistinguivel de um defeito do sistema.
+     *
+     * ⚠️ E ELA NAO CHEGA SOZINHA. A permissao e GLOBAL e o ponto NAO e: o
+     * @PreAuthorize do CantineRemovalController exige TAMBEM
+     * `@areaSecurity.can(#pointId)`, senao quem a tivesse retiraria linhas de
+     * qualquer ponto do sistema. Ver o javadoc daquele controller.
+     */
+    public static final String CANTINE_REMOVAL_WRITE  = "CANTINE_REMOVAL_WRITE";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -60,5 +75,6 @@ public final class Permissions {
             EXIT_PERMISSION_WRITE,
             ATTEMPTS_READ,
             REGIME_WRITE,
-            PPMS_READ);
+            PPMS_READ,
+            CANTINE_REMOVAL_WRITE);
 }

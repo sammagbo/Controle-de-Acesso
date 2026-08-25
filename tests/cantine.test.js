@@ -271,3 +271,139 @@ describe('robustez — a tela não pode quebrar ao balcão', () => {
         expect(r.doitSortir.map(x => x.userId)).toEqual(['D', 'C']);
     });
 });
+
+describe('retirada manual — esconde a LINHA, nunca a pessoa pelo dia', () => {
+    const retirada = (userId, pointId, quandoMs) =>
+        ({ userId, pointId, removidoEm: new Date(quandoMs).toISOString() });
+
+    const comPonto = (userId, action, quandoMs, pointId) =>
+        ({ userId, action, pointId: pointId || 'REFEI1', timestamp: quandoMs });
+
+    it('★★★ a linha retirada sai de DANS LA CANTINE e é CONTADA como retirada', () => {
+        const r = cantine.classificar(
+            [comPonto('0001', 'ENTRADA', MEIODIA - 5 * MIN)], MEIODIA,
+            { parseMs: (x) => x, retiradas: [retirada('0001', 'REFEI1', MEIODIA - 1 * MIN)] });
+        expect(r.dans).toHaveLength(0);
+        expect(r.retiradosDaVista).toBe(1);
+    });
+
+    it('★★★ sai também de DOIT SORTIR e dos DECANTADOS', () => {
+        const opcoes = (quando) => ({ parseMs: (x) => x, retiradas: [retirada('0001', 'REFEI1', quando)] });
+        // 40 min dentro → DOIT SORTIR
+        expect(cantine.classificar([comPonto('0001', 'ENTRADA', MEIODIA - 40 * MIN)],
+            MEIODIA, opcoes(MEIODIA)).doitSortir).toHaveLength(0);
+        // 60 min dentro → decantado
+        expect(cantine.classificar([comPonto('0001', 'ENTRADA', MEIODIA - 60 * MIN)],
+            MEIODIA, opcoes(MEIODIA)).decantados).toHaveLength(0);
+    });
+
+    it('★★★ UMA ENTRADA NOVA DEPOIS DA RETIRADA REAPARECE', () => {
+        // ⚠️ O teste que impede o × de virar uma ordem para o ecrã mentir pelo
+        // resto do dia. Retirada às 12h30 (30 min atrás); a pessoa volta a
+        // entrar 10 min atrás. Quem carregou no botão não sabia nada sobre
+        // essa entrada, e escondê-la faria o monitor negar alguém que está
+        // mesmo no refeitório.
+        const r = cantine.classificar([
+            comPonto('0001', 'ENTRADA', MEIODIA - 50 * MIN),
+            comPonto('0001', 'ENTRADA', MEIODIA - 10 * MIN)
+        ], MEIODIA, { parseMs: (x) => x, retiradas: [retirada('0001', 'REFEI1', MEIODIA - 30 * MIN)] });
+
+        expect(r.dans.map(x => x.userId)).toEqual(['0001']);
+        expect(r.retiradosDaVista).toBe(0);
+    });
+
+    it('★★★ a retirada é POR PONTO — não esconde a linha da pessoa noutro refeitório', () => {
+        // O monitor mostra REFEI1, REFEI2 e CANTINA1 na mesma tela. Retirar
+        // «a pessoa» esconderia a passagem que ninguém pediu para esconder.
+        const r = cantine.classificar([
+            comPonto('0001', 'ENTRADA', MEIODIA - 5 * MIN, 'REFEI1'),
+            comPonto('0001', 'ENTRADA', MEIODIA - 4 * MIN, 'REFEI2')
+        ], MEIODIA, { parseMs: (x) => x, retiradas: [retirada('0001', 'REFEI1', MEIODIA)] });
+
+        // O último evento da pessoa é o de REFEI2, e ele não foi retirado.
+        expect(r.dans).toHaveLength(1);
+        expect(r.dans[0].pointId).toBe('REFEI2');
+    });
+
+    it('★★★ SORTIS NÃO é alcançado — uma saída lida é um facto NOVO', () => {
+        // O terminal viu a pessoa sair depois de o operador ter carimbado a
+        // linha como resolvida. Esconder isso apagaria a prova de que ele
+        // tinha razão.
+        const r = cantine.classificar([
+            comPonto('0001', 'ENTRADA', MEIODIA - 40 * MIN),
+            comPonto('0001', 'SAIDA', MEIODIA - 5 * MIN)
+        ], MEIODIA, { parseMs: (x) => x, retiradas: [retirada('0001', 'REFEI1', MEIODIA - 20 * MIN)] });
+
+        expect(r.sortis.map(x => x.userId)).toEqual(['0001']);
+        expect(r.retiradosDaVista).toBe(0);
+    });
+
+    it('★★ sem retiradas, nada muda (o caminho normal)', () => {
+        const r = cantine.classificar([comPonto('0001', 'ENTRADA', MEIODIA - 5 * MIN)], MEIODIA, opts);
+        expect(r.dans).toHaveLength(1);
+        expect(r.retiradosDaVista).toBe(0);
+    });
+
+    it('★★ retirada com instante ILEGÍVEL é ignorada — erra-se a mostrar, nunca a esconder', () => {
+        const r = cantine.classificar([comPonto('0001', 'ENTRADA', MEIODIA - 5 * MIN)], MEIODIA, {
+            parseMs: (x) => x,
+            retiradas: [{ userId: '0001', pointId: 'REFEI1', removidoEm: 'ontem à tarde' }]
+        });
+        expect(r.dans).toHaveLength(1);
+    });
+
+    it('★ lixo na lista de retiradas não quebra a tela', () => {
+        const r = cantine.classificar([comPonto('0001', 'ENTRADA', MEIODIA - 5 * MIN)], MEIODIA, {
+            parseMs: (x) => x,
+            retiradas: [null, undefined, {}, { pointId: 'REFEI1' }]
+        });
+        expect(r.dans).toHaveLength(1);
+    });
+
+    it('★★ indexarRetiradas: chave é pessoa|ponto, e o lixo cai fora', () => {
+        const mapa = cantine.indexarRetiradas([
+            retirada('0001', 'REFEI1', MEIODIA),
+            retirada('0002', 'REFEI2', MEIODIA),
+            { userId: '0003', pointId: 'REFEI1', removidoEm: 'xxx' }
+        ]);
+        expect(mapa.size).toBe(2);
+        expect(mapa.has('0001|REFEI1')).toBe(true);
+        expect(mapa.has('0002|REFEI2')).toBe(true);
+        expect(mapa.has('0001|REFEI2')).toBe(false);
+    });
+});
+
+describe('o rodapé conta o que o modal lista — os dois números têm de bater', () => {
+    it('★★★ uma retirada que já não esconde nada NÃO entra nas chaves', () => {
+        // A pessoa foi retirada às 12h30 e SAIU às 12h50. A saída é um facto
+        // novo que a retirada não alcança, então nada está escondido por ela.
+        // Contá-la faria o rodapé dizer «1 ligne retirée» com o modal vazio.
+        const r = cantine.classificar([
+            { userId: '0001', pointId: 'REFEI1', action: 'ENTRADA', timestamp: MEIODIA - 60 * MIN },
+            { userId: '0001', pointId: 'REFEI1', action: 'SAIDA', timestamp: MEIODIA - 10 * MIN }
+        ], MEIODIA, {
+            parseMs: (x) => x,
+            retiradas: [{ userId: '0001', pointId: 'REFEI1', removidoEm: new Date(MEIODIA - 30 * MIN).toISOString() }]
+        });
+        expect(r.retiradosDaVista).toBe(0);
+        expect(r.chavesRetiradas.size).toBe(0);
+    });
+
+    it('★★★ o número do rodapé é sempre o tamanho da lista do modal', () => {
+        const logs = [], retiradas = [];
+        for (let i = 0; i < 5; i++) {
+            logs.push({ userId: 'U' + i, pointId: 'REFEI1', action: 'ENTRADA', timestamp: MEIODIA - 20 * MIN });
+        }
+        // três retiradas efetivas + uma para alguém que não está na tela
+        for (let i = 0; i < 3; i++) {
+            retiradas.push({ userId: 'U' + i, pointId: 'REFEI1', removidoEm: new Date(MEIODIA).toISOString() });
+        }
+        retiradas.push({ userId: 'FANTASMA', pointId: 'REFEI1', removidoEm: new Date(MEIODIA).toISOString() });
+
+        const r = cantine.classificar(logs, MEIODIA, { parseMs: (x) => x, retiradas });
+        expect(r.retiradosDaVista).toBe(3);
+        expect(r.chavesRetiradas.size).toBe(3);
+        expect(retiradas.filter(x => r.chavesRetiradas.has(x.userId + '|' + x.pointId))).toHaveLength(3);
+        expect(r.dans).toHaveLength(2);
+    });
+});

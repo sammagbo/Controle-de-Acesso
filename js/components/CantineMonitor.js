@@ -64,6 +64,104 @@ function CantineColumnHeader({ icon, title, count, color, extra }) {
 }
 
 /**
+ * O QUE FOI RETIRADO DA VISTA — e o caminho de volta.
+ *
+ * ⚠️ NO ESCOPO DO MÓDULO, como {@link CantineDecantadosIndicador} e
+ * {@link CantineColumnHeader}, e pela mesma razão já paga duas vezes nesta
+ * tela: um componente COM ESTADO escrito dentro do `CantineMonitor` recebe um
+ * tipo novo a cada render, o React desmonta-o, e o modal fecha-se sozinho no
+ * ciclo seguinte de 3 s.
+ *
+ * ⚠️ E ESTE MODAL EXISTE PORQUE A RETIRADA É REVERSÍVEL. Sem ele, um clique
+ * confirmado por engano esconderia uma pessoa até à meia-noite num ecrã cuja
+ * única função é dizer quem está no refeitório. A confirmação protege do
+ * clique distraído; isto protege do clique confirmado por engano.
+ *
+ * ⚠️ Quem retirou e a que horas ficam à vista, e não escondidos numa consulta
+ * ao banco. A pergunta que este ecrã tem de responder amanhã é «porque é que
+ * esta pessoa não estava na lista?», e a resposta tem de estar onde a pergunta
+ * nasce.
+ */
+function CantineRetiradasIndicador({ linhas, podeDevolver, onDevolver, onAberto }) {
+    const t = useI18n();
+    const [aberto, setAberto] = React.useState(false);
+
+    React.useEffect(() => {
+        if (typeof onAberto === 'function') onAberto(aberto);
+    }, [aberto, onAberto]);
+
+    const lista = linhas || [];
+    if (lista.length === 0) return null;
+
+    const hora = (iso) => {
+        const d = new Date(iso);
+        return isFinite(d.getTime())
+            ? d.toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit' })
+            : '--:--';
+    };
+
+    return (
+        <>
+            <button type="button" onClick={() => setAberto(true)}
+                className="text-xs font-bold text-slate-500 hover:text-navy-500 underline underline-offset-2 flex-shrink-0">
+                {t('cantina.retiradas.ver')}
+            </button>
+
+            {aberto && (
+                <div className="fixed inset-0 z-50 bg-navy-500/40 flex items-start justify-center p-8"
+                    onClick={() => setAberto(false)}>
+                    <div className="bg-soft-50 rounded-2xl border border-soft-200 shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end p-3 pb-0 shrink-0">
+                            <button type="button" onClick={() => setAberto(false)}
+                                className="text-xs font-bold text-slate-500 hover:text-navy-500">
+                                {t('cantina.fechar')}
+                            </button>
+                        </div>
+                        <div className="px-5 pb-5 overflow-y-auto">
+                            <p className="font-bold text-navy-500 text-sm">{t('cantina.retiradas.titulo')}</p>
+                            <p className="text-xs text-slate-500 mb-3">{t('cantina.retiradas.ajuda')}</p>
+                            <div className="space-y-1.5">
+                                {lista.map((r, i) => {
+                                    const u = window.userCache?.byId(r.userId);
+                                    return (
+                                        <div key={(r.userId || '') + (r.pointId || '') + i}
+                                            className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-200">
+                                            <span className="font-bold text-sm text-navy-500 truncate">
+                                                {window.MagboIdentity.resolver({ pessoa: u, userId: r.userId }, { lang: 'fr' }).nome}
+                                            </span>
+                                            {u && u.turma && (
+                                                <span className="text-xs text-slate-400 shrink-0">{u.turma}</span>
+                                            )}
+                                            <span className="text-xs text-slate-500 flex-1 truncate text-right">
+                                                {t('cantina.retiradas.por', {
+                                                    quem: r.removidoPor || '?', hora: hora(r.removidoEm)
+                                                })}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => onDevolver && onDevolver(r)}
+                                                disabled={!podeDevolver}
+                                                className={`text-xs font-bold px-2 py-1 rounded flex-shrink-0 ${
+                                                    podeDevolver
+                                                        ? 'text-accent-600 hover:bg-accent-50'
+                                                        : 'text-slate-300 cursor-not-allowed'
+                                                }`}>
+                                                {t('cantina.retiradas.devolver')}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
+
+/**
  * A PASTILHA DA DECANTAÇÃO — o mesmo desenho do indicador do CDI.
  *
  * ⚠️ NO ESCOPO DO MÓDULO, e isso NÃO é estilo: é a diferença entre o modal
@@ -173,6 +271,20 @@ function CantineMonitor() {
     // atualizar — mesma disciplina do indicador do CDI.
     const [modalAberto, setModalAberto] = React.useState(false);
 
+    // As retiradas manuais ATIVAS de hoje (V020). Vêm do servidor no mesmo
+    // ciclo das passagens: sem isto, um F5 devolveria à tela todas as linhas
+    // que alguém já tinha resolvido, e o botão «Vider l'écran» (que é só
+    // memória) voltaria a ser a única ferramenta.
+    const [retiradas, setRetiradas] = React.useState([]);
+
+    // ⚠️ DESABILITADO, NUNCA ESCONDIDO — regra do projeto para permissão
+    // granular. Quem não pode retirar continua a VER que a retirada existe;
+    // um × ausente faria a pessoa concluir que a funcionalidade não existe e
+    // pedir ao administrador uma coisa que ele já instalou.
+    const podeRetirar = window.MagboPermissions
+        ? window.MagboPermissions.canRemoveCantineLines(window.auth)
+        : false;
+
     // Lido de DENTRO dos intervalos, que são montados uma só vez: uma variável
     // de estado ali dentro ficaria congelada no valor da primeira renderização.
     const abertoRef = React.useRef(false);
@@ -190,6 +302,17 @@ function CantineMonitor() {
             if (active && Array.isArray(data)) {
                 setLogs(data);
                 setLastUpdate(new Date());
+            }
+            // ⚠️ Em requisição SEPARADA e com falha SEPARADA. Se as retiradas
+            // não vierem, a tela mostra linhas a MAIS — que é o erro seguro
+            // num ecrã que responde «quem está no refeitório». Derrubar as
+            // passagens porque a lista de retiradas falhou seria trocar um
+            // incómodo por uma tela vazia no meio do serviço.
+            try {
+                const rs = await window.api?.fetchCantineRemovals?.();
+                if (active && Array.isArray(rs)) setRetiradas(rs);
+            } catch (e) {
+                console.warn('[cantine] retiradas indisponíveis; a tela mostra tudo', e && e.message);
             }
         };
         poll();
@@ -209,9 +332,10 @@ function CantineMonitor() {
 
         return window.MagboCantine.classificar(logs, now, {
             pisoMs: floor,
-            parseMs: (ts) => new Date(safeDateParse(ts)).getTime()
+            parseMs: (ts) => new Date(safeDateParse(ts)).getTime(),
+            retiradas: retiradas
         });
-    }, [logs, now, cutoff]);
+    }, [logs, now, cutoff, retiradas]);
 
     const cfg = window.MagboCantine.config();
 
@@ -237,6 +361,55 @@ function CantineMonitor() {
         if (columns.sortis.some(matchesQuery)) return 'sortis';
         return 'introuvable';
     }, [query, columns]);
+
+    /**
+     * O × de uma linha.
+     *
+     * ⚠️ CONFIRMAÇÃO ANTES, e o texto diz o que acontece e o que NÃO acontece.
+     * «Retirer» num ecrã de controlo de acesso soa a apagar a passagem, e não
+     * é: o registo fica, o PPMS continua a contar a pessoa, o relatório não
+     * muda. Sem essa frase o operador hesita — ou pior, não hesita e pensa que
+     * apagou.
+     *
+     * ⚠️ ATUALIZAÇÃO OTIMISTA E DEPOIS A VERDADE DO SERVIDOR. O ciclo é de 3 s,
+     * e uma linha que continuasse lá durante três segundos depois do clique
+     * levaria o operador a carregar outra vez. O `setRetiradas` local mostra o
+     * efeito já; a resposta do servidor substitui-o pelo que ficou gravado.
+     * Se a chamada falhar, a linha VOLTA — e a pessoa vê que não funcionou,
+     * em vez de acreditar que sim.
+     */
+    const retirarLinha = async (ev) => {
+        if (!podeRetirar) return;
+        const user = window.userCache?.byId(ev.userId);
+        const nome = window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome;
+        if (!confirm(t('cantina.retirar.confirma', { nome: nome }))) return;
+
+        const otimista = { userId: ev.userId, pointId: ev.pointId, removidoEm: new Date().toISOString() };
+        setRetiradas(anteriores => anteriores.concat([otimista]));
+        try {
+            const gravada = await window.api.removeCantineLine(ev.pointId, ev.userId, null);
+            setRetiradas(anteriores => anteriores
+                .filter(r => !(r.userId === ev.userId && r.pointId === ev.pointId))
+                .concat([gravada && gravada.userId ? gravada : otimista]));
+        } catch (e) {
+            setRetiradas(anteriores => anteriores
+                .filter(r => !(r.userId === ev.userId && r.pointId === ev.pointId)));
+            alert(t('cantina.retirar.erro') + ' ' + (e && e.message ? e.message : ''));
+        }
+    };
+
+    /** Devolve a linha à tela. Sem confirmação: mostrar a mais não faz mal. */
+    const devolverLinha = async (r) => {
+        if (!podeRetirar) return;
+        setRetiradas(anteriores => anteriores
+            .filter(x => !(x.userId === r.userId && x.pointId === r.pointId)));
+        try {
+            await window.api.undoCantineRemoval(r.pointId, r.userId);
+        } catch (e) {
+            setRetiradas(anteriores => anteriores.concat([r]));
+            alert(t('cantina.retirar.erro') + ' ' + (e && e.message ? e.message : ''));
+        }
+    };
 
     const elapsedLabel = (ev) => {
         const mins = Math.floor((now - ev._t) / 60000);
@@ -317,6 +490,24 @@ function CantineMonitor() {
                         )}
                     </div>
                 </div>
+                {/* O × só nas duas colunas de quem o ecrã dá como AINDA LÁ
+                    DENTRO. Em SORTIS não faz sentido: a pessoa já saiu, e a
+                    linha desaparece sozinha em 40 min. */}
+                {(variant === 'dans' || variant === 'doit') && (
+                    <button
+                        type="button"
+                        onClick={() => retirarLinha(ev)}
+                        disabled={!podeRetirar}
+                        title={podeRetirar ? t('cantina.retirar.ajuda') : t('cantina.retirar.sem.permissao')}
+                        aria-label={t('cantina.retirar')}
+                        className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                            podeRetirar
+                                ? 'text-slate-400 hover:text-danger-600 hover:bg-danger-50'
+                                : 'text-slate-200 cursor-not-allowed'
+                        }`}>
+                        <LucideIcon name="x" size={16} />
+                    </button>
+                )}
             </div>
         );
     };
@@ -392,6 +583,25 @@ function CantineMonitor() {
                             {' '}
                             <span className="text-warning-600">{t('cantina.antes.abertura.ajuda')}</span>
                         </span>
+                    </div>
+                )}
+
+                {/* ⚠️ AS RETIRADAS SÃO DITAS, não silenciosas. Uma linha que
+                    some sem explicação é indistinguível de um defeito — e este
+                    sistema já perdeu 95 entradas num dia sem ninguém reparar.
+                    O contador abre a lista, e de lá cada uma pode voltar. */}
+                {columns.retiradosDaVista > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500 bg-soft-100 border border-soft-200 rounded-xl px-3 py-2">
+                        <span className="flex items-center gap-1.5">
+                            <LucideIcon name="eye-off" size={14} className="text-slate-400" />
+                            {t('cantina.retiradas.aviso', { n: columns.retiradosDaVista })}
+                        </span>
+                        <CantineRetiradasIndicador
+                            linhas={retiradas.filter(r =>
+                                columns.chavesRetiradas.has(r.userId + '|' + (r.pointId || '')))}
+                            podeDevolver={podeRetirar}
+                            onDevolver={devolverLinha}
+                            onAberto={setModalAberto} />
                     </div>
                 )}
 

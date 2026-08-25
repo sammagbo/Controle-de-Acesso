@@ -33,7 +33,10 @@
         EXIT_PERMISSION_WRITE: 'EXIT_PERMISSION_WRITE',
         ATTEMPTS_READ: 'ATTEMPTS_READ',
         // PPMS: ler a lista nominativa de quem está dentro (decisão de 14/08).
-        PPMS_READ: 'PPMS_READ'
+        PPMS_READ: 'PPMS_READ',
+        // Moniteur Cantine (V020): retirar uma linha da vista de todos. LER o
+        // monitor continua por área — isto governa só o gesto de apagar.
+        CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE'
     };
 
     /**
@@ -137,12 +140,29 @@
         return canWrite(auth, PERMISSIONS.MEAL_ENTITLEMENT_WRITE);
     }
 
+    /**
+     * O × das linhas do Moniteur Cantine (`POST/DELETE
+     * /api/admin/cantine/removals/{pointId}/{userId}`).
+     *
+     * ⚠️ Isto espelha SÓ a primeira metade do gate do backend. A segunda
+     * (`@areaSecurity.can(#pointId)`) não é espelhada aqui de propósito: quem
+     * abriu o Moniteur Cantine já passou pela área `cantine`, e a tela só
+     * mostra pontos de refeitório. Duplicar a regra de área no cliente seria a
+     * quarta cópia de um mapeamento que já vive em dois sítios
+     * (AreaMapping / constants.js) — e a cópia que ninguém se lembraria de
+     * atualizar. O servidor continua a ser a autoridade.
+     */
+    function canRemoveCantineLines(auth) {
+        return canWrite(auth, PERMISSIONS.CANTINE_REMOVAL_WRITE);
+    }
+
     return {
         PERMISSIONS: PERMISSIONS,
         canWrite: canWrite,
         mostraAtalhoNoDashboard: mostraAtalhoNoDashboard,
         podeVerPonto: podeVerPonto,
         canWriteExitPermissions: canWriteExitPermissions,
-        canWriteMealEntitlements: canWriteMealEntitlements
+        canWriteMealEntitlements: canWriteMealEntitlements,
+        canRemoveCantineLines: canRemoveCantineLines
     };
 });

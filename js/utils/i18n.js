@@ -1029,6 +1029,7 @@
             // fix/permissions-ui). Toda branch que acrescenta permissão
             // acrescenta o rótulo AQUI, nas duas línguas.
             'operadores.permissao.PPMS_READ': 'Liste PPMS — consulter',
+            'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Moniteur Cantine — retirer une ligne',
             'operadores.senha': 'Mot de passe',
             'operadores.senha.nova': 'Nouveau mot de passe (facultatif)',
             'operadores.ativo': 'Opérateur actif',
@@ -1214,6 +1215,19 @@
             'cantina.duracao.sem.par': 'entrée non enregistrée',
             'cantina.antes.abertura': "{n} passage(s) enregistré(s) avant l'ouverture prévue ({hora}).",
             'cantina.antes.abertura.ajuda': "Ce n'est pas un refus : les passages sont enregistrés normalement. La cantine a servi plus tôt que l'horaire configuré.",
+
+            // Retrait manuel d'une ligne (V020)
+            'cantina.retirar': 'Retirer de la liste',
+            'cantina.retirar.ajuda': "Retirer cette ligne de l'écran. Le passage reste enregistré.",
+            'cantina.retirar.sem.permissao': "Vous n'avez pas l'autorisation de retirer une ligne.",
+            'cantina.retirar.confirma': "Retirer {nome} de l'écran ?\n\nLe passage RESTE enregistré : rien n'est supprimé, la liste PPMS n'est pas modifiée et les rapports ne changent pas. Seule cette ligne disparaît du moniteur, pour vous et pour vos collègues.",
+            'cantina.retirar.erro': "La ligne n'a pas pu être retirée.",
+            'cantina.retiradas.aviso': '{n} ligne(s) retirée(s) de la liste',
+            'cantina.retiradas.ver': 'Voir',
+            'cantina.retiradas.titulo': 'Lignes retirées de la liste',
+            'cantina.retiradas.ajuda': "Les passages restent enregistrés. Chaque ligne peut être remise dans la liste.",
+            'cantina.retiradas.por': 'par {quem} à {hora}',
+            'cantina.retiradas.devolver': 'Remettre',
 
             'cdi.base': 'Élèves',
             'cdi.aluno.nome': 'Nom Prénom',
@@ -2268,6 +2282,7 @@
             'operadores.permissao.ATTEMPTS_READ': 'Tentativas negadas — consultar',
             'operadores.permissao.REGIME_WRITE': 'Regimes de saída — alterar',
             'operadores.permissao.PPMS_READ': 'Lista PPMS — consultar',
+            'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Monitor da Cantina — retirar uma linha',
             'operadores.senha': 'Senha',
             'operadores.senha.nova': 'Nova senha (opcional)',
             'operadores.ativo': 'Operador ativo',
@@ -2453,6 +2468,19 @@
             'cantina.duracao.sem.par': 'entrada não registada',
             'cantina.antes.abertura': '{n} passagem(ns) registada(s) antes da abertura prevista ({hora}).',
             'cantina.antes.abertura.ajuda': 'Não é uma recusa: as passagens são gravadas normalmente. A cantina serviu mais cedo do que o horário configurado.',
+
+            // Retirada manual de uma linha (V020)
+            'cantina.retirar': 'Retirar da lista',
+            'cantina.retirar.ajuda': 'Retirar esta linha da tela. A passagem continua gravada.',
+            'cantina.retirar.sem.permissao': 'Você não tem autorização para retirar uma linha.',
+            'cantina.retirar.confirma': 'Retirar {nome} da tela?\n\nA passagem CONTINUA gravada: nada é apagado, a lista do PPMS não muda e os relatórios não mudam. Só esta linha some do monitor, para você e para os seus colegas.',
+            'cantina.retirar.erro': 'Não foi possível retirar a linha.',
+            'cantina.retiradas.aviso': '{n} linha(s) retirada(s) da lista',
+            'cantina.retiradas.ver': 'Ver',
+            'cantina.retiradas.titulo': 'Linhas retiradas da lista',
+            'cantina.retiradas.ajuda': 'As passagens continuam gravadas. Cada linha pode voltar para a lista.',
+            'cantina.retiradas.por': 'por {quem} às {hora}',
+            'cantina.retiradas.devolver': 'Devolver',
 
             'cdi.base': 'Alunos',
             'cdi.aluno.nome': 'Nome Sobrenome',

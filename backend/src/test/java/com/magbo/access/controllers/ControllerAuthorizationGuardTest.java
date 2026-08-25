@@ -159,11 +159,34 @@ class ControllerAuthorizationGuardTest {
                     String nome = mn.find() ? mn.group(1) : "?";
                     String guarda = preAuthorizeDe(bloco);
                     if (guarda == null) guarda = guardaClasse;
+                    guarda = resolverConstante(guarda, src);
                     out.add(new Endpoint(classe, nome, guarda));
                 }
             }
         }
         return out;
+    }
+
+    /**
+     * `@PreAuthorize(ESCRITA)` -> o VALOR da constante, nao o nome dela.
+     *
+     * ⚠️ APANHADO NUM ENSAIO DE MERGE, e teria sido pior do que nao existir.
+     * `MealSlotController` e `ParcoursController` guardam a expressao numa
+     * `private static final String` e escrevem `@PreAuthorize(ESCRITA)`. A
+     * primeira versao deste parser lia o token `ESCRITA`, nao encontrava nem
+     * `hasRole(` nem `@areaSecurity.`, e declarava OITO endpoints correctamente
+     * guardados como «sem decisao».
+     *
+     * Um guarda que acusa o inocente ensina a ignora-lo — e no dia em que ele
+     * acusasse o culpado, ninguem olharia. E o modo de falha mais caro que um
+     * teste de seguranca pode ter.
+     */
+    private static String resolverConstante(String g, String src) {
+        if (g == null || !g.matches("[A-Z][A-Z0-9_]*")) return g;
+        Matcher m = Pattern.compile(
+                "String\\s+" + g + "\\s*=\\s*((?:\"[^\"]*\"\\s*\\+?\\s*)+);").matcher(src);
+        if (!m.find()) return g;
+        return m.group(1).replace("\"", "").replace("+", "").replaceAll("\\s+", " ").trim();
     }
 
     /** Uma guarda que decide ALGO alem de «tem token». */
@@ -190,6 +213,13 @@ class ControllerAuthorizationGuardTest {
         assertThat(eps.stream().anyMatch(e -> e.classe().equals("SystemUserController")
                 && guardaReal(e.guarda())))
                 .as("guarda ao nivel da CLASSE nao foi lida")
+                .isTrue();
+        // ⚠️ E a resolucao de CONSTANTE. Sem ela, oito endpoints bem guardados
+        // eram declarados «sem decisao» — ver resolverConstante().
+        assertThat(eps.stream().noneMatch(e -> e.guarda() != null
+                && e.guarda().matches("[A-Z][A-Z0-9_]*")))
+                .as("um @PreAuthorize(CONSTANTE) ficou por resolver: o parser leria o NOME "
+                        + "da constante e acusaria um endpoint guardado")
                 .isTrue();
     }
 

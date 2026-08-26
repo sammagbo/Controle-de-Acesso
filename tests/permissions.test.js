@@ -225,7 +225,9 @@ describe('permissions — gate de escrita', () => {
                 // Moniteur Cantine (V020): retirar uma linha da vista de todos.
                 CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE',
                 // Planning da cantina (V021).
-                MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE'
+                MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE',
+                // Recherche globale / parcours du jour.
+                PARCOURS_READ: 'PARCOURS_READ'
             });
         });
     });

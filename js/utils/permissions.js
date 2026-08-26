@@ -39,7 +39,10 @@
         CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE',
         // Planning da cantina (V021): alterar os créneaux e as turmas.
         // LER continua por área — isto governa só a alteração.
-        MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE'
+        MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE',
+        // Parcours du jour (recherche globale): traverse toute l'école,
+        // donc une permission et non un secteur.
+        PARCOURS_READ: 'PARCOURS_READ'
     };
 
     /**

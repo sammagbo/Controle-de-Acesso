@@ -1031,6 +1031,7 @@
             'operadores.permissao.PPMS_READ': 'Liste PPMS — consulter',
             'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Moniteur Cantine — retirer une ligne',
             'operadores.permissao.MEAL_SLOT_WRITE': 'Planning cantine — modifier',
+            'operadores.permissao.PARCOURS_READ': "Parcours du jour — consulter",
 
             // Planning de cantine — les créneaux (V021)
             'admin.card.creneaux.titulo': 'Planning Cantine',
@@ -1075,6 +1076,21 @@
             'creneaux.dia.3': 'Mercredi',
             'creneaux.dia.4': 'Jeudi',
             'creneaux.dia.5': 'Vendredi',
+
+            // Recherche globale (tableau de bord admin)
+            'admin.kpi.esconder': 'Masquer les indicateurs',
+            'admin.kpi.mostrar': 'Afficher les indicateurs',
+            'recherche.placeholder': 'Chercher une personne — nom ou classe...',
+            'recherche.botao': 'Chercher',
+            'recherche.ajuda': "Affiche le parcours du jour : chaque passage, et où la personne se trouve.",
+            'recherche.vazio': 'Personne trouvée.',
+            'recherche.parcours': 'Parcours du jour',
+            'recherche.sem.passagem': "Aucun passage enregistré aujourd'hui.",
+            'recherche.dans': 'Dans {zona}, depuis {hora}',
+            'recherche.sorti': 'Sorti de {zona} à {hora}',
+            'recherche.inconnu': "Aucun passage vu aujourd'hui — le système ne peut pas dire où cette personne se trouve.",
+            'recherche.acao.ENTRADA': 'Entrée',
+            'recherche.acao.SAIDA': 'Sortie',
             'operadores.senha': 'Mot de passe',
             'operadores.senha.nova': 'Nouveau mot de passe (facultatif)',
             'operadores.ativo': 'Opérateur actif',
@@ -2329,6 +2345,7 @@
             'operadores.permissao.PPMS_READ': 'Lista PPMS — consultar',
             'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Monitor da Cantina — retirar uma linha',
             'operadores.permissao.MEAL_SLOT_WRITE': 'Planning da cantina — alterar',
+            'operadores.permissao.PARCOURS_READ': 'Percurso do dia — consultar',
 
             // Planning da cantina — os créneaux (V021)
             'admin.card.creneaux.titulo': 'Planning da Cantina',
@@ -2373,6 +2390,21 @@
             'creneaux.dia.3': 'Quarta-feira',
             'creneaux.dia.4': 'Quinta-feira',
             'creneaux.dia.5': 'Sexta-feira',
+
+            // Busca global (painel administrativo)
+            'admin.kpi.esconder': 'Esconder os indicadores',
+            'admin.kpi.mostrar': 'Mostrar os indicadores',
+            'recherche.placeholder': 'Buscar uma pessoa — nome ou turma...',
+            'recherche.botao': 'Buscar',
+            'recherche.ajuda': 'Mostra o percurso do dia: cada passagem, e onde a pessoa está.',
+            'recherche.vazio': 'Ninguém encontrado.',
+            'recherche.parcours': 'Percurso do dia',
+            'recherche.sem.passagem': 'Nenhuma passagem registada hoje.',
+            'recherche.dans': 'Em {zona}, desde {hora}',
+            'recherche.sorti': 'Saiu de {zona} às {hora}',
+            'recherche.inconnu': 'Nenhuma passagem vista hoje — o sistema não pode dizer onde esta pessoa está.',
+            'recherche.acao.ENTRADA': 'Entrada',
+            'recherche.acao.SAIDA': 'Saída',
             'operadores.senha': 'Senha',
             'operadores.senha.nova': 'Nova senha (opcional)',
             'operadores.ativo': 'Operador ativo',

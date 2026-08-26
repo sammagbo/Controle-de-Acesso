@@ -62,6 +62,12 @@ describe('migrações — o procedimento existe e está completo', () => {
         '006': 'só CREATE INDEX IF NOT EXISTS — desfazer é DROP INDEX e não há dado a perder',
         '008': 'coluna aditiva camera_person_id, preenchida sozinha pelas câmeras; R008 nunca foi escrito',
         '009': 'amplia CHECK; a V015 o reescreve por inteiro e R015 devolve esta mesma lista',
+        '023': 'SEED de dados, nao de estrutura: as linhas que ele cria vivem nas tabelas '
+             + 'da V021 e morrem com R021 (DROP). Um R023 que apagasse "so o que o seed pos" '
+             + 'e impossivel de escrever honestamente — a partir do primeiro clique na tela '
+             + 'de administracao, as linhas semeadas e as editadas pela Vie Scolaire sao '
+             + 'indistinguiveis, e um rollback que levasse as duas destruiria trabalho humano '
+             + 'para desfazer uma migracao.',
     };
 
     it('★★ toda migração NOVA tem rollback', () => {

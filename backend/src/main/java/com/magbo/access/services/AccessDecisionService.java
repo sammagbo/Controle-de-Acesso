@@ -52,6 +52,7 @@ public class AccessDecisionService {
     private final PresencaAbertaService presencaAbertaService;
     private final RegimeSortieService regimeSortieService;
     private final com.magbo.access.config.CantineProperties cantineProperties;
+    private final MealSlotService mealSlotService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -243,7 +244,44 @@ public class AccessDecisionService {
                         );
                     }
                 }
-                flag = validateEntryWindow(user, now);
+                // ⚠️⚠️ eventTime, NAO `now` — e esta troca e deliberada.
+                //
+                // A regra geral do projeto e «as REGRAS usam o relogio da
+                // DECISAO», para que uma fila offline nao mude DENY/ALLOW
+                // retroativamente. Esta janela e a excecao, e pela mesma razao
+                // que a duracao da cantina ja e: julgada por `now`, uma fila
+                // de 33 eventos esvaziada as 18h marcaria TODAS as passagens
+                // do meio-dia como fora do horario — inventando dezenas de
+                // alertas sobre criancas que chegaram na hora certa. E o
+                // incidente de 03/08/2026 outra vez, agora a acusar em vez de
+                // medir. Travado por `MealSlotWiringTest`.
+                MealSlotService.Resultado janela = mealSlotService.resolver(user, eventTime);
+                if (janela.naoAplicavel()) {
+                    // Nao e aluno, ou nao tem turma: a grade de turmas nunca
+                    // falou desta pessoa. Nem flag, nem registo — nao ha
+                    // pergunta a fazer a ninguem.
+                    flag = null;
+                } else if (janela.naoConfigurado()) {
+                    // ⚠️ NAO E RECUSA. Ninguem disse a que horas esta pessoa
+                    // come; a passagem passa, e fica a pergunta para o adulto
+                    // que mantem o planning. Nenhum flag em `access_logs`: o
+                    // registo da passagem nao carrega uma acusacao que o
+                    // sistema nao pode sustentar.
+                    PolicyMode semCreneau = policyProperties.getPolicy().getMealSlotNotConfigured();
+                    if (semCreneau == PolicyMode.OBSERVATION) {
+                        attemptService.record(
+                                userId, employeeNoRaw, nomeSnapshot,
+                                resolved.pointId(), resolved.action(), terminalIp,
+                                classification.method(), classification.result(),
+                                AuthorizationResult.OBSERVATION,
+                                DenialReason.MEAL_SLOT_NOT_CONFIGURED,
+                                subType, resolved.isFallback(), eventTime
+                        );
+                    }
+                    flag = null;
+                } else {
+                    flag = janela.dentro() ? null : "FORA_HORARIO";
+                }
                 if ("FORA_HORARIO".equals(flag)) {
                     PolicyMode mode = policyProperties.getPolicy().getOutsideMealTime();
                     if (mode == PolicyMode.DENY) {
@@ -682,6 +720,23 @@ public class AccessDecisionService {
      * Valida janela de entrada na cantina.
      * Retorna null se OK, "FORA_HORARIO" se fora da janela.
      */
+    /**
+     * @deprecated NAO E MAIS A REGRA DA CANTINA (V021, ADR-005).
+     *
+     * ⚠️ A janela de acesso ao refeitorio vive agora em {@link MealSlotService},
+     * sobre `meal_slots` / `meal_slot_classes` / `meal_slot_students`. Este
+     * metodo continua aqui porque `EntryWindowRegressionTest` congela o
+     * comportamento HISTORICO — o que a escola tinha antes do planning
+     * configuravel — e apagar essa blindagem apagaria a unica descricao
+     * executavel do que mudou.
+     *
+     * ⚠️ NAO O RELIGAR. Duas fontes de verdade para a mesma janela e
+     * exatamente o que a V021 existiu para acabar: `class_schedules` guarda a
+     * grade de 2025, e foi ela a origem dos 63 OUTSIDE_MEAL_TIME de 25/08/2026.
+     * `class_schedules` continua a ser lido, mas so pelo `RegimeSortieService`,
+     * e para outra pergunta (a hora em que a manha da turma acaba).
+     */
+    @Deprecated
     private String validateEntryWindow(User user, LocalDateTime now) {
         String turma = user.getTurma();
         if (turma == null) return null;

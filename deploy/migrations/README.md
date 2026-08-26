@@ -225,9 +225,68 @@ das retiradas (não há cópia noutro sítio) e **não é seguro com o jar novo 
 ar** — voltar o backend primeiro. Nenhuma passagem se perde: a retirada nunca
 tocou em `access_logs`.
 
+### ⚠️ V021 / V022 / V023 — le planning de cantine devient une configuration
+
+Trois fichiers, dans cet ordre, **avant** de monter le backend :
+
+| | Rôle |
+|---|---|
+| `V021__meal_slots.sql` | les 3 tables (`meal_slots`, `meal_slot_classes`, `meal_slot_students`) |
+| `V022__denial_reason_meal_slot.sql` | élargit le CHECK de `denial_reason` avec `MEAL_SLOT_NOT_CONFIGURED` |
+| `V023__meal_slots_seed.sql` | l'affiche de la Vie Scolaire + la reprise de `class_schedules` |
+
+```bash
+cd /opt/magbo   # racine du dépôt sur la VM
+for f in V021__meal_slots V022__denial_reason_meal_slot V023__meal_slots_seed; do
+  echo "== $f"
+  docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
+    < deploy/migrations/$f.sql || { echo "ÉCHEC sur $f — NE PAS monter le backend"; break; }
+done
+```
+
+⚠️ **`ON_ERROR_STOP=1` n'est pas décoratif** : sans lui `psql` continue après
+l'erreur et sort avec 0 (voir la section 2). Ici, une V022 qui échoue en
+silence produit un backend qui plante à la première passage d'un élève sans
+créneau — **dans la transaction**, en emportant l'`access_log` d'un passage
+réel.
+
+⚠️ **La V022 avant le backend, pas après.** Contrairement à la V015 (dont la
+bombe attendait le premier régime saisi), celle-ci part le jour même, au
+premier service.
+
+Vérifications (les trois, la dernière est celle qu'on oublie) :
+
+```bash
+# 1. les créneaux existent, deux passages par jour + les 11h repris
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT dia_semana, hora, rotulo FROM meal_slots ORDER BY dia_semana, hora;"
+
+# 2. ⚠️ le fait qui a dicté le modèle : une turma dans DEUX créneaux le même
+#    jour (mardi, 1E2 et 1E3). Si cette requête est vide, le seed est incomplet.
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT mc.turma, count(*) FROM meal_slot_classes mc JOIN meal_slots ms ON ms.id=mc.slot_id \
+    WHERE ms.dia_semana=2 GROUP BY 1 HAVING count(*)>1;"
+
+# 3. aucune turma d'élèves sans créneau (hors turmas de test)
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT DISTINCT u.turma FROM app_users u WHERE u.tipo='ALUNO' AND u.ativo AND u.turma<>'' \
+     AND NOT EXISTS (SELECT 1 FROM meal_slot_classes mc WHERE mc.turma=u.turma);"
+```
+
+⚠️ **Deux turmas de l'affiche n'ont aucun élève en base** — `5E3` et `3E3`,
+vérifié et non deviné. Elles sont semées quand même (la table transcrit
+l'affiche) et l'écran d'administration les signale. Elles ne changent le verdict
+de personne : aucun élève n'y est rattaché.
+
+⚠️ **`V023` n'a pas de rollback propre**, et c'est assumé : ses lignes vivent
+dans les tables de la V021 et partent avec `R021`. Un `R023` qui n'effacerait
+« que ce que le seed a mis » est impossible à écrire honnêtement — dès le
+premier clic dans l'écran d'administration, les lignes semées et celles
+éditées par la Vie Scolaire sont indiscernables.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V020. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V023. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -256,6 +315,9 @@ docker exec -i magbo-postgres psql -U magbo -d magbodb < deploy/migrations/V019_
 # mesmo quando o SQL falha, e uma migração que falha em silêncio é um backend
 # a subir contra um schema que ninguém verificou.
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V020__cantine_removals.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V021__meal_slots.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V022__denial_reason_meal_slot.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V023__meal_slots_seed.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -277,6 +339,9 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 | `V019__access_logs_indice_user_id.sql` | índice `(user_id)` em `access_logs` — a aba Personnels e a guarda de remoção | Personnels |
 | `V017__student_regimes_enum_checks.sql` | os **6 CHECK de enum** que a `V014` não criou em `student_regimes` / `student_regime_events` | Uma verdade de schema |
 | `V020__cantine_removals.sql` | tabela `cantine_removals` — a retirada manual de uma linha do Moniteur Cantine (**sem coluna de enum, logo sem CHECK, de propósito**) | Moniteur Cantine |
+| `V021__meal_slots.sql` | tabelas `meal_slots` / `meal_slot_classes` / `meal_slot_students` — o planning da cantina vira configuração (**ADR-005**; `class_schedules` deixa de ser lido pela cantina) | Créneaux |
+| `V022__denial_reason_meal_slot.sql` | amplia o CHECK de `denial_reason` com `MEAL_SLOT_NOT_CONFIGURED` | Créneaux |
+| `V023__meal_slots_seed.sql` | **seed**: a afixação da Vie Scolaire 2026 + a reprise de `class_schedules` para o que ela não nomeia | Créneaux |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

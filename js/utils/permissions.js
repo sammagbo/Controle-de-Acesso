@@ -36,7 +36,10 @@
         PPMS_READ: 'PPMS_READ',
         // Moniteur Cantine (V020): retirar uma linha da vista de todos. LER o
         // monitor continua por área — isto governa só o gesto de apagar.
-        CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE'
+        CANTINE_REMOVAL_WRITE: 'CANTINE_REMOVAL_WRITE',
+        // Planning da cantina (V021): alterar os créneaux e as turmas.
+        // LER continua por área — isto governa só a alteração.
+        MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE'
     };
 
     /**
@@ -113,6 +116,9 @@
         }
         // (Resolucao de merge 14/08: o caso vivia inline no Dashboard, no lado
         // do regime; entrou aqui quando o filtro virou este predicado.)
+        if (point.id === 'MEAL_SLOT_MANAGEMENT') {
+            return mostraAtalhoNoDashboard(auth, PERMISSIONS.MEAL_SLOT_WRITE);
+        }
         if (point.id === 'REGIME_MANAGEMENT') {
             return mostraAtalhoNoDashboard(auth, PERMISSIONS.REGIME_WRITE);
         }

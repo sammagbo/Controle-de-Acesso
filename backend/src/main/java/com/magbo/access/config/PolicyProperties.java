@@ -26,6 +26,13 @@ public class PolicyProperties {
         private PolicyMode mealNotEntitled = PolicyMode.DENY;
         private PolicyMode mealPending = PolicyMode.OBSERVATION;
         private PolicyMode outsideMealTime = PolicyMode.OBSERVATION;
+        /**
+         * Sem creneau configurado para esta pessoa (V021).
+         *
+         * ⚠️ OBSERVATION, e nao DENY. Ver o javadoc de
+         * {@link com.magbo.access.models.DenialReason#MEAL_SLOT_NOT_CONFIGURED}.
+         */
+        private PolicyMode mealSlotNotConfigured = PolicyMode.OBSERVATION;
         private PolicyMode duplicateMeal = PolicyMode.OBSERVATION;
         private PolicyMode exitNotAuthorized = PolicyMode.DENY;
         private PolicyMode userInactive = PolicyMode.DENY;

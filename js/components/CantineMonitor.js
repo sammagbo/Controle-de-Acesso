@@ -162,6 +162,103 @@ function CantineRetiradasIndicador({ linhas, podeDevolver, onDevolver, onAberto 
 }
 
 /**
+ * A ETIQUETA DE DURACAO de uma linha de SORTIS.
+ *
+ * ⚠️ NO ESCOPO DO MODULO — quarta e quinta vitimas da mesma doenca neste
+ * ficheiro (depois do indicador de decantacao, do cabecalho de coluna e do
+ * modal de retiradas): um componente definido DENTRO do CantineMonitor recebe
+ * um TIPO novo a cada render, e o monitor renderiza a cada 3 s (polling) e a
+ * cada 10 s (relogio). O React nao reconhece o tipo e DESMONTA a subarvore
+ * inteira — incluindo o PersonPhoto, que recomecava do zero e pintava as
+ * iniciais antes de a foto voltar. Era o scintillement visto em servico.
+ * Medido em 27/08/2026: 30 nos <img> novos em 12 s ANTES; 0 DEPOIS.
+ */
+function CantineEtiquetaDuracao({ ev, cfg }) {
+    const t = useI18n();
+    if (ev.faixa === 'curta') {
+        return (
+            <span className="text-xs font-bold text-warning-700 bg-warning-100 border border-warning-500/40 px-1.5 py-0.5 rounded"
+                title={t('cantina.duracao.curta.ajuda', { minutos: ev.duracaoMin, limite: cfg.duracaoCurtaMinutos })}>
+                {t('cantina.duracao.curta')} · {ev.duracaoMin} min
+            </span>
+        );
+    }
+    if (ev.faixa === 'longa') {
+        return (
+            <span className="text-xs font-semibold text-slate-500">
+                {t('cantina.duracao.longa', { minutos: ev.duracaoMin, limite: cfg.duracaoMaximaMinutos })}
+            </span>
+        );
+    }
+    if (ev.faixa === 'normal') {
+        return (
+            <span className="text-xs text-slate-400">
+                {t('cantina.duracao.normal', { minutos: ev.duracaoMin })}
+            </span>
+        );
+    }
+    return (
+        <span className="text-xs text-slate-300 italic">{t('cantina.duracao.sem.par')}</span>
+    );
+}
+
+/**
+ * UMA LINHA do quadro — a pessoa, a foto, o tempo, as marcas, o ×.
+ *
+ * Ver o javadoc da etiqueta acima: viver AQUI, e nao dentro do monitor, e o
+ * que impede o React de a desmontar a cada ciclo de polling. As dependencias
+ * do pai descem por PROPS (dim, elapsedLabel, onRetirar...) — props novas so
+ * re-renderizam; um tipo novo desmonta.
+ */
+function CantineCard({ ev, variant, dim, cfg, elapsedLabel, podeRetirar, onRetirar }) {
+    const t = useI18n();
+    const user = window.userCache?.byId(ev.userId);
+    const horsHoraire = ev.flag === 'FORA_HORARIO';
+    return (
+        <div className={`flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border ${
+            variant === 'doit' ? 'border-warning-300' : horsHoraire ? 'border-danger-300' : 'border-soft-200'
+        } ${dim ? 'opacity-30' : 'opacity-100'} transition-opacity`}>
+            <PersonPhoto userId={user && user.id} nome={user && user.nome} fotoUrl={user && user.foto_url} alt="" className="w-12 h-12 rounded-xl shadow flex-shrink-0 object-cover" />
+            <div className="flex-1 min-w-0">
+                {/* Nome, nunca a matricula sozinha — o operador da cantina
+                    precisa saber QUEM esta na fila, e 0003535 nao diz. */}
+                <p className="text-sm font-black text-navy-500 truncate">
+                    {window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {user && user.turma && (
+                        <span className="text-xs font-bold text-slate-500 bg-soft-100 px-1.5 py-0.5 rounded">{user.turma}</span>
+                    )}
+                    <span className="text-xs text-slate-400">{elapsedLabel(ev)}</span>
+                    {variant === 'sortis' && <CantineEtiquetaDuracao ev={ev} cfg={cfg} />}
+                    {horsHoraire && variant !== 'doit' && (
+                        <span className="text-xs font-bold text-danger-600 bg-danger-50 px-1.5 py-0.5 rounded">{t('cantina.fora.horario')}</span>
+                    )}
+                </div>
+            </div>
+            {/* O × so nas duas colunas de quem o ecra da como AINDA LA
+                DENTRO. Em SORTIS nao faz sentido: a pessoa ja saiu, e a
+                linha desaparece sozinha. */}
+            {(variant === 'dans' || variant === 'doit') && (
+                <button
+                    type="button"
+                    onClick={() => onRetirar(ev)}
+                    disabled={!podeRetirar}
+                    title={podeRetirar ? t('cantina.retirar.ajuda') : t('cantina.retirar.sem.permissao')}
+                    aria-label={t('cantina.retirar')}
+                    className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                        podeRetirar
+                            ? 'text-slate-400 hover:text-danger-600 hover:bg-danger-50'
+                            : 'text-slate-200 cursor-not-allowed'
+                    }`}>
+                    <LucideIcon name="x" size={16} />
+                </button>
+            )}
+        </div>
+    );
+}
+
+/**
  * A PASTILHA DA DECANTAÇÃO — o mesmo desenho do indicador do CDI.
  *
  * ⚠️ NO ESCOPO DO MÓDULO, e isso NÃO é estilo: é a diferença entre o modal
@@ -235,7 +332,7 @@ function CantineDecantadosIndicador({ linhas, decantacaoMinutos, elapsedLabel, o
                                 {linhas.map((ev, i) => {
                                     const u = window.userCache?.byId(ev.userId);
                                     return (
-                                        <div key={ev.userId + i}
+                                        <div key={ev.userId}
                                             className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-200">
                                             <span className="font-bold text-sm text-navy-500 truncate">
                                                 {window.MagboIdentity.resolver({ pessoa: u, userId: ev.userId }, { lang: 'fr' }).nome}
@@ -420,99 +517,6 @@ function CantineMonitor() {
         return `il y a ${h}h${m.toString().padStart(2, '0')}`;
     };
 
-    /**
-     * A ETIQUETA DE DURAÇÃO, só nas linhas de quem já saiu.
-     *
-     * ⚠️ SEM COLUNA PRÓPRIA, de propósito. Uma quarta coluna para «passou sem
-     * comer» daria a uma observação o mesmo peso visual que ao facto de a
-     * pessoa estar ou não no refeitório — e obrigaria toda a gente a olhar
-     * para ela o dia inteiro. A marca fica na linha: quem quer saber vê, quem
-     * não quer não tropeça nela.
-     *
-     * ⚠️ E SÓ APARECE COM OS DOIS LEITORES ATRAVESSADOS. Sem a ENTRADA
-     * emparelhada não há duração; `faixa` vem null e a linha limita-se a dizer
-     * que a entrada não foi registada — que é uma informação sobre o SISTEMA,
-     * não sobre a criança. Inventar uma duração a partir do início do serviço
-     * marcaria como «passou sem comer» exatamente quem o leitor da entrada não
-     * viu: o defeito de produção de 24/08, transformado numa acusação.
-     */
-    const EtiquetaDuracao = ({ ev }) => {
-        if (ev.faixa === 'curta') {
-            return (
-                <span className="text-xs font-bold text-warning-700 bg-warning-100 border border-warning-500/40 px-1.5 py-0.5 rounded"
-                    title={t('cantina.duracao.curta.ajuda', { minutos: ev.duracaoMin, limite: cfg.duracaoCurtaMinutos })}>
-                    {t('cantina.duracao.curta')} · {ev.duracaoMin} min
-                </span>
-            );
-        }
-        if (ev.faixa === 'longa') {
-            return (
-                <span className="text-xs font-semibold text-slate-500">
-                    {t('cantina.duracao.longa', { minutos: ev.duracaoMin, limite: cfg.duracaoMaximaMinutos })}
-                </span>
-            );
-        }
-        if (ev.faixa === 'normal') {
-            return (
-                <span className="text-xs text-slate-400">
-                    {t('cantina.duracao.normal', { minutos: ev.duracaoMin })}
-                </span>
-            );
-        }
-        return (
-            <span className="text-xs text-slate-300 italic">{t('cantina.duracao.sem.par')}</span>
-        );
-    };
-
-    const Card = ({ ev, variant }) => {
-        const user = window.userCache?.byId(ev.userId);
-        const dim = query.trim() && !matchesQuery(ev);
-        const horsHoraire = ev.flag === 'FORA_HORARIO';
-        return (
-            <div className={`flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border ${
-                variant === 'doit' ? 'border-warning-300' : horsHoraire ? 'border-danger-300' : 'border-soft-200'
-            } ${dim ? 'opacity-30' : 'opacity-100'} transition-opacity`}>
-                <PersonPhoto userId={user && user.id} nome={user && user.nome} fotoUrl={user && user.foto_url} alt="" className="w-12 h-12 rounded-xl shadow flex-shrink-0 object-cover" />
-                <div className="flex-1 min-w-0">
-                    {/* Nome, nunca a matrícula sozinha — o operador da cantina
-                        precisa saber QUEM está na fila, e 0003535 não diz. */}
-                    <p className="text-sm font-black text-navy-500 truncate">
-                        {window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {user && user.turma && (
-                            <span className="text-xs font-bold text-slate-500 bg-soft-100 px-1.5 py-0.5 rounded">{user.turma}</span>
-                        )}
-                        <span className="text-xs text-slate-400">{elapsedLabel(ev)}</span>
-                        {variant === 'sortis' && <EtiquetaDuracao ev={ev} />}
-                        {horsHoraire && variant !== 'doit' && (
-                            <span className="text-xs font-bold text-danger-600 bg-danger-50 px-1.5 py-0.5 rounded">{t('cantina.fora.horario')}</span>
-                        )}
-                    </div>
-                </div>
-                {/* O × só nas duas colunas de quem o ecrã dá como AINDA LÁ
-                    DENTRO. Em SORTIS não faz sentido: a pessoa já saiu, e a
-                    linha desaparece sozinha em 40 min. */}
-                {(variant === 'dans' || variant === 'doit') && (
-                    <button
-                        type="button"
-                        onClick={() => retirarLinha(ev)}
-                        disabled={!podeRetirar}
-                        title={podeRetirar ? t('cantina.retirar.ajuda') : t('cantina.retirar.sem.permissao')}
-                        aria-label={t('cantina.retirar')}
-                        className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                            podeRetirar
-                                ? 'text-slate-400 hover:text-danger-600 hover:bg-danger-50'
-                                : 'text-slate-200 cursor-not-allowed'
-                        }`}>
-                        <LucideIcon name="x" size={16} />
-                    </button>
-                )}
-            </div>
-        );
-    };
-
-
     return (
         <div className="max-w-7xl mx-auto px-4 py-6 animate-fade-in flex flex-col xl:flex-row gap-6 items-start">
             
@@ -613,7 +617,9 @@ function CantineMonitor() {
                         <CantineColumnHeader icon="log-in" title={t('cantina.col.dentro')} count={columns.dans.length} color="bg-accent-500" />
                         <div className="space-y-2">
                             {columns.dans.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
-                            {columns.dans.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="dans" />)}
+                            {columns.dans.map(ev => <CantineCard key={ev.userId} ev={ev} variant="dans"
+                                cfg={cfg} elapsedLabel={elapsedLabel} podeRetirar={podeRetirar}
+                                onRetirar={retirarLinha} dim={!!query.trim() && !matchesQuery(ev)} />)}
                         </div>
                     </div>
 
@@ -629,7 +635,9 @@ function CantineMonitor() {
                                 onAberto={setModalAberto} />} />
                         <div className="space-y-2">
                             {columns.doitSortir.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
-                            {columns.doitSortir.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="doit" />)}
+                            {columns.doitSortir.map(ev => <CantineCard key={ev.userId} ev={ev} variant="doit"
+                                cfg={cfg} elapsedLabel={elapsedLabel} podeRetirar={podeRetirar}
+                                onRetirar={retirarLinha} dim={!!query.trim() && !matchesQuery(ev)} />)}
                         </div>
                     </div>
 
@@ -638,7 +646,9 @@ function CantineMonitor() {
                         <CantineColumnHeader icon="log-out" title={t('cantina.col.sairam')} count={columns.sortis.length} color="bg-success-500" />
                         <div className="space-y-2">
                             {columns.sortis.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
-                            {columns.sortis.map((ev, i) => <Card key={ev.userId + i} ev={ev} variant="sortis" />)}
+                            {columns.sortis.map(ev => <CantineCard key={ev.userId} ev={ev} variant="sortis"
+                                cfg={cfg} elapsedLabel={elapsedLabel} podeRetirar={podeRetirar}
+                                onRetirar={retirarLinha} dim={!!query.trim() && !matchesQuery(ev)} />)}
                         </div>
                     </div>
                 </div>

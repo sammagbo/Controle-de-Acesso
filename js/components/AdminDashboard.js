@@ -2,7 +2,7 @@
 // ADMIN DASHBOARD — Painel Administrativo (PIN-gated)
 // =====================================================================
 
-function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime }) {
+function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime, onNavigateToMealSlots}) {
 
       // ⚠️ MASCARER, JAMAIS SUPPRIMER. Le réglage cache les cartes KPI de CET
       // écran, pour CE poste (localStorage) — les chiffres continuent d'être
@@ -540,6 +540,33 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     >
                                           <LucideIcon name="utensils" size={16} />
                                           {t('admin.card.repas.btn')}
+                                    </button>
+                              </div>
+
+                              {/* Planning Cantine — os créneaux (V021).
+                                  ⚠️ Ao lado de «Droits Repas» de propósito: são
+                                  as duas metades da mesma pergunta — QUEM tem
+                                  direito a comer, e A QUE HORAS. Separá-las
+                                  obrigaria a Vie Scolaire a procurar em dois
+                                  sítios distantes o que ela trata junto. */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="calendar-clock" size={24} className="text-accent-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">{t('admin.card.creneaux.titulo')}</h3>
+                                                <p className="text-sm text-slate-400">
+                                                      {t('admin.card.creneaux.sub')}
+                                                </p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToMealSlots}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-accent-600 text-white hover:bg-accent-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="calendar-clock" size={16} />
+                                          {t('admin.card.creneaux.btn')}
                                     </button>
                               </div>
 

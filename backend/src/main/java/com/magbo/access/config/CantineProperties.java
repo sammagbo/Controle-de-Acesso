@@ -81,6 +81,34 @@ public class CantineProperties {
      */
     private int decantacaoMinutos = 15;
 
+    /**
+     * OS PONTOS DO REFEITORIO.
+     *
+     * ⚠️ Esta lista existia TRES VEZES, copiada a mao: duas em
+     * `AccessController` (`/logs/refectory` e `/refectory/meals`) e uma em
+     * `AccessAttemptController` (o feed de negadas da cantina). Acrescentar um
+     * quarto refeitorio exigia lembrar dos tres sitios, e o que falhasse
+     * falharia em SILENCIO — a tela mostraria menos passagens, sem erro nenhum,
+     * e ninguem saberia que faltava um ponto.
+     *
+     * ⚠️ Nao substitui o `AreaMapping`: aquele responde «que AREA e este ponto»
+     * (por prefixo, para autorizacao). Este responde «quais pontos a tela da
+     * cantina mostra», que e uma lista finita e editavel. Perguntas diferentes.
+     */
+    private java.util.List<String> pontos =
+            new java.util.ArrayList<>(java.util.List.of("REFEI1", "REFEI2", "CANTINA1"));
+
+    /**
+     * Quanto tempo quem JA SAIU continua visivel na coluna SORTIS.
+     *
+     * Era `SORTIS_VISIVEL_MS = 40 * 60 * 1000` dentro do js/utils/cantine.js —
+     * um numero do lado do cliente que ninguem podia mudar sem editar o
+     * ficheiro. Nao e uma afirmacao sobre a escola como os horarios, e sim o
+     * tamanho da memoria curta da tela; mas continua a ser um ajuste que se faz
+     * a olho, durante um servico, e nao um valor a compilar.
+     */
+    private int sortisVisiveisMinutos = 40;
+
     /** O teto de permanencia como Duration, que e o que a regra compara. */
     public Duration duracaoMaxima() {
         return Duration.ofMinutes(duracaoMaximaMinutos);

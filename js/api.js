@@ -485,6 +485,50 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    // ── Planning da cantina: os créneaux (V021) ───────────────────────────
+    // ⚠️ Todas guardadas no servidor: leitura por área `cantine`, escrita por
+    // MEAL_SLOT_WRITE. Nenhuma rota nova em isAuthenticated().
+
+    async fetchMealSlots() {
+        const res = await fetch(`${API_BASE_URL}/admin/meal-slots`, { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    async fetchMealSlotOfStudent(userId) {
+        const res = await fetch(`${API_BASE_URL}/admin/meal-slots/eleve/${encodeURIComponent(userId)}`,
+            { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    async linkMealSlotClass(slotId, turma) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/meal-slots/${slotId}/turmas/${encodeURIComponent(turma)}`,
+            { method: 'POST', headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    async unlinkMealSlotClass(slotId, turma) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/meal-slots/${slotId}/turmas/${encodeURIComponent(turma)}`,
+            { method: 'DELETE', headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    /** Ação de massa: «toda a 6ème para este créneau». Devolve o que ligou. */
+    async linkMealSlotPrefix(slotId, prefixo) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/meal-slots/${slotId}/turmas-por-prefixo/${encodeURIComponent(prefixo)}`,
+            { method: 'POST', headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    async setMealSlotException(slotId, userId, motivo) {
+        const res = await fetch(
+            `${API_BASE_URL}/admin/meal-slots/${slotId}/eleve/${encodeURIComponent(userId)}`,
+            { method: 'POST', headers: authHeaders(), body: JSON.stringify({ motivo: motivo || null }) });
+        return await this.handleResponse(res);
+    },
+
     // ── Recherche globale / parcours du jour ──────────────────────────────
     // ⚠️ Endpoint PROPRE, guardado por PARCOURS_READ. Não passa por
     // /api/users/search (isAuthenticated()): a dívida de segurança nº1 do

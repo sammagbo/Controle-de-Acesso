@@ -438,6 +438,12 @@ function App() {
                               const pt = ACCESS_POINTS.find(p => p.id === 'MEAL_ENTITLEMENT_MANAGEMENT');
                               if (pt) setCurrentPoint(pt);
                         }}
+                        onNavigateToMealSlots={() => {
+                              setAdminView(false);
+                              setOrigemAdmin(true);
+                              const pt = ACCESS_POINTS.find(p => p.id === 'MEAL_SLOT_MANAGEMENT');
+                              if (pt) setCurrentPoint(pt);
+                        }}
                         onNavigateToExit={() => {
                               setAdminView(false);
                               setOrigemAdmin(true);
@@ -464,6 +470,8 @@ function App() {
                         <InfirmaryReport />
                   ) : currentPoint && currentPoint.id === 'GENERAL_REPORT' ? (
                         <GeneralReport onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'MEAL_SLOT_MANAGEMENT' ? (
+                        <MealSlotManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'MEAL_ENTITLEMENT_MANAGEMENT' ? (
                         <MealEntitlementManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'EXIT_PERMISSION_MANAGEMENT' ? (

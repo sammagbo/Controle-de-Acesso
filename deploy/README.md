@@ -35,6 +35,26 @@ on a production VM using Docker.
    nano .env  # Set strong passwords + generate a new JWT secret
    ```
 
+   ⚠️ **`ADMIN_PIN` and `MAGBO_ADMIN_PASSWORD` are mandatory.** `docker compose
+   up` **refuses to start** until both have a value — they ship empty in
+   `.env.example` on purpose. Neither has a fallback, because an empty value
+   fails silently in both cases: an empty PIN makes the Admin Panel
+   unreachable, and an empty admin password creates, on a *fresh* database, an
+   initial administrator **with no password**.
+
+   ⚠️ `MAGBO_ADMIN_PASSWORD` only takes effect on a database that has no
+   `admin` user yet — `AdminBootstrap` returns on its first line if one exists.
+   To change the password of an existing admin, use the operators screen;
+   editing this variable and recreating the container changes nothing.
+
+   ⚠️ **Do not remove `TZ` from `docker-compose.yml`.** Both images boot in UTC
+   and the JVM adopts the container zone, so every `LocalDateTime.now()` in the
+   backend is written **three hours ahead** of the passages, which
+   `EventTimeResolver` writes in `America/Sao_Paulo`. Measured on 2026-08-25
+   through a production write path: 17:27 local, stored as 20:27. Where a
+   `now()` is *compared* against a passage time, that gap stops being a crooked
+   timestamp and becomes a wrong rule.
+
 3. **Start services:**
    ```bash
    docker compose up -d
@@ -94,7 +114,9 @@ on a production VM using Docker.
 
 ## Security checklist before production
 
+- [ ] Set `ADMIN_PIN` (**not** `1234`) and `MAGBO_ADMIN_PASSWORD` in `.env` — compose will not start without them
 - [ ] Change default admin password (`admin/admin1234`) on first login
+- [ ] Confirm the containers run in school time: `docker exec magbo-backend date` must show `-0300`, not `+0000`
 - [ ] Generate new `MAGBO_JWT_SECRET` (see comment in `.env.example`)
 - [ ] Set `MAGBO_WEBHOOK_TOKEN` and configure the same token on the Hikvision terminal
 - [ ] Restrict port 5432 to localhost only (already done in compose file)

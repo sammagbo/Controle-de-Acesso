@@ -4,6 +4,12 @@ services:
     container_name: magbo-postgres
     restart: unless-stopped
     environment:
+      # ⚠️ Ver o bloco TZ do serviço `backend`. Aqui é por coerência: o Postgres
+      # guarda `timestamp without time zone` (hora de parede, sem fuso), então
+      # ele não converte nada — mas `now()` e os logs do container seguem o TZ,
+      # e um `psql` que mostra 20h enquanto a escola vive às 17h faz qualquer
+      # conferência manual mentir. As duas metades do stack na mesma hora.
+      TZ: ${TZ:-America/Sao_Paulo}
       POSTGRES_DB: ${POSTGRES_DB:-magbodb}
       POSTGRES_USER: ${POSTGRES_USER:-magbo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_prod}
@@ -25,6 +31,49 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # ═════════════════════════════════════════════════════════════════
+      # ⚠️⚠️ TZ — SEM ESTA LINHA O SISTEMA GRAVA TRÊS HORAS NO FUTURO
+      # ═════════════════════════════════════════════════════════════════
+      # A imagem `eclipse-temurin:17-jre-alpine` sobe em UTC. A JVM adota o
+      # fuso do container, então TODO `LocalDateTime.now()` do backend passa a
+      # devolver hora UTC — enquanto `access_logs.timestamp` é escrito em
+      # America/Sao_Paulo pelo `EventTimeResolver`, a partir do `dateTime` que
+      # os aparelhos enviam. Os dois relógios convivem na MESMA base, em
+      # colunas `timestamp without time zone`, e nada no schema acusa a
+      # diferença.
+      #
+      # MEDIDO em 25/08/2026, no container real, por um caminho de escrita de
+      # produção (POST /api/auth/password-reset-request, que grava
+      # `LocalDateTime.now()` cru):
+      #
+      #     hora local da escola ....... 17:27:41
+      #     gravado em password_reset_requests ... 2026-08-25 20:27:42
+      #
+      # ⚠️ E O ESTRAGO NÃO É UM CARIMBO TORTO NUM RELATÓRIO. Onde uma hora de
+      # `now()` é COMPARADA com uma hora de passagem, o desvio vira regra
+      # errada: em `cantine_removals.removido_em` (V020), que decide o que fica
+      # escondido no Moniteur Cantine, três horas adiantado transformava
+      # «retirar esta linha» em «calar esta pessoa pelas próximas três horas,
+      # inclusive entradas que ainda não aconteceram».
+      #
+      # ⚠️ POR QUE AQUI E NÃO NO CÓDIGO. O fuso é uma propriedade do AMBIENTE,
+      # e o jar é o mesmo em qualquer máquina. Corrigir serviço a serviço com
+      # um `Clock` explícito só protege quem lembrar de o fazer — e o resto do
+      # sistema continua a chamar `LocalDateTime.now()` (createdAt, updatedAt,
+      # lastLogin, requestedAt...). Uma linha no ambiente cobre todos.
+      #
+      # ⚠️ E POR QUE ESTA LINHA PRECISOU DE EXISTIR NO REPOSITÓRIO: ela já
+      # estava na VM, à mão, e NÃO no git. Uma máquina reconstruída a partir do
+      # repositório voltava a subir em UTC e o defeito renascia sem deixar
+      # rasto — foi exatamente esse o caminho que trouxe isto aqui.
+      #
+      # Verificado nas DUAS imagens deste ficheiro (têm `tzdata`; em Alpine
+      # isso não é garantido, e sem ele o TZ seria ignorado em silêncio):
+      #     docker run --rm -e TZ=America/Sao_Paulo eclipse-temurin:17-jre-alpine date
+      #     docker run --rm -e TZ=America/Sao_Paulo postgres:16-alpine       date
+      #   sem TZ → 20:26 +0000 (UTC) · com TZ → 17:26 -0300
+      TZ: ${TZ:-America/Sao_Paulo}
+
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-magbodb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-magbo}
@@ -37,6 +86,42 @@ services:
       # dentro da transação e derruba junto o access_log de uma passagem real.
       MAGBO_REGIME_HABILITADO: ${MAGBO_REGIME_HABILITADO:-false}
       MAGBO_WEBHOOK_TOKEN: ${MAGBO_WEBHOOK_TOKEN:-}
+
+      # ── Credenciais de administração ──────────────────────────────
+      # ⚠️ OBRIGATÓRIAS (`:?`), e não opcionais com valor de reserva. O Compose
+      # RECUSA subir enquanto elas não estiverem no `.env`, com a mensagem
+      # abaixo. É deliberado, e é a mesma doutrina do webhook (token ausente na
+      # config = rejeita, nunca «aceita qualquer um»).
+      #
+      # ⚠️ O QUE ACONTECIA COM VALOR VAZIO — as duas falham em SILÊNCIO, e é
+      # por isso que um `${VAR:-}` não serve aqui:
+      #
+      #   ADMIN_PIN=""            `admin.pin` fica vazio. O PIN enviado tem
+      #                           @NotBlank, então nenhum valor casa: o Painel
+      #                           Administrativo fica INALCANÇÁVEL, e a tela só
+      #                           diz «PIN incorreto». Fecha, não abre — mas
+      #                           ninguém descobre porquê.
+      #
+      #   MAGBO_ADMIN_PASSWORD="" Pior, e só numa base NOVA: `AdminBootstrap`
+      #                           cria o admin inicial com senha VAZIA (o
+      #                           default `admin1234` do @Value só vale quando a
+      #                           propriedade está AUSENTE, não quando está
+      #                           presente e vazia). Numa VM reconstruída do
+      #                           zero — o cenário que este ficheiro existe para
+      #                           proteger — nasce um administrador sem senha.
+      #
+      # Sem estas linhas o container simplesmente não recebia as variáveis, e o
+      # jar caía nos defaults `1234` / `admin1234`. Fechar isso é a melhoria M2
+      # de .claude/rules/deploy-seguranca.md («Não há check p/ ADMIN_PIN
+      # default»), agora feita onde o deploy pára em vez de onde ele avisa.
+      #
+      # ⚠️ MAGBO_ADMIN_PASSWORD só tem efeito numa base SEM o utilizador admin:
+      # `AdminBootstrap` sai na primeira linha se ele já existir. Mudar a senha
+      # de um admin JÁ criado faz-se na tela de operadores, nunca aqui — trocar
+      # esta variável e recriar o container não muda nada, e acreditar que mudou
+      # é a pior das duas situações.
+      MAGBO_ADMIN_PASSWORD: ${MAGBO_ADMIN_PASSWORD:?defina MAGBO_ADMIN_PASSWORD no deploy/.env (senha do admin inicial; so tem efeito em base nova)}
+      ADMIN_PIN: ${ADMIN_PIN:?defina ADMIN_PIN no deploy/.env (PIN do Painel Administrativo; nao use 1234)}
     ports:
       - "8080:8080"
     volumes:

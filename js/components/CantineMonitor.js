@@ -164,6 +164,16 @@ function CantineRetiradasIndicador({ linhas, podeDevolver, onDevolver, onAberto 
 /**
  * A ETIQUETA DE DURACAO de uma linha de SORTIS.
  *
+ * ⚠️ SEM COLUNA PROPRIA, de proposito (justificacao restaurada apos o panel de
+ * 27/08 — tinha-se perdido na mudanca de escopo): uma quarta coluna para
+ * «passou sem comer» daria a uma observacao o mesmo peso visual que ao facto
+ * de a pessoa estar ou nao no refeitorio. A marca fica NA LINHA.
+ *
+ * ⚠️ E SO APARECE COM OS DOIS LEITORES ATRAVESSADOS. Sem ENTRADA emparelhada
+ * nao ha duracao (`faixa` null -> «entree non enregistree»): inventar uma a
+ * partir do inicio do servico marcaria como «passou sem comer» exatamente quem
+ * o leitor da entrada nao viu — o defeito de producao de 24/08 virado acusacao.
+ *
  * ⚠️ NO ESCOPO DO MODULO — quarta e quinta vitimas da mesma doenca neste
  * ficheiro (depois do indicador de decantacao, do cabecalho de coluna e do
  * modal de retiradas): um componente definido DENTRO do CantineMonitor recebe

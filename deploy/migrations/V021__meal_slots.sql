@@ -50,6 +50,33 @@
 
 BEGIN;
 
+-- ── ⚠️ GARDE : QUELQU'UN EST-IL PASSÉ AVANT NOUS ? ───────────────────
+-- `CREATE TABLE IF NOT EXISTS` ne vérifie PAS la forme de la table : si elle
+-- existe déjà — créée par le `ddl-auto=update` d'un backend monté trop tôt —
+-- la migration ne fait RIEN et sort avec 0. Elle annonce un succès sur un
+-- schéma qui n'est pas le sien.
+--
+-- MESURÉ le 26/08/2026 sur une base d'essai : table pré-créée avec 3 colonnes,
+-- V021 appliquée, `exit=0`, et la table gardait ses 3 colonnes sans la
+-- contrainte UNIQUE. Les deux installations divergeaient, et rien ne le disait.
+-- C'est exactement la classe de panne que la V017 a existé pour fermer.
+--
+-- Cette garde transforme un succès silencieux en échec bruyant. Elle ne
+-- répare rien : elle refuse d'avancer et dit quoi faire.
+DO $$
+BEGIN
+  IF to_regclass('meal_slots') IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name = 'meal_slots' AND column_name = 'tolerancia_antes_minutos')
+  THEN
+    RAISE EXCEPTION USING
+      MESSAGE = 'meal_slots existe deja avec une AUTRE forme (colonne tolerancia_antes_minutos absente).',
+      HINT    = 'Le backend a probablement ete monte avant cette migration et Hibernate a cree la table. '
+                'Verifier qu elle est VIDE (SELECT count(*) FROM meal_slots), puis la supprimer avec '
+                'rollback/R021 et rejouer V021 AVANT de remonter le backend.';
+  END IF;
+END $$;
+
 -- ── 1. LES CRÉNEAUX : jour × heure de passage ────────────────────────
 CREATE TABLE IF NOT EXISTS meal_slots (
     id                  BIGSERIAL PRIMARY KEY,

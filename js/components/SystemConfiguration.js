@@ -20,6 +20,19 @@
 // donnée personnelle ici, mais il y a la carte complète du comportement du
 // système, et cette carte est un sujet d'administration.
 
+/**
+ * Le libellé d'un domaine, avec repli sur son nom brut.
+ *
+ * ⚠️ Sans repli, un domaine ajouté côté serveur afficherait la clé i18n crue
+ * `config.dominio.xxx` en titre de section — la même faute que `comum.voltar`
+ * a déjà commise à l'écran, et qu'aucune suite ne voit.
+ */
+function rotuloDominio(t, dom) {
+    const k = 'config.dominio.' + dom;
+    const r = t(k);
+    return r === k ? dom : r;
+}
+
 function SystemConfiguration({ onBack }) {
     const t = useI18n();
     const [linhas, setLinhas] = React.useState(null);
@@ -36,7 +49,7 @@ function SystemConfiguration({ onBack }) {
             setLinhas(await window.api.fetchSettingsCatalogue());
             setErro(null);
         } catch (e) {
-            setErro((e && e.message) || 'erro');
+            setErro((e && e.message) || t('config.erro'));
         }
     }, []);
 
@@ -105,7 +118,7 @@ function SystemConfiguration({ onBack }) {
             ) : dominios.map(dom => (
                 <div key={dom} className="space-y-2">
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest pt-2">
-                        {t('config.dominio.' + dom)}
+                        {rotuloDominio(t, dom)}
                     </h3>
                     {linhas.filter(l => l.dominio === dom).map(l => (
                         <ConfigLinha key={l.chave} linha={l}
@@ -152,6 +165,11 @@ function ConfigLinha({ linha, rascunho, onRascunho, ocupado, onGravar }) {
         return (
             <input
                 type={linha.tipo === 'INT' ? 'number' : (linha.tipo === 'HEURE' ? 'time' : 'text')}
+                /* ⚠️ `min` : sans lui on saisissait 0 dans « capacité du CDI »
+                   et le serveur l'acceptait — la salle se déclarait pleine en
+                   permanence. Le serveur refuse maintenant aussi ; ceci évite
+                   d'avoir à essayer pour l'apprendre. */
+                min={linha.tipo === 'INT' ? 1 : undefined}
                 value={valor}
                 onChange={e => onRascunho(e.target.value)}
                 placeholder={linha.tipo === 'CSV' ? '6E1, 5A2' : ''}

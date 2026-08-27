@@ -105,18 +105,49 @@ class SettingsCatalogGuardTest {
     }
 
     @Test
-    @DisplayName("★★ nenhum default escrito a mao no catalogo")
+    @DisplayName("★★★ nenhum default escrito a mao no catalogo — TEXTO incluido")
     void defaultsVemDaFonte() throws IOException {
         String fonte = Files.readString(RAIZ.resolve("services/SettingsCatalog.java"));
-        // Um default numerico escrito como literal (`() -> "50"`) e a segunda
-        // verdade que este ficheiro existe para nao criar. As strings vazias e
-        // os valores de CHOIX sao legitimos: sao o default, nao uma copia dele.
-        Matcher m = Pattern.compile("\\(\\)\\s*->\\s*\"(\\d+)\"").matcher(fonte);
+        // ⚠️ A PRIMEIRA VERSAO SO OLHAVA PARA DIGITOS e por isso deixou passar
+        // `() -> "OUVERT"` — uma copia do default que vive em `CdiController`.
+        // O painel de 27/08 encontrou-a no proprio ficheiro que proibe a regra.
+        // Um guarda que apanha metade dos casos ensina que a regra vale metade.
+        //
+        // A UNICA excecao e a string VAZIA: `""` nao e a copia de um default,
+        // ela E o default («este campo nao tem valor de fabrica»).
+        Matcher m = Pattern.compile("\\(\\)\\s*->\\s*\"([^\"]*)\"").matcher(fonte);
         List<String> literais = new ArrayList<>();
-        while (m.find()) literais.add(m.group(1));
+        while (m.find()) {
+            if (!m.group(1).isEmpty()) literais.add(m.group(1));
+        }
         assertThat(literais)
-                .as("default numerico escrito a mao no catalogo: tem de vir da MESMA fonte "
+                .as("default escrito a mao no catalogo: tem de vir da MESMA fonte "
                         + "que o codigo que le a chave, senao o ecra mente sobre o valor de fabrica")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("★★★ toda chave `magbo.` declarada em codigo chama-se CHAVE_*")
+    void convencaoDoNome() throws IOException {
+        // ⚠️ O GUARDA DE CIMA ASSENTA NESTA CONVENCAO: ele resolve constantes
+        // pelo padrao `CHAVE_[A-Z0-9_]+`. Uma constante chamada `K_TETO`
+        // passaria despercebida e o reglage ficaria invisivel no ecra de
+        // configuracao — exatamente o defeito que este ficheiro existe para
+        // apanhar. Ponto cego apontado pelo painel de 27/08, fechado pela raiz.
+        Pattern qualquerChave = Pattern.compile(
+                "static\\s+final\\s+String\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*\"(magbo\\.[^\"]+)\"");
+        List<String> foraDaConvencao = new ArrayList<>();
+        for (Path p : fontes()) {
+            Matcher m = qualquerChave.matcher(Files.readString(p));
+            while (m.find()) {
+                if (!m.group(1).startsWith("CHAVE_")) {
+                    foraDaConvencao.add(p.getFileName() + ": " + m.group(1) + " = " + m.group(2));
+                }
+            }
+        }
+        assertThat(foraDaConvencao)
+                .as("uma constante de chave que nao se chama CHAVE_* escapa ao guarda do "
+                        + "catalogo, e o reglage torna-se invisivel no ecra de configuracao")
                 .isEmpty();
     }
 }

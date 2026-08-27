@@ -47,7 +47,9 @@ public class SettingsCatalog {
     /** Os dominios, na ordem em que aparecem no ecra. */
     public static final String CANTINE = "cantine";
     public static final String CDI = "cdi";
-    public static final String RAPPORTS = "rapports";
+    // ⚠️ Pas de domaine «rapports» : le plancher et le plafond de visite sont
+    // des `@Value` lus au demarrage, pas des reglages de `SettingsService`. Une
+    // constante declaree sans entree aurait promis un groupe qui n'existe pas.
 
     /**
      * Uma entrada do catalogo.
@@ -87,13 +89,61 @@ public class SettingsCatalog {
         // ── CDI ──────────────────────────────────────────────────────────
         e.add(new Entrada(CdiController.CHAVE_CAPACIDADE, CDI, "INT", List.of(),
                 () -> String.valueOf(CdiController.CAPACIDADE_PADRAO)));
+        // ⚠️ NI le defaut NI la liste des valeurs ne sont ecrits ici : les deux
+        // viennent de `CdiController`, qui est ce que le code LIT vraiment.
         e.add(new Entrada(CdiController.CHAVE_ESTADO, CDI, "CHOIX",
-                List.of("OUVERT", "RESERVE", "FERME"), () -> "OUVERT"));
+                CdiController.ESTADOS, () -> CdiController.ESTADO_PADRAO));
         e.add(new Entrada(CdiController.CHAVE_ESTADO_DE, CDI, "HEURE", List.of(), () -> ""));
         e.add(new Entrada(CdiController.CHAVE_ESTADO_ATE, CDI, "HEURE", List.of(), () -> ""));
         e.add(new Entrada(CdiController.CHAVE_ESTADO_NOTA, CDI, "TEXTE", List.of(), () -> ""));
 
         return e;
+    }
+
+    /** A entrada de uma chave, se ela for declarada. */
+    public java.util.Optional<Entrada> declarada(String chave) {
+        return entradas().stream().filter(e -> e.chave().equals(chave)).findFirst();
+    }
+
+    /**
+     * VALIDA um valor contra o TIPO declarado — e lanca se nao servir.
+     *
+     * ⚠️ EXISTE PORQUE O ECRA DE CONFIGURACAO E UM CAMINHO DE ESCRITA NOVO, e
+     * um caminho de escrita novo que perde as guardas do antigo e uma porta
+     * dos fundos. `PUT /api/admin/cdi/etat` recusa uma capacidade abaixo de 1;
+     * sem isto, `PUT /api/admin/settings/magbo.cdi.capacidade` com «0» passava,
+     * e o CDI declarava-se cheio para sempre. Releve pelo painel de 27/08.
+     *
+     * ⚠️ Vazio e SEMPRE valido: e «voltar ao default», que apaga a linha.
+     */
+    public void validar(Entrada e, String valor) {
+        if (valor == null || valor.isBlank()) return;
+        String v = valor.trim();
+        switch (e.tipo()) {
+            case "INT" -> {
+                int n;
+                try {
+                    n = Integer.parseInt(v);
+                } catch (NumberFormatException nfe) {
+                    throw new IllegalArgumentException("valor nao numerico: " + v);
+                }
+                // Zero e negativo nao sao «desligado»: sao um teto impossivel.
+                if (n < 1) throw new IllegalArgumentException("deve ser >= 1: " + v);
+            }
+            case "CHOIX" -> {
+                if (!e.opcoes().contains(v)) {
+                    throw new IllegalArgumentException("valor fora das opcoes: " + v);
+                }
+            }
+            case "HEURE" -> {
+                try {
+                    java.time.LocalTime.parse(v);
+                } catch (RuntimeException re) {
+                    throw new IllegalArgumentException("hora invalida (HH:MM): " + v);
+                }
+            }
+            default -> { /* TEXTE e CSV: texto livre, limitado pelo tamanho da coluna */ }
+        }
     }
 
     /**
@@ -104,12 +154,21 @@ public class SettingsCatalog {
      * gravada, `valor` E `padrao` e os dois ultimos vem nulos: e o contrato
      * da V024 dito em JSON.
      */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<Map<String, Object>> comValores() {
+        // ⚠️ UMA leitura, nao duas. Duas `gravados()` em duas transacoes
+        // separadas podiam divergir entre a primeira passagem e o laco dos
+        // orfaos: uma chave gravada no intervalo aparecia «no default».
+        var linhas = settingsService.gravados();
         Map<String, com.magbo.access.models.SystemSetting> gravados = new LinkedHashMap<>();
-        settingsService.gravados().forEach(s -> gravados.put(s.getChave(), s));
+        linhas.forEach(s -> gravados.put(s.getChave(), s));
+
+        List<Entrada> catalogo = entradas();
+        java.util.Set<String> conhecidas = new java.util.HashSet<>();
+        catalogo.forEach(x -> conhecidas.add(x.chave()));
 
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Entrada entrada : entradas()) {
+        for (Entrada entrada : catalogo) {
             String padrao = entrada.padrao().get();
             var linha = gravados.get(entrada.chave());
             Map<String, Object> m = new LinkedHashMap<>();
@@ -129,9 +188,8 @@ public class SettingsCatalog {
         // catalogo (property removida, chave mal escrita a mao na base) muda
         // ou nao muda nada, mas esta la: escondê-la seria deixar na base um
         // reglage que nenhum ecra consegue apagar.
-        for (var s : settingsService.gravados()) {
-            boolean conhecida = entradas().stream().anyMatch(x -> x.chave().equals(s.getChave()));
-            if (conhecida) continue;
+        for (var s : linhas) {
+            if (conhecidas.contains(s.getChave())) continue;
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("chave", s.getChave());
             m.put("dominio", "orphelins");

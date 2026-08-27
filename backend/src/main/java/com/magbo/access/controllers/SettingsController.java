@@ -70,7 +70,23 @@ public class SettingsController {
     public ResponseEntity<?> gravar(@PathVariable String chave,
                                     @RequestBody(required = false) Map<String, String> corpo) {
         try {
-            settingsService.gravar(chave, corpo == null ? null : corpo.get("valor"), quem());
+            String valor = corpo == null ? null : corpo.get("valor");
+            var entrada = catalog.declarada(chave);
+            if (entrada.isPresent()) {
+                // ⚠️ VALIDADA CONTRA O TIPO DECLARADO. Sem isto, este endpoint
+                // era uma porta dos fundos em volta das guardas do ecra que ele
+                // substitui: uma capacidade de CDI a 0 passava por aqui e nao
+                // por `PUT /api/admin/cdi/etat`.
+                catalog.validar(entrada.get(), valor);
+            } else if (valor != null && !valor.isBlank()) {
+                // ⚠️ Chave DESCONHECIDA: recusada em escrita, permitida em
+                // apagamento. Criar linhas que nenhum ecra mostra e como o
+                // defeito das orfas nasce; mas apagar uma orfa que ja existe
+                // tem de continuar possivel, senao ela fica presa no banco.
+                return ResponseEntity.badRequest().body(Map.of(
+                        "erro", "chave desconhecida do catalogo: " + chave));
+            }
+            settingsService.gravar(chave, valor, quem());
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));

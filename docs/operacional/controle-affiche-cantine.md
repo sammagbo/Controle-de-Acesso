@@ -91,10 +91,11 @@ SELECT ms.dia_semana, ms.hora, mc.turma
 
 **Résultat du 26/08/2026 :** `mercredi · 13:00 · 4E2`
 
-**Question à poser :** la 4ème 2 est-elle bien au second service du mercredi ?
-L'écran d'administration affiche ce badge en pointillés avec un « ? » jusqu'à
-confirmation. Décocher `a_confirmar` se fait en retirant puis en remettant la
-classe sur le créneau.
+**✅ RÉSOLU le 27/08/2026 :** la photo du mur réimprimé confirme que le badge
+caché par l'aimant était bien **4ème 2, mercredi 13H00**. La marque
+`a_confirmar` a été retirée de la V023 (ligne 4E2/mercredi) et de la base ;
+cette requête doit désormais rendre **zéro ligne**, et le badge s'imprime
+plein trait, sans « ? ».
 
 ---
 

@@ -23,12 +23,25 @@
 // espaço em branco piscando a cada linha de uma lista que recarrega a cada 3 s.
 
 function PersonPhoto({ userId, nome, fotoUrl, className = '', alt = '' }) {
-      const [url, setUrl] = React.useState(null);
+      // ⚠️ Hidrata do cache NO PRIMEIRO PAINT (peek sincrono). A versao
+      // anterior partia sempre de null: um componente remontado — e o Moniteur
+      // Cantine remontava TODOS a cada ciclo de 3 s — pintava as iniciais
+      // durante um instante antes de a promessa (ja resolvida) devolver o
+      // objectURL. Era o scintillement foto->iniciais->foto visto em servico.
+      // Medido em 27/08: 30 remontagens de <img> em 12 s antes da correcao.
+      const [url, setUrl] = React.useState(() =>
+            (window.MagboPhotoCache && window.MagboPhotoCache.peek)
+                  ? window.MagboPhotoCache.peek(userId) : null);
 
       React.useEffect(() => {
             let vivo = true;
-            setUrl(null);
-            if (!userId || !window.MagboPhotoCache) return undefined;
+            if (!userId || !window.MagboPhotoCache) { setUrl(null); return undefined; }
+            const cacheada = window.MagboPhotoCache.peek
+                  ? window.MagboPhotoCache.peek(userId) : null;
+            // Sem reset a null quando o cache ja tem a resposta: o reset era
+            // exatamente o frame de iniciais que o operador via piscar.
+            setUrl(cacheada);
+            if (cacheada) return () => { vivo = false; };
             window.MagboPhotoCache.get(userId)
                   .then(u => { if (vivo) setUrl(u); })
                   .catch(() => { /* sem foto é melhor que sem tela */ });

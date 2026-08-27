@@ -204,3 +204,33 @@ describe('photoCache — memória', () => {
         expect(C.stats()).toEqual({ vivos: 0, semFoto: 0, emVoo: 0, maxVivos: C.MAX_VIVOS });
     });
 });
+
+describe('peek — a hidratação síncrona que matou o scintillement', () => {
+    // ⚠️ Reserva do panel de 27/08: o peek() nasceu sem teste. Ele é a segunda
+    // camada da correção do clignotement — um remonte legítimo hidrata a foto
+    // no PRIMEIRO paint — e sem teste a próxima refatoração podia devolvê-lo
+    // a null sem que nada acusasse.
+    it('★★★ devolve a URL já cacheada SEM disparar busca nenhuma', async () => {
+        const cache = require('../js/utils/photoCache.js');
+        cache.clear();
+        let buscas = 0;
+        cache.configure(async () => { buscas++; return new Blob(['x']); });
+        expect(cache.peek('P1')).toBeNull();          // nada em cache ainda
+        const url = await cache.get('P1');
+        expect(buscas).toBe(1);
+        expect(cache.peek('P1')).toBe(url);           // síncrono, mesma URL
+        expect(buscas).toBe(1);                       // peek NUNCA busca
+        cache.clear();
+    });
+
+    it('★★ depois de invalidate, peek volta a null (não entrega URL revogada)', async () => {
+        const cache = require('../js/utils/photoCache.js');
+        cache.clear();
+        cache.configure(async () => new Blob(['x']));
+        await cache.get('P2');
+        expect(cache.peek('P2')).not.toBeNull();
+        cache.invalidate('P2');
+        expect(cache.peek('P2')).toBeNull();
+        cache.clear();
+    });
+});

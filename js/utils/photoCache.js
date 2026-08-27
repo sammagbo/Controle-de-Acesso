@@ -64,6 +64,21 @@
      * devolve null: uma foto que não carregou nunca pode impedir a linha da
      * passagem de aparecer.
      */
+    /**
+     * A foto JA EM CACHE, sincronamente — ou null, sem disparar busca nenhuma.
+     *
+     * ⚠️ Existe por causa do SCINTILLEMENT do Moniteur Cantine (27/08/2026):
+     * um componente remontado recomecava em `useState(null)`, pintava as
+     * iniciais, e SO no microtask seguinte a promessa do cache (ja resolvida!)
+     * entregava o objectURL. Resultado: foto -> iniciais -> foto a cada
+     * remontagem. Com o peek, um remonte legitimo (a pessoa mudou de coluna,
+     * a arvore mudou de pai) hidrata a foto no PRIMEIRO paint.
+     */
+    function peek(userId) {
+        if (!userId) return null;
+        return vivos.has(userId) ? vivos.get(userId) : null;
+    }
+
     async function get(userId) {
         if (!userId || !buscar) return null;
         if (vivos.has(userId)) return vivos.get(userId);
@@ -157,6 +172,7 @@
     return {
         MAX_VIVOS: MAX_VIVOS,
         configure: configure,
+        peek: peek,
         get: get,
         invalidate: invalidate,
         clear: clear,

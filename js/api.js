@@ -616,6 +616,19 @@ const api = {
     },
 
     // ── Reglages do sistema (V024) ────────────────────────────────────────
+
+    /**
+     * O CATALOGO: cada reglage com o valor de agora, o de fabrica, e quem o
+     * mudou. ⚠️ Nao e `fetchSettings`: essa devolve so as linhas GRAVADAS, e
+     * um ecra construido com ela apareceria VAZIO numa base nova — quem o
+     * abrisse concluiria que nao ha nada para configurar.
+     */
+    async fetchSettingsCatalogue() {
+        const res = await fetch(`${API_BASE_URL}/admin/settings/catalogue`, { headers: authHeaders() });
+        const d = await this.handleResponse(res);
+        return Array.isArray(d) ? d : [];
+    },
+
     async fetchSettings() {
         const res = await fetch(`${API_BASE_URL}/admin/settings`, { headers: authHeaders() });
         const d = await this.handleResponse(res);

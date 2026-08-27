@@ -2,7 +2,7 @@
 // ADMIN DASHBOARD — Painel Administrativo (PIN-gated)
 // =====================================================================
 
-function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime, onNavigateToMealSlots}) {
+function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport, onNavigateToMeal, onNavigateToExit, onNavigateToRegime, onNavigateToMealSlots, onNavigateToCdiExclusions, onNavigateToConfig }) {
 
       // ⚠️ MASCARER, JAMAIS SUPPRIMER. Le réglage cache les cartes KPI de CET
       // écran, pour CE poste (localStorage) — les chiffres continuent d'être
@@ -571,6 +571,54 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                                     >
                                           <LucideIcon name="calendar-clock" size={16} />
                                           {t('admin.card.creneaux.btn')}
+                                    </button>
+                              </div>
+
+                              {/* ⚠️ EXCLUSIONS DU CDI — la carte manquait, et sans elle
+                                  l'ecran etait INATTEIGNABLE pour un admin : le
+                                  raccourci du tableau de bord se cache
+                                  volontairement de l'admin (il entre par ce
+                                  panneau) et ce panneau n'avait pas d'entree.
+                                  Deux regles justes, un trou entre les deux. */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-danger-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="user-x" size={24} className="text-danger-600" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">{t('cdi.excl.titulo')}</h3>
+                                                <p className="text-sm text-slate-400">{t('admin.card.cdiexcl.sub')}</p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToCdiExclusions}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-danger-600 text-white hover:bg-danger-700 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="user-x" size={16} />
+                                          {t('admin.card.cdiexcl.btn')}
+                                    </button>
+                              </div>
+
+                              {/* ⚠️ CONFIGURATION — les valeurs qui decident du
+                                  comportement du systeme. Elle est ici et pas sur
+                                  le tableau de bord : on ne tombe pas dessus par
+                                  hasard entre deux passages. */}
+                              <div className="bg-white rounded-2xl p-6 border border-soft-200 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-4 mb-4">
+                                          <div className="w-12 h-12 rounded-xl bg-navy-500/10 flex items-center justify-center flex-shrink-0">
+                                                <LucideIcon name="sliders-horizontal" size={24} className="text-navy-500" />
+                                          </div>
+                                          <div>
+                                                <h3 className="text-base font-bold text-navy-500">{t('config.titulo')}</h3>
+                                                <p className="text-sm text-slate-400">{t('admin.card.config.sub')}</p>
+                                          </div>
+                                    </div>
+                                    <button
+                                          onClick={onNavigateToConfig}
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm bg-navy-500 text-white hover:bg-navy-600 hover:shadow-md active:scale-95"
+                                    >
+                                          <LucideIcon name="sliders-horizontal" size={16} />
+                                          {t('admin.card.config.btn')}
                                     </button>
                               </div>
 

@@ -56,6 +56,18 @@ public class CdiController {
     /** Le defaut historique du CDI, qui vivait en dur dans js/cdi/cdiData.js. */
     public static final int CAPACIDADE_PADRAO = 50;
 
+    /**
+     * ⚠️ LE DEFAUT DE L'ETAT, ET LA LISTE DE SES VALEURS, VIVENT ICI.
+     *
+     * Le catalogue de configuration ecrivait `() -> "OUVERT"` de son cote : une
+     * copie, exactement la seconde verite que son propre javadoc interdit. Le
+     * jour ou ce defaut passerait a FERME, l'ecran aurait continue d'annoncer
+     * «defaut : OUVERT» avec assurance. Releve par le panel du 27/08 — dans le
+     * fichier qui proclame la regle.
+     */
+    public static final String ESTADO_PADRAO = "OUVERT";
+    public static final List<String> ESTADOS = List.of("OUVERT", "RESERVE", "FERME");
+
     private String quem() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
@@ -72,7 +84,7 @@ public class CdiController {
     public Map<String, Object> etat() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("capacidade", settingsService.efetivoInt(CHAVE_CAPACIDADE, CAPACIDADE_PADRAO));
-        out.put("estado", settingsService.efetivo(CHAVE_ESTADO, "OUVERT"));
+        out.put("estado", settingsService.efetivo(CHAVE_ESTADO, ESTADO_PADRAO));
         out.put("estadoInicio", settingsService.efetivo(CHAVE_ESTADO_DE, ""));
         out.put("estadoFim", settingsService.efetivo(CHAVE_ESTADO_ATE, ""));
         out.put("estadoNota", settingsService.efetivo(CHAVE_ESTADO_NOTA, ""));

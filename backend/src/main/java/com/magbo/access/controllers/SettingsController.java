@@ -30,12 +30,28 @@ import java.util.Map;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final com.magbo.access.services.SettingsCatalog catalog;
 
     private static final String GATE =
             "hasRole('ADMIN') or @areaSecurity.hasPermission('CONFIG_WRITE')";
 
     private String quem() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * O CATALOGO COMPLETO — o que o ecra de configuracao desenha: cada reglage
+     * com o valor de agora, o valor de fabrica, e quem o mudou pela ultima vez.
+     *
+     * ⚠️ Um reglage no default nao tem linha em `system_settings`; e por isso
+     * que este endpoint existe e o `GET /` cru nao chega. Um ecra construido
+     * so com as linhas gravadas mostraria uma lista VAZIA numa base nova, e
+     * quem a abrisse concluiria que nao ha nada para configurar.
+     */
+    @GetMapping("/catalogue")
+    @PreAuthorize(GATE)
+    public List<Map<String, Object>> catalogo() {
+        return catalog.comValores();
     }
 
     /** As linhas GRAVADAS (as chaves no default nao tem linha — e o contrato). */
@@ -54,7 +70,23 @@ public class SettingsController {
     public ResponseEntity<?> gravar(@PathVariable String chave,
                                     @RequestBody(required = false) Map<String, String> corpo) {
         try {
-            settingsService.gravar(chave, corpo == null ? null : corpo.get("valor"), quem());
+            String valor = corpo == null ? null : corpo.get("valor");
+            var entrada = catalog.declarada(chave);
+            if (entrada.isPresent()) {
+                // ⚠️ VALIDADA CONTRA O TIPO DECLARADO. Sem isto, este endpoint
+                // era uma porta dos fundos em volta das guardas do ecra que ele
+                // substitui: uma capacidade de CDI a 0 passava por aqui e nao
+                // por `PUT /api/admin/cdi/etat`.
+                catalog.validar(entrada.get(), valor);
+            } else if (valor != null && !valor.isBlank()) {
+                // ⚠️ Chave DESCONHECIDA: recusada em escrita, permitida em
+                // apagamento. Criar linhas que nenhum ecra mostra e como o
+                // defeito das orfas nasce; mas apagar uma orfa que ja existe
+                // tem de continuar possivel, senao ela fica presa no banco.
+                return ResponseEntity.badRequest().body(Map.of(
+                        "erro", "chave desconhecida do catalogo: " + chave));
+            }
+            settingsService.gravar(chave, valor, quem());
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));

@@ -127,6 +127,9 @@
         if (point.id === 'CDI_EXCLUSION_MANAGEMENT') {
             return mostraAtalhoNoDashboard(auth, PERMISSIONS.CDI_EXCLUSION_WRITE);
         }
+        if (point.id === 'SYSTEM_CONFIGURATION') {
+            return mostraAtalhoNoDashboard(auth, PERMISSIONS.CONFIG_WRITE);
+        }
         if (point.id === 'MEAL_SLOT_MANAGEMENT') {
             return mostraAtalhoNoDashboard(auth, PERMISSIONS.MEAL_SLOT_WRITE);
         }

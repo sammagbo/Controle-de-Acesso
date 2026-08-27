@@ -119,6 +119,10 @@ public class SettingsService {
         if (chave == null || chave.isBlank()) throw new IllegalArgumentException("chave obrigatoria");
         if (quem == null || quem.isBlank()) throw new IllegalArgumentException("quem obrigatorio");
         String c = chave.trim();
+        // ⚠️ 128 = a largura da coluna (V024). Sem esta guarda, uma chave mais
+        // longa dava DataIntegrityViolationException — ou seja, HTTP 500 — em
+        // vez do 400 que o resto do metodo produz.
+        if (c.length() > 128) throw new IllegalArgumentException("chave demasiado longa (max 128)");
         if (valor == null || valor.isBlank()) {
             repository.deleteById(c);
             log.info("system_settings: {} volta ao default (por {})", c, quem);

@@ -32,6 +32,10 @@ function MealSlotManagement({ onBack }) {
     // diferente do que está no ecrã — e é a divergência entre o mur e a base
     // que este chantier veio fechar.
     const [vistaAfixacao, setVistaAfixacao] = React.useState(false);
+    // O criador de creneau (dia + hora) — o gesto da maternal/elementar:
+    // NADA e semeado por codigo; o Sam cria os horarios certos por aqui.
+    const [novoDia, setNovoDia] = React.useState(1);
+    const [novaHora, setNovaHora] = React.useState('');
 
     const podeEscrever = window.MagboPermissions
         ? window.MagboPermissions.canWrite(window.auth, 'MEAL_SLOT_WRITE')
@@ -182,6 +186,87 @@ function MealSlotManagement({ onBack }) {
                 )}
             </form>
 
+            {/* Criar um creneau novo. So aparece com permissao de escrita:
+                um formulario morto seria pior que nenhum. */}
+            {podeEscrever && !vistaAfixacao && (
+                <div className="bg-soft-50/60 rounded-2xl p-3 border border-soft-200">
+                    <label className="text-xs font-bold text-navy-500 uppercase tracking-wide">
+                        {t('creneaux.novo.titulo')}
+                    </label>
+                    <p className="text-xs text-slate-500 mt-0.5 mb-2">{t('creneaux.novo.ajuda')}</p>
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <select value={novoDia} onChange={e => setNovoDia(Number(e.target.value))}
+                            className="px-2 py-2 rounded-xl border border-soft-200 text-sm">
+                            {[1, 2, 3, 4, 5].map(d => (
+                                <option key={d} value={d}>{t('creneaux.dia.' + d)}</option>
+                            ))}
+                        </select>
+                        <input type="time" value={novaHora} onChange={e => setNovaHora(e.target.value)}
+                            className="px-2 py-2 rounded-xl border border-soft-200 text-sm" />
+                        <button type="button" disabled={ocupado || !novaHora}
+                            onClick={() => agir(async () => {
+                                await window.api.createMealSlot(novoDia, novaHora, null, null);
+                                setNovaHora('');
+                            })}
+                            className="text-xs font-bold text-white bg-navy-500 px-4 py-2 rounded-xl disabled:opacity-40">
+                            {t('creneaux.novo.criar')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ⚠️ TURMAS DISPENSADAS DE BADGE — preparacao, NAO ativacao.
+                Default: NENHUMA. A consequencia PPMS esta POR EXTENSO ao lado
+                do reglage, como exigido: e o unico sitio onde quem decide vai
+                le-la no momento de decidir. */}
+            {!vistaAfixacao && (
+                <div className="bg-soft-50/60 rounded-2xl p-3 border border-soft-200">
+                    <label className="text-xs font-bold text-navy-500 uppercase tracking-wide">
+                        {t('creneaux.disp.titulo')}
+                    </label>
+                    <p className="text-xs text-danger-600 bg-danger-50 border border-danger-500/30 rounded-lg px-2 py-1.5 mt-1 mb-2">
+                        {t('creneaux.disp.aviso.ppms')}
+                    </p>
+                    {(grade.turmasDispensees || []).length === 0 ? (
+                        <p className="text-xs text-slate-500">{t('creneaux.disp.nenhuma')}</p>
+                    ) : (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {grade.turmasDispensees.map(tu => (
+                                <span key={tu} className="text-xs font-bold px-2 py-0.5 rounded-full bg-danger-50 text-danger-700 border border-danger-500/40 flex items-center gap-1">
+                                    {tu}
+                                    {podeEscrever && (
+                                        <button type="button" disabled={ocupado}
+                                            onClick={() => agir(() => window.api.saveMealSlotDispensees(
+                                                grade.turmasDispensees.filter(x => x !== tu)))}
+                                            className="text-danger-400 hover:text-danger-700">×</button>
+                                    )}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {podeEscrever && (
+                        <div className="flex gap-1.5 items-center">
+                            <select id="disp-nova" className="px-2 py-1.5 rounded-xl border border-soft-200 text-xs">
+                                <option value="">{t('creneaux.disp.escolher')}</option>
+                                {(grade.turmasConhecidas || [])
+                                    .filter(tu => !(grade.turmasDispensees || []).includes(tu))
+                                    .map(tu => <option key={tu} value={tu}>{tu}</option>)}
+                            </select>
+                            <button type="button" disabled={ocupado}
+                                onClick={() => {
+                                    const el = document.getElementById('disp-nova');
+                                    const v = el && el.value;
+                                    if (v) agir(() => window.api.saveMealSlotDispensees(
+                                        (grade.turmasDispensees || []).concat([v])));
+                                }}
+                                className="text-xs font-bold text-danger-600 hover:bg-danger-50 px-2 py-1.5 rounded">
+                                {t('creneaux.disp.adicionar')}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ⚠️ A afixação substitui a grade de edição em vez de conviver com
                 ela: são a MESMA informação em duas formas, e mostrá-las juntas
                 convidaria a imprimir uma e ler a outra. */}
@@ -202,6 +287,35 @@ function MealSlotManagement({ onBack }) {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-black text-navy-500">{c.hora.slice(0, 5)}</span>
                                         <span className="text-[10px] font-bold text-slate-400 uppercase">{c.rotulo}</span>
+                                    </div>
+                                    {/* A JANELA do creneau, visivel e editavel: hora −antes / +depois.
+                                        E ela que decide AVANT_CRENEAU/APRES_CRENEAU — um numero
+                                        escondido seria um julgamento cuja regra ninguem ve. */}
+                                    <div className="flex items-center gap-1 mb-2 text-[11px] text-slate-500">
+                                        <span>−</span>
+                                        <input type="number" min="0" defaultValue={c.toleranciaAntesMinutos}
+                                            id={`tola-${c.id}`} disabled={!podeEscrever}
+                                            className="w-12 px-1 py-0.5 rounded border border-soft-200 text-center" />
+                                        <span>{t('creneaux.tol.min')} / +</span>
+                                        <input type="number" min="0" defaultValue={c.toleranciaDepoisMinutos}
+                                            id={`told-${c.id}`} disabled={!podeEscrever}
+                                            className="w-12 px-1 py-0.5 rounded border border-soft-200 text-center" />
+                                        <span>{t('creneaux.tol.min')}</span>
+                                        {podeEscrever && (
+                                            <button type="button" disabled={ocupado}
+                                                title={t('creneaux.tol.gravar')}
+                                                onClick={() => {
+                                                    const a = document.getElementById(`tola-${c.id}`);
+                                                    const d2 = document.getElementById(`told-${c.id}`);
+                                                    agir(() => window.api.updateMealSlot(c.id, {
+                                                        toleranciaAntesMinutos: a ? a.value : null,
+                                                        toleranciaDepoisMinutos: d2 ? d2.value : null
+                                                    }));
+                                                }}
+                                                className="text-accent-600 hover:bg-accent-50 px-1.5 rounded font-bold">
+                                                ✓
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {c.turmas.length === 0 && (

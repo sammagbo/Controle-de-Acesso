@@ -16,6 +16,10 @@ function RefectoryReport() {
     const [turma, setTurma] = React.useState('');
     const [statut, setStatut] = React.useState(''); // '', 'ontime', 'late', 'noexit'
     const [meals, setMeals] = React.useState([]);
+    // A grade de creneaux, carregada UMA vez: serve para agrupar os
+    // contadores POR SERVICO (12H30 / 13H00 / 11h00...). Falha = contadores
+    // globais na mesma — o rapport nunca fica refem da grade.
+    const [grade, setGrade] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [showPrint, setShowPrint] = React.useState(false);
 
@@ -46,6 +50,13 @@ function RefectoryReport() {
     }, [dateFrom, dateTo]);
 
     React.useEffect(() => { load(); }, [dateFrom, dateTo]);
+    React.useEffect(() => {
+        let vivo = true;
+        window.api.fetchMealSlots()
+            .then(g => { if (vivo) setGrade(g); })
+            .catch(() => { /* sem grade: contadores globais apenas */ });
+        return () => { vivo = false; };
+    }, []);
 
     const turmas = React.useMemo(() => {
         const all = (window.userCache?.all() || []).map(u => u.turma).filter(Boolean);
@@ -78,9 +89,64 @@ function RefectoryReport() {
         return { total, uniques, late, noExit, avg };
     }, [filtered]);
 
+    /**
+     * AS QUATRO FAMILIAS, POR SERVICO. «Passou antes do seu creneau», «passou
+     * depois», «curto demais», «tempo demais» — contadas sobre o periodo
+     * filtrado, agrupadas pelo creneau da TURMA (resolucao no cliente via a
+     * grade ja carregada; as excecoes individuais nao sao vistas aqui — o
+     * FLAG em si veio do backend com elas honradas, so o agrupamento usa a
+     * turma). Sem grade: uma linha unica «tous services».
+     */
+    const familias = React.useMemo(() => {
+        const cfg = window.MagboCantine ? window.MagboCantine.config() : { duracaoCurtaMinutos: 15, duracaoMaximaMinutos: 30 };
+        const porServico = new Map();
+        const chaveDe = (m) => {
+            // ⚠️ DOIS baldes DISTINTOS, nao um «Tous services» que dizia duas
+            // coisas opostas (apanhado pelo painel, 27/08): a grade nao
+            // carregou, e a turma nao tem creneau. Sem creneaux semeados para
+            // a maternal/elementar, o segundo balde recebe TODAS as refeicoes
+            // delas — apresentado como «total» ao lado de 12H30 e 13H00, um
+            // CPE leria um agregado onde ha uma lacuna de configuracao.
+            if (!grade) return t('rap.familles.grade.indisponivel');
+            if (!m.entryTime) return t('rap.familles.sem.creneau');
+            const d = new Date(m.date + 'T12:00:00');
+            const dia = ((d.getDay() + 6) % 7) + 1;   // JS 0=domingo -> ISO 1=segunda
+            const minutos = Number(m.entryTime.slice(0, 2)) * 60 + Number(m.entryTime.slice(3, 5));
+            return window.MagboCantine.servicoDe(grade, m.turma, dia, minutos)
+                || t('rap.familles.sem.creneau');
+        };
+        for (const m of filtered) {
+            const k = chaveDe(m);
+            if (!porServico.has(k)) porServico.set(k, { avant: 0, apres: 0, curtas: 0, longas: 0 });
+            const c = porServico.get(k);
+            // O FORA_HORARIO historico NAO tem direcao: conta na propria
+            // familia «legado», nunca distribuido entre avant/apres — seria
+            // inventar uma direcao que o dado nao tem.
+            if (m.entryFlag === 'AVANT_CRENEAU') c.avant++;
+            else if (m.entryFlag === 'APRES_CRENEAU') c.apres++;
+            else if (m.entryFlag === 'FORA_HORARIO') c.legado = (c.legado || 0) + 1;
+            if (m.durationMinutes != null) {
+                if (m.durationMinutes < cfg.duracaoCurtaMinutos) c.curtas++;
+                else if (m.durationMinutes > cfg.duracaoMaximaMinutos) c.longas++;
+            }
+        }
+        return [...porServico.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    }, [filtered, grade]);
+
     const statusBadge = (m) => {
         if (!m.exitRegistered) return { label: t('rap.status.sem.saida'), cls: 'text-slate-600 bg-slate-100' };
-        if (!m.onTime) return { label: t('rap.status.fora.horario'), cls: 'text-danger-700 bg-danger-100' };
+        if (!m.onTime) {
+            // ⚠️ A DIRECAO por extenso: «antes do seu creneau» e «depois do seu
+            // creneau» sao problemas diferentes. O FORA_HORARIO historico
+            // mantem o rotulo antigo.
+            if (m.entryFlag === 'AVANT_CRENEAU') {
+                return { label: t('rap.status.avant.creneau'), cls: 'text-accent-700 bg-accent-100' };
+            }
+            if (m.entryFlag === 'APRES_CRENEAU') {
+                return { label: t('rap.status.apres.creneau'), cls: 'text-danger-700 bg-danger-100' };
+            }
+            return { label: t('rap.status.fora.horario'), cls: 'text-danger-700 bg-danger-100' };
+        }
         return { label: t('rap.status.na.hora'), cls: 'text-success-700 bg-success-100' };
     };
 
@@ -133,6 +199,25 @@ function RefectoryReport() {
                     <div><b className="block text-xl">{kpis.total}</b>{t('rap.cantina.kpi.refeicoes')}</div>
                     <div><b className="block text-xl">{kpis.uniques}</b>{t('rap.kpi.alunos')}</div>
                     <div><b className="block text-xl">{kpis.late}</b>{t('rap.status.fora.horario')}</div>
+                    {/* As quatro familias por servico — a leitura que a Vie
+                        Scolaire pediu: QUEM chega fora do seu creneau, e em
+                        QUAL servico isso acontece. */}
+                    <div className="col-span-full mt-2 space-y-1">
+                        {familias.map(([servico, c]) => (
+                            <div key={servico} className="flex flex-wrap items-center gap-2 text-xs">
+                                <span className="font-bold text-navy-500 w-40 truncate">{servico}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-accent-50 text-accent-700">{t('cantina.cont.avant', { n: c.avant })}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-danger-50 text-danger-600">{t('cantina.cont.apres', { n: c.apres })}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-warning-50 text-warning-700">{t('cantina.cont.curtas', { n: c.curtas })}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-soft-100 text-slate-600">{t('cantina.cont.longas', { n: c.longas })}</span>
+                                {c.legado > 0 && (
+                                    <span className="px-1.5 py-0.5 rounded bg-soft-100 text-slate-400" title={t('cantina.cont.legado.ajuda')}>
+                                        {t('cantina.cont.legado', { n: c.legado })}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                     <div><b className="block text-xl">{kpis.noExit}</b>{t('rap.status.sem.saida')}</div>
                     <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>{t('cdi.stats.duracao.curta')}</div>
                 </div>

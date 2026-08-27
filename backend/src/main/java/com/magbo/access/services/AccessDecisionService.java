@@ -53,6 +53,7 @@ public class AccessDecisionService {
     private final RegimeSortieService regimeSortieService;
     private final com.magbo.access.config.CantineProperties cantineProperties;
     private final MealSlotService mealSlotService;
+    private final SettingsService settingsService;
 
     // Turmas com prioridade total (entram 11h-15h sem restrição de horário de turma)
     private static final Set<String> LYCEE_CLASSES = Set.of(
@@ -175,7 +176,14 @@ public class AccessDecisionService {
         boolean isRefectory = pid.startsWith("REFEI") || pid.startsWith("CANTINA");
         String flag = null;
 
-        if (isRefectory) {
+        // ⚠️ TURMA DISPENSADA DE BADGE: nem flags, nem recusas de cantina —
+        // mas a PASSAGEM continua gravada (o registo nunca e a sancao). O gate
+        // cobre as TRES familias de regra do refeitorio (dedup de refeicao,
+        // entitlement, janela) e o EXCEDEU_TEMPO da saida: «ni dans les flags
+        // ni dans les refus». Desativado por default para todas as turmas.
+        boolean dispensada = isRefectory && mealSlotService.dispensee(user);
+
+        if (isRefectory && !dispensada) {
             if (resolved.action() == AccessAction.ENTRADA) {
                 if (dedupService.isDuplicate(userId, pid, AccessAction.ENTRADA, now)) {
                     PolicyMode mode = policyProperties.getPolicy().getDuplicateMeal();
@@ -280,9 +288,26 @@ public class AccessDecisionService {
                     }
                     flag = null;
                 } else {
-                    flag = janela.dentro() ? null : "FORA_HORARIO";
+                    // ⚠️ DOIS flags direcionais desde 27/08 (AVANT_CRENEAU /
+                    // APRES_CRENEAU), no lugar do FORA_HORARIO unico: chegar
+                    // antes do seu creneau e chegar depois sao problemas
+                    // diferentes, e um flag so obrigava a Vie Scolaire a ir
+                    // descobrir qual. As linhas ANTIGAS continuam FORA_HORARIO
+                    // — ninguem reescreve historia — e todo consumidor le a
+                    // FAMILIA inteira (monitor, rapport, KPI).
+                    flag = janela.dentro() ? null : janela.flagDirecional();
                 }
-                if ("FORA_HORARIO".equals(flag)) {
+                // ⚠️⚠️ A FAMILIA, e nao o valor antigo. Este `if` testava
+                // `"FORA_HORARIO".equals(flag)` e ficou CODIGO MORTO no minuto
+                // em que a janela passou a gravar flags direcionais: nenhuma
+                // linha OUTSIDE_MEAL_TIME era mais registada, e
+                // `magbo.policy.outside-meal-time` deixava de fazer o que quer
+                // que fosse — inclusive um DENY, que passaria a nao negar nada.
+                //
+                // E EXATAMENTE o «congelar em silencio» que o commit anterior
+                // avisava para o KPI, cometido uma linha abaixo do aviso.
+                // Apanhado pelo painel de revisao (Vie Scolaire) em 27/08.
+                if (AccessLog.FLAGS_FORA_DO_CRENEAU.contains(String.valueOf(flag))) {
                     PolicyMode mode = policyProperties.getPolicy().getOutsideMealTime();
                     if (mode == PolicyMode.DENY) {
                         attemptService.record(
@@ -309,6 +334,8 @@ public class AccessDecisionService {
                 flag = validateExitTime(userId, pid, eventTime);
             }
         }
+        // (dispensada: nenhuma regra de cantina corre — flag fica null e a
+        // passagem e gravada como qualquer outra)
         
         registrarPassagem(new Passagem(
                 userId, employeeNoRaw, nomeSnapshot, resolved, terminalIp,
@@ -809,7 +836,13 @@ public class AccessDecisionService {
         if (lastEntry.isEmpty()) return null;
 
         Duration inside = Duration.between(lastEntry.get().getTimestamp(), saidaEm);
-        if (inside.compareTo(cantineProperties.duracaoMaxima()) > 0) {
+        // ⚠️ O teto EFETIVO: o valor mudado a ecra (system_settings) cobre o
+        // default da property. Sem linha gravada, comporta-se exatamente como
+        // antes — «default = comportamento atual» e o contrato da V024.
+        Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
+                "magbo.cantine.duracao-maxima-minutos",
+                cantineProperties.getDuracaoMaximaMinutos()));
+        if (inside.compareTo(teto) > 0) {
             return "EXCEDEU_TEMPO";
         }
         return null;

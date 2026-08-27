@@ -284,9 +284,49 @@ dans les tables de la V021 et partent avec `R021`. Un `R023` qui n'effacerait
 premier clic dans l'écran d'administration, les lignes semées et celles
 éditées par la Vie Scolaire sont indiscernables.
 
+### ⚠️ V024 — le magasin des réglages modifiables à l'écran
+
+`system_settings` : la **surcouche** des properties `magbo.*`. Une ligne
+n'existe que quand quelqu'un a modifié un réglage depuis l'écran de
+configuration, et elle porte QUI et QUAND.
+
+⚠️ **Le contrat, et il est structurel :** une base **sans aucune ligne** se
+comporte **exactement** comme avant la migration. Les properties restent les
+valeurs par défaut ; cette table ne fait que les couvrir. Il n'y a donc rien à
+semer, et la table naît vide.
+
+⚠️ **Aucun secret ici.** Tokens, mots de passe et PIN restent dans le `.env` :
+une table lisible depuis un écran d'administration est exactement l'endroit où
+un secret ne doit pas vivre. `SettingsService` ne les accepte pas.
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
+  < deploy/migrations/V024__system_settings.sql
+echo "exit=$?"    # 0 = appliquée
+```
+
+Vérifications :
+
+```bash
+# 1. quatre colonnes, PK sur chave, AUCUN check
+docker exec magbo-postgres psql -U magbo -d magbodb -c "\d system_settings"
+
+# 2. la table doit être VIDE à la naissance — c'est le contrat
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT count(*) FROM system_settings;"       # -> 0
+```
+
+Comme la V021, elle commence par une garde : si la table existe déjà sous une
+autre forme (backend monté trop tôt, `ddl-auto` passé devant), elle **échoue
+bruyamment** au lieu d'annoncer un succès sur un schéma qui n'est pas le sien.
+
+Rollback : `rollback/R024__drop_system_settings.sql`. ⚠️ Il efface les réglages
+**et le comportement revient aux défauts du code, en silence** — prévenir qui
+opère avant de le lancer.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V023. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V024. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -318,6 +358,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V021__meal_slots.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V022__denial_reason_meal_slot.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V023__meal_slots_seed.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V024__system_settings.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -342,6 +383,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 | `V021__meal_slots.sql` | tabelas `meal_slots` / `meal_slot_classes` / `meal_slot_students` — o planning da cantina vira configuração (**ADR-005**; `class_schedules` deixa de ser lido pela cantina) | Créneaux |
 | `V022__denial_reason_meal_slot.sql` | amplia o CHECK de `denial_reason` com `MEAL_SLOT_NOT_CONFIGURED` | Créneaux |
 | `V023__meal_slots_seed.sql` | **seed**: a afixação da Vie Scolaire 2026 + a reprise de `class_schedules` para o que ela não nomeia | Créneaux |
+| `V024__system_settings.sql` | tabela `system_settings` — a **surcouche** dos reglages modificáveis a ecrã (**nasce vazia**; sem linha = default do código) | Configuração |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

@@ -223,7 +223,12 @@ function CantineEtiquetaDuracao({ ev, cfg }) {
 function CantineCard({ ev, variant, dim, cfg, elapsedLabel, podeRetirar, onRetirar }) {
     const t = useI18n();
     const user = window.userCache?.byId(ev.userId);
-    const horsHoraire = ev.flag === 'FORA_HORARIO';
+    // ⚠️ TRES rotulos DISTINTOS: chegar antes do seu creneau, chegar depois, e
+    // o «hors horaire» historico (linhas de antes de 27/08). Fundi-los num so
+    // obrigava a Vie Scolaire a ir descobrir qual dos dois aconteceu.
+    const flagCreneau = ['AVANT_CRENEAU', 'APRES_CRENEAU', 'FORA_HORARIO'].includes(ev.flag)
+        ? ev.flag : null;
+    const horsHoraire = !!flagCreneau;
     return (
         <div className={`flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border ${
             variant === 'doit' ? 'border-warning-300' : horsHoraire ? 'border-danger-300' : 'border-soft-200'
@@ -241,8 +246,13 @@ function CantineCard({ ev, variant, dim, cfg, elapsedLabel, podeRetirar, onRetir
                     )}
                     <span className="text-xs text-slate-400">{elapsedLabel(ev)}</span>
                     {variant === 'sortis' && <CantineEtiquetaDuracao ev={ev} cfg={cfg} />}
-                    {horsHoraire && variant !== 'doit' && (
-                        <span className="text-xs font-bold text-danger-600 bg-danger-50 px-1.5 py-0.5 rounded">{t('cantina.fora.horario')}</span>
+                    {flagCreneau && variant !== 'doit' && (
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                            flagCreneau === 'AVANT_CRENEAU'
+                                ? 'text-accent-700 bg-accent-50 border border-accent-500/40'
+                                : 'text-danger-600 bg-danger-50'}`}>
+                            {t('cantina.flag.' + flagCreneau)}
+                        </span>
                     )}
                 </div>
             </div>
@@ -437,7 +447,13 @@ function CantineMonitor() {
         // limite efetivo: o mais recente entre meia-noite e o "limpar" manual
         const floor = Math.max(startOfDay.getTime(), cutoff);
 
+        // ⚠️ `pisoDoDia` (meia-noite) e NAO o `cutoff`: «Vider l'écran» esconde
+        // as COLUNAS, e nunca deve zerar os contadores do dia — o comentario
+        // deles promete «todos os eventos de hoje», e um botao de limpeza que
+        // apagasse a contagem faria a tela mentir ate ao recarregamento.
+        // Apanhado pelo painel de revisao em 27/08.
         return window.MagboCantine.classificar(logs, now, {
+            pisoDoDiaMs: startOfDay.getTime(),
             pisoMs: floor,
             parseMs: (ts) => new Date(safeDateParse(ts)).getTime(),
             retiradas: retiradas
@@ -618,6 +634,34 @@ function CantineMonitor() {
                             onAberto={setModalAberto} />
                     </div>
                 )}
+
+                {/* AS QUATRO FAMILIAS DO DIA, sempre a vista. Contam TODOS os
+                    eventos de hoje (nao so os visiveis): um contador que so
+                    visse a tela mentiria assim que uma linha decantasse.
+                    Zero aparece — e a prova de que a pergunta foi feita. */}
+                <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="font-bold px-2 py-1 rounded-lg bg-accent-50 text-accent-700 border border-accent-500/30">
+                        {t('cantina.cont.avant', { n: columns.contadores.avantCreneau })}
+                    </span>
+                    <span className="font-bold px-2 py-1 rounded-lg bg-danger-50 text-danger-600 border border-danger-500/30">
+                        {t('cantina.cont.apres', { n: columns.contadores.apresCreneau })}
+                    </span>
+                    <span className="font-bold px-2 py-1 rounded-lg bg-warning-50 text-warning-700 border border-warning-500/30">
+                        {t('cantina.cont.curtas', { n: columns.contadores.curtas })}
+                    </span>
+                    {/* Âmbar como a coluna DOIT SORTIR, que trata o mesmo
+                        fenomeno: a familia ACIONAVEL nao pode ter a cor da
+                        familia historica arquivada ao lado. */}
+                    <span className="font-bold px-2 py-1 rounded-lg bg-warning-100 text-warning-800 border border-warning-500/40">
+                        {t('cantina.cont.longas', { n: columns.contadores.longas })}
+                    </span>
+                    {columns.contadores.foraLegado > 0 && (
+                        <span className="px-2 py-1 rounded-lg bg-soft-100 text-slate-400 border border-soft-200"
+                            title={t('cantina.cont.legado.ajuda')}>
+                            {t('cantina.cont.legado', { n: columns.contadores.foraLegado })}
+                        </span>
+                    )}
+                </div>
 
                 {/* ⚠️ A ORDEM É DANS LA CANTINE · DOIT SORTIR · SORTIS, e ela
                     é a razão desta entrega. Ver o cabeçalho do ficheiro. */}

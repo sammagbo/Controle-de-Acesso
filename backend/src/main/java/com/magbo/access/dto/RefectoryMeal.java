@@ -15,6 +15,21 @@ public class RefectoryMeal {
     private String turma;
     private String date;          // yyyy-MM-dd
     private String entryTime;     // HH:mm (null se sem entrada)
+    /**
+     * O flag CRU da entrada (AVANT_CRENEAU, APRES_CRENEAU, FORA_HORARIO
+     * legado, ou null). O rapport precisa de dizer QUAL das duas direcoes
+     * aconteceu — `onTime` sozinho so diz «algum problema houve».
+     */
+    private String entryFlag;
+    /**
+     * A hora do creneau ESPERADO (HH:mm) — ou null.
+     *
+     * ⚠️ Era calculada em `MealSlotService.julgar` («a tela precisa de dizer
+     * esperado as 12h30») e depois deitada fora: a regra do creneau mais
+     * proximo era paga sem que a afordancia que a justifica existisse.
+     * Apanhado pelo painel em 27/08.
+     */
+    private String expectedTime;
     private String exitTime;      // HH:mm (null se não registrou saída)
     private Integer durationMinutes; // null se saída não registrada
     /**

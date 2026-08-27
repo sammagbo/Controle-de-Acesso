@@ -48,6 +48,12 @@
     };
 
 
+    // A familia «fora do seu creneau» de access_logs.flag.
+    // ⚠️ Espelho de AccessController.FLAGS_FORA_DO_CRENEAU — mudar juntas.
+    // FORA_HORARIO e o valor HISTORICO (linhas anteriores a 27/08); as novas
+    // sao direcionais. As tres contam como «fora do creneau».
+    const FLAGS_FORA_CRENEAU = ['FORA_HORARIO', 'AVANT_CRENEAU', 'APRES_CRENEAU'];
+
     let atual = Object.assign({}, FALLBACK);
     let veioDoServidor = false;
 
@@ -153,6 +159,29 @@
     }
 
     /**
+     * O SERVICO (creneau) a que uma refeicao pertence, para agrupar contadores.
+     *
+     * ⚠️ Resolucao por TURMA, no cliente, a partir da grade ja carregada —
+     * as excecoes individuais NAO sao vistas aqui (o aluno movido para outro
+     * creneau e contado no servico da turma dele). Aceite e dito: o FLAG em
+     * si veio do backend com as excecoes honradas; so o AGRUPAMENTO do
+     * rapport usa a turma. Devolve o rotulo do creneau da turma cuja hora
+     * fica mais perto da entrada, ou null quando a turma nao tem creneau.
+     */
+    function servicoDe(grade, turma, diaSemana, horaMinutos) {
+        if (!grade || !Array.isArray(grade.creneaux) || !turma) return null;
+        let melhor = null, melhorDist = Infinity;
+        for (const cr of grade.creneaux) {
+            if (cr.diaSemana !== diaSemana || cr.ativo === false) continue;
+            const temTurma = (cr.turmas || []).some(function (t) { return t.turma === turma; });
+            if (!temTurma) continue;
+            const dist = Math.abs(minutosDe(cr.hora.slice(0, 5)) - horaMinutos);
+            if (dist < melhorDist) { melhorDist = dist; melhor = cr; }
+        }
+        return melhor ? (melhor.rotulo || melhor.hora.slice(0, 5)) : null;
+    }
+
+    /**
      * Reparte os eventos do dia nas colunas da tela.
      *
      * @param logs   eventos crus (userId, action, timestamp já em ms no campo _t
@@ -172,6 +201,10 @@
         const o = opts || {};
         const parseMs = o.parseMs || function (x) { return new Date(x).getTime(); };
         const piso = typeof o.pisoMs === 'number' ? o.pisoMs : 0;
+        // ⚠️ O piso dos CONTADORES e o do DIA, independente do «Vider l'écran»:
+        // esconder as colunas nao apaga o que aconteceu. Sem `pisoDoDiaMs`
+        // explicito, cai no mesmo piso das colunas (comportamento anterior).
+        const pisoDia = typeof o.pisoDoDiaMs === 'number' ? o.pisoDoDiaMs : piso;
         const retiradas = indexarRetiradas(o.retiradas);
         const c = atual;
 
@@ -183,12 +216,25 @@
         const porPessoa = new Map();
         for (const log of (logs || [])) {
             const ms = parseMs(log.timestamp);
-            if (!isFinite(ms) || ms < piso) continue;
+            if (!isFinite(ms) || ms < pisoDia) continue;
             if (!porPessoa.has(log.userId)) porPessoa.set(log.userId, []);
-            porPessoa.get(log.userId).push(Object.assign({}, log, { _t: ms }));
+            // `_visivel` separa as duas perguntas: o que ENTRA nas colunas
+            // (piso das colunas, que o «Vider» move) e o que CONTA nos
+            // contadores do dia (piso da meia-noite, que nada move).
+            porPessoa.get(log.userId).push(
+                Object.assign({}, log, { _t: ms, _visivel: ms >= piso }));
         }
 
         const dans = [], doitSortir = [], decantados = [], sortis = [];
+        // ⚠️ OS CONTADORES DO DIA — as quatro familias, por extenso:
+        //   avantCreneau  passagens ENTRADA com flag AVANT_CRENEAU
+        //   apresCreneau  idem APRES_CRENEAU
+        //   foraLegado    o FORA_HORARIO historico (linhas de antes de 27/08)
+        //   curtas        pares ENTRADA→SAIDA com duracao < limiar curto
+        //   longas        pares com duracao > teto
+        // Contam TODOS os eventos do dia, nao so os visiveis: um contador que
+        // so visse o que esta na tela mentiria assim que uma linha decantasse.
+        const contadores = { avantCreneau: 0, apresCreneau: 0, foraLegado: 0, curtas: 0, longas: 0 };
         const aberturaMin = minutosDe(c.lyceeInicio);
         let antesDaAbertura = 0;
         // Quantas linhas o operador tirou da vista. O ecrã DIZ este número em
@@ -212,9 +258,28 @@
                 if (ev.action !== 'ENTRADA') continue;
                 const d = new Date(ev._t);
                 if (d.getHours() * 60 + d.getMinutes() < aberturaMin) antesDaAbertura++;
+                if (ev.flag === 'AVANT_CRENEAU') contadores.avantCreneau++;
+                else if (ev.flag === 'APRES_CRENEAU') contadores.apresCreneau++;
+                else if (ev.flag === 'FORA_HORARIO') contadores.foraLegado++;
             }
 
-            const ultimo = eventos[eventos.length - 1];
+            // Pares ENTRADA→SAIDA do dia inteiro (pilha, como o reportFilters):
+            // e daqui que saem curtas/longas — TODOS os pares, nao so os
+            // visiveis em SORTIS.
+            let entradaAberta = null;
+            for (const ev of eventos) {
+                if (ev.action === 'ENTRADA') entradaAberta = ev._t;
+                else if (ev.action === 'SAIDA' && entradaAberta !== null) {
+                    const min = Math.floor((ev._t - entradaAberta) / 60000);
+                    if (min < c.duracaoCurtaMinutos) contadores.curtas++;
+                    else if (min > c.duracaoMaximaMinutos) contadores.longas++;
+                    entradaAberta = null;
+                }
+            }
+
+            const visiveis = eventos.filter(function (e) { return e._visivel; });
+            if (visiveis.length === 0) continue;   // so contava, nao aparece
+            const ultimo = visiveis[visiveis.length - 1];
             const decorrido = agora - ultimo._t;
 
             if (ultimo.action === 'ENTRADA') {
@@ -268,7 +333,8 @@
             sortis: sortis,
             antesDaAbertura: antesDaAbertura,
             retiradosDaVista: retiradosDaVista,
-            chavesRetiradas: chavesRetiradas
+            chavesRetiradas: chavesRetiradas,
+            contadores: contadores
         };
     }
 
@@ -279,6 +345,8 @@
         classificar: classificar,
         indexarRetiradas: indexarRetiradas,
         foiRetirada: foiRetirada,
+        FLAGS_FORA_CRENEAU: FLAGS_FORA_CRENEAU,
+        servicoDe: servicoDe,
         faixaDe: faixaDe,
         minutosDe: minutosDe,
         FALLBACK: FALLBACK,

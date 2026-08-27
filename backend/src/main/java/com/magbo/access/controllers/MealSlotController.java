@@ -97,6 +97,9 @@ public class MealSlotController {
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("creneaux", linhas);
+        // As turmas DISPENSADAS de badge (reglage, default: nenhuma). O ecra
+        // mostra o toggle ao lado de cada turma, com o aviso PPMS por extenso.
+        out.put("turmasDispensees", service.dispensees());
         out.put("turmasConhecidas", comAlunos);
         // ⚠️ OS DOIS DESACORDOS SAO MOSTRADOS, NAO ARBITRADOS. A tela nao pode
         // decidir por ninguem: 5E3 e 3E3 estao na afixacao e nao tem aluno
@@ -129,6 +132,53 @@ public class MealSlotController {
                     return m;
                 }).toList());
         return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Cria um creneau novo (dia + hora) — o gesto que faltava para a
+     * maternal/elementar: NADA e semeado por codigo (os dados de 26/08
+     * contradizem os horarios herdados), e o Sam cria os certos por aqui,
+     * com a Vie Scolaire, em poucos cliques.
+     */
+    @PostMapping
+    @PreAuthorize(ESCRITA)
+    public ResponseEntity<?> criar(@RequestBody Map<String, Object> b) {
+        try {
+            int dia = Integer.parseInt(String.valueOf(b.get("diaSemana")));
+            java.time.LocalTime hora = java.time.LocalTime.parse(String.valueOf(b.get("hora")));
+            String rotulo = b.get("rotulo") == null ? null : String.valueOf(b.get("rotulo"));
+            Integer ordem = b.get("ordem") == null ? null
+                    : Integer.valueOf(String.valueOf(b.get("ordem")));
+            return ResponseEntity.ok(service.criarCreneau(dia, hora, rotulo, ordem, quem()));
+        } catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));
+        }
+    }
+
+    /**
+     * As turmas dispensadas de badge — substitui a lista inteira.
+     *
+     * ⚠️ GATE MAIS FORTE QUE O RESTO DO PLANNING: `CONFIG_WRITE`, nao
+     * `MEAL_SLOT_WRITE`. Apanhado pelo painel (Vie Scolaire, 27/08): com o
+     * gate do planning, quem organiza os servicos da cantina podia retirar
+     * uma turma inteira do calculo de evacuacao. Mover uma turma de creneau e
+     * planning; deixar de a contar num PPMS nao e — e o reglage vive em
+     * `system_settings`, que e precisamente o que CONFIG_WRITE governa.
+     *
+     * O aviso PPMS vive no ecra, ao lado do toggle: a DECISAO de ativar e do
+     * Sam com a Vie Scolaire, nunca desta rota.
+     */
+    @PutMapping("/dispensees")
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('CONFIG_WRITE')")
+    public ResponseEntity<?> dispensees(@RequestBody Map<String, Object> b) {
+        try {
+            Object bruto = b.get("turmas");
+            java.util.List<?> lista = bruto instanceof java.util.List ? (java.util.List<?>) bruto : java.util.List.of();
+            service.gravarDispensees(lista.stream().map(String::valueOf).toList(), quem());
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));
+        }
     }
 
     @PutMapping("/{slotId}")

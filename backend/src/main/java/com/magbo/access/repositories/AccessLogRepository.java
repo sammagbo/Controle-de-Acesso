@@ -416,7 +416,11 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     java.util.List<Object[]> statsByPoint(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Refeições fora do horário (flag)
-    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE action='ENTRADA' AND flag='FORA_HORARIO' AND timestamp BETWEEN :from AND :to", nativeQuery = true)
+    // ⚠️ A FAMILIA inteira: desde 27/08 a janela grava AVANT_CRENEAU/
+    // APRES_CRENEAU (as linhas antigas ficam FORA_HORARIO). Um count so do
+    // valor antigo faria o KPI de «refeicoes fora do horario» congelar em
+    // silencio no dia da mudanca.
+    @Query(value = "SELECT COUNT(*) FROM access_logs WHERE action='ENTRADA' AND flag IN ('FORA_HORARIO','AVANT_CRENEAU','APRES_CRENEAU') AND timestamp BETWEEN :from AND :to", nativeQuery = true)
     long countOffScheduleMeals(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
     // Alunos distintos que entraram por um portão hoje

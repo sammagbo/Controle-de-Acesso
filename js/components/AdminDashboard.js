@@ -305,7 +305,13 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                       répondent à une question qu'on ne se pose qu'ensuite.
                       Le composant se retire tout seul si le compte n'a pas
                       PARCOURS_READ. */}
-                  <RechercheGlobale />
+                  {/* ⚠️ AU CENTRE, et seule sur sa ligne. C'est l'element
+                      principal de l'ecran : qui ouvre ce tableau de bord
+                      cherche presque toujours UNE personne, et les chiffres
+                      repondent a une question qu'on ne se pose qu'ensuite. */}
+                  <div className="py-4">
+                        <RechercheGlobale />
+                  </div>
 
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* SECTION 1 — KPI CARDS (masquables)                        */}

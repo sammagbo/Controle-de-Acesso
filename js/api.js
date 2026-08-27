@@ -534,9 +534,14 @@ const api = {
     // /api/users/search (isAuthenticated()): a dívida de segurança nº1 do
     // projeto fica exatamente do tamanho que tinha.
 
-    async searchParcours(q) {
+    // ⚠️ `limit` EXPLICITE. Sans lui le serveur en rend 20 : une liste
+    // d'autocompletion plus haute que l'ecran ne s'utilise plus au clavier, et
+    // chaque ligne de trop est le nom d'un mineur transmis sans qu'on l'ait
+    // demande. Le serveur plafonne de toute facon a 50.
+    async searchParcours(q, limit) {
+        const lim = (limit && limit > 0) ? `&limit=${encodeURIComponent(limit)}` : '';
         const res = await fetch(
-            `${API_BASE_URL}/admin/parcours/search?q=${encodeURIComponent(q)}`,
+            `${API_BASE_URL}/admin/parcours/search?q=${encodeURIComponent(q)}${lim}`,
             { headers: authHeaders() });
         const d = await this.handleResponse(res);
         return Array.isArray(d) ? d : [];

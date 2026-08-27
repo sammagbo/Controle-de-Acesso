@@ -53,10 +53,21 @@ function RechercheEstado({ d, zona }) {
 
 function RechercheGlobale() {
     const t = useI18n();
+    const auto = window.MagboRechercheAuto;
     const [q, setQ] = React.useState('');
-    const [resultados, setResultados] = React.useState(null);
+    // ⚠️ `{termo, itens}` ET PAS UN TABLEAU NU. Un tableau ne peut pas dire de
+    // quelle question il est la réponse, et c'est précisément ce qui manquait :
+    // Entrée agissait sur la liste affichée sans vérifier qu'elle répondait
+    // encore au texte du champ. Voir `js/utils/rechercheAutocomplete.js`.
+    const [resposta, setResposta] = React.useState(null);
     const [parcours, setParcours] = React.useState(null);
     const [ocupado, setOcupado] = React.useState(false);
+    // ⚠️ « Je n'ai pas pu demander » n'est PAS « personne trouvée ». Le `catch`
+    // posait une liste vide, donc un 403, un jeton expiré ou le backend arrêté
+    // s'affichaient « Personne trouvée. » — sur l'écran où l'on cherche un
+    // enfant. C'est la faute exacte contre laquelle tout ce fichier est
+    // commenté, commise une case plus loin.
+    const [erroBusca, setErroBusca] = React.useState(null);
     // L'élément survolé au clavier. Remis à 0 à chaque nouvelle réponse : la
     // sélection ne doit jamais survivre à la liste qu'elle désignait.
     const [destaque, setDestaque] = React.useState(0);
@@ -86,35 +97,48 @@ function RechercheGlobale() {
     const pedido = React.useRef(0);
 
     React.useEffect(() => {
-        const termo = q.trim();
-        if (!pode || termo.length < 2) { setResultados(null); return undefined; }
+        const termo = auto.normaliza(q);
+        if (!pode || !auto.vaiPerguntar(termo)) { setResposta(null); setErroBusca(null); return undefined; }
         if (escolhidoRef.current === termo) return undefined;   // on vient de choisir
+        // ⚠️ LA FICHE DE L'ENFANT PRÉCÉDENT DISPARAÎT DÈS QU'UNE AUTRE
+        // RECHERCHE PART. Sans cette ligne, les suggestions de Zéphyrine
+        // s'affichaient AU-DESSUS de la fiche complète de Marie — photo, nom,
+        // « Dans CDI depuis 10:01 » — et l'écran montrait en même temps une
+        // recherche pour un enfant et la présence d'un autre.
+        setParcours(null);
         const meu = ++pedido.current;
         const id = setTimeout(async () => {
             try {
-                const r = await window.api.searchParcours(termo);
-                if (meu === pedido.current) { setResultados(r); setDestaque(0); }
+                const itens = await window.api.searchParcours(termo, auto.LIMITE_SUGESTOES);
+                if (meu !== pedido.current) return;             // réponse périmée : jetée
+                setResposta({ termo: termo, itens: itens });
+                setErroBusca(null);
+                setDestaque(0);
             } catch (err) {
-                if (meu === pedido.current) setResultados([]);
+                if (meu !== pedido.current) return;
+                setResposta(null);
+                setErroBusca((err && err.message) || 'erro');
             }
-        }, 250);
+        }, auto.DEBOUNCE_MS);
         return () => clearTimeout(id);
-    }, [q]);
+    }, [q, pode]);
 
-    const buscar = async (e) => {
+    // ⚠️ LA SEULE LISTE QUE L'ÉCRAN CONNAÎT : celle qui répond au texte
+    // affiché maintenant. Tant que la réponse en vol n'est pas arrivée, il n'y
+    // a pas de liste — ni à montrer, ni à parcourir, ni à ouvrir.
+    const lista = auto.aplicavel(resposta, q) ? (resposta.itens || []) : [];
+
+    /**
+     * Entrée. ⚠️ Elle demande à la machine à états ce qu'il faut faire, elle ne
+     * décide pas elle-même : `esperar` (la liste ne répond plus au texte
+     * courant) est une réponse de première classe, et « ne rien faire » y est
+     * la bonne action. Ouvrir le premier venu, c'est ouvrir la journée d'un
+     * autre enfant.
+     */
+    const buscar = (e) => {
         if (e) e.preventDefault();
-        const alvo = (resultados || [])[destaque];
-        if (alvo) { abrir(alvo.id); return; }
-        const termo = q.trim();
-        if (termo.length < 2) return;
-        setOcupado(true);
-        try {
-            setResultados(await window.api.searchParcours(termo));
-        } catch (err) {
-            setResultados([]);
-        } finally {
-            setOcupado(false);
-        }
+        const decisao = auto.aoEntrar(resposta, q, destaque);
+        if (decisao.acao === 'abrir') abrir(decisao.item.id);
     };
 
     /**
@@ -125,20 +149,23 @@ function RechercheGlobale() {
      * sa place dans ce qu'on était en train de taper.
      */
     const aoTeclado = (e) => {
-        const n = (resultados || []).length;
-        if (e.key === 'Escape') { setResultados(null); return; }
-        if (!n) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); setDestaque(d => (d + 1) % n); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); setDestaque(d => (d - 1 + n) % n); }
+        if (e.key === 'Escape') { setResposta(null); return; }
+        if (!lista.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setDestaque(d => auto.proximoDestaque(lista.length, d, +1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setDestaque(d => auto.proximoDestaque(lista.length, d, -1)); }
     };
 
     const abrir = async (id) => {
         setOcupado(true);
-        const achado = (resultados || []).find(r => r.id === id);
-        if (achado) { escolhidoRef.current = achado.nome; setQ(achado.nome); }
+        const achado = lista.find(r => r.id === id);
+        // ⚠️ Le nom stocké est NORMALISÉ, comme le texte auquel il sera comparé.
+        // Stocké brut d'un côté et comparé avec trim() de l'autre, un nom avec
+        // une espace parasite en base faisait échouer la garde et la liste se
+        // rouvrait par-dessus le parcours qu'on venait d'ouvrir.
+        if (achado) { escolhidoRef.current = auto.normaliza(achado.nome); setQ(achado.nome); }
         try {
             setParcours(await window.api.fetchParcours(id));
-            setResultados(null);
+            setResposta(null);
         } catch (err) {
             setParcours({ erro: (err && err.message) || 'erro' });
         } finally {
@@ -159,11 +186,15 @@ function RechercheGlobale() {
 
 
     return (
-        <div className="mb-6">
+        <div className="py-4 mb-6">
             {/* ⚠️ L'élément PRINCIPAL de l'écran : grand, centré, au-dessus des
                 KPI. Quelqu'un qui ouvre ce tableau de bord cherche presque
                 toujours UNE personne. */}
-            <form onSubmit={buscar} className="max-w-2xl mx-auto">
+            {/* ⚠️ `relative` ICI, et la liste en `absolute` dessous : posée
+                dans le flux, elle poussait les cartes KPI hors de l'écran à
+                chaque caractère tapé. Un moteur de recherche SUPERPOSE sa
+                liste, il ne déplace pas la page sous les doigts. */}
+            <form onSubmit={buscar} className="max-w-2xl mx-auto relative">
                 <div className="relative">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300">
                         <LucideIcon name="search" size={24} />
@@ -175,41 +206,84 @@ function RechercheGlobale() {
                         value={q}
                         onChange={e => { escolhidoRef.current = null; setQ(e.target.value); }}
                         onKeyDown={aoTeclado}
+                        // Rouvrir la liste au clic dans le champ. Sans ça, après
+                        // avoir ouvert la mauvaise MARIE DUPONT, il fallait taper
+                        // un caractère puis l'effacer : le cas où rouvrir la
+                        // liste est le plus nécessaire était le plus difficile.
+                        onFocus={() => { escolhidoRef.current = null; }}
                         autoComplete="off"
                         role="combobox"
-                        aria-expanded={!!(resultados && resultados.length)}
+                        aria-expanded={lista.length > 0}
+                        aria-controls="recherche-suggestions"
                         aria-autocomplete="list"
                         placeholder={t('recherche.placeholder')}
-                        className="w-full pl-14 pr-5 py-5 rounded-2xl border-2 border-soft-200 shadow-md text-lg
+                        className="w-full pl-14 pr-12 py-5 rounded-2xl border-2 border-soft-200 shadow-md text-lg
                                    focus:outline-none focus:ring-2 focus:ring-accent-300 focus:border-accent-300 bg-white"
                     />
+                    {/* L'attente est VISIBLE. `ocupado` était écrit cinq fois et
+                        lu zéro : cliquer une suggestion ne produisait
+                        strictement aucun changement à l'écran. */}
+                    {ocupado && (
+                        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-accent-500 animate-pulse">
+                            <LucideIcon name="loader-circle" size={20} />
+                        </span>
+                    )}
                 </div>
                 <p className="text-xs text-slate-400 text-center mt-2">{t('recherche.ajuda')}</p>
+
+                {/* ⚠️ « Je n'ai pas pu demander » a son propre message. Dire
+                    « personne trouvée » quand le serveur a refusé, sur l'écran
+                    où l'on cherche un enfant, c'est répondre à une question
+                    qu'on n'a pas posée. */}
+                {erroBusca && (
+                    <p className="absolute left-0 right-0 mt-1 text-sm text-danger-600 bg-danger-50
+                                  border border-danger-500/40 rounded-xl px-4 py-2 text-center z-20">
+                        {t('recherche.erro')}
+                    </p>
+                )}
+
+                {resposta && auto.aplicavel(resposta, q) && lista.length === 0 && !erroBusca && (
+                    <p className="absolute left-0 right-0 mt-1 text-sm text-slate-500 text-center
+                                  bg-white border border-soft-200 rounded-xl px-4 py-2 shadow-lg z-20">
+                        {t('recherche.vazio')}
+                    </p>
+                )}
+
+                {lista.length > 0 && (
+                    <div id="recherche-suggestions" role="listbox"
+                        className="absolute left-0 right-0 mt-1 space-y-1 bg-white border border-soft-200
+                                   rounded-xl shadow-lg p-1.5 max-h-96 overflow-y-auto z-20">
+                        {lista.map((r, i) => (
+                            <button key={r.id} type="button" role="option" onClick={() => abrir(r.id)}
+                                onMouseEnter={() => setDestaque(i)}
+                                aria-selected={i === destaque}
+                                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 border text-left ${
+                                    i === destaque
+                                        ? 'bg-accent-50 border-accent-300'
+                                        : 'bg-white border-transparent hover:border-accent-300'}`}>
+                                <PersonPhoto userId={r.id} nome={r.nome}
+                                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0" alt="" />
+                                <span className="font-bold text-sm text-navy-500 truncate flex-1">{r.nome}</span>
+                                <span className="text-xs text-slate-400">{r.turma}</span>
+                                {/* ⚠️ La matricule départage deux homonymes de la
+                                    même classe — le seul champ qui le fasse, et
+                                    il était déjà dans la réponse. */}
+                                <span className="text-[11px] font-mono text-slate-300">{r.id}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </form>
 
-            {resultados && resultados.length === 0 && (
-                <p className="max-w-2xl mx-auto mt-3 text-sm text-slate-500 text-center">
-                    {t('recherche.vazio')}
+            {/* ⚠️ L'ÉCHEC S'AFFICHE. `abrir` posait bien `{erro: …}`, et la
+                condition de rendu ci-dessous exige `parcours.userId` : l'objet
+                d'erreur ne correspondait à AUCUNE branche. Rien ne s'affichait,
+                jamais — le champ avait juste changé de nom tout seul. */}
+            {parcours && parcours.erro && (
+                <p className="max-w-2xl mx-auto mt-4 text-sm text-danger-600 bg-danger-50
+                              border border-danger-500/40 rounded-xl px-4 py-3 text-center">
+                    {t('recherche.erro')}
                 </p>
-            )}
-
-            {resultados && resultados.length > 0 && (
-                <div className="max-w-2xl mx-auto mt-3 space-y-1.5">
-                    {resultados.map((r, i) => (
-                        <button key={r.id} type="button" onClick={() => abrir(r.id)}
-                            onMouseEnter={() => setDestaque(i)}
-                            aria-selected={i === destaque}
-                            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 border text-left ${
-                                i === destaque
-                                    ? 'bg-accent-50 border-accent-300'
-                                    : 'bg-white border-soft-200 hover:border-accent-300'}`}>
-                            <PersonPhoto userId={r.id} nome={r.nome}
-                                className="w-9 h-9 rounded-lg object-cover flex-shrink-0" alt="" />
-                            <span className="font-bold text-sm text-navy-500 truncate">{r.nome}</span>
-                            <span className="text-xs text-slate-400">{r.turma}</span>
-                        </button>
-                    ))}
-                </div>
             )}
 
             {parcours && parcours.userId && (

@@ -30,12 +30,28 @@ import java.util.Map;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final com.magbo.access.services.SettingsCatalog catalog;
 
     private static final String GATE =
             "hasRole('ADMIN') or @areaSecurity.hasPermission('CONFIG_WRITE')";
 
     private String quem() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    /**
+     * O CATALOGO COMPLETO — o que o ecra de configuracao desenha: cada reglage
+     * com o valor de agora, o valor de fabrica, e quem o mudou pela ultima vez.
+     *
+     * ⚠️ Um reglage no default nao tem linha em `system_settings`; e por isso
+     * que este endpoint existe e o `GET /` cru nao chega. Um ecra construido
+     * so com as linhas gravadas mostraria uma lista VAZIA numa base nova, e
+     * quem a abrisse concluiria que nao ha nada para configurar.
+     */
+    @GetMapping("/catalogue")
+    @PreAuthorize(GATE)
+    public List<Map<String, Object>> catalogo() {
+        return catalog.comValores();
     }
 
     /** As linhas GRAVADAS (as chaves no default nao tem linha — e o contrato). */

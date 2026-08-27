@@ -63,8 +63,11 @@ function AfficheCantine({ grade, annee }) {
             return oa - ob || a.localeCompare(b);
         });
 
+    // ⚠️ `ativo` filtré ICI AUSSI, pas seulement dans `heures` : un créneau
+    // désactivé du lundi imprimait encore ses turmas tant que la page (l'heure)
+    // survivait grâce aux autres jours (panel du 28/08).
     const turmasDe = (dia, hora) => {
-        const c = creneaux.find(x => x.diaSemana === dia && x.hora.slice(0, 5) === hora);
+        const c = creneaux.find(x => x.ativo !== false && x.diaSemana === dia && x.hora.slice(0, 5) === hora);
         return c ? c.turmas : [];
     };
 
@@ -74,7 +77,7 @@ function AfficheCantine({ grade, annee }) {
      * slot créé l'an prochain imprime son propre nom sans attendre une clé.
      */
     const bandeauDe = (hora) => {
-        const c = creneaux.find(x => x.hora.slice(0, 5) === hora);
+        const c = creneaux.find(x => x.ativo !== false && x.hora.slice(0, 5) === hora);
         const horaMur = hora.replace(':', 'H');
         if (c && c.ordem === 1) return t('affiche.cantine') + ' ' + horaMur + ' — ' + t('affiche.passage.1');
         if (c && c.ordem === 2) return t('affiche.cantine') + ' ' + horaMur + ' — ' + t('affiche.passage.2');
@@ -94,7 +97,6 @@ function AfficheCantine({ grade, annee }) {
                     body * { visibility: hidden; }
                     #affiche-print, #affiche-print * { visibility: visible; }
                     #affiche-print { position: absolute; left: 0; top: 0; width: 100%; }
-                    .affiche-nao-imprime { display: none !important; }
                     /* ⚠️⚠️ LA ligne qui fait la couleur : sans elle le navigateur
                        jette les fonds à l'impression et tout sort en gris. */
                     #affiche-print, #affiche-print * {

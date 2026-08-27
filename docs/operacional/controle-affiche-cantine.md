@@ -97,6 +97,13 @@ caché par l'aimant était bien **4ème 2, mercredi 13H00**. La marque
 cette requête doit désormais rendre **zéro ligne**, et le badge s'imprime
 plein trait, sans « ? ».
 
+> **Marquer un futur doute** : l'écran ne pose pas `a_confirmar` (le lien
+> crée toujours `false`) — un doute de transcription se marque aujourd'hui en
+> SQL : `UPDATE meal_slot_classes mc SET a_confirmar=true FROM meal_slots ms
+> WHERE ms.id=mc.slot_id AND ms.dia_semana=? AND ms.hora=? AND mc.turma=?;`
+> L'affiche et l'écran d'administration savent déjà l'afficher (pointillés
+> + « ? ») ; seul le POSER manque à l'écran.
+
 ---
 
 ## D. Vue d'ensemble — et le contre-contrôle gratuit

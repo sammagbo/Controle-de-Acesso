@@ -1115,6 +1115,9 @@
             'creneaux.subtitulo': "Les créneaux de restauration, comme sur l'affiche. Ils changent chaque année.",
             'creneaux.imprimir': "Affiche imprimable",
             'creneaux.voltar.edicao': "Revenir à l'édition",
+            // ⚠️ Texte du MUR — identique dans les deux langues, EXPRÈS : l'affiche
+            // est un artefact imprimé déjà bilingue, elle ne change pas de langue
+            // selon qui clique « Imprimer ». Ce n'est pas une traduction oubliée.
             'affiche.lycee': 'LYCÉE MOLIÈRE',
             'affiche.cidade': 'Rio de Janeiro',
             'affiche.vie.scolaire': 'Vie Scolaire',
@@ -1158,6 +1161,7 @@
             'creneaux.veredicto.NAO_APLICAVEL': "La règle des créneaux ne s'applique pas à cette personne.",
             'creneaux.regra.prioridade': "Les classes de 1ère et de Terminale sont prioritaires pour l'accès à la cantine.",
             // Créneaux : tolérances, création, dispenses
+            'creneaux.rotulo.placeholder': "nom du passage (sort sur l'affiche)",
             'creneaux.tol.min': 'min',
             'creneaux.tol.gravar': 'Enregistrer la fenêtre de ce créneau',
             'creneaux.novo.titulo': 'Ajouter un créneau',
@@ -2536,6 +2540,9 @@
             'creneaux.subtitulo': 'Os horários de refeição, como no cartaz. Mudam todo ano.',
             'creneaux.imprimir': 'Cartaz para imprimir',
             'creneaux.voltar.edicao': 'Voltar à edição',
+            // ⚠️ Texte du MUR — identique dans les deux langues, EXPRÈS : l'affiche
+            // est un artefact imprimé déjà bilingue, elle ne change pas de langue
+            // selon qui clique « Imprimer ». Ce n'est pas une traduction oubliée.
             'affiche.lycee': 'LYCÉE MOLIÈRE',
             'affiche.cidade': 'Rio de Janeiro',
             'affiche.vie.scolaire': 'Vie Scolaire',
@@ -2579,6 +2586,7 @@
             'creneaux.veredicto.NAO_APLICAVEL': 'A regra de horários não se aplica a esta pessoa.',
             'creneaux.regra.prioridade': 'As turmas de 1ère e Terminale têm prioridade no acesso à cantina.',
             // Créneaux: tolerâncias, criação, dispensas
+            'creneaux.rotulo.placeholder': 'nome do passage (sai no cartaz)',
             'creneaux.tol.min': 'min',
             'creneaux.tol.gravar': 'Gravar a janela deste horário',
             'creneaux.novo.titulo': 'Adicionar um horário',

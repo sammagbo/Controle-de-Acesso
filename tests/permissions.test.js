@@ -229,7 +229,9 @@ describe('permissions — gate de escrita', () => {
                 // Recherche globale / parcours du jour.
                 PARCOURS_READ: 'PARCOURS_READ',
                 // Réglages du système (V024).
-                CONFIG_WRITE: 'CONFIG_WRITE'
+                CONFIG_WRITE: 'CONFIG_WRITE',
+                // Exclusions du CDI (V025).
+                CDI_EXCLUSION_WRITE: 'CDI_EXCLUSION_WRITE'
             });
         });
     });

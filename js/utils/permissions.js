@@ -44,7 +44,10 @@
         // donc une permission et non un secteur.
         PARCOURS_READ: 'PARCOURS_READ',
         // Réglages du système (V024): lire ET modifier — même permission.
-        CONFIG_WRITE: 'CONFIG_WRITE'
+        CONFIG_WRITE: 'CONFIG_WRITE',
+        // Exclusions du CDI (V025) : donnée sensible sur mineur — lecture
+        // ET écriture par cette permission, jamais par secteur.
+        CDI_EXCLUSION_WRITE: 'CDI_EXCLUSION_WRITE'
     };
 
     /**
@@ -121,6 +124,9 @@
         }
         // (Resolucao de merge 14/08: o caso vivia inline no Dashboard, no lado
         // do regime; entrou aqui quando o filtro virou este predicado.)
+        if (point.id === 'CDI_EXCLUSION_MANAGEMENT') {
+            return mostraAtalhoNoDashboard(auth, PERMISSIONS.CDI_EXCLUSION_WRITE);
+        }
         if (point.id === 'MEAL_SLOT_MANAGEMENT') {
             return mostraAtalhoNoDashboard(auth, PERMISSIONS.MEAL_SLOT_WRITE);
         }

@@ -44,7 +44,12 @@ import java.time.format.DateTimeParseException;
 public class EventTimeResolver {
 
     /** Fuso em que as colunas de timestamp do MAGBO vivem. */
-    static final ZoneId ZONA_ESCOLA = ZoneId.of("America/Sao_Paulo");
+    // ⚠️ PUBLICA de proposito: e o relogio DA ESCOLA, e ninguem fora deste
+    // pacote deve reescrever a string. Cada `ZoneId.of("America/Sao_Paulo")`
+    // copiado noutro ficheiro e um sitio a mais para esquecer no dia em que
+    // alguem correr isto noutro fuso — e o defeito de tres horas de 03/08 ja
+    // mostrou o que custa. Um unico nome, uma unica verdade.
+    public static final ZoneId ZONA_ESCOLA = ZoneId.of("America/Sao_Paulo");
 
     /**
      * Folga para o futuro. Cobre a dessincronia normal entre o relogio do

@@ -5,6 +5,52 @@
 /** Cadência da recarga periódica do CDI (mesma do CantineMonitor). */
 const CDI_POLL_MS = 3000;
 
+/**
+ * LE BANDEAU — « on est au maximum », et l'etat declare de la salle.
+ *
+ * ⚠️ AU SCOPE DU MODULE ET RENDU DANS LES DEUX MODES. Il vivait dans le bloc
+ * `if (emergency)`, c'est-a-dire dans le mode utilise quelques minutes par an :
+ * declarer le CDI ferme n'affichait rien en service normal. Une fonction dont
+ * l'affichage n'existe que dans un mode d'exception n'existe pas.
+ *
+ * ⚠️ ET C'EST UN BANDEAU, PAS UN TOAST. « La salle est pleine » reste vrai
+ * tant que c'est vrai — l'information n'a pas de duree de trois secondes.
+ */
+function CdiBandeauEtat({ dedans, capacite, etat, sombre }) {
+      const t = useI18n();
+      const cheio = dedans >= capacite;
+      const declarado = etat && etat.estado && etat.estado !== 'OUVERT';
+      if (!cheio && !declarado) return null;
+      return (
+            <>
+                  {cheio && (
+                        <div className={`mt-3 mx-auto max-w-2xl px-4 py-3 rounded-2xl border-2 ${
+                              sombre ? 'bg-amber-900/40 border-amber-500 text-amber-100'
+                                     : 'bg-amber-100 border-amber-500 text-amber-900'}`}>
+                              <p className="text-2xl font-black">{t('cdi.complet.titre')}</p>
+                              <p className="text-lg font-bold">
+                                    {t('cdi.complet.detail', { n: dedans, m: capacite })}
+                              </p>
+                              <p className="text-sm mt-1">{t('cdi.complet.note')}</p>
+                        </div>
+                  )}
+                  {declarado && (
+                        <div className={`mt-3 mx-auto max-w-2xl px-4 py-3 rounded-2xl border-2 ${
+                              sombre ? 'bg-purple-900/40 border-purple-500 text-purple-100'
+                                     : 'bg-purple-100 border-purple-500 text-purple-900'}`}>
+                              <p className="text-2xl font-black">{t('cdi.etat.' + etat.estado)}</p>
+                              {(etat.estadoInicio || etat.estadoFim) && (
+                                    <p className="text-lg font-bold">
+                                          {etat.estadoInicio || '—'} → {etat.estadoFim || '—'}
+                                    </p>
+                              )}
+                              {etat.estadoNota && <p className="text-sm mt-1">{etat.estadoNota}</p>}
+                        </div>
+                  )}
+            </>
+      );
+}
+
 function BibliotecaView({ onBack }) {
       const { useState, useEffect, useRef, useCallback, useMemo } = React;
       const t = useI18n();
@@ -21,6 +67,13 @@ function BibliotecaView({ onBack }) {
       // State
       const [students, setStudents] = useState([]);
       const [presentStudents, setPresentStudents] = useState(new Set());
+      // L'état du CDI, relu au même rythme que le reste : capacité réglable,
+      // état d'occupation, et les cibles d'exclusion ACTIVES (sans motif ni
+      // auteur — l'écran doit reconnaître, pas raconter).
+      const [cdiEtat, setCdiEtat] = useState(null);
+      // La grande alerte visuelle. Un seul état : deux alertes empilées
+      // seraient deux choses à lire au moment où il faut en lire zéro.
+      const [alerte, setAlerte] = useState(null);
       const [logs, setLogs] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -138,8 +191,16 @@ function BibliotecaView({ onBack }) {
                                           : mapped;
                               });
                         });
-                        setPresentStudents(new Set(freshStudents.filter(s => s.present).map(s => s.id)));
+                        const dentroIds = freshStudents.filter(s => s.present).map(s => s.id);
+                        const antes = presentRef.current;
+                        const novos = dentroIds.filter(id => !antes.has(id));
+                        setPresentStudents(new Set(dentroIds));
                         setLogs(freshLogs);
+                        // ⚠️ APRES les setters : l'alerte decrit ce qui vient
+                        // d'etre enregistre, pas ce qu'on espere enregistrer.
+                        if (novos.length) {
+                              avisarRef.current(novos, antes.size, dentroIds.length, freshStudents);
+                        }
                   } catch (e) {
                         // Falha em silêncio: a cada poucos segundos, um toast por ciclo
                         // tornaria a tela inutilizável.
@@ -240,6 +301,87 @@ function BibliotecaView({ onBack }) {
       }, [students]);
 
       // Toggle Presence
+      // ⚠️ Chargé UNE fois puis à chaque cycle : une exclusion posée pendant
+      // le service doit valoir au badge suivant, pas au prochain démarrage.
+      useEffect(() => {
+            let vivo = true;
+            const ler = () => window.api.fetchCdiEtat()
+                  .then(e => { if (vivo) setCdiEtat(e); })
+                  .catch(() => { /* sans état : capacité de repli, aucune alerte inventée */ });
+            ler();
+            const id = setInterval(ler, 30000);
+            return () => { vivo = false; clearInterval(id); };
+      }, []);
+
+      const capacite = (cdiEtat && Number(cdiEtat.capacidade)) || CDI_CAPACITY;
+
+      // ⚠️⚠️ LE BADGE REEL N'ARRIVE PAS PAR `togglePresence`. Un eleve qui
+      // passe sa carte au terminal BIBLIO entre par le POLLING de 3 s : le
+      // premier jet n'alertait donc que sur les scans faits DANS l'ecran, et
+      // ratait exactement le moment que ce chantier existe pour couvrir.
+      // Releve par le panel du 27/08.
+      //
+      // Ces deux refs portent l'evaluation a jour jusqu'au tick, qui ne peut
+      // pas la prendre en dependance sans redemarrer l'intervalle a chaque
+      // rendu.
+      const presentRef = useRef(new Set());
+      useEffect(() => { presentRef.current = presentStudents; }, [presentStudents]);
+      const avisarRef = useRef(() => {});
+
+      /**
+       * Cette personne est-elle exclue AUJOURD'HUI ?
+       *
+       * ⚠️ Lu depuis `exclusoesAtivas`, qui ne porte NI motif NI auteur : le
+       * serveur filtre déjà par date, et l'écran du CDI n'a pas le droit de
+       * lire la liste complète (donnée sensible, permission dédiée).
+       */
+      const exclusionDe = useCallback((student) => {
+            const alvos = (cdiEtat && cdiEtat.exclusoesAtivas) || [];
+            if (!student || alvos.length === 0) return null;
+            const turma = (student.class || '').trim().toUpperCase();
+            const porAluno = alvos.find(a => a.userId && a.userId === student.id);
+            if (porAluno) return { porTurma: false, ate: porAluno.ate || null };
+            const porTurma = alvos.find(a => a.turma && a.turma.trim().toUpperCase() === turma);
+            return porTurma ? { porTurma: true, ate: porTurma.ate || null } : null;
+      }, [cdiEtat]);
+
+      /**
+       * L'ALERTE — une seule porte, deux chemins qui y menent (le scan dans
+       * l'ecran, et le badge au terminal qui arrive par le polling).
+       *
+       * ⚠️ « Complet » ne part que sur le FRONT MONTANT : le passage de
+       * en-dessous a au-dessus du seuil. Sinon, un jour de recreation a 50
+       * places, c'est une modale plein ecran et un clic de souris PAR
+       * PERSONNE pendant une heure — et une alerte qu'on clique cent fois est
+       * une alerte qu'on ne lit plus. Le bandeau permanent prend le relais.
+       *
+       * L'exclusion, elle, part a chaque fois : elle nomme un enfant.
+       */
+      const avisar = useCallback((mapeados, antes, depois) => {
+            const excluido = mapeados.map(m => ({ m, x: exclusionDe(m) })).find(o => o.x);
+            if (excluido) {
+                  if (!muted) CdiSound.exclu();
+                  setAlerte({ type: 'exclu', student: excluido.m,
+                              porTurma: excluido.x.porTurma, ate: excluido.x.ate });
+                  return true;
+            }
+            if (antes < capacite && depois >= capacite) {
+                  if (!muted) CdiSound.complet();
+                  setAlerte({ type: 'complet', dedans: depois, capacite: capacite });
+                  return true;
+            }
+            return false;
+      }, [exclusionDe, capacite, muted]);
+
+      useEffect(() => {
+            avisarRef.current = (novosIds, antes, depois, brutos) => {
+                  const mapeados = novosIds
+                        .map(id => brutos.find(b => b.id === id))
+                        .filter(Boolean).map(mapToView);
+                  avisar(mapeados, antes, depois);
+            };
+      }, [avisar, mapToView]);
+
       const togglePresence = useCallback(async (id, fromScanner = false) => {
             if (emergency || locked) return;
             try {
@@ -253,7 +395,24 @@ function BibliotecaView({ onBack }) {
                   setPresentStudents(prev => { const next = new Set(prev); isEntering ? next.add(updated.id) : next.delete(updated.id); return next; });
                   setLogs(prev => [...prev, { studentId: updated.id, action: isEntering ? 'IN' : 'OUT', timestamp: Date.now() }]);
 
-                  if (!muted) { isEntering ? CdiSound.success() : CdiSound.exit(); }
+                  // ⚠️ L'ORDRE DES ALERTES : l'exclusion passe AVANT « complet ».
+                  // Les deux peuvent être vraies en même temps, et celle qui
+                  // concerne une personne nommée l'emporte sur celle qui
+                  // concerne la salle. Un seul son, une seule bannière — deux
+                  // choses à lire au moment où il faut en lire zéro, c'est zéro
+                  // chose lue.
+                  const antes = presentStudents.size;
+                  const depois = isEntering ? antes + 1 : antes - 1;
+                  const alertou = isEntering ? avisar([mapped], antes, depois) : false;
+                  if (!alertou) {
+                        // ⚠️ `setAlerte(null)` HORS de la condition `muted`, et
+                        // c'est tout l'inverse d'un detail : sans lui, le nom, la
+                        // classe et la PHOTO d'un enfant exclu restaient plein
+                        // ecran pendant les passages suivants, sur un poste
+                        // visible depuis le comptoir par d'autres eleves.
+                        setAlerte(null);
+                        if (!muted) isEntering ? CdiSound.success() : CdiSound.exit();
+                  }
                   if (fromScanner) setToast({ message: `${mapped.name}: ${isEntering ? t('cdi.toast.entrou') : t('cdi.toast.saiu')}`, type: isEntering ? 'in' : 'out' });
                   setFlash({ id: updated.id, type: isEntering ? 'in' : 'out' });
                   setTimeout(() => setFlash({ id: null, type: null }), 300);
@@ -267,7 +426,13 @@ function BibliotecaView({ onBack }) {
                   }
             }
             setQuery(''); inputRef.current?.focus();
-      }, [emergency, locked, muted, mapToView]);
+      // ⚠️ `exclusionDe`, `capacite` et `presentStudents` DOIVENT être ici.
+      // Sans elles la fermeture garde les valeurs du premier rendu : le
+      // compte de présents resterait bloqué (« complet » jamais atteint, ou
+      // atteint trop tôt) et une exclusion posée pendant le service ne serait
+      // jamais vue. C'est le défaut qui ne se voit qu'au bout d'une heure de
+      // service, quand plus personne ne fait le lien.
+      }, [emergency, locked, muted, mapToView, avisar, presentStudents]);
 
       // Scanner
       useEffect(() => {
@@ -285,6 +450,8 @@ function BibliotecaView({ onBack }) {
       useEffect(() => {
             const handleShortcuts = (e) => {
                   if (e.key === 'Escape') {
+                        // L'alerte est la couche du dessus : elle se ferme la premiere.
+                        if (alerte) { setAlerte(null); e.preventDefault(); return; }
                         if (modal) { setModal(null); e.preventDefault(); return; }
                         if (query) { setQuery(''); setClassFilter(null); e.preventDefault(); return; }
                   }
@@ -294,7 +461,7 @@ function BibliotecaView({ onBack }) {
             };
             window.addEventListener('keydown', handleShortcuts);
             return () => window.removeEventListener('keydown', handleShortcuts);
-      }, [modal, query]);
+      }, [modal, query, alerte]);
 
       // Import handler
       const handleImport = async (data) => {
@@ -325,7 +492,12 @@ function BibliotecaView({ onBack }) {
 
       const presentList = students.filter(s => presentStudents.has(s.id));
       const count = presentStudents.size;
-      const isFull = count >= CDI_CAPACITY;
+      // ⚠️ `capacite`, JAMAIS `CDI_CAPACITY`. La constante ne sert plus que
+      // de repli (ligne du `capacite`) : lue ici aussi, l'ecran affichait DEUX
+      // capacites en meme temps — la grande alerte partait a 30 pendant que le
+      // compteur restait bleu et annoncait « / 50 ». C'est `f442db9` mot pour
+      // mot, le meme defaut que le plancher de visite avait deja produit.
+      const isFull = count >= capacite;
 
       // CSS for CDI animations
       const cdiStyles = `
@@ -369,6 +541,7 @@ function BibliotecaView({ onBack }) {
                         <div className="py-6 text-center bg-gray-900/50 border-b border-gray-800">
                               <div className="text-8xl font-bold text-white">{count}</div>
                               <p className="text-xl text-gray-400 uppercase">{t('cdi.presentes.confirmados')}</p>
+                              <CdiBandeauEtat dedans={count} capacite={capacite} etat={cdiEtat} sombre />
                               <p className="text-green-500 mt-2">{verified.size} / {count} {t('cdi.verificados')}</p>
                         </div>
                         <main className="flex-1 overflow-y-auto p-6">
@@ -437,7 +610,71 @@ function BibliotecaView({ onBack }) {
                                   dois dos 31 nomes. Aqui custa ~32 px, o número fica
                                   à vista e a lista abre num clique de quem for agir.
                                   O componente é o mesmo; mudou o invólucro. */}
-                              <FinDeJourneeIndicador pointId="BIBLIO" cicloMs={CDI_POLL_MS} />
+                              {/* ══ LA GRANDE ALERTE ══════════════════════════════════════
+                ⚠️ Elle SIGNALE, elle ne bloque pas : pas de bouton « refuser »,
+                pas de porte fermée. Le terminal a déjà ouvert (ADR-003) et ce
+                qui se passe ensuite appartient à l'adulte présent.
+
+                ⚠️ Elle ne dit JAMAIS pourquoi. Le motif d'une exclusion est une
+                donnée sensible sur un mineur, lisible seulement avec la
+                permission dédiée — et l'écran du CDI est visible depuis le
+                comptoir, par d'autres élèves. Nom, classe, photo : de quoi
+                reconnaître la personne, rien de plus.
+
+                Fermeture explicite : elle attend un geste. Un compte à rebours
+                ferait rater l'alerte à celui qui avait le dos tourné. */}
+            {alerte && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-8 bg-black/50"
+                        onClick={() => setAlerte(null)}>
+                        <div className={`w-full max-w-2xl rounded-3xl border-4 shadow-2xl p-8 text-center ${
+                              alerte.type === 'exclu'
+                                    ? 'bg-red-50 border-red-600' : 'bg-amber-50 border-amber-500'}`}
+                              onClick={e => e.stopPropagation()}>
+                              {alerte.type === 'exclu' ? (
+                                    <>
+                                          <p className="text-4xl font-black text-red-700 mb-4">
+                                                {alerte.porTurma ? t('cdi.exclu.titre.turma') : t('cdi.exclu.titre')}
+                                          </p>
+                                          <div className="flex items-center justify-center gap-5 mb-4">
+                                                <PersonPhoto userId={alerte.student.id} nome={alerte.student.name}
+                                                      className="w-28 h-28 rounded-2xl object-cover shadow-lg" alt="" />
+                                                <div className="text-left">
+                                                      <p className="text-3xl font-black text-red-900">{alerte.student.name}</p>
+                                                      <p className="text-xl font-bold text-red-700">{alerte.student.class}</p>
+                                                </div>
+                                          </div>
+                                          {/* ⚠️ La DATE, jamais le motif : elle donne une
+                                              phrase a dire a l'enfant sans raconter
+                                              la sanction a toute la file. */}
+                                          {alerte.ate && (
+                                                <p className="text-xl font-bold text-red-800 mb-2">
+                                                      {t('cdi.exclu.ate', { data: alerte.ate })}
+                                                </p>
+                                          )}
+                                          <p className="text-lg text-red-800">{t('cdi.exclu.note')}</p>
+                                    </>
+                              ) : (
+                                    <>
+                                          <p className="text-4xl font-black text-amber-800 mb-3">{t('cdi.complet.titre')}</p>
+                                          <p className="text-2xl font-bold text-amber-900 mb-3">
+                                                {t('cdi.complet.detail', { n: alerte.dedans, m: alerte.capacite })}
+                                          </p>
+                                          <p className="text-lg text-amber-800">{t('cdi.complet.note')}</p>
+                                    </>
+                              )}
+                              {/* ⚠️ `autoFocus` : sans lui il faut la SOURIS pour
+                                  fermer une modale qui bloque tout l'ecran, a un
+                                  poste ou l'operateur a les deux mains sur le
+                                  lecteur. Echap la ferme aussi. */}
+                              <button type="button" autoFocus onClick={() => setAlerte(null)}
+                                    className="mt-6 px-8 py-3 rounded-2xl bg-slate-800 text-white text-xl font-black">
+                                    {t('cdi.alerte.compris')}
+                              </button>
+                        </div>
+                  </div>
+            )}
+
+            <FinDeJourneeIndicador pointId="BIBLIO" cicloMs={CDI_POLL_MS} />
                               <button onClick={() => setModal('stats')} title={t('cdi.menu.estatisticas')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="bar-chart-3" size={18} /></button>
                               <button onClick={() => setModal('students')} title={t('cdi.menu.base')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="users" size={18} /></button>
                               <button onClick={() => setModal('history')} title={t('cdi.menu.historico')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="history" size={18} /></button>
@@ -494,7 +731,8 @@ function BibliotecaView({ onBack }) {
                               <div className={`text-center mb-4 pb-4 border-b ${isFull ? 'bg-red-50 -mx-4 px-4 pt-4' : ''}`}>
                                     {isFull && <p className="text-red-600 text-sm font-semibold mb-1">{t('cdi.capacidade.max')}</p>}
                                     <div className={`text-5xl font-bold ${isFull ? 'text-red-600' : 'text-blue-600'}`}>{count}</div>
-                                    <div className="text-slate-400 text-sm">/ {CDI_CAPACITY}</div>
+                                    <div className="text-slate-400 text-sm">/ {capacite}</div>
+                                    <CdiBandeauEtat dedans={count} capacite={capacite} etat={cdiEtat} />
                                     {/* O que o número conta, dito na tela. Sem
                                         isto o contador excluiria pessoas em
                                         silêncio — e um número que esconde gente

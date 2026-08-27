@@ -470,6 +470,8 @@ function App() {
                         <InfirmaryReport />
                   ) : currentPoint && currentPoint.id === 'GENERAL_REPORT' ? (
                         <GeneralReport onBack={() => setCurrentPoint(null)} />
+                  ) : currentPoint && currentPoint.id === 'CDI_EXCLUSION_MANAGEMENT' ? (
+                        <CdiExclusionManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'MEAL_SLOT_MANAGEMENT' ? (
                         <MealSlotManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'MEAL_ENTITLEMENT_MANAGEMENT' ? (

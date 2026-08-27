@@ -63,6 +63,14 @@ public class CdiAlertEvent {
     @Column(length = 255)
     private String detalhe;
 
+    /**
+     * ⚠️ Quem escreveu a linha — o principal AUTENTICADO, carimbado pelo
+     * servidor (CdiController.quem()), nunca pelo corpo do POST. Um registro
+     * probatorio de linhas inatribuiveis nao e um registro (painel de 28/08).
+     */
+    @Column(name = "criado_por", nullable = false, length = 64)
+    private String criadoPor;
+
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm;
 }

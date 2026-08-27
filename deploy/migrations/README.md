@@ -394,6 +394,14 @@ docker exec magbo-postgres psql -U magbo -d magbodb -c   "INSERT INTO cdi_alert_
 docker exec magbo-postgres psql -U magbo -d magbodb -tAc "SELECT count(*) FROM cdi_alert_events;"
 ```
 
+⚠️ **La limite structurelle, à connaître avant de répondre à une famille :
+le registre n'écrit que lorsque l'écran du CDI est OUVERT** (le POST part du
+poste, au moment où l'alerte s'affiche). Poste éteint, écran fermé, réseau
+coupé : le badge a eu lieu, l'alerte n'a pas sonné, et il n'y a PAS de ligne.
+**L'absence de ligne ne prouve jamais l'absence de badge** — pour ça il y a
+`access_logs`, qui ne dépend d'aucun écran. L'onglet Historique montre les
+500 dernières lignes et le dit.
+
 Rollback : `rollback/R026__drop_cdi_alert_events.sql`. ⚠️ **Il efface un
 registre de signalements concernant des enfants** — sans le dump antérieur,
 ces lignes ne reviennent pas. Un pg_dump AVANT, toujours.

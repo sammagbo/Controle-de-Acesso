@@ -227,9 +227,12 @@ public class CdiController {
                     eventTime = null;
                 }
             }
+            // ⚠️ L'auteur est le PRINCIPAL AUTHENTIFIÉ, jamais un champ du
+            // corps : c'est ce qui rend chaque ligne attribuable, et c'est la
+            // colonne que le panel du 28/08 a exigée avant tout déploiement.
             var salvo = alertService.registrar(
                     b.get("tipo"), b.get("userId"), b.get("nomeSnapshot"),
-                    b.getOrDefault("pointId", "BIBLIO"), eventTime, b.get("detalhe"));
+                    b.getOrDefault("pointId", "BIBLIO"), eventTime, b.get("detalhe"), quem());
             return ResponseEntity.ok(Map.of("id", salvo.getId()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));
@@ -262,6 +265,7 @@ public class CdiController {
             m.put("pointId", a.getPointId());
             m.put("eventTime", String.valueOf(a.getEventTime()));
             m.put("detalhe", a.getDetalhe());
+            m.put("criadoPor", a.getCriadoPor());
             m.put("criadoEm", String.valueOf(a.getCriadoEm()));
             return m;
         }).toList();

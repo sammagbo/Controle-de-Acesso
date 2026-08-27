@@ -397,7 +397,11 @@ function BibliotecaView({ onBack }) {
             if (antes < capacite && depois >= capacite) {
                   if (!muted) CdiSound.complet();
                   setAlerte({ type: 'complet', dedans: depois, capacite: capacite });
-                  registrarAlerta('CAPACITE', mapeados[0] || null, depois + '/' + capacite);
+                  // ⚠️ SEM nome. A V026 o diz: alerta de SALA, pessoa nula. O
+                  // primeiro do tick de polling nao e «quem encheu a sala» — e
+                  // a ordem de um array — e o nome de uma crianca que nao fez
+                  // nada nao entra num registro de sinalizacoes (painel 28/08).
+                  registrarAlerta('CAPACITE', null, depois + '/' + capacite);
                   return true;
             }
             return false;

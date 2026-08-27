@@ -139,6 +139,14 @@ function CdiAlertHistorique() {
 
     return (
         <div className="space-y-1.5">
+            {/* ⚠️ La limite structurelle, DITE À L'ÉCRAN : le registre n'écrit
+                que quand l'écran du CDI est ouvert. Dans six semaines, une
+                absence de ligne serait lue « pas de badge » — et la réponse à
+                la famille serait fausse. access_logs, lui, ne dépend d'aucun
+                écran. */}
+            <p className="text-[11px] text-slate-500 bg-soft-100 border border-soft-200 rounded-lg px-3 py-1.5">
+                {t('cdi.hist.limite')}
+            </p>
             {/* ⚠️ L'heure affichée est celle du BADGE (event_time). `criadoEm`
                 n'apparaît que si les deux divergent — c'est le signe d'une file
                 offline, et le lecteur doit le voir. */}
@@ -154,7 +162,9 @@ function CdiAlertHistorique() {
                         {l.nome || (l.userId ? l.userId : '—')}
                     </span>
                     {l.detalhe && <span className="text-xs text-slate-500 italic truncate">{l.detalhe}</span>}
-                    <span className="text-xs text-slate-400 flex-1 text-right">{l.pointId}</span>
+                    <span className="text-xs text-slate-400 flex-1 text-right">
+                        {l.pointId}{l.criadoPor ? ' · ' + l.criadoPor : ''}
+                    </span>
                     {String(l.criadoEm || '').slice(0, 16) !== String(l.eventTime || '').slice(0, 16) && (
                         <span className="text-[10px] text-amber-700 whitespace-nowrap"
                             title={t('cdi.hist.decalage.title')}>

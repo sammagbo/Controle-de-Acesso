@@ -71,27 +71,44 @@ class CdiAlertServiceTest {
         @Test
         @DisplayName("★★★ un type inconnu est refusé — le CHECK de la V026 est la DERNIÈRE défense, pas la première")
         void tipoDesconhecido() {
-            assertThatThrownBy(() -> service.registrar("AUTRE", null, null, "BIBLIO", AGORA, null))
+            assertThatThrownBy(() -> service.registrar("AUTRE", null, null, "BIBLIO", AGORA, null, "cdi"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("AUTRE");
-            assertThatThrownBy(() -> service.registrar(null, null, null, "BIBLIO", AGORA, null))
+            assertThatThrownBy(() -> service.registrar(null, null, null, "BIBLIO", AGORA, null, "cdi"))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
         @DisplayName("★★ sans point, pas de registre — une alerte de nulle part ne répond à personne")
         void pointObrigatorio() {
-            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", null, AGORA, null))
+            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", null, AGORA, null, "cdi"))
                     .isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", "  ", AGORA, null))
+            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", "  ", AGORA, null, "cdi"))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("★★★ sans auteur, pas de ligne — un registre inattribuable n'est pas un registre")
+        void autorObrigatorio() {
+            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", "BIBLIO", AGORA, null, null))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> service.registrar("EXCLUSION", "0001", "X", "BIBLIO", AGORA, null, " "))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("★★ l'auteur enregistré est celui que le CHAMADOR affirme — le serveur, jamais le corps")
+        void autorGravado() {
+            when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+            service.registrar("CAPACITE", null, null, "BIBLIO", AGORA, "12/10", "operateur-cdi");
+            assertThat(gravado().getCriadoPor()).isEqualTo("operateur-cdi");
         }
 
         @Test
         @DisplayName("★ un détail trop long est coupé, jamais refusé — le registre vaut plus que la phrase entière")
         void detalheCortado() {
             when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-            service.registrar("CAPACITE", null, null, "BIBLIO", AGORA, "x".repeat(300));
+            service.registrar("CAPACITE", null, null, "BIBLIO", AGORA, "x".repeat(300), "cdi");
             assertThat(gravado().getDetalhe()).hasSize(255);
         }
     }
@@ -109,7 +126,7 @@ class CdiAlertServiceTest {
             // 03/08, sur la seule table qui existe pour répondre à une famille.
             when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
             LocalDateTime badge = AGORA.minusHours(7);
-            service.registrar("EXCLUSION", "0001", "Enfant X", "BIBLIO", badge, null);
+            service.registrar("EXCLUSION", "0001", "Enfant X", "BIBLIO", badge, null, "cdi");
             assertThat(gravado().getEventTime()).isEqualTo(badge);
         }
 
@@ -117,11 +134,11 @@ class CdiAlertServiceTest {
         @DisplayName("★★ heure absente ou du futur → heure actuelle, jamais un refus ni un registre du futur")
         void bordaDeFuturo() {
             when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
-            service.registrar("CAPACITE", null, null, "BIBLIO", null, null);
+            service.registrar("CAPACITE", null, null, "BIBLIO", null, null, "cdi");
             assertThat(gravado().getEventTime()).isEqualTo(AGORA);
 
             org.mockito.Mockito.clearInvocations(repository);
-            service.registrar("CAPACITE", null, null, "BIBLIO", AGORA.plusHours(2), null);
+            service.registrar("CAPACITE", null, null, "BIBLIO", AGORA.plusHours(2), null, "cdi");
             assertThat(gravado().getEventTime())
                     .as("un registre daté du futur empoisonne l'ordre de l'historique pour toujours")
                     .isEqualTo(AGORA);
@@ -137,7 +154,7 @@ class CdiAlertServiceTest {
         void requiresNew() throws Exception {
             Transactional tx = CdiAlertService.class
                     .getMethod("registrar", String.class, String.class, String.class,
-                            String.class, LocalDateTime.class, String.class)
+                            String.class, LocalDateTime.class, String.class, String.class)
                     .getAnnotation(Transactional.class);
             assertThat(tx).as("registrar sans @Transactional").isNotNull();
             assertThat(tx.propagation())

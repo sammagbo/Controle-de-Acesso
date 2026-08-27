@@ -72,9 +72,31 @@ CREATE TABLE IF NOT EXISTS cdi_alert_events (
     -- 6E1 », « état FERME 13:00→14:00 ». Texte court, jamais le MOTIF de
     -- l'exclusion — le motif reste dans cdi_exclusions, derrière sa porte.
     detalhe       VARCHAR(255),
+    -- ⚠️ QUI A ÉCRIT LA LIGNE — le principal authentifié, estampillé par le
+    -- SERVEUR, jamais par le corps du POST. Doctrine maison (« o campo é
+    -- prova ») : access_logs.created_by_user, meal_entitlement_events
+    -- .changed_by, cdi_exclusions.criado_por — un registre à vocation
+    -- probatoire dont les lignes seraient inattribuables n'est pas un
+    -- registre. Relevé par le panel du 28/08, ajouté AVANT tout déploiement :
+    -- après la première ligne écrite, ce serait irréparable.
+    criado_por    VARCHAR(64)  NOT NULL,
     criado_em     TIMESTAMP    NOT NULL DEFAULT now(),
     CONSTRAINT ck_cdi_alert_events_tipo CHECK (tipo IN ('EXCLUSION', 'CAPACITE', 'FERME'))
 );
+
+-- ⚠️ LE CHECK, POSÉ MÊME SI LA TABLE EXISTAIT DÉJÀ. Si le backend monte
+-- avant la migration, Hibernate crée la table avec les mêmes colonnes mais
+-- SANS le CHECK : la garde du haut ne lève pas (event_time existe), le
+-- CREATE IF NOT EXISTS ne fait rien, et la contrainte n'existerait nulle
+-- part — l'asymétrie V014, par la porte de derrière. Relevé par le panel du
+-- 28/08.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_cdi_alert_events_tipo') THEN
+    ALTER TABLE cdi_alert_events
+      ADD CONSTRAINT ck_cdi_alert_events_tipo CHECK (tipo IN ('EXCLUSION', 'CAPACITE', 'FERME'));
+  END IF;
+END $$;
 
 -- L'historique se lit « les plus récentes d'abord », et par personne quand
 -- une famille demande.
@@ -89,5 +111,7 @@ COMMENT ON COLUMN cdi_alert_events.event_time IS
     'Heure du badge qui a declenche l alerte, jamais celle du traitement.';
 COMMENT ON COLUMN cdi_alert_events.detalhe IS
     'Ce que l ecran affichait. JAMAIS le motif de l exclusion — il reste dans cdi_exclusions.';
+COMMENT ON COLUMN cdi_alert_events.criado_por IS
+    'Le principal authentifie qui a poste la ligne — estampille par le SERVEUR, jamais par le corps du POST.';
 
 COMMIT;

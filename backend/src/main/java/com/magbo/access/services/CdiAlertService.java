@@ -64,12 +64,18 @@ public class CdiAlertService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public CdiAlertEvent registrar(String tipo, String userId, String nomeSnapshot,
-                                   String pointId, LocalDateTime eventTime, String detalhe) {
+                                   String pointId, LocalDateTime eventTime, String detalhe,
+                                   String quem) {
         if (tipo == null || !TIPOS.contains(tipo)) {
             throw new IllegalArgumentException("tipo de alerta desconhecido: " + tipo);
         }
         if (pointId == null || pointId.isBlank()) {
             throw new IllegalArgumentException("pointId obrigatorio");
+        }
+        // ⚠️ O autor vem do CHAMADOR (principal autenticado), nunca do corpo:
+        // uma linha sem autor num registro probatorio nao e prova de nada.
+        if (quem == null || quem.isBlank()) {
+            throw new IllegalArgumentException("quem obrigatorio");
         }
         LocalDateTime agora = LocalDateTime.now(clock);
         LocalDateTime quando = eventTime;
@@ -85,6 +91,7 @@ public class CdiAlertService {
                 .pointId(pointId.trim())
                 .eventTime(quando)
                 .detalhe(corta(detalhe, 255))
+                .criadoPor(quem.trim())
                 .criadoEm(agora)
                 .build());
     }

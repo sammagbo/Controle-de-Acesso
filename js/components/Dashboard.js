@@ -82,9 +82,11 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                       écran cherche presque toujours UNE personne ; les tuiles et
                       les cartes répondent à une question qu'on ne se pose
                       qu'ensuite. Le composant se retire TOUT SEUL sans
-                      PARCOURS_READ — pour un opérateur sans ce droit, cet écran
-                      est pixel pour pixel celui d'hier, et c'est voulu : le CDI
-                      et le Moniteur Cantine n'ont pas bougé non plus. */}
+                      PARCOURS_READ — pour un opérateur sans ce droit, la BARRE
+                      n'existe pas ; la seule chose nouvelle sur son écran est la
+                      rangée du toggle des tuiles, qui ne parle que de chiffres
+                      qu'il voyait déjà. Le CDI et le Moniteur Cantine n'ont pas
+                      bougé non plus. */}
                   <RechercheGlobale />
 
                   {/* Stats bar — masquable, sous la recherche */}
@@ -92,7 +94,10 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                         <button type="button" onClick={alternarStats}
                               className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-navy-500">
                               <LucideIcon name={statsVisiveis ? 'eye-off' : 'eye'} size={14} />
-                              {statsVisiveis ? t('admin.kpi.esconder') : t('admin.kpi.mostrar')}
+                              {/* clés DÉDIÉES : coupler ce libellé à celui des KPI
+                                  du Panneau ferait hériter l'accueil de toute
+                                  reformulation que personne n'a décidée ici. */}
+                              {statsVisiveis ? t('accueil.stats.esconder') : t('accueil.stats.mostrar')}
                         </button>
                   </div>
                   <div className={`flex flex-wrap items-center gap-4 mb-8 ${statsVisiveis ? '' : 'hidden'}`}>

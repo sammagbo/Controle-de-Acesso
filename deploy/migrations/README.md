@@ -324,9 +324,46 @@ Rollback : `rollback/R024__drop_system_settings.sql`. ⚠️ Il efface les régl
 **et le comportement revient aux défauts du code, en silence** — prévenir qui
 opère avant de le lancer.
 
+### ⚠️ V025 — les exclusions du CDI (donnée sensible sur mineur)
+
+`cdi_exclusions` : qui ne doit pas entrer au CDI, et jusqu'à quand.
+
+⚠️ **Elle n'empêche personne d'entrer.** Le terminal ouvre de toute façon
+(ADR-003) ; la table sert à PRÉVENIR l'adulte présent au badge. Il n'est pas
+question de transformer une exclusion pédagogique en verrou physique.
+
+⚠️ **Chaque ligne nomme un enfant et raconte une sanction.** Lecture par
+`CDI_EXCLUSION_WRITE` uniquement — jamais par secteur. L'écran du CDI reçoit
+les cibles actives *sans motif ni auteur* : il doit reconnaître, pas raconter.
+
+⚠️ **Lever n'efface pas** : `revogado_em`/`revogado_por` sont remplis et la
+ligne reste. Même doctrine que `student_exit_permissions`.
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
+  < deploy/migrations/V025__cdi_exclusions.sql
+echo "exit=$?"
+```
+
+Vérifications — la deuxième est celle qui compte :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -c "\d cdi_exclusions"
+
+# ⚠️ Le CHECK doit MORDRE dans les deux sens (les deux doivent ÉCHOUER) :
+docker exec magbo-postgres psql -U magbo -d magbodb -c \
+  "INSERT INTO cdi_exclusions (criado_por) VALUES ('t');"                        # ni l'un ni l'autre
+docker exec magbo-postgres psql -U magbo -d magbodb -c \
+  "INSERT INTO cdi_exclusions (user_id,turma,criado_por) VALUES ('1','6E1','t');" # les deux
+```
+
+Rollback : `rollback/R025__drop_cdi_exclusions.sql`. ⚠️ Il efface les
+exclusions **et leur historique** — des décisions pédagogiques prises sur des
+mineurs. Confirmer avec la direction avant.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V024. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V025. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -359,6 +396,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V022__denial_reason_meal_slot.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V023__meal_slots_seed.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V024__system_settings.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V025__cdi_exclusions.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -384,6 +422,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 | `V022__denial_reason_meal_slot.sql` | amplia o CHECK de `denial_reason` com `MEAL_SLOT_NOT_CONFIGURED` | Créneaux |
 | `V023__meal_slots_seed.sql` | **seed**: a afixação da Vie Scolaire 2026 + a reprise de `class_schedules` para o que ela não nomeia | Créneaux |
 | `V024__system_settings.sql` | tabela `system_settings` — a **surcouche** dos reglages modificáveis a ecrã (**nasce vazia**; sem linha = default do código) | Configuração |
+| `V025__cdi_exclusions.sql` | tabela `cdi_exclusions` — quem não deve entrar no CDI (**avisa, nunca impede**; dado sensível sobre menor) | CDI |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

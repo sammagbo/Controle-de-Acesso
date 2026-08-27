@@ -28,6 +28,10 @@ const ACCESS_POINTS = [
       // entra-se pelo Painel Administrativo, ou pelo atalho de quem tem a
       // permissão granular.
       { id: 'MEAL_SLOT_MANAGEMENT', nome: 'Planning Cantine', icon: 'calendar-clock', description: 'Créneaux de restauration', category: 'monitor', area: 'admin', hidden: true },
+      // Exclusions du CDI (V025). `hidden` : donnée sensible sur mineur —
+      // on y entre par le Panneau Administratif ou par le raccourci de qui
+      // détient CDI_EXCLUSION_WRITE, jamais depuis le tableau de bord public.
+      { id: 'CDI_EXCLUSION_MANAGEMENT', nome: 'Exclusions CDI', icon: 'user-x', description: 'Qui ne doit pas entrer au CDI', category: 'monitor', area: 'admin', hidden: true },
       { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
       // Régime de sortie — o direito ANUAL, distinto das autorizações pontuais
       // acima. As duas telas coexistem porque as duas coisas coexistem

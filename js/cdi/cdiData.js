@@ -2,6 +2,9 @@
 // CDI Data — Constants, Audio, Crypto
 // =====================================================================
 
+// ⚠️ Le DÉFAUT seulement. La capacité réelle vient du serveur
+// (`magbo.cdi.capacidade`, réglable à l'écran) ; ce nombre est le repli quand
+// la requête échoue — la salle ne doit jamais se retrouver « sans capacité ».
 const CDI_CAPACITY = 50;
 const CDI_STORAGE = { students: 'cdi_students', present: 'cdi_present', logs: 'cdi_logs', muted: 'cdi_muted', pin: 'cdi_pin' };
 const CDI_DEFAULT_PIN = '1234';
@@ -20,7 +23,25 @@ const cdiPlayBeep = (freq, dur, type = 'sine') => {
 const CdiSound = {
       success: () => cdiPlayBeep(880, 0.15),
       exit: () => cdiPlayBeep(440, 0.2),
-      error: () => { cdiPlayBeep(220, 0.1, 'square'); setTimeout(() => cdiPlayBeep(220, 0.1, 'square'), 120); }
+      error: () => { cdiPlayBeep(220, 0.1, 'square'); setTimeout(() => cdiPlayBeep(220, 0.1, 'square'), 120); },
+
+      // ⚠️ TROIS SONS QUI NE SE CONFONDENT PAS, parce qu'ils veulent dire
+      // trois choses différentes et que l'opérateur les entend sans regarder
+      // l'écran. Le grave descendant se distingue du double-bip d'erreur ; le
+      // triple aigu ne ressemble ni à l'un ni à l'autre.
+      //
+      // ⚠️ AUCUN de ces sons n'empêche quoi que ce soit. Le terminal a déjà
+      // ouvert la porte (ADR-003) : on informe l'adulte, on ne barre personne.
+
+      /** CDI plein : deux notes DESCENDANTES, plus graves que le succès. */
+      complet: () => { cdiPlayBeep(520, 0.18); setTimeout(() => cdiPlayBeep(390, 0.28), 190); },
+
+      /** Personne exclue : trois notes AIGUËS et brèves — impossible à rater. */
+      exclu: () => {
+            cdiPlayBeep(1180, 0.12, 'triangle');
+            setTimeout(() => cdiPlayBeep(1180, 0.12, 'triangle'), 150);
+            setTimeout(() => cdiPlayBeep(1180, 0.22, 'triangle'), 300);
+      }
 };
 
 // Crypto Helper

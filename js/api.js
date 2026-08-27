@@ -573,6 +573,43 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    // ── CDI : capacite, etat, exclusions (V025) ───────────────────────────
+
+    /** Capacite + etat + cibles d'exclusion ACTIVES (sans motif ni auteur). */
+    async fetchCdiEtat() {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/etat`, { headers: authHeaders() });
+        return await this.handleResponse(res);
+    },
+
+    async saveCdiEtat(corpo) {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/etat`, {
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify(corpo || {})
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** ⚠️ La liste COMPLETE, avec motifs — gardee par CDI_EXCLUSION_WRITE. */
+    async fetchCdiExclusions() {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/exclusions`, { headers: authHeaders() });
+        const d = await this.handleResponse(res);
+        return Array.isArray(d) ? d : [];
+    },
+
+    async createCdiExclusion(corpo) {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/exclusions`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(corpo || {})
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Levee SOFT : la ligne reste, l'historique reste. */
+    async liftCdiExclusion(id) {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/exclusions/${id}`, {
+            method: 'DELETE', headers: authHeaders()
+        });
+        return await this.handleResponse(res);
+    },
+
     // ── Reglages do sistema (V024) ────────────────────────────────────────
     async fetchSettings() {
         const res = await fetch(`${API_BASE_URL}/admin/settings`, { headers: authHeaders() });

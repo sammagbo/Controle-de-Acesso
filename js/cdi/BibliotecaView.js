@@ -21,6 +21,13 @@ function BibliotecaView({ onBack }) {
       // State
       const [students, setStudents] = useState([]);
       const [presentStudents, setPresentStudents] = useState(new Set());
+      // L'état du CDI, relu au même rythme que le reste : capacité réglable,
+      // état d'occupation, et les cibles d'exclusion ACTIVES (sans motif ni
+      // auteur — l'écran doit reconnaître, pas raconter).
+      const [cdiEtat, setCdiEtat] = useState(null);
+      // La grande alerte visuelle. Un seul état : deux alertes empilées
+      // seraient deux choses à lire au moment où il faut en lire zéro.
+      const [alerte, setAlerte] = useState(null);
       const [logs, setLogs] = useState([]);
       const [loading, setLoading] = useState(true);
 
@@ -240,6 +247,37 @@ function BibliotecaView({ onBack }) {
       }, [students]);
 
       // Toggle Presence
+      // ⚠️ Chargé UNE fois puis à chaque cycle : une exclusion posée pendant
+      // le service doit valoir au badge suivant, pas au prochain démarrage.
+      useEffect(() => {
+            let vivo = true;
+            const ler = () => window.api.fetchCdiEtat()
+                  .then(e => { if (vivo) setCdiEtat(e); })
+                  .catch(() => { /* sans état : capacité de repli, aucune alerte inventée */ });
+            ler();
+            const id = setInterval(ler, 30000);
+            return () => { vivo = false; clearInterval(id); };
+      }, []);
+
+      const capacite = (cdiEtat && Number(cdiEtat.capacidade)) || CDI_CAPACITY;
+
+      /**
+       * Cette personne est-elle exclue AUJOURD'HUI ?
+       *
+       * ⚠️ Lu depuis `exclusoesAtivas`, qui ne porte NI motif NI auteur : le
+       * serveur filtre déjà par date, et l'écran du CDI n'a pas le droit de
+       * lire la liste complète (donnée sensible, permission dédiée).
+       */
+      const exclusionDe = useCallback((student) => {
+            const alvos = (cdiEtat && cdiEtat.exclusoesAtivas) || [];
+            if (!student || alvos.length === 0) return null;
+            const turma = (student.class || '').trim().toUpperCase();
+            const porAluno = alvos.find(a => a.userId && a.userId === student.id);
+            if (porAluno) return { porTurma: false };
+            const porTurma = alvos.find(a => a.turma && a.turma.trim().toUpperCase() === turma);
+            return porTurma ? { porTurma: true } : null;
+      }, [cdiEtat]);
+
       const togglePresence = useCallback(async (id, fromScanner = false) => {
             if (emergency || locked) return;
             try {
@@ -253,7 +291,25 @@ function BibliotecaView({ onBack }) {
                   setPresentStudents(prev => { const next = new Set(prev); isEntering ? next.add(updated.id) : next.delete(updated.id); return next; });
                   setLogs(prev => [...prev, { studentId: updated.id, action: isEntering ? 'IN' : 'OUT', timestamp: Date.now() }]);
 
-                  if (!muted) { isEntering ? CdiSound.success() : CdiSound.exit(); }
+                  // ⚠️ L'ORDRE DES ALERTES : l'exclusion passe AVANT « complet ».
+                  // Les deux peuvent être vraies en même temps, et celle qui
+                  // concerne une personne nommée l'emporte sur celle qui
+                  // concerne la salle. Un seul son, une seule bannière — deux
+                  // choses à lire au moment où il faut en lire zéro, c'est zéro
+                  // chose lue.
+                  const exclusao = isEntering ? exclusionDe(mapped) : null;
+                  const dedansApres = isEntering ? presentStudents.size + 1 : presentStudents.size - 1;
+                  const complet = isEntering && dedansApres >= capacite;
+
+                  if (exclusao) {
+                        if (!muted) CdiSound.exclu();
+                        setAlerte({ type: 'exclu', student: mapped, porTurma: exclusao.porTurma });
+                  } else if (complet) {
+                        if (!muted) CdiSound.complet();
+                        setAlerte({ type: 'complet', dedans: dedansApres, capacite: capacite });
+                  } else if (!muted) {
+                        isEntering ? CdiSound.success() : CdiSound.exit();
+                  }
                   if (fromScanner) setToast({ message: `${mapped.name}: ${isEntering ? t('cdi.toast.entrou') : t('cdi.toast.saiu')}`, type: isEntering ? 'in' : 'out' });
                   setFlash({ id: updated.id, type: isEntering ? 'in' : 'out' });
                   setTimeout(() => setFlash({ id: null, type: null }), 300);
@@ -267,7 +323,13 @@ function BibliotecaView({ onBack }) {
                   }
             }
             setQuery(''); inputRef.current?.focus();
-      }, [emergency, locked, muted, mapToView]);
+      // ⚠️ `exclusionDe`, `capacite` et `presentStudents` DOIVENT être ici.
+      // Sans elles la fermeture garde les valeurs du premier rendu : le
+      // compte de présents resterait bloqué (« complet » jamais atteint, ou
+      // atteint trop tôt) et une exclusion posée pendant le service ne serait
+      // jamais vue. C'est le défaut qui ne se voit qu'au bout d'une heure de
+      // service, quand plus personne ne fait le lien.
+      }, [emergency, locked, muted, mapToView, exclusionDe, capacite, presentStudents]);
 
       // Scanner
       useEffect(() => {
@@ -369,6 +431,33 @@ function BibliotecaView({ onBack }) {
                         <div className="py-6 text-center bg-gray-900/50 border-b border-gray-800">
                               <div className="text-8xl font-bold text-white">{count}</div>
                               <p className="text-xl text-gray-400 uppercase">{t('cdi.presentes.confirmados')}</p>
+                              {/* ⚠️ LE BANDEAU RESTE tant que la salle est pleine —
+                                  ce n'est pas un toast qui passe. L'information
+                                  « on est au maximum » vaut pendant tout le temps
+                                  où c'est vrai, pas trois secondes. */}
+                              {presentList.length >= capacite && (
+                                    <div className="mt-3 px-4 py-3 rounded-2xl bg-amber-100 border-2 border-amber-500 text-amber-900">
+                                          <p className="text-2xl font-black">{t('cdi.complet.titre')}</p>
+                                          <p className="text-lg font-bold">
+                                                {t('cdi.complet.detail', { n: presentList.length, m: capacite })}
+                                          </p>
+                                          <p className="text-sm mt-1">{t('cdi.complet.note')}</p>
+                                    </div>
+                              )}
+                              {/* L'état déclaré (fermé / réservé), quand il y en a un. */}
+                              {cdiEtat && cdiEtat.estado && cdiEtat.estado !== 'OUVERT' && (
+                                    <div className="mt-3 px-4 py-3 rounded-2xl bg-purple-100 border-2 border-purple-500 text-purple-900">
+                                          <p className="text-2xl font-black">
+                                                {t('cdi.etat.' + cdiEtat.estado)}
+                                          </p>
+                                          {(cdiEtat.estadoInicio || cdiEtat.estadoFim) && (
+                                                <p className="text-lg font-bold">
+                                                      {cdiEtat.estadoInicio || '—'} → {cdiEtat.estadoFim || '—'}
+                                                </p>
+                                          )}
+                                          {cdiEtat.estadoNota && <p className="text-sm mt-1">{cdiEtat.estadoNota}</p>}
+                                    </div>
+                              )}
                               <p className="text-green-500 mt-2">{verified.size} / {count} {t('cdi.verificados')}</p>
                         </div>
                         <main className="flex-1 overflow-y-auto p-6">
@@ -437,7 +526,59 @@ function BibliotecaView({ onBack }) {
                                   dois dos 31 nomes. Aqui custa ~32 px, o número fica
                                   à vista e a lista abre num clique de quem for agir.
                                   O componente é o mesmo; mudou o invólucro. */}
-                              <FinDeJourneeIndicador pointId="BIBLIO" cicloMs={CDI_POLL_MS} />
+                              {/* ══ LA GRANDE ALERTE ══════════════════════════════════════
+                ⚠️ Elle SIGNALE, elle ne bloque pas : pas de bouton « refuser »,
+                pas de porte fermée. Le terminal a déjà ouvert (ADR-003) et ce
+                qui se passe ensuite appartient à l'adulte présent.
+
+                ⚠️ Elle ne dit JAMAIS pourquoi. Le motif d'une exclusion est une
+                donnée sensible sur un mineur, lisible seulement avec la
+                permission dédiée — et l'écran du CDI est visible depuis le
+                comptoir, par d'autres élèves. Nom, classe, photo : de quoi
+                reconnaître la personne, rien de plus.
+
+                Fermeture explicite : elle attend un geste. Un compte à rebours
+                ferait rater l'alerte à celui qui avait le dos tourné. */}
+            {alerte && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-8 bg-black/50"
+                        onClick={() => setAlerte(null)}>
+                        <div className={`w-full max-w-2xl rounded-3xl border-4 shadow-2xl p-8 text-center ${
+                              alerte.type === 'exclu'
+                                    ? 'bg-red-50 border-red-600' : 'bg-amber-50 border-amber-500'}`}
+                              onClick={e => e.stopPropagation()}>
+                              {alerte.type === 'exclu' ? (
+                                    <>
+                                          <p className="text-4xl font-black text-red-700 mb-4">
+                                                {alerte.porTurma ? t('cdi.exclu.titre.turma') : t('cdi.exclu.titre')}
+                                          </p>
+                                          <div className="flex items-center justify-center gap-5 mb-4">
+                                                <PersonPhoto userId={alerte.student.id} nome={alerte.student.name}
+                                                      className="w-28 h-28 rounded-2xl object-cover shadow-lg" alt="" />
+                                                <div className="text-left">
+                                                      <p className="text-3xl font-black text-red-900">{alerte.student.name}</p>
+                                                      <p className="text-xl font-bold text-red-700">{alerte.student.class}</p>
+                                                </div>
+                                          </div>
+                                          <p className="text-lg text-red-800">{t('cdi.exclu.note')}</p>
+                                    </>
+                              ) : (
+                                    <>
+                                          <p className="text-4xl font-black text-amber-800 mb-3">{t('cdi.complet.titre')}</p>
+                                          <p className="text-2xl font-bold text-amber-900 mb-3">
+                                                {t('cdi.complet.detail', { n: alerte.dedans, m: alerte.capacite })}
+                                          </p>
+                                          <p className="text-lg text-amber-800">{t('cdi.complet.note')}</p>
+                                    </>
+                              )}
+                              <button type="button" onClick={() => setAlerte(null)}
+                                    className="mt-6 px-8 py-3 rounded-2xl bg-slate-800 text-white text-xl font-black">
+                                    {t('cdi.alerte.compris')}
+                              </button>
+                        </div>
+                  </div>
+            )}
+
+            <FinDeJourneeIndicador pointId="BIBLIO" cicloMs={CDI_POLL_MS} />
                               <button onClick={() => setModal('stats')} title={t('cdi.menu.estatisticas')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="bar-chart-3" size={18} /></button>
                               <button onClick={() => setModal('students')} title={t('cdi.menu.base')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="users" size={18} /></button>
                               <button onClick={() => setModal('history')} title={t('cdi.menu.historico')} className="w-8 h-8 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"><CdiIcon name="history" size={18} /></button>

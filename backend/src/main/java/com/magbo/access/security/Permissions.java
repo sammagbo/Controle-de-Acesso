@@ -84,6 +84,17 @@ public final class Permissions {
     public static final String CONFIG_WRITE           = "CONFIG_WRITE";
 
     /**
+     * Ler e gerir as EXCLUSOES do CDI (V025).
+     *
+     * ⚠️ Permissao propria, e nao a area `cdi`, porque uma exclusao nomeia
+     * uma CRIANCA e conta uma SANCAO. O operador do CDI ve o AVISO quando a
+     * pessoa passa o cracha — mas a LISTA de quem esta excluido, com os
+     * motivos e quem decidiu, e outra coisa, e nao se abre «porque se esta
+     * autenticado».
+     */
+    public static final String CDI_EXCLUSION_WRITE    = "CDI_EXCLUSION_WRITE";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -110,5 +121,6 @@ public final class Permissions {
             CANTINE_REMOVAL_WRITE,
             MEAL_SLOT_WRITE,
             PARCOURS_READ,
-            CONFIG_WRITE);
+            CONFIG_WRITE,
+            CDI_EXCLUSION_WRITE);
 }

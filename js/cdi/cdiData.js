@@ -12,11 +12,11 @@ const CDI_API_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://loca
 
 // Audio
 const cdiAudioCtx = { ctx: null };
-const cdiPlayBeep = (freq, dur, type = 'sine') => {
+const cdiPlayBeep = (freq, dur, type = 'sine', ganho = 0.1) => {
       if (!cdiAudioCtx.ctx) cdiAudioCtx.ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = cdiAudioCtx.ctx.createOscillator(), gain = cdiAudioCtx.ctx.createGain();
       osc.connect(gain); gain.connect(cdiAudioCtx.ctx.destination);
-      osc.type = type; osc.frequency.value = freq; gain.gain.value = 0.1;
+      osc.type = type; osc.frequency.value = freq; gain.gain.value = ganho;
       osc.start(); gain.gain.exponentialRampToValueAtTime(0.001, cdiAudioCtx.ctx.currentTime + dur);
       osc.stop(cdiAudioCtx.ctx.currentTime + dur);
 };
@@ -37,10 +37,16 @@ const CdiSound = {
       complet: () => { cdiPlayBeep(520, 0.18); setTimeout(() => cdiPlayBeep(390, 0.28), 190); },
 
       /** Personne exclue : trois notes AIGUËS et brèves — impossible à rater. */
+      // ⚠️ IL COMMENCE PAR LE GRAVE, et c'est le panel du 27/08 qui l'a dit :
+      // la version d'avant ouvrait sur un aigu bref, c'est-a-dire sur ce
+      // qu'est le son de SUCCES en entier. A un comptoir on est deja passe au
+      // suivant avant la deuxieme note — le son du danger ne doit pas
+      // commencer comme le son du OK. Et il est plus fort (0.22 contre 0.1) :
+      // celui qui compte ne peut pas etre au meme volume que la routine.
       exclu: () => {
-            cdiPlayBeep(1180, 0.12, 'triangle');
-            setTimeout(() => cdiPlayBeep(1180, 0.12, 'triangle'), 150);
-            setTimeout(() => cdiPlayBeep(1180, 0.22, 'triangle'), 300);
+            cdiPlayBeep(300, 0.16, 'sawtooth', 0.22);
+            setTimeout(() => cdiPlayBeep(1180, 0.12, 'triangle', 0.22), 170);
+            setTimeout(() => cdiPlayBeep(300, 0.2, 'sawtooth', 0.22), 320);
       }
 };
 

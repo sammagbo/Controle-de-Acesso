@@ -52,6 +52,16 @@ BEGIN
   END IF;
 END $$;
 
+-- ⚠️ `turma` NAO E UMA FOTOGRAFIA. A avaliacao compara com a turma ATUAL do
+-- aluno: quem entra na turma depois herda a exclusao, quem sai dela deixa de
+-- a ter. E consciente nesta versao (congelar a composicao exigiria linhas por
+-- aluno) e esta escrito no ecra de criacao. Se um dia isso mudar, muda aqui
+-- tambem.
+--
+-- ⚠️ NAO HA COLUNA DE INICIO: `criado_em` E a data de inicio. `ativaEm` recusa
+-- os dias anteriores a ela — sem essa borda, uma medida posta hoje marcaria as
+-- passagens da semana passada, porque o veredicto e julgado pelo relogio do
+-- EVENTO.
 CREATE TABLE IF NOT EXISTS cdi_exclusions (
     id            BIGSERIAL PRIMARY KEY,
     -- Exactement l'un des deux (voir le CHECK plus bas).

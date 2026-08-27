@@ -15,6 +15,95 @@
 // ⚠️ LEVER N'EFFACE PAS. L'historique reste, avec qui a créé et qui a levé.
 // Une mesure prise sur un enfant est une preuve.
 
+/**
+ * CAPACITE ET ETAT DECLARE DU CDI.
+ *
+ * ⚠️ La capacite N'EMPECHE RIEN. Elle decide a partir de quand l'ecran du CDI
+ * dit « on est au maximum » — l'adulte present fait ce qu'il en juge. Le
+ * defaut du code (50) reste ce qui s'applique tant que personne n'a rien
+ * ecrit : pas de ligne en base = comportement d'avant, inchange.
+ */
+function CdiCapacitePanel() {
+    const t = useI18n();
+    const [e, setE] = React.useState(null);
+    const [ocupado, setOcupado] = React.useState(false);
+    const [salvo, setSalvo] = React.useState(false);
+
+    React.useEffect(() => {
+        window.api.fetchCdiEtat().then(setE).catch(() => setE(null));
+    }, []);
+
+    if (!e) return null;
+
+    const campo = (k, v) => { setE({ ...e, [k]: v }); setSalvo(false); };
+    const gravar = async () => {
+        setOcupado(true);
+        try {
+            await window.api.saveCdiEtat({
+                capacidade: String(e.capacidade || ''),
+                estado: e.estado || 'OUVERT',
+                estadoInicio: e.estadoInicio || '',
+                estadoFim: e.estadoFim || '',
+                estadoNota: e.estadoNota || ''
+            });
+            setE(await window.api.fetchCdiEtat());
+            setSalvo(true);
+        } catch (err) {
+            alert(t('cdi.excl.erro') + ' ' + ((err && err.message) || ''));
+        } finally { setOcupado(false); }
+    };
+
+    const n = Number(e.capacidade) || 0;
+    return (
+        <div className="bg-white rounded-2xl p-4 border border-soft-200 space-y-3">
+            <h3 className="text-sm font-black text-navy-500 uppercase tracking-wide">
+                {t('cdi.cap.titulo')}
+            </h3>
+            <div className="flex flex-wrap items-end gap-4">
+                <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.cap.capacidade')}</label>
+                    {/* ⚠️ Les deux : les fleches pour ajuster d'un cran, la saisie
+                        pour passer de 50 a 120 sans soixante-dix clics. */}
+                    <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => campo('capacidade', String(Math.max(1, n - 1)))}
+                            className="w-9 h-9 rounded-xl border border-soft-200 font-black text-lg">−</button>
+                        <input type="number" min="1" value={e.capacidade || ''}
+                            onChange={ev => campo('capacidade', ev.target.value)}
+                            className="w-24 px-3 py-2 rounded-xl border border-soft-200 text-center text-lg font-black" />
+                        <button type="button" onClick={() => campo('capacidade', String(n + 1))}
+                            className="w-9 h-9 rounded-xl border border-soft-200 font-black text-lg">+</button>
+                    </div>
+                </div>
+                <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.etat.OUVERT')}</label>
+                    <select value={e.estado || 'OUVERT'} onChange={ev => campo('estado', ev.target.value)}
+                        className="px-3 py-2 rounded-xl border border-soft-200 text-sm">
+                        {['OUVERT', 'RESERVE', 'FERME'].map(k =>
+                            <option key={k} value={k}>{t('cdi.etat.' + k)}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.cap.de')}</label>
+                    <input type="time" value={e.estadoInicio || ''} onChange={ev => campo('estadoInicio', ev.target.value)}
+                        className="px-3 py-2 rounded-xl border border-soft-200 text-sm" />
+                </div>
+                <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.cap.ate')}</label>
+                    <input type="time" value={e.estadoFim || ''} onChange={ev => campo('estadoFim', ev.target.value)}
+                        className="px-3 py-2 rounded-xl border border-soft-200 text-sm" />
+                </div>
+                <input value={e.estadoNota || ''} onChange={ev => campo('estadoNota', ev.target.value)}
+                    placeholder={t('cdi.cap.nota')}
+                    className="flex-1 min-w-48 px-3 py-2 rounded-xl border border-soft-200 text-sm" />
+                <button type="button" disabled={ocupado} onClick={gravar}
+                    className="text-xs font-bold text-white bg-navy-500 px-4 py-2.5 rounded-xl disabled:opacity-40">
+                    {salvo ? t('cdi.cap.gravado') : t('cdi.cap.gravar')}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function CdiExclusionManagement({ onBack }) {
     const t = useI18n();
     const [linhas, setLinhas] = React.useState(null);
@@ -102,6 +191,13 @@ function CdiExclusionManagement({ onBack }) {
                 {t('cdi.excl.aviso.sensivel')}
             </p>
 
+            {/* ══ CAPACITE ET ETAT ═══════════════════════════════════════
+                ⚠️ Le reglage vit ICI, derriere la meme permission que les
+                exclusions. Sans cet encadre, « capacite reglable a l'ecran »
+                voulait dire un UPDATE en base : le serveur lisait bien la
+                valeur, mais aucun ecran ne l'ecrivait. */}
+            <CdiCapacitePanel />
+
             {erro && (
                 <p className="text-sm text-danger-600 bg-danger-50 border border-danger-500/40 rounded-xl px-4 py-3">
                     {erro}
@@ -139,9 +235,17 @@ function CdiExclusionManagement({ onBack }) {
                         ))}
                     </div>
                 ) : (
-                    <input value={turma} onChange={e => setTurma(e.target.value)}
-                        placeholder="6E1"
-                        className="w-32 px-3 py-2 rounded-xl border border-soft-200 text-sm" />
+                    <div>
+                        <input value={turma} onChange={e => setTurma(e.target.value)}
+                            placeholder="6E1"
+                            className="w-32 px-3 py-2 rounded-xl border border-soft-200 text-sm" />
+                        {/* ⚠️ DIT PAR ECRIT, parce que le systeme ne le sait pas
+                            autrement : la mesure suit la CLASSE, pas les eleves
+                            qui y etaient le jour ou on l'a posee. */}
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1.5 mt-2 max-w-md">
+                            {t('cdi.excl.aviso.turma')}
+                        </p>
+                    </div>
                 )}
 
                 <div className="flex flex-wrap gap-2">

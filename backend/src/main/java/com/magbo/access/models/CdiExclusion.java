@@ -38,6 +38,20 @@ public class CdiExclusion {
     private String userId;
 
     @Column(name = "turma", length = 32)
+    /**
+     * ⚠️ UMA EXCLUSAO DE TURMA SEGUE A TURMA, NAO OS ALUNOS QUE ESTAVAM NELA.
+     *
+     * Nao ha fotografia da composicao no momento em que a medida foi posta: a
+     * avaliacao compara com a turma ATUAL da pessoa. Um aluno transferido para
+     * a 6E1 em outubro dispara o aviso de uma exclusao decidida em setembro
+     * para outras criancas — e um aluno que saiu da turma deixa de ser
+     * avisado, ainda que a medida fosse dele.
+     *
+     * Fica assim de PROPOSITO nesta entrega: congelar a composicao exige
+     * linhas-filhas por aluno (ou um retrato da turma), e isso e uma decisao
+     * de modelo, nao um efeito colateral. O ecra de criacao diz isto por
+     * escrito a quem cria a medida. Releve pelo painel de 27/08.
+     */
     private String turma;
 
     /**
@@ -81,7 +95,16 @@ public class CdiExclusion {
     @Transient
     public boolean ativaEm(LocalDate dia) {
         if (revogadoEm != null) return false;
+        if (dia == null) return false;
+        // ⚠️ UMA EXCLUSAO NAO COBRE O QUE ACONTECEU ANTES DE ELA EXISTIR.
+        // Sem este degrau, `ativaEm` e verdadeira para TODO dia passado (nao
+        // ha coluna de inicio) e uma medida decidida hoje marcaria as
+        // passagens da semana passada. Julgar pelo relogio do EVENTO — que e
+        // o certo — sem esta borda vira exatamente o defeito que ele evita,
+        // ao contrario. `criadoEm` ja e a data de inicio: nao inventamos
+        // coluna nova para um dado que ja esta na linha.
+        if (criadoEm != null && dia.isBefore(criadoEm.toLocalDate())) return false;
         if (ate == null) return true;
-        return dia != null && !dia.isAfter(ate);
+        return !dia.isAfter(ate);
     }
 }

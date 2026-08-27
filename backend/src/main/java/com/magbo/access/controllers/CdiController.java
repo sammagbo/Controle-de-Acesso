@@ -3,6 +3,7 @@ package com.magbo.access.controllers;
 import com.magbo.access.models.CdiExclusion;
 import com.magbo.access.models.User;
 import com.magbo.access.repositories.UserRepository;
+import com.magbo.access.services.EventTimeResolver;
 import com.magbo.access.services.CdiExclusionService;
 import com.magbo.access.services.SettingsService;
 import lombok.RequiredArgsConstructor;
@@ -83,6 +84,12 @@ public class CdiController {
             m.put("turma", e.getTurma());
             // ⚠️ NI motif NI auteur ici : l'ecran a besoin de RECONNAITRE, pas
             // de raconter. Le motif est dans /exclusions, derriere la permission.
+            // ⚠️ La DATE DE FIN passe, le motif jamais. « Exclu jusqu'au 5 »
+            // donne au bibliothecaire une phrase a dire a l'enfant ; « exclu
+            // pour insultes » raconte la sanction a toute la file. Les deux
+            // repondent a des questions differentes et seule la premiere lui
+            // appartient.
+            m.put("ate", e.getAte() == null ? null : e.getAte().toString());
             alvos.add(m);
         }
         out.put("exclusoesAtivas", alvos);
@@ -106,7 +113,11 @@ public class CdiController {
             m.put("criadoEm", String.valueOf(e.getCriadoEm()));
             m.put("revogadoPor", e.getRevogadoPor());
             m.put("revogadoEm", e.getRevogadoEm() == null ? null : String.valueOf(e.getRevogadoEm()));
-            m.put("ativa", e.ativaEm(LocalDate.now()));
+            // ⚠️ Horloge de l'ECOLE, pas celle de la JVM. Le conteneur ne
+            // porte `TZ` que depuis `deploy/docker-compose.yml` ; le jour ou
+            // quelqu'un surcharge TZ dans le .env, la pastille « active »
+            // basculerait a 21h. Le service, lui, l'a toujours fait.
+            m.put("ativa", e.ativaEm(LocalDate.now(EventTimeResolver.ZONA_ESCOLA)));
             return m;
         }).toList();
     }

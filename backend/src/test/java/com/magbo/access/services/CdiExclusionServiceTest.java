@@ -121,12 +121,22 @@ class CdiExclusionServiceTest {
             // File offline vidée à 18h contenant des passages de midi : jugée
             // par `now`, une exclusion terminée aujourd'hui ferait paraître
             // permis un passage d'hier. Quatrième défaut d'horloge évité.
+            // L'exclusion est creee HIER et se termine HIER.
             when(repository.findByRevogadoEmIsNull())
                     .thenReturn(List.of(excl("0001", null, HOJE.minusDays(1))));
-            assertThat(service.avaliar(aluno("0001", "6E1"), MEIODIA.minusDays(2)).excluido())
-                    .as("le passage d'avant-hier tombait dans l'exclusion")
+            assertThat(service.avaliar(aluno("0001", "6E1"), MEIODIA.minusDays(1)).excluido())
+                    .as("le passage d'hier tombait dedans, et le juger a 18h n'y change rien")
                     .isTrue();
-            assertThat(service.avaliar(aluno("0001", "6E1"), MEIODIA).excluido()).isFalse();
+            assertThat(service.avaliar(aluno("0001", "6E1"), MEIODIA).excluido())
+                    .as("aujourd'hui elle est finie")
+                    .isFalse();
+            // ⚠️ ET ELLE NE REMONTE PAS AVANT SA CREATION. L'horloge de
+            // l'evenement, sans cette borne, ferait d'une mesure prise hier
+            // une mesure qui marque avant-hier — retroactivite illimitee, sur
+            // un mineur. Le defaut a ete releve par le panel du 27/08.
+            assertThat(service.avaliar(aluno("0001", "6E1"), MEIODIA.minusDays(2)).excluido())
+                    .as("avant-hier l'exclusion n'existait pas encore")
+                    .isFalse();
         }
 
         @Test

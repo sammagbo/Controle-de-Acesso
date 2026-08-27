@@ -104,8 +104,72 @@ function CdiCapacitePanel() {
     );
 }
 
+/**
+ * L'HISTORIQUE DES ALERTES (V026) — chaque alerte montrée au comptoir.
+ *
+ * ⚠️ Au scope du module (la maladie du composant-dans-le-parent a assez
+ * coûté), et derrière la MÊME permission que la gestion : une ligne
+ * EXCLUSION nomme un enfant et date un signalement. C'est ici qu'on répond
+ * à « pourquoi mon enfant a-t-il été signalé, et combien de fois ».
+ */
+function CdiAlertHistorique() {
+    const t = useI18n();
+    const [linhas, setLinhas] = React.useState(null);
+    const [erro, setErro] = React.useState(null);
+
+    React.useEffect(() => {
+        let vivo = true;
+        window.api.fetchCdiAlertes()
+            .then(l => { if (vivo) { setLinhas(l); setErro(null); } })
+            .catch(e => { if (vivo) setErro((e && e.message) || t('cdi.excl.erro')); });
+        return () => { vivo = false; };
+    }, []);
+
+    const TIPO = {
+        EXCLUSION: { rotulo: t('cdi.hist.tipo.EXCLUSION'), cor: 'bg-danger-100 text-danger-700' },
+        CAPACITE: { rotulo: t('cdi.hist.tipo.CAPACITE'), cor: 'bg-amber-100 text-amber-700' },
+        FERME: { rotulo: t('cdi.hist.tipo.FERME'), cor: 'bg-purple-100 text-purple-700' }
+    };
+
+    if (erro) {
+        return <p className="text-sm text-danger-600 bg-danger-50 border border-danger-500/40 rounded-xl px-4 py-3">{erro}</p>;
+    }
+    if (linhas === null) return <p className="text-sm text-slate-400">{t('comum.conectando')}</p>;
+    if (linhas.length === 0) return <p className="text-sm text-slate-500">{t('cdi.hist.vazio')}</p>;
+
+    return (
+        <div className="space-y-1.5">
+            {/* ⚠️ L'heure affichée est celle du BADGE (event_time). `criadoEm`
+                n'apparaît que si les deux divergent — c'est le signe d'une file
+                offline, et le lecteur doit le voir. */}
+            {linhas.map(l => (
+                <div key={l.id} className="flex items-center gap-3 rounded-xl px-3 py-2 border bg-white border-soft-200">
+                    <span className="text-xs font-mono text-slate-500 whitespace-nowrap">
+                        {String(l.eventTime || '').slice(0, 16).replace('T', ' ')}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(TIPO[l.tipo] || {}).cor || 'bg-soft-100 text-slate-500'}`}>
+                        {(TIPO[l.tipo] || {}).rotulo || l.tipo}
+                    </span>
+                    <span className="font-bold text-sm text-navy-500 truncate">
+                        {l.nome || (l.userId ? l.userId : '—')}
+                    </span>
+                    {l.detalhe && <span className="text-xs text-slate-500 italic truncate">{l.detalhe}</span>}
+                    <span className="text-xs text-slate-400 flex-1 text-right">{l.pointId}</span>
+                    {String(l.criadoEm || '').slice(0, 16) !== String(l.eventTime || '').slice(0, 16) && (
+                        <span className="text-[10px] text-amber-700 whitespace-nowrap"
+                            title={t('cdi.hist.decalage.title')}>
+                            {t('cdi.hist.decalage', { quando: String(l.criadoEm || '').slice(11, 16) })}
+                        </span>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function CdiExclusionManagement({ onBack }) {
     const t = useI18n();
+    const [aba, setAba] = React.useState('exclusions');   // 'exclusions' | 'historique'
     const [linhas, setLinhas] = React.useState(null);
     const [erro, setErro] = React.useState(null);
     const [ocupado, setOcupado] = React.useState(false);
@@ -190,6 +254,22 @@ function CdiExclusionManagement({ onBack }) {
             <p className="text-xs text-danger-700 bg-danger-50 border border-danger-500/40 rounded-xl px-3 py-2">
                 {t('cdi.excl.aviso.sensivel')}
             </p>
+
+            {/* Exclusions | Historique des alertes — même permission, même
+                avertissement : les deux nomment des enfants. */}
+            <div className="flex gap-2">
+                {['exclusions', 'historique'].map(k => (
+                    <button key={k} type="button" onClick={() => setAba(k)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
+                            aba === k ? 'bg-navy-500 text-white border-navy-500'
+                                      : 'bg-white text-slate-500 border-soft-200'}`}>
+                        {t('cdi.hist.aba.' + k)}
+                    </button>
+                ))}
+            </div>
+
+            {aba === 'historique' && <CdiAlertHistorique />}
+            {aba === 'historique' ? null : <>
 
             {/* ══ CAPACITE ET ETAT ═══════════════════════════════════════
                 ⚠️ Le reglage vit ICI, derriere la meme permission que les
@@ -307,6 +387,7 @@ function CdiExclusionManagement({ onBack }) {
                     ))}
                 </div>
             )}
+            </>}
         </div>
     );
 }

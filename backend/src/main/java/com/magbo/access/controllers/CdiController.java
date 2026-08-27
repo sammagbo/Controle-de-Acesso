@@ -4,8 +4,11 @@ import com.magbo.access.models.CdiExclusion;
 import com.magbo.access.models.User;
 import com.magbo.access.repositories.UserRepository;
 import com.magbo.access.services.EventTimeResolver;
+import com.magbo.access.services.CdiAlertService;
 import com.magbo.access.services.CdiExclusionService;
 import com.magbo.access.services.SettingsService;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -40,6 +43,7 @@ import java.util.*;
 public class CdiController {
 
     private final CdiExclusionService exclusionService;
+    private final CdiAlertService alertService;
     private final SettingsService settingsService;
     private final UserRepository userRepository;
 
@@ -191,5 +195,75 @@ public class CdiController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));
         }
+    }
+
+    // ── Le registre des alertes (V026) ───────────────────────────────────
+
+    /**
+     * L'ecran du CDI declare qu'il vient de MONTRER une alerte.
+     *
+     * ⚠️ Garde par AIRE (`cdi`), comme `/etat` : c'est l'operateur du CDI qui
+     * poste, au moment ou l'alerte sonne. Le corps ne porte NI motif NI donnee
+     * qu'il n'avait pas deja sous les yeux — type, personne, heure du badge,
+     * ce que l'ecran affichait.
+     *
+     * ⚠️ L'ecriture ne peut pas faire tomber l'ecran : le service ecrit en
+     * REQUIRES_NEW, et le client appelle en fire-and-forget (l'alerte s'
+     * affiche AVANT le POST, jamais en fonction de lui).
+     */
+    @PostMapping("/alertes")
+    @PreAuthorize("@areaSecurity.can('cdi')")
+    public ResponseEntity<?> registrarAlerta(@RequestBody Map<String, String> b) {
+        try {
+            LocalDateTime eventTime = null;
+            String raw = b.get("eventTime");
+            if (raw != null && !raw.isBlank()) {
+                try {
+                    eventTime = LocalDateTime.parse(raw.trim());
+                } catch (DateTimeParseException e) {
+                    // Hora ilegivel nao derruba o registro: o service grava com
+                    // a hora atual e loga — melhor um registro de hora
+                    // aproximada e marcada do que registro nenhum.
+                    eventTime = null;
+                }
+            }
+            var salvo = alertService.registrar(
+                    b.get("tipo"), b.get("userId"), b.get("nomeSnapshot"),
+                    b.getOrDefault("pointId", "BIBLIO"), eventTime, b.get("detalhe"));
+            return ResponseEntity.ok(Map.of("id", salvo.getId()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", String.valueOf(e.getMessage())));
+        }
+    }
+
+    /**
+     * L'historique des alertes — QUI a ete signale, quand, combien de fois.
+     *
+     * ⚠️ Derriere la MEME permission que la gestion des exclusions, pas la
+     * version reduite de l'operateur : une ligne EXCLUSION nomme un enfant et
+     * date un signalement. C'est la reponse a une famille six semaines plus
+     * tard, et cette reponse ne s'ouvre pas «parce qu'on est connecte».
+     */
+    @GetMapping("/alertes")
+    @PreAuthorize(GATE_EXCLUSOES)
+    public List<Map<String, Object>> alertas() {
+        return alertService.historico().stream().map(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", a.getId());
+            m.put("tipo", a.getTipo());
+            m.put("userId", a.getUserId());
+            // Snapshot d'abord; le cadastre actuel complete si le snapshot
+            // manque (vieux enregistrements, POST minimal).
+            String nome = a.getNomeSnapshot();
+            if ((nome == null || nome.isBlank()) && a.getUserId() != null) {
+                nome = userRepository.findById(a.getUserId()).map(User::getNome).orElse(null);
+            }
+            m.put("nome", nome);
+            m.put("pointId", a.getPointId());
+            m.put("eventTime", String.valueOf(a.getEventTime()));
+            m.put("detalhe", a.getDetalhe());
+            m.put("criadoEm", String.valueOf(a.getCriadoEm()));
+            return m;
+        }).toList();
     }
 }

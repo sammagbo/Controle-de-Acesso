@@ -158,7 +158,8 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     <button
                                           onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                           className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
-                                          title={t('header.config')}
+                                          title={(window.auth.isAdmin && window.auth.isAdmin())
+                                                ? t('header.config') : t('cfg.aba.config')}
                                     >
                                           <LucideIcon name="cog" size={16} />
                                     </button>

@@ -475,7 +475,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
     }, [onShowToast]);
 
     React.useEffect(() => {
-        if (activeTab === 'staff-list') carregarServidores();
+        if (activeTab === 'staff-list' && ehAdmin) carregarServidores();
     }, [activeTab, carregarServidores]);
 
     const salvarServidor = async () => {
@@ -726,7 +726,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
     }, []);
 
     React.useEffect(() => {
-        if (activeTab === 'photos') carregarResumoDeFotos();
+        if (activeTab === 'photos' && ehAdmin) carregarResumoDeFotos();
     }, [activeTab, carregarResumoDeFotos]);
 
     const limparEscolhaDeFotos = () => {
@@ -1868,8 +1868,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <LucideIcon name="settings" size={20} className="text-white" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{t('cfg.titulo')}</h2>
-                            <p className="text-xs text-white/50 truncate">{t('cfg.subtitulo')}</p>
+                            {/* ⚠️ Le titre suit le PROFIL : pour le porteur de
+                                CONFIG_WRITE seul, « Paramètres et Registres /
+                                importez des utilisateurs » promettait un import
+                                qu'il ne verra jamais. L'interface n'affirme pas
+                                plus qu'elle n'offre (réserve du panel, 28/08). */}
+                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{ehAdmin ? t('cfg.titulo') : t('cfg.aba.config')}</h2>
+                            <p className="text-xs text-white/50 truncate">{ehAdmin ? t('cfg.subtitulo') : t('cfg.subtitulo.config')}</p>
                         </div>
                     </div>
                     <button

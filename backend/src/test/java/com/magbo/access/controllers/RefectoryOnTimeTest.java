@@ -94,4 +94,26 @@ class RefectoryOnTimeTest {
         // ninguém tivesse escrito isso em lugar nenhum.
         assertThat(onTime(comFlag("UMA_FLAG_QUE_AINDA_NAO_EXISTE").getFlag())).isTrue();
     }
+
+    // ── A FAMILIA DIRECIONAL (27/08/2026) ───────────────────────────────
+    // Desde os creneaux, a janela grava AVANT_CRENEAU/APRES_CRENEAU; o
+    // FORA_HORARIO unico so existe nas linhas historicas. Os TRES contam como
+    // «fora do creneau» — e um flag INVENTADO continua a nao contar.
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("★★★ AVANT_CRENEAU e APRES_CRENEAU tambem tiram o 'a l heure'")
+    void familiaDirecionalNaoEstaNaHora() {
+        org.assertj.core.api.Assertions.assertThat(onTime("AVANT_CRENEAU")).isFalse();
+        org.assertj.core.api.Assertions.assertThat(onTime("APRES_CRENEAU")).isFalse();
+        org.assertj.core.api.Assertions.assertThat(onTime("FORA_HORARIO")).isFalse();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("★★ null (passagem limpa) NAO estoura — era o 500 do rapport")
+    void nullNaoEstoura() {
+        // Set.of().contains(null) LANCA. Este teste apanhou o defeito no
+        // minuto em que a familia substituiu o equals — flag null e o caso
+        // NORMAL, e o rapport respondia 500 para todo dia sem incidente.
+        org.assertj.core.api.Assertions.assertThat(onTime(null)).isTrue();
+    }
 }

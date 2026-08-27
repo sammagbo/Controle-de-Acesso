@@ -38,6 +38,15 @@ class MealSlotServiceTest {
     @Mock private MealSlotRepository slotRepository;
     @Mock private MealSlotClassRepository classRepository;
     @Mock private MealSlotStudentRepository studentRepository;
+    /**
+     * ⚠️ O stub imita o CONTRATO da V024: sem linha gravada, vale o default.
+     * `efetivoInt` devolve o proprio default recebido, `efetivoCsv` o conjunto
+     * vazio. Sem isto, o mock devolvia 0 e null — um teto de refeicao de ZERO
+     * minutos e um NullPointer, dezenas de falhas de andaime em vez de uma
+     * verdade sobre o codigo.
+     */
+    @Mock private SettingsService settingsService;
+
 
     private MealSlotService service;
 
@@ -59,7 +68,14 @@ class MealSlotServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MealSlotService(slotRepository, classRepository, studentRepository);
+        service = new MealSlotService(slotRepository, classRepository, studentRepository, settingsService);
+        org.mockito.Mockito.lenient().when(settingsService.efetivoInt(
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(i -> i.getArgument(1));
+        org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.Set.of());
+
         when(slotRepository.findAllById(any())).thenAnswer(i -> {
             List<Long> ids = i.getArgument(0);
             return List.of(P1230, P1300).stream().filter(s -> ids.contains(s.getId())).toList();
@@ -254,6 +270,138 @@ class MealSlotServiceTest {
             assertThat(segunda.naoConfigurado())
                     .as("o dia da semana tem de sair da hora do EVENTO")
                     .isTrue();
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("a direcao do FORA — antes ou depois do SEU creneau")
+    class Direcao {
+
+        @Test
+        @DisplayName("★★★ 10h00 antes do creneau das 12h30: AVANT_CRENEAU")
+        void antesDoCreneau() {
+            turmaNosSlots("1E1", 1L);
+            var r = service.resolver(aluno("0001", "1E1"), LocalDateTime.of(2026, 8, 25, 10, 0));
+            assertThat(r.veredicto()).isEqualTo(MealSlotService.Veredicto.FORA);
+            assertThat(r.flagDirecional())
+                    .as("chegar cedo e chegar tarde sao problemas DIFERENTES, e um flag so obrigava a ir descobrir qual")
+                    .isEqualTo("AVANT_CRENEAU");
+        }
+
+        @Test
+        @DisplayName("★★★ 14h30 depois do creneau das 12h30: APRES_CRENEAU")
+        void depoisDoCreneau() {
+            turmaNosSlots("1E1", 1L);
+            var r = service.resolver(aluno("0001", "1E1"), LocalDateTime.of(2026, 8, 25, 14, 30));
+            assertThat(r.flagDirecional()).isEqualTo("APRES_CRENEAU");
+        }
+
+        @Test
+        @DisplayName("★★ ENTRE duas janelas: a direcao e relativa ao creneau MAIS PROXIMO")
+        void entreDuasJanelas() {
+            // Creneaux as 12h30 e 13h00 com tolerancias ±15/+45: as janelas
+            // encostam. Um caso real de "entre" exige janelas separadas — aqui
+            // o que se trava e que a resposta venha do mais proximo, nunca de
+            // uma escolha arbitraria da lista.
+            turmaNosSlots("1E2", 1L, 2L);
+            var r = service.resolver(aluno("0002", "1E2"), LocalDateTime.of(2026, 8, 25, 10, 0));
+            assertThat(r.flagDirecional()).isEqualTo("AVANT_CRENEAU");
+            assertThat(r.creneau().getId())
+                    .as("o creneau nomeado e o mais proximo das 10h00, o de 12h30")
+                    .isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("★★ DENTRO e NAO_CONFIGURADO nao tem flag direcional")
+        void dentroENaoConfiguradoSemFlag() {
+            turmaNosSlots("1E1", 1L);
+            assertThat(service.resolver(aluno("0001", "1E1"), TERCA_1235).flagDirecional()).isNull();
+            when(classRepository.doDia(any(), any())).thenReturn(List.of());
+            assertThat(service.resolver(aluno("0009", "SEM-CRENEAU"), TERCA_1235).flagDirecional()).isNull();
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("turmas dispensadas de badge — preparacao, NAO ativacao")
+    class Dispensees {
+
+        @Test
+        @DisplayName("★★★ turma dispensada: NAO_APLICAVEL — nem flag, nem pergunta")
+        void turmaDispensada() {
+            org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                            MealSlotService.CHAVE_DISPENSEES))
+                    .thenReturn(java.util.Set.of("6E1"));
+            turmaNosSlots("6E1", 1L);   // MESMO com creneau configurado
+            var r = service.resolver(aluno("0001", "6E1"), LocalDateTime.of(2026, 8, 25, 10, 0));
+            assertThat(r.naoAplicavel())
+                    .as("dispensada vence tudo: nem AVANT, nem APRES, nem NAO_CONFIGURADO")
+                    .isTrue();
+            assertThat(r.flagDirecional()).isNull();
+        }
+
+        @Test
+        @DisplayName("★★★ O DEFAULT E NINGUEM DISPENSADO — ativar e decisao do Sam, nao do codigo")
+        void defaultNinguemDispensado() {
+            // O stub do setUp devolve Set.of() — exatamente o default do
+            // reglage. Uma turma normal continua a ser julgada.
+            turmaNosSlots("1E1", 1L);
+            assertThat(service.resolver(aluno("0001", "1E1"), TERCA_1235).dentro()).isTrue();
+            assertThat(service.dispensee(aluno("0001", "1E1"))).isFalse();
+        }
+
+        @Test
+        @DisplayName("★★ dispensee() e insensivel a caixa e a espacos")
+        void normalizacao() {
+            org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                            MealSlotService.CHAVE_DISPENSEES))
+                    .thenReturn(java.util.Set.of("TPS/PS A"));
+            assertThat(service.dispensee(aluno("0001", " tps/ps a "))).isTrue();
+        }
+
+        @Test
+        @DisplayName("★ so ALUNO pode ser dispensado — servidor nunca")
+        void soAluno() {
+            org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                            MealSlotService.CHAVE_DISPENSEES))
+                    .thenReturn(java.util.Set.of("6E1"));
+            User servidor = User.builder().id("FUNC-1").nome("X")
+                    .tipo(UserType.FUNCIONARIO).turma("6E1").build();
+            assertThat(service.dispensee(servidor)).isFalse();
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("criar um creneau — o gesto da maternal/elementar")
+    class Criar {
+
+        @Test
+        @DisplayName("★★ cria com dia+hora; dia invalido e recusado")
+        void criaEValida() {
+            org.mockito.Mockito.lenient().when(slotRepository.findAllByOrderByDiaSemanaAscOrdemAscHoraAsc())
+                    .thenReturn(List.of());
+            org.mockito.Mockito.lenient().when(slotRepository.save(any()))
+                    .thenAnswer(i -> i.getArgument(0));
+            MealSlot novo = service.criarCreneau(1, LocalTime.of(11, 55), "11H55 — maternelle", null, "sam");
+            assertThat(novo.getDiaSemana()).isEqualTo((short) 1);
+            assertThat(novo.getHora()).isEqualTo(LocalTime.of(11, 55));
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                    () -> service.criarCreneau(0, LocalTime.NOON, null, null, "sam"))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("★★ criar o que JA existe reativa em vez de duplicar")
+        void criarExistenteReativa() {
+            MealSlot inativo = MealSlot.builder().id(7L).diaSemana((short) 1)
+                    .hora(LocalTime.of(11, 55)).ativo(false).build();
+            org.mockito.Mockito.lenient().when(slotRepository.findAllByOrderByDiaSemanaAscOrdemAscHoraAsc())
+                    .thenReturn(List.of(inativo));
+            org.mockito.Mockito.lenient().when(slotRepository.save(any()))
+                    .thenAnswer(i -> i.getArgument(0));
+            MealSlot r = service.criarCreneau(1, LocalTime.of(11, 55), null, null, "sam");
+            assertThat(r.getId()).isEqualTo(7L);
+            assertThat(r.getAtivo()).isTrue();
         }
     }
 }

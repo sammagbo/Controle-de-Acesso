@@ -76,6 +76,16 @@ class RegimeGateWiringTest {
      */
     @Mock private MealSlotService mealSlotService;
 
+    /**
+     * ⚠️ O stub imita o CONTRATO da V024: sem linha gravada, vale o default.
+     * `efetivoInt` devolve o proprio default recebido, `efetivoCsv` o conjunto
+     * vazio. Sem isto, o mock devolvia 0 e null — um teto de refeicao de ZERO
+     * minutos e um NullPointer, dezenas de falhas de andaime em vez de uma
+     * verdade sobre o codigo.
+     */
+    @Mock private SettingsService settingsService;
+
+
     private AccessDecisionService service;
 
     @BeforeEach
@@ -97,7 +107,13 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                regimeService, new com.magbo.access.config.CantineProperties(), mealSlotService);
+                regimeService, new com.magbo.access.config.CantineProperties(), mealSlotService, settingsService);
+        org.mockito.Mockito.lenient().when(settingsService.efetivoInt(
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(i -> i.getArgument(1));
+        org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.Set.of());
         // Ver o javadoc do campo: DENTRO preserva o efeito do comportamento antigo.
         org.mockito.Mockito.lenient().when(mealSlotService.resolver(
                         org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -164,7 +180,7 @@ class RegimeGateWiringTest {
                 mealEntitlementService, exitPermissionService, samePassageService,
                 new PostoFixoService(accessLogRepository),
                 new PresencaAbertaService(accessLogRepository),
-                espiao, new com.magbo.access.config.CantineProperties(), mealSlotService);
+                espiao, new com.magbo.access.config.CantineProperties(), mealSlotService, settingsService);
 
         LocalDateTime horaDaPassagem = LocalDateTime.of(DIA, LocalTime.of(10, 0));
         comEspiao.processCameraRecognition(pessoa(UserType.ALUNO), "0000000000003535",

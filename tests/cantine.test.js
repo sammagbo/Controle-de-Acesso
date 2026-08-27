@@ -407,3 +407,90 @@ describe('o rodapé conta o que o modal lista — os dois números têm de bater
         expect(r.dans).toHaveLength(2);
     });
 });
+
+describe('les quatre familles — compteurs du jour', () => {
+    const ev2 = (userId, action, quandoMs, flag) =>
+        ({ userId, action, pointId: 'REFEI1', timestamp: quandoMs, flag: flag || null });
+
+    it('★★★ AVANT et APRES sont comptés SÉPARÉMENT — c est toute la livraison', () => {
+        const r = cantine.classificar([
+            ev2('A', 'ENTRADA', MEIODIA - 10 * MIN, 'AVANT_CRENEAU'),
+            ev2('B', 'ENTRADA', MEIODIA - 12 * MIN, 'AVANT_CRENEAU'),
+            ev2('C', 'ENTRADA', MEIODIA - 14 * MIN, 'APRES_CRENEAU')
+        ], MEIODIA, opts);
+        expect(r.contadores.avantCreneau).toBe(2);
+        expect(r.contadores.apresCreneau).toBe(1);
+    });
+
+    it('★★★ le FORA_HORARIO historique a SA propre famille, jamais réparti', () => {
+        // Lui inventer une direction serait affirmer ce que la donnée ne dit
+        // pas : avant le 27/08 le système n avait qu un drapeau sans direction.
+        const r = cantine.classificar([
+            ev2('A', 'ENTRADA', MEIODIA - 10 * MIN, 'FORA_HORARIO')
+        ], MEIODIA, opts);
+        expect(r.contadores.foraLegado).toBe(1);
+        expect(r.contadores.avantCreneau).toBe(0);
+        expect(r.contadores.apresCreneau).toBe(0);
+    });
+
+    it('★★★ courts et longs comptent TOUS les couples du jour, pas seulement les visibles', () => {
+        // Une personne sortie il y a plus de 40 min n est plus dans SORTIS —
+        // mais son repas trop court a bien eu lieu. Un compteur qui ne verrait
+        // que l écran mentirait dès qu une ligne disparaît.
+        const r = cantine.classificar([
+            ev2('A', 'ENTRADA', MEIODIA - 200 * MIN), ev2('A', 'SAIDA', MEIODIA - 195 * MIN),
+            ev2('B', 'ENTRADA', MEIODIA - 180 * MIN), ev2('B', 'SAIDA', MEIODIA - 120 * MIN)
+        ], MEIODIA, opts);
+        expect(r.sortis).toHaveLength(0);          // rien de visible
+        expect(r.contadores.curtas).toBe(1);       // 5 min
+        expect(r.contadores.longas).toBe(1);       // 60 min
+    });
+
+    it('★★ une durée normale ne compte dans aucune des deux', () => {
+        const r = cantine.classificar([
+            ev2('A', 'ENTRADA', MEIODIA - 40 * MIN), ev2('A', 'SAIDA', MEIODIA - 20 * MIN)
+        ], MEIODIA, opts);
+        expect(r.contadores.curtas).toBe(0);
+        expect(r.contadores.longas).toBe(0);
+    });
+
+    it('★★ les compteurs suivent les seuils configurés', () => {
+        cantine.configurar({ cantine: { duracaoCurtaMinutos: 30, duracaoMaximaMinutos: 90 } });
+        const r = cantine.classificar([
+            ev2('A', 'ENTRADA', MEIODIA - 60 * MIN), ev2('A', 'SAIDA', MEIODIA - 40 * MIN)
+        ], MEIODIA, opts);
+        expect(r.contadores.curtas).toBe(1);   // 20 min < 30
+    });
+
+    it('★ journée sans incident : tout à zéro, et les zéros existent', () => {
+        const r = cantine.classificar([ev2('A', 'ENTRADA', MEIODIA - 5 * MIN)], MEIODIA, opts);
+        expect(r.contadores).toEqual({ avantCreneau: 0, apresCreneau: 0, foraLegado: 0, curtas: 0, longas: 0 });
+    });
+});
+
+describe('servicoDe — à quel service appartient un repas', () => {
+    const grade = {
+        creneaux: [
+            { id: 1, diaSemana: 2, hora: '12:30:00', rotulo: '12H30 — prioritaire', ativo: true,
+              turmas: [{ turma: '1E2' }, { turma: 'T1' }] },
+            { id: 2, diaSemana: 2, hora: '13:00:00', rotulo: '13H00 — secondaire', ativo: true,
+              turmas: [{ turma: '1E2' }] }
+        ]
+    };
+
+    it('★★ une turma dans DEUX créneaux : le plus proche de l heure gagne', () => {
+        expect(cantine.servicoDe(grade, '1E2', 2, 12 * 60 + 35)).toBe('12H30 — prioritaire');
+        expect(cantine.servicoDe(grade, '1E2', 2, 13 * 60 + 10)).toBe('13H00 — secondaire');
+    });
+
+    it('★★ turma sans créneau ce jour-là, ou grade absente : null', () => {
+        expect(cantine.servicoDe(grade, '6E1', 2, 12 * 60)).toBeNull();
+        expect(cantine.servicoDe(grade, 'T1', 4, 12 * 60)).toBeNull();   // jeudi
+        expect(cantine.servicoDe(null, '1E2', 2, 12 * 60)).toBeNull();
+    });
+
+    it('★ un créneau désactivé ne compte pas', () => {
+        const off = { creneaux: [{ ...grade.creneaux[0], ativo: false }] };
+        expect(cantine.servicoDe(off, '1E2', 2, 12 * 60 + 35)).toBeNull();
+    });
+});

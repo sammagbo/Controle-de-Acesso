@@ -896,6 +896,9 @@
             'rap.kpi.alunos.unicos': 'Élèves uniques',
             'rap.kpi.duracao': 'Durée moyenne',
             'rap.status.na.hora': "À l'heure",
+            'rap.status.avant.creneau': 'avant son créneau',
+            'rap.status.apres.creneau': 'après son créneau',
+            'rap.familles.tous': 'Tous services',
             'rap.status.fora.horario': 'Hors horaire',
             'rap.status.sem.saida': 'Sortie non enregistrée',
             'rap.status.estadia.longa': 'Séjour prolongé',
@@ -1032,6 +1035,7 @@
             'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Moniteur Cantine — retirer une ligne',
             'operadores.permissao.MEAL_SLOT_WRITE': 'Planning cantine — modifier',
             'operadores.permissao.PARCOURS_READ': "Parcours du jour — consulter",
+            'operadores.permissao.CONFIG_WRITE': 'Configuration du système — modifier',
 
             // Planning de cantine — les créneaux (V021)
             'admin.card.creneaux.titulo': 'Planning Cantine',
@@ -1071,6 +1075,17 @@
             'creneaux.veredicto.NAO_CONFIGURADO': "Aucun créneau configuré pour cet élève — ce n'est pas un refus.",
             'creneaux.veredicto.NAO_APLICAVEL': "La règle des créneaux ne s'applique pas à cette personne.",
             'creneaux.regra.prioridade': "Les classes de 1ère et de Terminale sont prioritaires pour l'accès à la cantine.",
+            // Créneaux : tolérances, création, dispenses
+            'creneaux.tol.min': 'min',
+            'creneaux.tol.gravar': 'Enregistrer la fenêtre de ce créneau',
+            'creneaux.novo.titulo': 'Ajouter un créneau',
+            'creneaux.novo.ajuda': "Pour la maternelle et l'élémentaire : rien n'est pré-rempli, les horaires réels se saisissent ici avec la Vie Scolaire.",
+            'creneaux.novo.criar': 'Ajouter',
+            'creneaux.disp.titulo': 'Classes dispensées de badgeage cantine',
+            'creneaux.disp.aviso.ppms': "⚠️ CONSÉQUENCE PPMS : un enfant qui ne badge pas n'est PAS vu par l'écran d'évacuation. Il n'apparaîtra ni dans le décompte des présents, ni dans la liste que la cellule de crise imprime. Dispenser une classe est une décision de direction, pas un réglage de confort.",
+            'creneaux.disp.nenhuma': 'Aucune classe dispensée — toutes badgent normalement.',
+            'creneaux.disp.escolher': 'Choisir une classe...',
+            'creneaux.disp.adicionar': 'Dispenser',
             'creneaux.dia.1': 'Lundi',
             'creneaux.dia.2': 'Mardi',
             'creneaux.dia.3': 'Mercredi',
@@ -1259,6 +1274,17 @@
             'cantina.col.deve.sair': 'Doit sortir',
             'cantina.col.vazio': 'Personne',
             'cantina.fora.horario': 'hors horaire',
+
+            // Les QUATRE familles de flags (27/08) — deux directions, deux durées
+            'cantina.flag.AVANT_CRENEAU': 'avant son créneau',
+            'cantina.flag.APRES_CRENEAU': 'après son créneau',
+            'cantina.flag.FORA_HORARIO': 'hors horaire',
+            'cantina.cont.avant': '{n} avant leur créneau',
+            'cantina.cont.apres': '{n} après leur créneau',
+            'cantina.cont.curtas': '{n} trop courts',
+            'cantina.cont.longas': '{n} trop longs',
+            'cantina.cont.legado': '{n} hors horaire (ancien)',
+            'cantina.cont.legado.ajuda': "Passages enregistrés avant le 27/08/2026, quand le système n'avait qu'un seul drapeau sans direction. On ne réécrit pas l'historique.",
             'cantina.agora': "à l'instant",
 
             // Moniteur Cantine — décantation, durées et ouverture anticipée
@@ -2219,6 +2245,9 @@
             'rap.kpi.alunos.unicos': 'Alunos únicos',
             'rap.kpi.duracao': 'Duração média',
             'rap.status.na.hora': 'No horário',
+            'rap.status.avant.creneau': 'antes do horário',
+            'rap.status.apres.creneau': 'depois do horário',
+            'rap.familles.tous': 'Todos os serviços',
             'rap.status.fora.horario': 'Fora do horário',
             'rap.status.sem.saida': 'Saída não registrada',
             'rap.status.estadia.longa': 'Permanência prolongada',
@@ -2346,6 +2375,7 @@
             'operadores.permissao.CANTINE_REMOVAL_WRITE': 'Monitor da Cantina — retirar uma linha',
             'operadores.permissao.MEAL_SLOT_WRITE': 'Planning da cantina — alterar',
             'operadores.permissao.PARCOURS_READ': 'Percurso do dia — consultar',
+            'operadores.permissao.CONFIG_WRITE': 'Configuração do sistema — alterar',
 
             // Planning da cantina — os créneaux (V021)
             'admin.card.creneaux.titulo': 'Planning da Cantina',
@@ -2385,6 +2415,17 @@
             'creneaux.veredicto.NAO_CONFIGURADO': 'Nenhum horário configurado para este aluno — não é recusa.',
             'creneaux.veredicto.NAO_APLICAVEL': 'A regra de horários não se aplica a esta pessoa.',
             'creneaux.regra.prioridade': 'As turmas de 1ère e Terminale têm prioridade no acesso à cantina.',
+            // Créneaux: tolerâncias, criação, dispensas
+            'creneaux.tol.min': 'min',
+            'creneaux.tol.gravar': 'Gravar a janela deste horário',
+            'creneaux.novo.titulo': 'Adicionar um horário',
+            'creneaux.novo.ajuda': 'Para a maternal e o elementar: nada vem pré-preenchido, os horários reais são digitados aqui com a Vie Scolaire.',
+            'creneaux.novo.criar': 'Adicionar',
+            'creneaux.disp.titulo': 'Turmas dispensadas de crachá na cantina',
+            'creneaux.disp.aviso.ppms': '⚠️ CONSEQUÊNCIA PPMS: uma criança que não passa o crachá NÃO é vista pela tela de evacuação. Não vai aparecer nem na contagem de presentes, nem na lista que a célula de crise imprime. Dispensar uma turma é decisão de direção, não ajuste de conforto.',
+            'creneaux.disp.nenhuma': 'Nenhuma turma dispensada — todas passam o crachá normalmente.',
+            'creneaux.disp.escolher': 'Escolher uma turma...',
+            'creneaux.disp.adicionar': 'Dispensar',
             'creneaux.dia.1': 'Segunda-feira',
             'creneaux.dia.2': 'Terça-feira',
             'creneaux.dia.3': 'Quarta-feira',
@@ -2573,6 +2614,17 @@
             'cantina.col.deve.sair': 'Deve sair',
             'cantina.col.vazio': 'Ninguém',
             'cantina.fora.horario': 'fora do horário',
+
+            // As QUATRO famílias de flags (27/08) — duas direções, duas durações
+            'cantina.flag.AVANT_CRENEAU': 'antes do horário dele',
+            'cantina.flag.APRES_CRENEAU': 'depois do horário dele',
+            'cantina.flag.FORA_HORARIO': 'fora do horário',
+            'cantina.cont.avant': '{n} antes do horário',
+            'cantina.cont.apres': '{n} depois do horário',
+            'cantina.cont.curtas': '{n} curtos demais',
+            'cantina.cont.longas': '{n} longos demais',
+            'cantina.cont.legado': '{n} fora do horário (antigo)',
+            'cantina.cont.legado.ajuda': 'Passagens gravadas antes de 27/08/2026, quando o sistema tinha um único flag sem direção. Não se reescreve o histórico.',
             'cantina.agora': 'agora mesmo',
 
             // Monitor da Cantina — decantação, durações e abertura antecipada

@@ -48,11 +48,29 @@ public class AccessController {
      * Coberto por RefectoryOnTimeTest, que chama ESTE metodo.
      */
     static boolean entrouNaHora(String flag) {
-        return !"FORA_HORARIO".equals(flag);
+        // ⚠️ A FAMILIA inteira, nao um valor: desde 27/08 a janela grava
+        // AVANT_CRENEAU/APRES_CRENEAU; as linhas antigas ficam FORA_HORARIO.
+        // Testar so o valor antigo faria toda refeicao nova «fora do creneau»
+        // aparecer como pontual no rapport.
+        //
+        // ⚠️ O null-check NAO e defensividade de enfeite: `Set.of().contains(null)`
+        // LANCA NullPointerException, e flag null e o caso NORMAL (passagem
+        // limpa). Sem ele, o rapport respondia 500 para todo dia sem incidente
+        // — apanhado por RefectoryOnTimeTest#semFlagContinuaNaHora no minuto
+        // em que a familia substituiu o equals.
+        return flag == null || !FLAGS_FORA_DO_CRENEAU.contains(flag);
     }
 
     private final AccessLogRepository accessLogRepository;
+
+    /**
+     * A familia «fora do seu horario» de access_logs.flag.
+     * ⚠️ Espelhada em js/utils/cantine.js (FLAGS_FORA_CRENEAU) — mudar juntas.
+     */
+    static final java.util.Set<String> FLAGS_FORA_DO_CRENEAU =
+            java.util.Set.of("FORA_HORARIO", "AVANT_CRENEAU", "APRES_CRENEAU");
     private final com.magbo.access.config.CantineProperties cantineProperties;
+    private final com.magbo.access.services.SettingsService settingsService;
     private final com.magbo.access.security.AreaSecurity areaSecurity;
     private final SystemUserRepository systemUserRepository;
     private final UserRepository userRepository;
@@ -194,6 +212,12 @@ public class AccessController {
                     // equivalente da Vue d'ensemble ja conta pela flag certa
                     // (AccessLogRepository: flag='FORA_HORARIO').
                     .onTime(entrouNaHora(entrada.getFlag()))
+                    // So o flag da FAMILIA de creneau viaja: POSTO_FIXO e
+                    // afins nao dizem nada sobre refeicao e so confundiriam
+                    // o rapport.
+                    .entryFlag(entrada.getFlag() != null
+                            && FLAGS_FORA_DO_CRENEAU.contains(entrada.getFlag())
+                            ? entrada.getFlag() : null)
                     .exitRegistered(exitRegistered)
                     .build());
         }
@@ -450,13 +474,24 @@ public class AccessController {
                 // (STAY_LIMIT_MS = 1h), mudar a property do backend deixava a
                 // tela a dizer outra coisa — e nada acusava a divergência. É o
                 // defeito que este endpoint existe para não repetir.
+                // ⚠️ Valores EFETIVOS (system_settings sobre a property): a tela
+                // segue o que foi mudado a ecra sem redeploy. Sem linha gravada,
+                // sao os defaults — o contrato da V024.
                 "cantine", Map.of(
                         "lyceeInicio", cantineProperties.getLyceeInicio().toString(),
                         "lyceeFim", cantineProperties.getLyceeFim().toString(),
-                        "duracaoCurtaMinutos", cantineProperties.getDuracaoCurtaMinutos(),
-                        "duracaoMaximaMinutos", cantineProperties.getDuracaoMaximaMinutos(),
-                        "decantacaoMinutos", cantineProperties.getDecantacaoMinutos(),
-                        "sortisVisiveisMinutos", cantineProperties.getSortisVisiveisMinutos())));
+                        "duracaoCurtaMinutos", settingsService.efetivoInt(
+                                "magbo.cantine.duracao-curta-minutos",
+                                cantineProperties.getDuracaoCurtaMinutos()),
+                        "duracaoMaximaMinutos", settingsService.efetivoInt(
+                                "magbo.cantine.duracao-maxima-minutos",
+                                cantineProperties.getDuracaoMaximaMinutos()),
+                        "decantacaoMinutos", settingsService.efetivoInt(
+                                "magbo.cantine.decantacao-minutos",
+                                cantineProperties.getDecantacaoMinutos()),
+                        "sortisVisiveisMinutos", settingsService.efetivoInt(
+                                "magbo.cantine.sortis-visiveis-minutos",
+                                cantineProperties.getSortisVisiveisMinutos()))));
     }
 
     private static final int INFIRMARY_LONG_STAY_MIN = 30;

@@ -15,6 +15,12 @@ public class RefectoryMeal {
     private String turma;
     private String date;          // yyyy-MM-dd
     private String entryTime;     // HH:mm (null se sem entrada)
+    /**
+     * O flag CRU da entrada (AVANT_CRENEAU, APRES_CRENEAU, FORA_HORARIO
+     * legado, ou null). O rapport precisa de dizer QUAL das duas direcoes
+     * aconteceu — `onTime` sozinho so diz «algum problema houve».
+     */
+    private String entryFlag;
     private String exitTime;      // HH:mm (null se não registrou saída)
     private Integer durationMinutes; // null se saída não registrada
     /**

@@ -73,6 +73,17 @@ public final class Permissions {
     public static final String PARCOURS_READ          = "PARCOURS_READ";
 
     /**
+     * Ler e alterar os REGLAGES do sistema (system_settings, V024).
+     *
+     * ⚠️ Leitura e escrita pela MESMA permissao, ao contrario das areas: a
+     * lista dos reglages e o mapa completo do comportamento do sistema
+     * (tetos, capacidades, turmas dispensadas) — assunto de administracao,
+     * nao de operacao. O ADMIN passa sempre; conceder isto a Vie Scolaire
+     * e uma decisao do Sam, feita na tela de operadores.
+     */
+    public static final String CONFIG_WRITE           = "CONFIG_WRITE";
+
+    /**
      * TODAS as permissoes concedeveis — a lista, num lugar so.
      *
      * ⚠️ Ate 14/08/2026 esta lista existia DUAS vezes dentro do
@@ -98,5 +109,6 @@ public final class Permissions {
             PPMS_READ,
             CANTINE_REMOVAL_WRITE,
             MEAL_SLOT_WRITE,
-            PARCOURS_READ);
+            PARCOURS_READ,
+            CONFIG_WRITE);
 }

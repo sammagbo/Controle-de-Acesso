@@ -548,6 +548,46 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    /** Cria um creneau (dia + hora). Gate MEAL_SLOT_WRITE no servidor. */
+    async createMealSlot(diaSemana, hora, rotulo, ordem) {
+        const res = await fetch(`${API_BASE_URL}/admin/meal-slots`, {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ diaSemana, hora, rotulo: rotulo || null, ordem: ordem || null })
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** Tolerancias / rotulo / ativo de um creneau. */
+    async updateMealSlot(slotId, corpo) {
+        const res = await fetch(`${API_BASE_URL}/admin/meal-slots/${slotId}`, {
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify(corpo || {})
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** A lista INTEIRA de turmas dispensadas de badge (substitui). */
+    async saveMealSlotDispensees(turmas) {
+        const res = await fetch(`${API_BASE_URL}/admin/meal-slots/dispensees`, {
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify({ turmas: turmas || [] })
+        });
+        return await this.handleResponse(res);
+    },
+
+    // ── Reglages do sistema (V024) ────────────────────────────────────────
+    async fetchSettings() {
+        const res = await fetch(`${API_BASE_URL}/admin/settings`, { headers: authHeaders() });
+        const d = await this.handleResponse(res);
+        return Array.isArray(d) ? d : [];
+    },
+
+    /** valor vazio/null = voltar ao default (apaga a linha). */
+    async saveSetting(chave, valor) {
+        const res = await fetch(`${API_BASE_URL}/admin/settings/${encodeURIComponent(chave)}`, {
+            method: 'PUT', headers: authHeaders(), body: JSON.stringify({ valor: valor == null ? '' : String(valor) })
+        });
+        return await this.handleResponse(res);
+    },
+
     // ── Moniteur Cantine: retirar uma linha (V020) ────────────────────────
     // ⚠️ Nada disto toca em `access_logs`. É um gesto de ECRÃ: a passagem
     // continua gravada, a presença do PPMS continua aberta e os relatórios de

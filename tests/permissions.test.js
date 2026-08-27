@@ -227,7 +227,9 @@ describe('permissions — gate de escrita', () => {
                 // Planning da cantina (V021).
                 MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE',
                 // Recherche globale / parcours du jour.
-                PARCOURS_READ: 'PARCOURS_READ'
+                PARCOURS_READ: 'PARCOURS_READ',
+                // Réglages du système (V024).
+                CONFIG_WRITE: 'CONFIG_WRITE'
             });
         });
     });

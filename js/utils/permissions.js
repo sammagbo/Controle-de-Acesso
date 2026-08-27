@@ -42,7 +42,9 @@
         MEAL_SLOT_WRITE: 'MEAL_SLOT_WRITE',
         // Parcours du jour (recherche globale): traverse toute l'école,
         // donc une permission et non un secteur.
-        PARCOURS_READ: 'PARCOURS_READ'
+        PARCOURS_READ: 'PARCOURS_READ',
+        // Réglages du système (V024): lire ET modifier — même permission.
+        CONFIG_WRITE: 'CONFIG_WRITE'
     };
 
     /**

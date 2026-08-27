@@ -95,6 +95,16 @@ class AccessDecisionServiceTest {
      */
     @Mock private MealSlotService mealSlotService;
 
+    /**
+     * ⚠️ O stub imita o CONTRATO da V024: sem linha gravada, vale o default.
+     * `efetivoInt` devolve o proprio default recebido, `efetivoCsv` o conjunto
+     * vazio. Sem isto, o mock devolvia 0 e null — um teto de refeicao de ZERO
+     * minutos e um NullPointer, dezenas de falhas de andaime em vez de uma
+     * verdade sobre o codigo.
+     */
+    @Mock private SettingsService settingsService;
+
+
     private AccessDecisionService service;
 
     private static final String EMPLOYEE = "9999999";
@@ -132,7 +142,13 @@ class AccessDecisionServiceTest {
                 // continua provado sem ruido novo. A fiacao do regime tem teste
                 // proprio: RegimeGateWiringTest.
                 new RegimeSortieService(null, null, null, null, null, null, REGIME_DESLIGADO, null),
-                cantineProperties, mealSlotService);
+                cantineProperties, mealSlotService, settingsService);
+        org.mockito.Mockito.lenient().when(settingsService.efetivoInt(
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(i -> i.getArgument(1));
+        org.mockito.Mockito.lenient().when(settingsService.efetivoCsv(
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.Set.of());
         // Ver o javadoc do campo: DENTRO preserva o efeito do comportamento antigo.
         org.mockito.Mockito.lenient().when(mealSlotService.resolver(
                         org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -290,10 +306,11 @@ class AccessDecisionServiceTest {
     }
 
     /** O MealSlotService responde FORA da janela para esta passagem. */
-    private void foraDaJanela() {
+    /** FORA da janela, com DIRECAO — antes=true e «chegou cedo demais». */
+    private void foraDaJanela(boolean antes) {
         org.mockito.Mockito.lenient().when(mealSlotService.resolver(any(), any()))
                 .thenReturn(new MealSlotService.Resultado(
-                        MealSlotService.Veredicto.FORA, null, java.util.List.of(), false));
+                        MealSlotService.Veredicto.FORA, null, java.util.List.of(), false, antes));
     }
 
     // ───────────────── Fiacao (o que a reflexao nao cobre) ─────────────────
@@ -307,7 +324,7 @@ class AccessDecisionServiceTest {
      * AccessLog gravado.
      */
     @Test
-    @DisplayName("FIACAO: o flag FORA_HORARIO calculado chega ao AccessLog gravado")
+    @DisplayName("FIACAO: o flag DIRECIONAL calculado chega ao AccessLog gravado")
     void flagForaHorarioChegaAoAccessLog() {
         policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
         autorizado();
@@ -315,7 +332,7 @@ class AccessDecisionServiceTest {
         // agora e o MealSlotService, e por isso e ele que este teste conduz. O
         // que continua a ser provado e o MESMO: que o flag calculado chega ao
         // AccessLog gravado, e nao morre pelo caminho.
-        foraDaJanela();
+        foraDaJanela(true);
 
         service.process(faceEvent(), IP, HORA_DO_EVENTO);
 
@@ -323,7 +340,9 @@ class AccessDecisionServiceTest {
         verify(accessLogRepository).save(captor.capture());
         AccessLog salvo = captor.getValue();
 
-        assertThat(salvo.getFlag()).isEqualTo("FORA_HORARIO");
+        // ⚠️ Direcional desde 27/08: antes=true no stub -> AVANT_CRENEAU.
+        // O FORA_HORARIO unico so existe nas linhas historicas.
+        assertThat(salvo.getFlag()).isEqualTo("AVANT_CRENEAU");
         assertThat(salvo.getUserId()).isEqualTo(EMPLOYEE);
         assertThat(salvo.getPointId()).isEqualTo("REFEI1");
         assertThat(salvo.getAction()).isEqualTo(AccessAction.ENTRADA);

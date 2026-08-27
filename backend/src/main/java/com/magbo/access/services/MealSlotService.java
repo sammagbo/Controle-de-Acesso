@@ -68,6 +68,31 @@ public class MealSlotService {
     private final MealSlotRepository slotRepository;
     private final MealSlotClassRepository classRepository;
     private final MealSlotStudentRepository studentRepository;
+    private final SettingsService settingsService;
+
+    /**
+     * A chave-CSV das turmas DISPENSADAS de badge na cantina.
+     *
+     * ⚠️ DESATIVADO POR DEFAULT para todas (default = string vazia): ativar e
+     * uma DECISAO do Sam com a Vie Scolaire, nao desta entrega. A consequencia
+     * PPMS esta escrita NO ECRA, ao lado do reglage — ver MealSlotManagement.
+     */
+    public static final String CHAVE_DISPENSEES = "magbo.cantine.turmas-dispensees";
+
+    /**
+     * Esta pessoa esta numa turma DISPENSADA de badge na cantina?
+     *
+     * ⚠️ Quem e dispensado nao aparece nem nos flags nem nas recusas da
+     * cantina — mas a PASSAGEM continua gravada (e o PPMS continua a ve-la
+     * enquanto a crianca badgear fisicamente). So ALUNO: a dispensa e um
+     * instituto de turma.
+     */
+    public boolean dispensee(User user) {
+        if (user == null || user.getTipo() != UserType.ALUNO) return false;
+        String turma = user.getTurma();
+        if (turma == null || turma.isBlank()) return false;
+        return settingsService.efetivoCsv(CHAVE_DISPENSEES).contains(turma.trim().toUpperCase());
+    }
 
     /** O que o MAGBO sabe sobre a hora de refeicao desta pessoa. */
     public enum Veredicto {
@@ -91,14 +116,42 @@ public class MealSlotService {
         NAO_APLICAVEL
     }
 
-    /** O veredicto e o porque — o `creneau` e null quando NAO_CONFIGURADO. */
+    /**
+     * O veredicto e o porque — o `creneau` e null quando NAO_CONFIGURADO.
+     *
+     * ⚠️ `antes` so tem sentido no veredicto FORA: true = a passagem foi ANTES
+     * da janela do creneau mais proximo; false = DEPOIS. Null nos outros
+     * veredictos — um Boolean de tres estados aqui e honesto, nao preguica:
+     * «dentro» nao e nem antes nem depois.
+     */
     public record Resultado(Veredicto veredicto, MealSlot creneau, List<MealSlot> candidatos,
-                            boolean porExcecao) {
+                            boolean porExcecao, Boolean antes) {
+
+        /** Compatibilidade com os testes e chamadores anteriores a 27/08. */
+        public Resultado(Veredicto veredicto, MealSlot creneau, List<MealSlot> candidatos,
+                         boolean porExcecao) {
+            this(veredicto, creneau, candidatos, porExcecao, null);
+        }
 
         public boolean dentro() { return veredicto == Veredicto.DENTRO; }
         public boolean naoConfigurado() { return veredicto == Veredicto.NAO_CONFIGURADO; }
         /** Nem julga, nem pergunta: a regra nao e para esta pessoa. */
         public boolean naoAplicavel() { return veredicto == Veredicto.NAO_APLICAVEL; }
+
+        /**
+         * O flag DIRECIONAL de `access_logs` — ou null quando nao ha flag.
+         *
+         * ⚠️ DOIS flags distintos, e distintos de trop-court/trop-long, porque
+         * sao QUATRO problemas diferentes: chegar antes do seu creneau, chegar
+         * depois dele, atravessar o refeitorio sem comer, e ficar tempo demais.
+         * Um unico «FORA_HORARIO» obrigava quem le a ir descobrir qual dos
+         * dois primeiros aconteceu. OBSERVATION sempre: o flag descreve, o
+         * terminal ja abriu a porta.
+         */
+        public String flagDirecional() {
+            if (veredicto != Veredicto.FORA) return null;
+            return Boolean.TRUE.equals(antes) ? "AVANT_CRENEAU" : "APRES_CRENEAU";
+        }
     }
 
     /**
@@ -110,6 +163,14 @@ public class MealSlotService {
     @Transactional(readOnly = true)
     public Resultado resolver(User user, LocalDateTime eventTime) {
         if (user == null || eventTime == null) {
+            return new Resultado(Veredicto.NAO_APLICAVEL, null, List.of(), false);
+        }
+
+        // ⚠️ Turma DISPENSADA de badge: nem flag, nem pergunta, nem recusa.
+        // A dispensa e verificada ANTES de tudo o resto — inclusive antes da
+        // excecao individual, porque dispensar a turma e a decisao mais
+        // recente e mais forte.
+        if (dispensee(user)) {
             return new Resultado(Veredicto.NAO_APLICAVEL, null, List.of(), false);
         }
 
@@ -170,7 +231,14 @@ public class MealSlotService {
                 .min(Comparator.comparingLong(s -> Math.abs(
                         java.time.Duration.between(s.getHora(), hora).toMinutes())))
                 .orElse(slots.get(0));
-        return new Resultado(Veredicto.FORA, maisProximo, slots, porExcecao);
+        // ⚠️ A DIRECAO e relativa ao creneau MAIS PROXIMO — o mesmo que a tela
+        // nomeia («esperado as 12h30»). Entre duas janelas (depois da primeira,
+        // antes da segunda), a resposta e a do mais proximo: e o que um humano
+        // responderia, e qualquer outra regra exigiria explicacao.
+        int antesMin = maisProximo.getToleranciaAntesMinutos() == null ? 0
+                : maisProximo.getToleranciaAntesMinutos();
+        boolean antes = hora.isBefore(maisProximo.getHora().minusMinutes(antesMin));
+        return new Resultado(Veredicto.FORA, maisProximo, slots, porExcecao, antes);
     }
 
     private List<MealSlot> porIds(List<Long> ids) {
@@ -261,6 +329,64 @@ public class MealSlotService {
         s.setUpdatedAt(LocalDateTime.now());
         s.setUpdatedBy(quem);
         return slotRepository.save(s);
+    }
+
+    /**
+     * Cria um creneau novo — o gesto que faltava para a maternal/elementar.
+     *
+     * ⚠️ Os dados de 26/08 (servico real 11h54-12h37) contradizem os horarios
+     * herdados de class_schedules: NADA e semeado por codigo; e o Sam, com a
+     * Vie Scolaire, que cria os creneaux certos por AQUI, em poucos cliques.
+     * Idempotente pela UNIQUE (dia, hora): criar o que ja existe devolve o
+     * existente em vez de estourar.
+     */
+    @Transactional
+    public MealSlot criarCreneau(int diaSemana, LocalTime hora, String rotulo,
+                                 Integer ordem, String quem) {
+        if (diaSemana < 1 || diaSemana > 7) {
+            throw new IllegalArgumentException("dia invalido: " + diaSemana + " (1=segunda..7=domingo)");
+        }
+        if (hora == null) throw new IllegalArgumentException("hora obrigatoria");
+        Optional<MealSlot> existente = slotRepository
+                .findAllByOrderByDiaSemanaAscOrdemAscHoraAsc().stream()
+                .filter(s -> s.getDiaSemana() == diaSemana && s.getHora().equals(hora))
+                .findFirst();
+        if (existente.isPresent()) {
+            // Reativa em vez de duplicar: a UNIQUE impede a segunda linha, e um
+            // erro aqui faria o operador acreditar que o creneau nao existe.
+            MealSlot s = existente.get();
+            if (!Boolean.TRUE.equals(s.getAtivo())) { s.setAtivo(true); slotRepository.save(s); }
+            return s;
+        }
+        MealSlot novo = MealSlot.builder()
+                .diaSemana((short) diaSemana).hora(hora)
+                .rotulo(vazioViraNulo(rotulo))
+                .ordem(ordem == null ? (short) 3 : ordem.shortValue())
+                .ativo(true).updatedBy(quem).build();
+        MealSlot salvo = slotRepository.save(novo);
+        log.info("Cantine: creneau criado — dia {} {} por {}", diaSemana, hora, quem);
+        return salvo;
+    }
+
+    /** As turmas dispensadas, ordenadas — para o ecra. */
+    public java.util.List<String> dispensees() {
+        return settingsService.efetivoCsv(CHAVE_DISPENSEES).stream().sorted().toList();
+    }
+
+    /**
+     * Grava a lista INTEIRA de dispensadas (o toggle do ecra manda o conjunto
+     * novo). Normaliza para maiusculas; vazio = ninguem dispensado, que e o
+     * default e apaga a linha do reglage.
+     */
+    @Transactional
+    public void gravarDispensees(java.util.List<String> turmas, String quem) {
+        String csv = turmas == null ? "" : turmas.stream()
+                .map(t -> t == null ? "" : t.trim().toUpperCase())
+                .filter(t -> !t.isEmpty())
+                .distinct().sorted()
+                .collect(java.util.stream.Collectors.joining(","));
+        settingsService.gravar(CHAVE_DISPENSEES, csv, quem);
+        log.info("Cantine: turmas dispensadas de badge = [{}] (por {})", csv, quem);
     }
 
     private MealSlot exigirSlot(Long slotId) {

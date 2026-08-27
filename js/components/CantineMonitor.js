@@ -447,7 +447,13 @@ function CantineMonitor() {
         // limite efetivo: o mais recente entre meia-noite e o "limpar" manual
         const floor = Math.max(startOfDay.getTime(), cutoff);
 
+        // ⚠️ `pisoDoDia` (meia-noite) e NAO o `cutoff`: «Vider l'écran» esconde
+        // as COLUNAS, e nunca deve zerar os contadores do dia — o comentario
+        // deles promete «todos os eventos de hoje», e um botao de limpeza que
+        // apagasse a contagem faria a tela mentir ate ao recarregamento.
+        // Apanhado pelo painel de revisao em 27/08.
         return window.MagboCantine.classificar(logs, now, {
+            pisoDoDiaMs: startOfDay.getTime(),
             pisoMs: floor,
             parseMs: (ts) => new Date(safeDateParse(ts)).getTime(),
             retiradas: retiradas
@@ -643,7 +649,10 @@ function CantineMonitor() {
                     <span className="font-bold px-2 py-1 rounded-lg bg-warning-50 text-warning-700 border border-warning-500/30">
                         {t('cantina.cont.curtas', { n: columns.contadores.curtas })}
                     </span>
-                    <span className="font-bold px-2 py-1 rounded-lg bg-soft-100 text-slate-600 border border-soft-200">
+                    {/* Âmbar como a coluna DOIT SORTIR, que trata o mesmo
+                        fenomeno: a familia ACIONAVEL nao pode ter a cor da
+                        familia historica arquivada ao lado. */}
+                    <span className="font-bold px-2 py-1 rounded-lg bg-warning-100 text-warning-800 border border-warning-500/40">
                         {t('cantina.cont.longas', { n: columns.contadores.longas })}
                     </span>
                     {columns.contadores.foraLegado > 0 && (

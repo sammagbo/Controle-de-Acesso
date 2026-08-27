@@ -297,7 +297,17 @@ public class AccessDecisionService {
                     // FAMILIA inteira (monitor, rapport, KPI).
                     flag = janela.dentro() ? null : janela.flagDirecional();
                 }
-                if ("FORA_HORARIO".equals(flag)) {
+                // ⚠️⚠️ A FAMILIA, e nao o valor antigo. Este `if` testava
+                // `"FORA_HORARIO".equals(flag)` e ficou CODIGO MORTO no minuto
+                // em que a janela passou a gravar flags direcionais: nenhuma
+                // linha OUTSIDE_MEAL_TIME era mais registada, e
+                // `magbo.policy.outside-meal-time` deixava de fazer o que quer
+                // que fosse — inclusive um DENY, que passaria a nao negar nada.
+                //
+                // E EXATAMENTE o «congelar em silencio» que o commit anterior
+                // avisava para o KPI, cometido uma linha abaixo do aviso.
+                // Apanhado pelo painel de revisao (Vie Scolaire) em 27/08.
+                if (AccessLog.FLAGS_FORA_DO_CRENEAU.contains(String.valueOf(flag))) {
                     PolicyMode mode = policyProperties.getPolicy().getOutsideMealTime();
                     if (mode == PolicyMode.DENY) {
                         attemptService.record(

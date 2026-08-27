@@ -539,4 +539,45 @@ class AccessDecisionServiceTest {
                 .lunMidi("N").marMidi("N").merMidi("N").jeuMidi("N").venMidi("N")
                 .build();
     }
+
+    /**
+     * ⚠️ O TESTE QUE FALTAVA, e a sua ausencia custou um VETO.
+     *
+     * `flagForaHorarioChegaAoAccessLog` arma `setOutsideMealTime(OBSERVATION)`
+     * mas so olha o AccessLog — nunca a TENTATIVA. Por isso, quando a janela
+     * passou a gravar flags direcionais e o `if ("FORA_HORARIO".equals(flag))`
+     * virou codigo morto, NENHUM teste reparou: a politica
+     * `magbo.policy.outside-meal-time` ficou desligada em silencio, e um DENY
+     * teria deixado de negar.
+     *
+     * Apanhado pelo painel de revisao (Vie Scolaire) em 27/08/2026.
+     */
+    @Test
+    @DisplayName("★★★ FORA DO CRENEAU grava a TENTATIVA — a politica outside-meal-time continua ligada")
+    void foraDoCreneauGravaTentativa() {
+        policy.getPolicy().setOutsideMealTime(PolicyMode.OBSERVATION);
+        autorizado();
+        foraDaJanela(true);   // -> AVANT_CRENEAU
+
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
+
+        verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
+                eq(AuthorizationResult.OBSERVATION), eq(DenialReason.OUTSIDE_MEAL_TIME),
+                any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("★★★ e em DENY ela NEGA mesmo — o modo que tinha deixado de fazer o que quer que fosse")
+    void foraDoCreneauEmDenyNega() {
+        policy.getPolicy().setOutsideMealTime(PolicyMode.DENY);
+        autorizado();
+        foraDaJanela(false);  // -> APRES_CRENEAU
+
+        service.process(faceEvent(), IP, HORA_DO_EVENTO);
+
+        verify(attemptService).record(any(), any(), any(), any(), any(), any(), any(), any(),
+                eq(AuthorizationResult.DENIED), eq(DenialReason.OUTSIDE_MEAL_TIME),
+                any(), any(), any());
+        verify(accessLogRepository, org.mockito.Mockito.never()).save(any());
+    }
 }

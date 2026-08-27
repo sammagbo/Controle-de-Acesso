@@ -201,6 +201,10 @@
         const o = opts || {};
         const parseMs = o.parseMs || function (x) { return new Date(x).getTime(); };
         const piso = typeof o.pisoMs === 'number' ? o.pisoMs : 0;
+        // ⚠️ O piso dos CONTADORES e o do DIA, independente do «Vider l'écran»:
+        // esconder as colunas nao apaga o que aconteceu. Sem `pisoDoDiaMs`
+        // explicito, cai no mesmo piso das colunas (comportamento anterior).
+        const pisoDia = typeof o.pisoDoDiaMs === 'number' ? o.pisoDoDiaMs : piso;
         const retiradas = indexarRetiradas(o.retiradas);
         const c = atual;
 
@@ -212,9 +216,13 @@
         const porPessoa = new Map();
         for (const log of (logs || [])) {
             const ms = parseMs(log.timestamp);
-            if (!isFinite(ms) || ms < piso) continue;
+            if (!isFinite(ms) || ms < pisoDia) continue;
             if (!porPessoa.has(log.userId)) porPessoa.set(log.userId, []);
-            porPessoa.get(log.userId).push(Object.assign({}, log, { _t: ms }));
+            // `_visivel` separa as duas perguntas: o que ENTRA nas colunas
+            // (piso das colunas, que o «Vider» move) e o que CONTA nos
+            // contadores do dia (piso da meia-noite, que nada move).
+            porPessoa.get(log.userId).push(
+                Object.assign({}, log, { _t: ms, _visivel: ms >= piso }));
         }
 
         const dans = [], doitSortir = [], decantados = [], sortis = [];
@@ -269,7 +277,9 @@
                 }
             }
 
-            const ultimo = eventos[eventos.length - 1];
+            const visiveis = eventos.filter(function (e) { return e._visivel; });
+            if (visiveis.length === 0) continue;   // so contava, nao aparece
+            const ultimo = visiveis[visiveis.length - 1];
             const decorrido = agora - ultimo._t;
 
             if (ultimo.action === 'ENTRADA') {

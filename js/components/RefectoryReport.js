@@ -101,11 +101,19 @@ function RefectoryReport() {
         const cfg = window.MagboCantine ? window.MagboCantine.config() : { duracaoCurtaMinutos: 15, duracaoMaximaMinutos: 30 };
         const porServico = new Map();
         const chaveDe = (m) => {
-            if (!grade || !m.entryTime) return t('rap.familles.tous');
+            // ⚠️ DOIS baldes DISTINTOS, nao um «Tous services» que dizia duas
+            // coisas opostas (apanhado pelo painel, 27/08): a grade nao
+            // carregou, e a turma nao tem creneau. Sem creneaux semeados para
+            // a maternal/elementar, o segundo balde recebe TODAS as refeicoes
+            // delas — apresentado como «total» ao lado de 12H30 e 13H00, um
+            // CPE leria um agregado onde ha uma lacuna de configuracao.
+            if (!grade) return t('rap.familles.grade.indisponivel');
+            if (!m.entryTime) return t('rap.familles.sem.creneau');
             const d = new Date(m.date + 'T12:00:00');
             const dia = ((d.getDay() + 6) % 7) + 1;   // JS 0=domingo -> ISO 1=segunda
             const minutos = Number(m.entryTime.slice(0, 2)) * 60 + Number(m.entryTime.slice(3, 5));
-            return window.MagboCantine.servicoDe(grade, m.turma, dia, minutos) || t('rap.familles.tous');
+            return window.MagboCantine.servicoDe(grade, m.turma, dia, minutos)
+                || t('rap.familles.sem.creneau');
         };
         for (const m of filtered) {
             const k = chaveDe(m);

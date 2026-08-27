@@ -64,11 +64,11 @@ public class AccessController {
     private final AccessLogRepository accessLogRepository;
 
     /**
-     * A familia «fora do seu horario» de access_logs.flag.
-     * ⚠️ Espelhada em js/utils/cantine.js (FLAGS_FORA_CRENEAU) — mudar juntas.
+     * A familia «fora do seu creneau» — definida no MODELO que possui a coluna
+     * (AccessLog), nao aqui: a regra, o rapport e o KPI leem a MESMA lista.
      */
     static final java.util.Set<String> FLAGS_FORA_DO_CRENEAU =
-            java.util.Set.of("FORA_HORARIO", "AVANT_CRENEAU", "APRES_CRENEAU");
+            com.magbo.access.models.AccessLog.FLAGS_FORA_DO_CRENEAU;
     private final com.magbo.access.config.CantineProperties cantineProperties;
     private final com.magbo.access.services.SettingsService settingsService;
     private final com.magbo.access.security.AreaSecurity areaSecurity;

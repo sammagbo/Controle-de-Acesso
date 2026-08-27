@@ -227,9 +227,18 @@ public class MealSlotService {
         if (casou.isPresent()) {
             return new Resultado(Veredicto.DENTRO, casou.get(), slots, porExcecao);
         }
+        // ⚠️ DESEMPATE EXPLICITO. Com dois creneaux a igual distancia (11h00 e
+        // 13h00, passagem as 12h00), um `min()` simples deixava a ordem da
+        // lista decidir — e a MESMA passagem podia sair «avant» ou «apres»
+        // conforme a ordem que o repositorio devolvesse. Em caso de empate
+        // vence o creneau SEGUINTE (logo: «chegou antes»), porque o servico
+        // que ainda vai abrir e aquele a que a pessoa pode ainda ir.
         MealSlot maisProximo = slots.stream()
-                .min(Comparator.comparingLong(s -> Math.abs(
-                        java.time.Duration.between(s.getHora(), hora).toMinutes())))
+                .min(Comparator
+                        .comparingLong((MealSlot s) -> Math.abs(
+                                java.time.Duration.between(s.getHora(), hora).toMinutes()))
+                        .thenComparing(s -> s.getHora().isAfter(hora) ? 0 : 1)
+                        .thenComparing(MealSlot::getHora))
                 .orElse(slots.get(0));
         // ⚠️ A DIRECAO e relativa ao creneau MAIS PROXIMO — o mesmo que a tela
         // nomeia («esperado as 12h30»). Entre duas janelas (depois da primeira,

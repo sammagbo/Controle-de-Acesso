@@ -158,13 +158,18 @@ public class MealSlotController {
     /**
      * As turmas dispensadas de badge — substitui a lista inteira.
      *
-     * ⚠️ Mesmo gate da escrita do planning (MEAL_SLOT_WRITE): dispensar uma
-     * turma E uma decisao de planning. O aviso PPMS vive no ecra, ao lado do
-     * toggle — a DECISAO de ativar e do Sam com a Vie Scolaire, nunca desta
-     * rota.
+     * ⚠️ GATE MAIS FORTE QUE O RESTO DO PLANNING: `CONFIG_WRITE`, nao
+     * `MEAL_SLOT_WRITE`. Apanhado pelo painel (Vie Scolaire, 27/08): com o
+     * gate do planning, quem organiza os servicos da cantina podia retirar
+     * uma turma inteira do calculo de evacuacao. Mover uma turma de creneau e
+     * planning; deixar de a contar num PPMS nao e — e o reglage vive em
+     * `system_settings`, que e precisamente o que CONFIG_WRITE governa.
+     *
+     * O aviso PPMS vive no ecra, ao lado do toggle: a DECISAO de ativar e do
+     * Sam com a Vie Scolaire, nunca desta rota.
      */
     @PutMapping("/dispensees")
-    @PreAuthorize(ESCRITA)
+    @PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('CONFIG_WRITE')")
     public ResponseEntity<?> dispensees(@RequestBody Map<String, Object> b) {
         try {
             Object bruto = b.get("turmas");

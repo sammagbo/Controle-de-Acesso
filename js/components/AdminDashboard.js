@@ -305,6 +305,10 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                       répondent à une question qu'on ne se pose qu'ensuite.
                       Le composant se retire tout seul si le compte n'a pas
                       PARCOURS_READ. */}
+                  {/* ⚠️ Pas d'enveloppe avec de la marge ici : le composant se
+                      retire tout seul sans PARCOURS_READ, et une enveloppe
+                      laisserait un trou de 2 rem que personne ne saurait
+                      interpreter. La marge vit DANS le composant. */}
                   <RechercheGlobale />
 
                   {/* ══════════════════════════════════════════════════════════ */}

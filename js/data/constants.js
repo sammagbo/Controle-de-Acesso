@@ -32,11 +32,12 @@ const ACCESS_POINTS = [
       // on y entre par le Panneau Administratif ou par le raccourci de qui
       // détient CDI_EXCLUSION_WRITE, jamais depuis le tableau de bord public.
       { id: 'CDI_EXCLUSION_MANAGEMENT', nome: 'Exclusions CDI', icon: 'user-x', description: 'Qui ne doit pas entrer au CDI', category: 'monitor', area: 'admin', hidden: true },
-      // Configuration du systeme (V024 + catalogue). `hidden` : ce n'est pas
-      // une preference d'affichage — ces valeurs decident si une passage est
-      // signalee et si le CDI se dit plein. On y entre par le Panneau
-      // Administratif, ou par le raccourci de qui detient CONFIG_WRITE.
-      { id: 'SYSTEM_CONFIGURATION', nome: 'Configuration', icon: 'sliders-horizontal', description: 'Tous les reglages, par domaine', category: 'monitor', area: 'admin', hidden: true },
+      // ⚠️ La «Configuration du système» n'est PAS un point d'accès (28/08,
+      // décision du Sam): elle vit dans l'ENGRENAGE du header, comme toute
+      // configuration d'application — AppSettingsModal, aba `config`, visible
+      // avec ADMIN ou CONFIG_WRITE. Elle a été un point (SYSTEM_CONFIGURATION)
+      // pendant un jour; le re-créer ici referait deux portes pour le même
+      // écran.
       { id: 'EXIT_PERMISSION_MANAGEMENT', nome: 'Sorties', icon: 'door-open', description: 'Gestion des autorisations', category: 'monitor', area: 'admin', hidden: true },
       // Régime de sortie — o direito ANUAL, distinto das autorizações pontuais
       // acima. As duas telas coexistem porque as duas coisas coexistem

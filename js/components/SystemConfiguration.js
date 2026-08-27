@@ -33,6 +33,11 @@ function rotuloDominio(t, dom) {
     return r === k ? dom : r;
 }
 
+/**
+ * ⚠️ Desde 28/08 este ecrã vive DENTRO da engrenagem (AppSettingsModal), sem
+ * `onBack`: o modal tem o seu próprio X. O botão «retour» só se desenha quando
+ * alguém o passa — um botão que não leva a lado nenhum ensina a não clicar.
+ */
 function SystemConfiguration({ onBack }) {
     const t = useI18n();
     const [linhas, setLinhas] = React.useState(null);
@@ -75,9 +80,11 @@ function SystemConfiguration({ onBack }) {
     if (!pode) {
         return (
             <div className="max-w-3xl mx-auto px-4 py-10">
+                {onBack && (
                 <button onClick={onBack} className="text-xs font-bold text-slate-500 mb-4">
                     {t('header.voltar')}
                 </button>
+                )}
                 <p className="text-sm text-slate-600 bg-soft-100 border border-soft-200 rounded-xl px-4 py-3">
                     {t('config.sem.permissao')}
                 </p>
@@ -91,9 +98,11 @@ function SystemConfiguration({ onBack }) {
     return (
         <div className="max-w-5xl mx-auto px-4 py-6 animate-fade-in space-y-5">
             <div className="flex items-center gap-3">
+                {onBack && (
                 <button onClick={onBack} className="text-xs font-bold text-slate-500 hover:text-navy-500">
                     {t('header.voltar')}
                 </button>
+                )}
                 <div className="w-12 h-12 rounded-2xl bg-navy-500/10 flex items-center justify-center">
                     <LucideIcon name="sliders-horizontal" size={26} className="text-navy-500" />
                 </div>

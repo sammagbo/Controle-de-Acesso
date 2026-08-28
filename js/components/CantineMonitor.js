@@ -128,7 +128,7 @@ function CantineRetiradasIndicador({ linhas, podeDevolver, onDevolver, onAberto 
                                         <div key={(r.userId || '') + (r.pointId || '') + i}
                                             className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-200">
                                             <span className="font-bold text-sm text-navy-500 truncate">
-                                                {window.MagboIdentity.resolver({ pessoa: u, userId: r.userId }, { lang: 'fr' }).nome}
+                                                {window.MagboIdentity.resolver({ pessoa: u, userId: r.userId }, { lang: window.MagboI18n.getLang() }).nome}
                                             </span>
                                             {u && u.turma && (
                                                 <span className="text-xs text-slate-400 shrink-0">{u.turma}</span>
@@ -238,7 +238,7 @@ function CantineCard({ ev, variant, dim, cfg, elapsedLabel, podeRetirar, onRetir
                 {/* Nome, nunca a matricula sozinha — o operador da cantina
                     precisa saber QUEM esta na fila, e 0003535 nao diz. */}
                 <p className="text-sm font-black text-navy-500 truncate">
-                    {window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome}
+                    {window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: window.MagboI18n.getLang() }).nome}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {user && user.turma && (
@@ -355,7 +355,7 @@ function CantineDecantadosIndicador({ linhas, decantacaoMinutos, elapsedLabel, o
                                         <div key={ev.userId}
                                             className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-soft-200">
                                             <span className="font-bold text-sm text-navy-500 truncate">
-                                                {window.MagboIdentity.resolver({ pessoa: u, userId: ev.userId }, { lang: 'fr' }).nome}
+                                                {window.MagboIdentity.resolver({ pessoa: u, userId: ev.userId }, { lang: window.MagboI18n.getLang() }).nome}
                                             </span>
                                             {u && u.turma && (
                                                 <span className="text-xs text-slate-400 shrink-0">{u.turma}</span>
@@ -474,14 +474,14 @@ function CantineMonitor() {
 
     const foundColumn = React.useMemo(() => {
         if (!query.trim()) return null;
-        if (columns.doitSortir.some(matchesQuery)) return 'doit sortir';
+        if (columns.doitSortir.some(matchesQuery)) return 'cantina.col.deve.sair';
         // ⚠️ Quem decantou continua na tela — dentro da pastilha. Sem esta
         // linha a busca respondia «introuvable» para alguém que o sistema
         // sabe exatamente onde está, e a pessoa ao balcão concluiria que a
         // criança já não estava no refeitório.
-        if (columns.decantados.some(matchesQuery)) return 'doit sortir';
-        if (columns.dans.some(matchesQuery)) return 'dans la cantine';
-        if (columns.sortis.some(matchesQuery)) return 'sortis';
+        if (columns.decantados.some(matchesQuery)) return 'cantina.col.deve.sair';
+        if (columns.dans.some(matchesQuery)) return 'cantina.col.dentro';
+        if (columns.sortis.some(matchesQuery)) return 'cantina.col.sairam';
         return 'introuvable';
     }, [query, columns]);
 
@@ -504,7 +504,7 @@ function CantineMonitor() {
     const retirarLinha = async (ev) => {
         if (!podeRetirar) return;
         const user = window.userCache?.byId(ev.userId);
-        const nome = window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: 'fr' }).nome;
+        const nome = window.MagboIdentity.resolver({ pessoa: user, userId: ev.userId }, { lang: window.MagboI18n.getLang() }).nome;
         if (!confirm(t('cantina.retirar.confirma', { nome: nome }))) return;
 
         const otimista = { userId: ev.userId, pointId: ev.pointId, removidoEm: new Date().toISOString() };
@@ -537,10 +537,10 @@ function CantineMonitor() {
     const elapsedLabel = (ev) => {
         const mins = Math.floor((now - ev._t) / 60000);
         if (mins < 1) return t('cantina.agora');
-        if (mins < 60) return `il y a ${mins} min`;
+        if (mins < 60) return t('cantina.ha.min', { n: mins });
         const h = Math.floor(mins / 60);
         const m = mins % 60;
-        return `il y a ${h}h${m.toString().padStart(2, '0')}`;
+        return t('cantina.ha.horas', { h: h, m: m.toString().padStart(2, '0') });
     };
 
     return (
@@ -592,7 +592,7 @@ function CantineMonitor() {
                         <p className="text-xs font-semibold mt-2 px-1 text-slate-500">
                             {foundColumn === 'introuvable'
                                 ? t('cantina.sem.pessoa')
-                                : <>{t('cantina.achado.em')} <span className="text-accent-600">{foundColumn}</span></>}
+                                : <>{t('cantina.achado.em')} <span className="text-accent-600">{t(foundColumn)}</span></>}
                         </p>
                     )}
                 </div>
@@ -682,11 +682,11 @@ function CantineMonitor() {
                         <CantineColumnHeader icon="alert-triangle" title={t('cantina.col.deve.sair')}
                             count={columns.doitSortir.length + columns.decantados.length}
                             color="bg-warning-500"
-                            extra={<CantineDecantadosIndicador
+                            extra={columns.decantados.length > 0 ? <CantineDecantadosIndicador
                                 linhas={columns.decantados}
                                 decantacaoMinutos={cfg.decantacaoMinutos}
                                 elapsedLabel={elapsedLabel}
-                                onAberto={setModalAberto} />} />
+                                onAberto={setModalAberto} /> : null} />
                         <div className="space-y-2">
                             {columns.doitSortir.length === 0 && <p className="text-xs text-slate-300 text-center py-6">{t('cantina.col.vazio')}</p>}
                             {columns.doitSortir.map(ev => <CantineCard key={ev.userId} ev={ev} variant="doit"

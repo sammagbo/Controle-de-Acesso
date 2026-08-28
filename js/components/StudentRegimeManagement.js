@@ -277,7 +277,9 @@ function StudentRegimeManagement({ onBack }) {
         }
     };
 
-    const dataCurta = (iso) => iso ? new Date(iso).toLocaleDateString(locale) : '—';
+    // ⚠️ 'T12:00:00' : un LocalDate nu est parsé en UTC minuit, et à Rio (UTC−3)
+    // il s'affichait la VEILLE. Midi ne franchit aucun fuseau raisonnable.
+    const dataCurta = (iso) => iso ? new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString(locale) : '—';
 
     const campo = (rotulo, filho, ajuda) => (
         <div>
@@ -292,7 +294,7 @@ function StudentRegimeManagement({ onBack }) {
 
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack}
+                    <button onClick={onBack} title={t('header.dashboard')} aria-label={t('header.dashboard')}
                         className="w-10 h-10 rounded-xl bg-white border border-soft-200 shadow-sm flex items-center justify-center hover:bg-soft-50 transition-colors">
                         <LucideIcon name="arrow-left" size={18} className="text-navy-500" />
                     </button>

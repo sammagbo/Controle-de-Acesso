@@ -76,7 +76,7 @@
     /** Texto dos nomes aceitos, para a tela documentar sem duplicar a lista. */
     function documentacaoDeColunas() {
         return [
-            { campo: 'Matrícula', obrigatorio: true, aceitos: COLUNAS.matricula },
+            { campo: 'Matricule', obrigatorio: true, aceitos: COLUNAS.matricula },
             { campo: 'Régime général', obrigatorio: true, aceitos: COLUNAS.regimeGeneral },
             { campo: 'Régime de sortie', obrigatorio: true, aceitos: COLUNAS.regimeSortie },
             { campo: 'Valable du', obrigatorio: true, aceitos: COLUNAS.validFrom },

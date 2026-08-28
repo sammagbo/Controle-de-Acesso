@@ -153,7 +153,7 @@ function CdiAlertHistorique() {
             {linhas.map(l => (
                 <div key={l.id} className="flex items-center gap-3 rounded-xl px-3 py-2 border bg-white border-soft-200">
                     <span className="text-xs font-mono text-slate-500 whitespace-nowrap">
-                        {String(l.eventTime || '').slice(0, 16).replace('T', ' ')}
+                        {formatDate(new Date(l.eventTime))} {String(l.eventTime || '').slice(11, 16)}
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(TIPO[l.tipo] || {}).cor || 'bg-soft-100 text-slate-500'}`}>
                         {(TIPO[l.tipo] || {}).rotulo || l.tipo}
@@ -163,7 +163,7 @@ function CdiAlertHistorique() {
                     </span>
                     {l.detalhe && <span className="text-xs text-slate-500 italic truncate">{l.detalhe}</span>}
                     <span className="text-xs text-slate-400 flex-1 text-right">
-                        {l.pointId}{l.criadoPor ? ' · ' + l.criadoPor : ''}
+                        {((typeof ACCESS_POINTS !== 'undefined' && ACCESS_POINTS.find(p => p.id === l.pointId)) || {}).nome || l.pointId}{l.criadoPor ? ' · ' + l.criadoPor : ''}
                     </span>
                     {String(l.criadoEm || '').slice(0, 16) !== String(l.eventTime || '').slice(0, 16) && (
                         <span className="text-[10px] text-amber-700 whitespace-nowrap"

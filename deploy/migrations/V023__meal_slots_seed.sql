@@ -109,7 +109,7 @@ INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '6E3', fa
 INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '5E2', false FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;
 INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '5E3', false FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;
 INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '4E1', false FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;
-INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '4E2', true FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;   -- ⚠️ badge masqué par un aimant
+INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '4E2', false FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;  -- badge masqué par un aimant le 24/08 ; CONFIRMÉ par la photo du mur du 27/08
 INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '4E3', false FROM meal_slots WHERE dia_semana=3 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;
 --   Jeudi : 6eme 1, 6eme 2, 6eme 3, 5eme 1, 5eme 3, 4eme 1, 4eme 2, 4eme 3, 3eme 1, 3eme 2, 3eme 3, 2nde 1, 2nde 2, 2nde 3, 1ere 1, 1ere 2, 1ere 3, Term 2
 INSERT INTO meal_slot_classes (slot_id, turma, a_confirmar) SELECT id, '6E1', false FROM meal_slots WHERE dia_semana=4 AND hora='13:00' ON CONFLICT (slot_id, turma) DO NOTHING;

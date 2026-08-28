@@ -165,23 +165,23 @@ function UserManagement() {
                 React.createElement('td', { className: 'px-4 py-3 text-sm' },
                   u.ativo
                     ? React.createElement('span', { className: 'inline-flex items-center gap-1.5 text-success-600 font-semibold text-xs' },
-                        React.createElement('span', { className: 'w-2 h-2 rounded-full bg-success-500' }), 'Ativo')
+                        React.createElement('span', { className: 'w-2 h-2 rounded-full bg-success-500' }), t('comum.ativo'))
                     : React.createElement('span', { className: 'inline-flex items-center gap-1.5 text-danger-600 font-semibold text-xs' },
-                        React.createElement('span', { className: 'w-2 h-2 rounded-full bg-danger-500' }), 'Inativo')
+                        React.createElement('span', { className: 'w-2 h-2 rounded-full bg-danger-500' }), t('comum.inativo'))
                 ),
                 React.createElement('td', { className: 'px-4 py-3 text-xs text-slate-400' },
-                  u.lastLogin ? u.lastLogin.substring(0, 16).replace('T', ' ') : 'Nunca'
+                  u.lastLogin ? new Date(u.lastLogin).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : t('operadores.login.nunca')
                 ),
                 React.createElement('td', { className: 'px-4 py-3' },
                   React.createElement('div', { className: 'flex items-center gap-2' },
                     React.createElement('button', {
                       onClick: () => { setEditing(u); setShowForm(true); },
                       className: 'text-accent-600 hover:text-accent-700 text-xs font-semibold hover:underline'
-                    }, 'Editar'),
+                    }, t('acao.editar')),
                     u.ativo && React.createElement('button', {
                       onClick: () => handleDeactivate(u.id),
                       className: 'text-danger-500 hover:text-danger-600 text-xs font-semibold hover:underline'
-                    }, 'Desativar')
+                    }, t('acao.desativar'))
                   )
                 )
               )
@@ -263,7 +263,7 @@ function UserFormModal({ user, onClose, onSaved }) {
             ),
             React.createElement('div', null,
               React.createElement('h2', { className: 'text-lg font-bold text-white' }, user ? t('operadores.editar') : t('operadores.novo')),
-              React.createElement('p', { className: 'text-xs text-white/50' }, user ? `Editando ${user.username}` : t('operadores.novo.subtitulo'))
+              React.createElement('p', { className: 'text-xs text-white/50' }, user ? t('operadores.editando', { username: user.username }) : t('operadores.novo.subtitulo'))
             )
           ),
           React.createElement('button', {

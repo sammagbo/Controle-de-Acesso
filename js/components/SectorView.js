@@ -262,6 +262,8 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                 {searchQuery && (
                                                       <button
                                                             onClick={() => { setSearchQuery(''); setSearchResults([]); searchRef.current?.focus(); }}
+                                                            title={t('setor.busca.limpar')}
+                                                            aria-label={t('setor.busca.limpar')}
                                                             className="absolute inset-y-0 right-0 pr-4 flex items-center"
                                                       >
                                                             <LucideIcon name="x-circle" size={18} className="text-slate-400 hover:text-slate-600" />
@@ -358,7 +360,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                       </label>
                                                 )}
                                                 <span className="text-xs font-medium text-slate-400 bg-soft-100 px-3 py-1 rounded-full whitespace-nowrap">
-                                                      {truncadoPeloServidor ? TETO_SERVIDOR + '+' : pointLogs.length} {t('setor.acessos24h')}
+                                                      {truncadoPeloServidor ? TETO_SERVIDOR + '+' : pointLogs.length} {(!truncadoPeloServidor && pointLogs.length <= 1) ? t('setor.acessos24h.um') : t('setor.acessos24h')}
                                                 </span>
                                                 {/* Quantas linhas mostrar — a escolha é de quem opera.
                                                     Aparece só quando há mais do que o menor degrau, para
@@ -403,7 +405,7 @@ function SectorView({ point, accessLogs, onProcess, activeTimers,
                                                 // desconfiar do que não vê. A linha agora aparece sempre;
                                                 // quem falta é o NOME, e ele é dito em palavras.
                                                 const quem = window.MagboIdentity.resolver(
-                                                      { pessoa: user, userId: log.userId }, { lang: 'fr' });
+                                                      { pessoa: user, userId: log.userId }, { lang: window.MagboI18n.getLang() });
                                                 const tipoInfo = (user && TIPO_LABELS[user.tipo]) || TIPO_LABEL_FALLBACK;
                                                 const tipoRotulo = window.MagboI18n.tEnum('tipo', (user && user.tipo) || 'DESCONHECIDO');
                                                 const isEntrada = log.status === 'ENTRADA';

@@ -22,7 +22,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                           <LucideIcon name="shield-check" size={20} className="text-accent-400" />
                                     </div>
                                     <div>
-                                          <h1 className="text-base font-bold tracking-tight leading-none">MAGBO Access Control</h1>
+                                          <h1 className="text-base font-bold tracking-tight leading-none whitespace-nowrap">MAGBO Access Control</h1>
                                           <p className="text-[11px] text-white/50 font-medium">Lycée Molière</p>
                                     </div>
                               </div>
@@ -63,12 +63,12 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                           }`}
                                     >
                                           <LucideIcon name="layout-grid" size={14} />
-                                          <span>{t('header.dashboard')}</span>
+                                          <span className="whitespace-nowrap">{t('header.dashboard')}</span>
                                     </button>
                                     {adminView && (
                                           <>
                                                 <LucideIcon name="chevron-right" size={14} className="text-white/30" />
-                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white">
+                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white whitespace-nowrap">
                                                       <LucideIcon name="shield" size={14} />
                                                       {t('header.painel')}
                                                 </span>
@@ -77,7 +77,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     {!adminView && currentPoint && (
                                           <>
                                                 <LucideIcon name="chevron-right" size={14} className="text-white/30" />
-                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white">
+                                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 font-semibold text-white whitespace-nowrap">
                                                       <LucideIcon name={currentPoint.icon} size={14} />
                                                       {currentPoint.nome}
                                                 </span>
@@ -88,7 +88,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                               {/* Clock & Settings */}
                               <div className="flex items-center gap-4">
                                     <div className="text-right">
-                                          <p className="text-xs text-white/50 font-medium">
+                                          <p className="text-xs text-white/50 font-medium whitespace-nowrap">
                                                 {clock.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
                                           </p>
                                           <p className="text-sm font-bold font-mono tracking-wider">{formatTime(clock)}</p>
@@ -167,7 +167,7 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                     {window.auth && window.auth.isLoggedIn() && window.auth.getUser() && (
                                           <div className="flex items-center gap-3 ml-2 pl-4 border-l border-white/10">
                                                 <div className="text-right hidden sm:block">
-                                                      <div className="text-[10px] uppercase font-bold tracking-wider text-white/50">{window.auth.getUser().role}</div>
+                                                      <div className="text-[10px] uppercase font-bold tracking-wider text-white/50">{window.MagboI18n.tEnum('role', window.auth.getUser().role)}</div>
                                                       <div className="text-sm font-medium text-white truncate max-w-[150px]">
                                                             {window.auth.getUser().nomeCompleto || window.auth.getUser().username}
                                                       </div>

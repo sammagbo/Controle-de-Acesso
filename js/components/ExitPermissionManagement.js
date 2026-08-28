@@ -52,7 +52,7 @@ function ExitPermissionManagement() {
       };
 
       return (
-            <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-fade-in">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-20 animate-fade-in">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                               <h1 className="text-2xl font-black text-navy-800">{t('saidas.titulo')}</h1>
@@ -60,7 +60,7 @@ function ExitPermissionManagement() {
                         </div>
 
                         {canEdit && (
-                              <button onClick={() => setShowModal(true)} className="btn bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2 shadow-lg shadow-accent-600/20">
+                              <button onClick={() => setShowModal(true)} className="px-4 py-2 rounded-xl text-sm font-bold bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2 shadow-lg shadow-accent-600/20">
                                     <LucideIcon name="plus" size={18} />
                                     {t('saidas.nova')}
                               </button>
@@ -143,7 +143,7 @@ function ExitPermissionManagement() {
                                                                                                 ? t('saidas.dias.lista', { dias: diasIso.map(d => t('dias.' + d)).join(', ') })
                                                                                                 : t('saidas.sempre')}
                                                                                           <br/>
-                                                                                          {perm.startTime} - {perm.endTime}
+                                                                                          {String(perm.startTime || '').slice(0, 5)} – {String(perm.endTime || '').slice(0, 5)}
                                                                                     </div>
                                                                               )}
                                                                         </div>
@@ -445,7 +445,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
                                                       {['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY'].map((d, i) => (
                                                             <label key={d} className={`flex-1 text-center py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${days[d] ? 'bg-accent-100 text-accent-700 border-accent-200' : 'bg-soft-50 text-slate-400 border-soft-200'} border`}>
                                                                   <input type="checkbox" className="hidden" checked={days[d]} onChange={(e) => setDays({...days, [d]: e.target.checked})} />
-                                                                  {['Seg','Ter','Qua','Qui','Sex'][i]}
+                                                                  {t('dias.' + (i + 1))}
                                                             </label>
                                                       ))}
                                                 </div>
@@ -471,7 +471,7 @@ function NewExitPermissionModal({ onClose, onSaved }) {
 
                         <div className="bg-soft-50 p-4 border-t border-soft-200 flex justify-end gap-2">
                               <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-soft-100 rounded-xl transition-colors">{t('acao.cancelar')}</button>
-                              <button type="button" onClick={handleSubmit} disabled={saving} className="btn bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2">
+                              <button type="button" onClick={handleSubmit} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-bold bg-accent-600 hover:bg-accent-700 text-white flex items-center gap-2">
                                     {saving && <LucideIcon name="loader-2" size={16} className="animate-spin" />}
                                     {t('saidas.salvar')}
                               </button>

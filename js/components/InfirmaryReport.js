@@ -7,6 +7,7 @@
 
 function InfirmaryReport() {
     const t = useI18n();
+    const locale = useLocale();
     const todayStr = () => dayKey(new Date());   // heure LOCALE — voir tests/aujourdhuiHeureLocale.test.js
 
     const [dateFrom, setDateFrom] = React.useState(todayStr());
@@ -68,7 +69,8 @@ function InfirmaryReport() {
         const longs = filtered.filter(v => v.longStay).length;
         const noExit = filtered.filter(v => !v.exitRegistered).length;
         const durations = filtered.filter(v => v.durationMinutes != null).map(v => v.durationMinutes);
-        const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+        // null, pas 0 : « durée moyenne 0 min » sans aucune visite est un mensonge.
+        const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : null;
         return { total, uniques, longs, noExit, avg };
     }, [filtered]);
 
@@ -136,7 +138,7 @@ function InfirmaryReport() {
                     <tbody>
                         {filtered.map((v, i) => (
                             <tr key={i} className="border-b border-slate-200">
-                                <td className="py-1">{v.date}</td><td>{v.nome}</td><td>{v.turma}</td>
+                                <td className="py-1">{new Date(v.date + 'T12:00:00').toLocaleDateString(locale)}</td><td>{v.nome}</td><td>{v.turma}</td>
                                 <td>{v.entryTime || '—'}</td><td>{v.exitTime || '—'}</td>
                                 <td>{fmtDuration(v.durationMinutes)}</td><td>{statusBadge(v).label}</td>
                             </tr>
@@ -160,10 +162,10 @@ function InfirmaryReport() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mb-4">
-                {periodBtn('today', "Aujourd'hui")}
-                {periodBtn('week', '7 derniers jours')}
-                {periodBtn('month', '30 derniers jours')}
-                {periodBtn('custom', 'Personnalisé')}
+                {periodBtn('today', t('periodo.hoje'))}
+                {periodBtn('week', t('periodo.7dias'))}
+                {periodBtn('month', t('periodo.30dias'))}
+                {periodBtn('custom', t('periodo.personalizado'))}
                 {period === 'custom' && (
                     <div className="flex items-center gap-2 ml-2">
                         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputCls} />
@@ -243,7 +245,7 @@ function InfirmaryReport() {
                                 const b = statusBadge(v);
                                 return (
                                     <tr key={i} className="border-b border-soft-50 hover:bg-soft-50/50">
-                                        <td className="px-4 py-2 text-slate-500">{v.date}</td>
+                                        <td className="px-4 py-2 text-slate-500">{new Date(v.date + 'T12:00:00').toLocaleDateString(locale)}</td>
                                         <td className="px-4 py-2 font-bold text-navy-500">{v.nome}</td>
                                         <td className="px-4 py-2 text-slate-500">{v.turma}</td>
                                         <td className="px-4 py-2">{v.entryTime || '—'}</td>

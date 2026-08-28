@@ -7,6 +7,7 @@
 
 function RefectoryReport() {
     const t = useI18n();
+    const locale = useLocale();
     const todayStr = () => dayKey(new Date());   // heure LOCALE — voir tests/aujourdhuiHeureLocale.test.js
 
     const [dateFrom, setDateFrom] = React.useState(todayStr());
@@ -85,7 +86,8 @@ function RefectoryReport() {
         const late = filtered.filter(m => !m.onTime).length;
         const noExit = filtered.filter(m => !m.exitRegistered).length;
         const durations = filtered.filter(m => m.durationMinutes != null).map(m => m.durationMinutes);
-        const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+        // null, pas 0 : « durée moyenne 0 min » sans aucun repas est un mensonge.
+        const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : null;
         return { total, uniques, late, noExit, avg };
     }, [filtered]);
 
@@ -199,6 +201,8 @@ function RefectoryReport() {
                     <div><b className="block text-xl">{kpis.total}</b>{t('rap.cantina.kpi.refeicoes')}</div>
                     <div><b className="block text-xl">{kpis.uniques}</b>{t('rap.kpi.alunos')}</div>
                     <div><b className="block text-xl">{kpis.late}</b>{t('rap.status.fora.horario')}</div>
+                    <div><b className="block text-xl">{kpis.noExit}</b>{t('rap.status.sem.saida')}</div>
+                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>{t('cdi.stats.duracao.curta')}</div>
                     {/* As quatro familias por servico — a leitura que a Vie
                         Scolaire pediu: QUEM chega fora do seu creneau, e em
                         QUAL servico isso acontece. */}
@@ -218,8 +222,6 @@ function RefectoryReport() {
                             </div>
                         ))}
                     </div>
-                    <div><b className="block text-xl">{kpis.noExit}</b>{t('rap.status.sem.saida')}</div>
-                    <div><b className="block text-xl">{fmtDuration(kpis.avg)}</b>{t('cdi.stats.duracao.curta')}</div>
                 </div>
                 <table className="w-full text-xs border-collapse">
                     <thead><tr className="border-b-2 border-slate-800 text-left">
@@ -228,7 +230,7 @@ function RefectoryReport() {
                     <tbody>
                         {filtered.map((m, i) => (
                             <tr key={i} className="border-b border-slate-200">
-                                <td className="py-1">{m.date}</td><td>{m.nome}</td><td>{m.turma}</td>
+                                <td className="py-1">{new Date(m.date + 'T12:00:00').toLocaleDateString(locale)}</td><td>{m.nome}</td><td>{m.turma}</td>
                                 <td>{m.entryTime || '—'}</td><td>{m.exitTime || '—'}</td>
                                 <td>{fmtDuration(m.durationMinutes)}</td><td>{statusBadge(m).label}</td>
                             </tr>
@@ -341,7 +343,7 @@ function RefectoryReport() {
                                 const b = statusBadge(m);
                                 return (
                                     <tr key={i} className="border-b border-soft-50 hover:bg-soft-50/50">
-                                        <td className="px-4 py-2 text-slate-500">{m.date}</td>
+                                        <td className="px-4 py-2 text-slate-500">{new Date(m.date + 'T12:00:00').toLocaleDateString(locale)}</td>
                                         <td className="px-4 py-2 font-bold text-navy-500">{m.nome}</td>
                                         <td className="px-4 py-2 text-slate-500">{m.turma}</td>
                                         <td className="px-4 py-2">{m.entryTime || '—'}</td>

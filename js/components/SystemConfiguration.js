@@ -27,6 +27,20 @@
  * `config.dominio.xxx` en titre de section — la même faute que `comum.voltar`
  * a déjà commise à l'écran, et qu'aucune suite ne voit.
  */
+/** Le libellé d'une option de CHOIX (OUVERT → « Ouvert »), avec repli sur la valeur. */
+function rotuloOpcao(t, o) {
+    const k = 'config.opcao.' + o;
+    const r = t(k);
+    return r === k ? o : r;
+}
+
+/** « 2026-08-28T09:15:… » → « 28/08/2026 09:15 » dans la langue de l'écran. */
+function quandoLocal(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return formatDate(d) + ' ' + d.toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit' });
+}
+
 function rotuloDominio(t, dom) {
     const k = 'config.dominio.' + dom;
     const r = t(k);
@@ -167,7 +181,7 @@ function ConfigLinha({ linha, rascunho, onRascunho, ocupado, onGravar }) {
             return (
                 <select value={valor} onChange={e => onRascunho(e.target.value)}
                     className="px-3 py-2 rounded-xl border border-soft-200 text-sm">
-                    {(linha.opcoes || []).map(o => <option key={o} value={o}>{o}</option>)}
+                    {(linha.opcoes || []).map(o => <option key={o} value={o}>{rotuloOpcao(t, o)}</option>)}
                 </select>
             );
         }
@@ -216,7 +230,7 @@ function ConfigLinha({ linha, rascunho, onRascunho, ocupado, onGravar }) {
                     <p className="text-[11px] text-accent-600 font-bold truncate">
                         {t('config.por', {
                             quem: linha.updatedBy,
-                            quando: String(linha.updatedAt || '').slice(0, 16).replace('T', ' ')
+                            quando: quandoLocal(linha.updatedAt)
                         })}
                     </p>
                 )}

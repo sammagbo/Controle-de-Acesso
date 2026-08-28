@@ -16,6 +16,9 @@ body {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  /* La barre HORIZONTALE (puces de classe du CDI) prenait la hauteur par
+     défaut — deux fois la verticale, on aurait dit un squelette de chargement. */
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {

@@ -462,12 +462,6 @@ function App() {
                               const pt = ACCESS_POINTS.find(p => p.id === 'CDI_EXCLUSION_MANAGEMENT');
                               if (pt) setCurrentPoint(pt);
                         }}
-                        onNavigateToConfig={() => {
-                              setAdminView(false);
-                              setOrigemAdmin(true);
-                              const pt = ACCESS_POINTS.find(p => p.id === 'SYSTEM_CONFIGURATION');
-                              if (pt) setCurrentPoint(pt);
-                        }}
                   />
             ) : !currentPoint ? (
                         <Dashboard
@@ -484,8 +478,6 @@ function App() {
                         <GeneralReport onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'CDI_EXCLUSION_MANAGEMENT' ? (
                         <CdiExclusionManagement onBack={() => setCurrentPoint(null)} />
-                  ) : currentPoint && currentPoint.id === 'SYSTEM_CONFIGURATION' ? (
-                        <SystemConfiguration onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'MEAL_SLOT_MANAGEMENT' ? (
                         <MealSlotManagement onBack={() => setCurrentPoint(null)} />
                   ) : currentPoint && currentPoint.id === 'MEAL_ENTITLEMENT_MANAGEMENT' ? (

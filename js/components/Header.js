@@ -139,14 +139,27 @@ function Header({ currentPoint, onBack, adminView, onAdminToggle, voltar = null 
                                         esconder, mas ela fala de PERMISSÃO GRANULAR
                                         (MEAL_ENTITLEMENT_WRITE…), onde a LEITURA continua
                                         liberada por área e o operador tem o que ver. Aqui não
-                                        há nada para ler: as sete abas são administração, e o
+                                        há nada para ler: as abas são administração, e o
                                         operador não tem acesso a nenhuma. Deixar a porta
-                                        desenhada só ensina a bater nela. */}
-                                    {window.auth && window.auth.isAdmin && window.auth.isAdmin() && (
+                                        desenhada só ensina a bater nela.
+
+                                        ⚠️ 28/08 (decisão do Sam): a «Configuration du système»
+                                        vive AQUI, como toda configuração de aplicação — não no
+                                        Painel Administrativo. A engrenagem passa a aparecer
+                                        também para quem tem CONFIG_WRITE sem ser admin; dentro
+                                        do modal, essa pessoa vê SÓ a aba de configuração (o
+                                        modal esconde as abas de administração). Para todos os
+                                        outros perfis, nada mudou: a engrenagem não existe. */}
+                                    {window.auth && (
+                                          (window.auth.isAdmin && window.auth.isAdmin())
+                                          || (window.MagboPermissions
+                                                && window.MagboPermissions.canWrite(window.auth, 'CONFIG_WRITE'))
+                                    ) && (
                                     <button
                                           onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
                                           className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors text-white/70 hover:text-white"
-                                          title={t('header.config')}
+                                          title={(window.auth.isAdmin && window.auth.isAdmin())
+                                                ? t('header.config') : t('cfg.aba.config')}
                                     >
                                           <LucideIcon name="cog" size={16} />
                                     </button>

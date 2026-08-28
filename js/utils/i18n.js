@@ -322,6 +322,8 @@
             'cfg.aba.imp.servidores': 'Importer les personnels',
             'cfg.aba.fotos': 'Photos',
             'cfg.aba.manual': 'Enregistrement manuel',
+            'cfg.aba.config': 'Configuration du système',
+            'cfg.subtitulo.config': "Les réglages du système — rien d'autre ne vous est ouvert ici.",
             'cfg.aba.gerais': 'Généraux',
             'cfg.gerais.titulo': 'Paramètres généraux',
             'cfg.gerais.sub': 'Réglages de base du système (en développement).',
@@ -1073,8 +1075,6 @@
 
             // Configuration du système (V024 + catalogue)
             'config.titulo': 'Configuration du système',
-            'admin.card.config.sub': "Tous les réglages, par domaine — avec la valeur d'origine.",
-            'admin.card.config.btn': 'Ouvrir la configuration',
             'admin.card.cdiexcl.sub': "Qui ne doit pas entrer au CDI, et jusqu'à quand.",
             'admin.card.cdiexcl.btn': 'Gérer les exclusions',
             'config.subtitulo': "Tout ce qui se règle, par domaine — avec la valeur d'origine et qui l'a changée.",
@@ -1746,6 +1746,8 @@
             'cfg.aba.imp.servidores': 'Importar Funcionários',
             'cfg.aba.fotos': 'Fotos',
             'cfg.aba.manual': 'Cadastro Manual',
+            'cfg.aba.config': 'Configuração do sistema',
+            'cfg.subtitulo.config': 'As regulações do sistema — nada mais aqui está aberto para você.',
             'cfg.aba.gerais': 'Gerais',
             'cfg.gerais.titulo': 'Configurações Gerais',
             'cfg.gerais.sub': 'Ajustes básicos do sistema (em desenvolvimento).',
@@ -2483,8 +2485,6 @@
 
             // Configuração do sistema (V024 + catálogo)
             'config.titulo': 'Configuração do sistema',
-            'admin.card.config.sub': 'Todas as regulações, por domínio — com o valor de origem.',
-            'admin.card.config.btn': 'Abrir a configuração',
             'admin.card.cdiexcl.sub': 'Quem não deve entrar no CDI, e até quando.',
             'admin.card.cdiexcl.btn': 'Gerir as exclusões',
             'config.subtitulo': 'Tudo o que se regula, por domínio — com o valor de origem e quem o mudou.',

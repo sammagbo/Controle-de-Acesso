@@ -29,7 +29,17 @@ const FORM_CADASTRO_MANUAL = 'magbo-form-cadastro-manual';
 
 function AppSettingsModal({ onClose, onShowToast }) {
     const t = useI18n();
-    const [activeTab, setActiveTab] = React.useState('import'); // 'general', 'import', 'staff-import', 'manual'
+    // ⚠️ QUEM VÊ O QUÊ (28/08). O modal tem dois públicos desde que a
+    // «Configuration du système» mudou-se para cá: o ADMIN vê tudo, e o
+    // portador de CONFIG_WRITE sem ser admin vê UMA aba — a configuração.
+    // As abas de administração (importações, servidores, fotos, cadastro)
+    // continuam exclusivas do admin: nada delas se abriu junto.
+    const ehAdmin = !!(window.auth && window.auth.isAdmin && window.auth.isAdmin());
+    const podeConfig = !!(window.MagboPermissions
+        && window.MagboPermissions.canWrite(window.auth, 'CONFIG_WRITE'));
+    // O admin cai na aba de sempre; quem só tem CONFIG_WRITE cai na única
+    // aba que existe para ele — sem isto, abriria um modal em branco.
+    const [activeTab, setActiveTab] = React.useState(ehAdmin ? 'import' : 'config');
 
     // --- Manual Registration State ---
     const [manualForm, setManualForm] = React.useState({
@@ -465,7 +475,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
     }, [onShowToast]);
 
     React.useEffect(() => {
-        if (activeTab === 'staff-list') carregarServidores();
+        if (activeTab === 'staff-list' && ehAdmin) carregarServidores();
     }, [activeTab, carregarServidores]);
 
     const salvarServidor = async () => {
@@ -716,7 +726,7 @@ function AppSettingsModal({ onClose, onShowToast }) {
     }, []);
 
     React.useEffect(() => {
-        if (activeTab === 'photos') carregarResumoDeFotos();
+        if (activeTab === 'photos' && ehAdmin) carregarResumoDeFotos();
     }, [activeTab, carregarResumoDeFotos]);
 
     const limparEscolhaDeFotos = () => {
@@ -1858,8 +1868,13 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <LucideIcon name="settings" size={20} className="text-white" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{t('cfg.titulo')}</h2>
-                            <p className="text-xs text-white/50 truncate">{t('cfg.subtitulo')}</p>
+                            {/* ⚠️ Le titre suit le PROFIL : pour le porteur de
+                                CONFIG_WRITE seul, « Paramètres et Registres /
+                                importez des utilisateurs » promettait un import
+                                qu'il ne verra jamais. L'interface n'affirme pas
+                                plus qu'elle n'offre (réserve du panel, 28/08). */}
+                            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{ehAdmin ? t('cfg.titulo') : t('cfg.aba.config')}</h2>
+                            <p className="text-xs text-white/50 truncate">{ehAdmin ? t('cfg.subtitulo') : t('cfg.subtitulo.config')}</p>
                         </div>
                     </div>
                     <button
@@ -1877,6 +1892,18 @@ function AppSettingsModal({ onClose, onShowToast }) {
                 <div className="flex flex-1 min-h-0">
                     {/* Sidebar Tabs — rola sozinha se não couber */}
                     <div className="w-52 sm:w-60 lg:w-64 shrink-0 bg-slate-50 border-r border-soft-200 p-4 space-y-2 overflow-y-auto overscroll-contain">
+                        {/* ⚠️ A configuração do SISTEMA — não do poste. É a única
+                            aba visível a quem tem CONFIG_WRITE sem ser admin. */}
+                        {podeConfig && (
+                        <button
+                            onClick={() => setActiveTab('config')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'config' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
+                        >
+                            <LucideIcon name="sliders-horizontal" size={18} className={activeTab === 'config' ? 'text-accent-500' : 'text-slate-400'} />
+                            {t('cfg.aba.config')}
+                        </button>
+                        )}
+                        {ehAdmin && (<>
                         <button
                             onClick={() => setActiveTab('import')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left ${activeTab === 'import' ? 'bg-accent-50 text-accent-700' : 'text-slate-600 hover:bg-white'}`}
@@ -1926,18 +1953,25 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             <LucideIcon name="cog" size={18} className={activeTab === 'general' ? 'text-accent-500' : 'text-slate-400'} />
                             {t('cfg.aba.gerais')}
                         </button>
+                        </>)}
                     </div>
 
                     {/* Coluna do conteúdo: área rolável + barra de ação fixa */}
                     <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-white">
                         <div ref={conteudoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
-                            {activeTab === 'import' && renderImportSettings()}
-                            {activeTab === 'hikcentral' && renderHikCentralImport()}
-                            {activeTab === 'staff-list' && renderStaffList()}
-                            {activeTab === 'staff-import' && renderStaffImport()}
-                            {activeTab === 'photos' && renderPhotoImport()}
-                            {activeTab === 'manual' && renderManualRegistration()}
-                            {activeTab === 'general' && renderGeneralSettings()}
+                            {/* ⚠️ `ehAdmin` também no CONTEÚDO, não só na sidebar:
+                                esconder o botão sem gardar o conteúdo deixaria as
+                                abas de administração a um setActiveTab de distância
+                                no console. A garde real é a do servidor; esta
+                                impede o ecrã de mentir sobre o que oferece. */}
+                            {activeTab === 'config' && podeConfig && <SystemConfiguration />}
+                            {ehAdmin && activeTab === 'import' && renderImportSettings()}
+                            {ehAdmin && activeTab === 'hikcentral' && renderHikCentralImport()}
+                            {ehAdmin && activeTab === 'staff-list' && renderStaffList()}
+                            {ehAdmin && activeTab === 'staff-import' && renderStaffImport()}
+                            {ehAdmin && activeTab === 'photos' && renderPhotoImport()}
+                            {ehAdmin && activeTab === 'manual' && renderManualRegistration()}
+                            {ehAdmin && activeTab === 'general' && renderGeneralSettings()}
                         </div>
 
                         {/*

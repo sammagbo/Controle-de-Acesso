@@ -75,7 +75,7 @@ function CdiCapacitePanel() {
                     </div>
                 </div>
                 <div>
-                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.etat.OUVERT')}</label>
+                    <label className="text-[10px] text-slate-400 block mb-1">{t('cdi.cap.etat')}</label>
                     <select value={e.estado || 'OUVERT'} onChange={ev => campo('estado', ev.target.value)}
                         className="px-3 py-2 rounded-xl border border-soft-200 text-sm">
                         {['OUVERT', 'RESERVE', 'FERME'].map(k =>
@@ -338,7 +338,7 @@ function CdiExclusionManagement({ onBack }) {
                     </div>
                 )}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-end gap-2">
                     <input value={motivo} onChange={e => setMotivo(e.target.value)}
                         placeholder={t('cdi.excl.motivo')}
                         className="flex-1 min-w-48 px-3 py-2 rounded-xl border border-soft-200 text-sm" />
@@ -380,7 +380,8 @@ function CdiExclusionManagement({ onBack }) {
                             {l.turma && l.userId && <span className="text-xs text-slate-400">{l.turma}</span>}
                             {l.motivo && <span className="text-xs text-slate-500 italic truncate">{l.motivo}</span>}
                             <span className="text-xs text-slate-400 flex-1 text-right truncate">
-                                {l.ate ? '→ ' + l.ate : ''} · {t('cdi.excl.por', { quem: l.criadoPor })}
+                                {[l.ate ? '→ ' + formatDate(new Date(l.ate + 'T12:00:00')) : null,
+                                  t('cdi.excl.por', { quem: l.criadoPor })].filter(Boolean).join(' · ')}
                             </span>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                 l.ativa ? 'bg-danger-100 text-danger-700' : 'bg-soft-100 text-slate-500'}`}>

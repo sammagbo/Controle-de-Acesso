@@ -394,6 +394,28 @@ function BibliotecaView({ onBack }) {
                         + (excluido.x.ate ? " — jusqu'au " + excluido.x.ate : ''));
                   return true;
             }
+            // ⚠️ FERMÉ/RÉSERVÉ : CHAQUE entrée alerte, pas seulement le front
+            // montant. Une salle déclarée fermée est censée ne recevoir
+            // personne — chaque badge y est l'exception, et le bibliothécaire
+            // veut savoir QUI vient d'entrer. Défaut trouvé par la
+            // vérification C5b du 28/08 : le bandeau s'affichait, mais un
+            // badge réel pendant la fermeture ne déclenchait rien.
+            // L'exclusion garde la priorité : elle nomme une mesure sur une
+            // personne, la fermeture décrit la salle.
+            const estadoFechado = cdiEtat && cdiEtat.estado && cdiEtat.estado !== 'OUVERT'
+                  ? cdiEtat.estado : null;
+            if (estadoFechado && mapeados.length > 0) {
+                  // Même son que « complet » : les deux disent « la salle n'est
+                  // pas disponible », et C5c fige TROIS sons, pas quatre — un
+                  // quatrième timbre serait un de plus à mémoriser pour un
+                  // message de la même famille.
+                  if (!muted) CdiSound.complet();
+                  setAlerte({ type: 'ferme', student: mapeados[0], estado: estadoFechado });
+                  registrarAlerta('FERME', mapeados[0], 'état ' + estadoFechado
+                        + (cdiEtat.estadoInicio || cdiEtat.estadoFim
+                              ? ' ' + (cdiEtat.estadoInicio || '') + '-' + (cdiEtat.estadoFim || '') : ''));
+                  return true;
+            }
             if (antes < capacite && depois >= capacite) {
                   if (!muted) CdiSound.complet();
                   setAlerte({ type: 'complet', dedans: depois, capacite: capacite });
@@ -405,7 +427,7 @@ function BibliotecaView({ onBack }) {
                   return true;
             }
             return false;
-      }, [exclusionDe, capacite, muted, registrarAlerta]);
+      }, [exclusionDe, capacite, muted, registrarAlerta, cdiEtat]);
 
       useEffect(() => {
             avisarRef.current = (novosIds, antes, depois, brutos) => {
@@ -662,9 +684,27 @@ function BibliotecaView({ onBack }) {
                         onClick={() => setAlerte(null)}>
                         <div className={`w-full max-w-2xl rounded-3xl border-4 shadow-2xl p-8 text-center ${
                               alerte.type === 'exclu'
-                                    ? 'bg-red-50 border-red-600' : 'bg-amber-50 border-amber-500'}`}
+                                    ? 'bg-red-50 border-red-600'
+                                    : alerte.type === 'ferme'
+                                          ? 'bg-purple-50 border-purple-600'
+                                          : 'bg-amber-50 border-amber-500'}`}
                               onClick={e => e.stopPropagation()}>
-                              {alerte.type === 'exclu' ? (
+                              {alerte.type === 'ferme' ? (
+                                    <>
+                                          <p className="text-4xl font-black text-purple-800 mb-3">
+                                                {t('cdi.etat.' + alerte.estado)}
+                                          </p>
+                                          <div className="flex items-center justify-center gap-5 mb-3">
+                                                <PersonPhoto userId={alerte.student.id} nome={alerte.student.name}
+                                                      className="w-24 h-24 rounded-2xl object-cover shadow-lg" alt="" />
+                                                <div className="text-left">
+                                                      <p className="text-3xl font-black text-purple-900">{alerte.student.name}</p>
+                                                      <p className="text-xl font-bold text-purple-700">{alerte.student.class}</p>
+                                                </div>
+                                          </div>
+                                          <p className="text-lg text-purple-800">{t('cdi.ferme.alerte.note')}</p>
+                                    </>
+                              ) : alerte.type === 'exclu' ? (
                                     <>
                                           <p className="text-4xl font-black text-red-700 mb-4">
                                                 {alerte.porTurma ? t('cdi.exclu.titre.turma') : t('cdi.exclu.titre')}

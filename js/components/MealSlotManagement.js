@@ -296,7 +296,7 @@ function MealSlotManagement({ onBack }) {
                                             <input type="text" defaultValue={c.rotulo || ''}
                                                 id={`rot-${c.id}`} maxLength={64}
                                                 placeholder={t('creneaux.rotulo.placeholder')}
-                                                className="w-40 px-1.5 py-0.5 rounded border border-soft-200 text-[10px] font-bold text-slate-500 uppercase" />
+                                                className="w-56 px-1.5 py-0.5 rounded border border-soft-200 text-[10px] font-bold text-slate-500 uppercase" />
                                         ) : (
                                             <span className="text-[10px] font-bold text-slate-400 uppercase">{c.rotulo}</span>
                                         )}

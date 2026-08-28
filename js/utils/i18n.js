@@ -1163,7 +1163,7 @@
             // Créneaux : tolérances, création, dispenses
             'creneaux.rotulo.placeholder': "nom du passage (sort sur l'affiche)",
             'creneaux.tol.min': 'min',
-            'creneaux.tol.gravar': 'Enregistrer la fenêtre de ce créneau',
+            'creneaux.tol.gravar': 'Enregistrer le nom et la fenêtre de ce créneau',
             'creneaux.novo.titulo': 'Ajouter un créneau',
             'creneaux.novo.ajuda': "Pour la maternelle et l'élémentaire : rien n'est pré-rempli, les horaires réels se saisissent ici avec la Vie Scolaire.",
             'creneaux.novo.criar': 'Ajouter',
@@ -2586,9 +2586,9 @@
             'creneaux.veredicto.NAO_APLICAVEL': 'A regra de horários não se aplica a esta pessoa.',
             'creneaux.regra.prioridade': 'As turmas de 1ère e Terminale têm prioridade no acesso à cantina.',
             // Créneaux: tolerâncias, criação, dispensas
-            'creneaux.rotulo.placeholder': 'nome do passage (sai no cartaz)',
+            'creneaux.rotulo.placeholder': 'nome do turno (sai no cartaz)',
             'creneaux.tol.min': 'min',
-            'creneaux.tol.gravar': 'Gravar a janela deste horário',
+            'creneaux.tol.gravar': 'Gravar o nome e a janela deste horário',
             'creneaux.novo.titulo': 'Adicionar um horário',
             'creneaux.novo.ajuda': 'Para a maternal e o elementar: nada vem pré-preenchido, os horários reais são digitados aqui com a Vie Scolaire.',
             'creneaux.novo.criar': 'Adicionar',

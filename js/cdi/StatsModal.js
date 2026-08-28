@@ -36,7 +36,7 @@ function CdiStatsModal({ open, onClose, logs, students }) {
       React.useEffect(() => {
             if (!open) return undefined;
             let vivo = true;
-            const fmt = (d) => d.toISOString().slice(0, 10);
+            const fmt = (d) => dayKey(d);
             const hoje = new Date();
             const de = new Date(hoje);
             if (timeRange === 'week') de.setDate(hoje.getDate() - 7);

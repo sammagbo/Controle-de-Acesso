@@ -7,7 +7,7 @@
 
 function RefectoryReport() {
     const t = useI18n();
-    const todayStr = () => new Date().toISOString().slice(0, 10);
+    const todayStr = () => dayKey(new Date());   // heure LOCALE — voir tests/aujourdhuiHeureLocale.test.js
 
     const [dateFrom, setDateFrom] = React.useState(todayStr());
     const [dateTo, setDateTo] = React.useState(todayStr());
@@ -35,8 +35,8 @@ function RefectoryReport() {
         }
         setPeriod(p);
         if (p !== 'custom') {
-            setDateFrom(from.toISOString().slice(0, 10));
-            setDateTo(now.toISOString().slice(0, 10));
+            setDateFrom(dayKey(from));
+            setDateTo(dayKey(now));
         }
     };
 

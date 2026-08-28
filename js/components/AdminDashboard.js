@@ -177,7 +177,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            const today = new Date().toISOString().slice(0, 10);
+            const today = dayKey(new Date());
             link.href = url;
             link.download = `relatorio-acessos-${today}.csv`;
             document.body.appendChild(link);
@@ -237,7 +237,7 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                   });
 
                   // Save
-                  const fileNameDate = new Date().toISOString().slice(0, 10);
+                  const fileNameDate = dayKey(new Date());
                   doc.save(`relatorio-acessos-${fileNameDate}.pdf`);
                   
                   onShowToast({ title: t('admin.export.pdf.titulo'), message: t('admin.export.feito', { n: globalLogs.length }), type: 'success' });

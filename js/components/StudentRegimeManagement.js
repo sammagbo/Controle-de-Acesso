@@ -40,7 +40,7 @@ function StudentRegimeManagement({ onBack }) {
     const VAZIO = {
         regimeGeneral: 'EXTERNE',
         regimeSortie: 'REGIME_1',
-        validFrom: new Date().toISOString().slice(0, 10),
+        validFrom: dayKey(new Date()),   // le regime commence AUJOURD'HUI a Rio, pas demain en UTC
         validUntil: '',
         authorizedByFamily: '',
         documentoRef: '',
@@ -215,7 +215,7 @@ function StudentRegimeManagement({ onBack }) {
                 setForm({
                     regimeGeneral: d.vigente.regimeGeneral,
                     regimeSortie: d.vigente.regimeSortie,
-                    validFrom: new Date().toISOString().slice(0, 10),
+                    validFrom: dayKey(new Date()),   // le regime commence AUJOURD'HUI a Rio, pas demain en UTC
                     validUntil: d.vigente.validUntil || '',
                     authorizedByFamily: d.vigente.authorizedByFamily || '',
                     documentoRef: d.vigente.documentoRef || '',

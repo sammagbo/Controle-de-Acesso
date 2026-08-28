@@ -63,7 +63,9 @@ function Dashboard({ onSelectPoint, accessLogs }) {
       const [todayCount, setTodayCount] = React.useState(null);
       React.useEffect(() => {
             let vivo = true;
-            const hoje = () => new Date().toISOString().slice(0, 10);
+            // ⚠️ dayKey, jamais toISOString : à Rio, après 21 h, l'UTC est déjà DEMAIN
+            // et ce compteur tombait à 0 — le quatrième défaut d'horloge (28/08).
+            const hoje = () => dayKey(new Date());
             const carregar = async () => {
                   // Mesma doutrina de toda tela padrão: repetições de posto
                   // fixo / já-presente fora da contagem (repeticoes=SANS).

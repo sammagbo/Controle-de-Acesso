@@ -171,7 +171,9 @@ function JournalTab({ active = true }) {
         URL.revokeObjectURL(url);
     };
 
-    const inputCls = 'px-3 py-2 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300';
+    // h-10 : le <input type=date> natif est 2 px plus haut que les <select> — en items-end
+    // les étiquettes DU/AU dérivaient au-dessus des autres.
+    const inputCls = 'px-3 py-2 h-10 rounded-xl border border-soft-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-300';
     const points = typeof ACCESS_POINTS !== 'undefined' ? ACCESS_POINTS : [];
 
     return (
@@ -220,7 +222,7 @@ function JournalTab({ active = true }) {
                         title={t('journal.repeticoes.ajuda')}
                         className={inputCls}
                     >
-                        <option value="">{t('rap.filtro.todos')}</option>
+                        <option value="">{t('journal.repeticoes.todos')}</option>
                         <option value="SANS">{t('journal.repeticoes.sem')}</option>
                         <option value="SEULEMENT">{t('journal.repeticoes.somente')}</option>
                     </select>
@@ -247,7 +249,8 @@ function JournalTab({ active = true }) {
                 </div>
                 <button
                     onClick={exportCSV}
-                    className="px-4 py-2 rounded-xl bg-success-500 text-white font-bold text-sm hover:bg-success-600 flex items-center gap-2"
+                    disabled={filtered.length === 0}
+                    className="px-4 py-2 rounded-xl bg-success-500 text-white font-bold text-sm hover:bg-success-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <LucideIcon name="download" size={16} /> CSV
                 </button>
@@ -994,7 +997,7 @@ function OverviewTab() {
         cantine: '#f97316', infirmerie: '#ef4444', cdi: '#eab308', portail: '#0c1b3a'
     };
 
-    const periodoLabel = period === 'today' ? "aujourd'hui"
+    const periodoLabel = period === 'today' ? t('vue.periodo.hoje')
         : period === 'week' ? t('periodo.7dias')
         : period === 'month' ? t('periodo.30dias')
         : t('vue.periodo.personalizado');
@@ -1360,7 +1363,7 @@ function OverviewTab() {
                                                     return (
                                                         <div key={i} className={`flex items-center gap-3 bg-white rounded-xl px-3 py-2 border ${cls.border}`}>
                                                             <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${cls.badge}`}>
-                                                                {al.severite}
+                                                                {t('vue.sev.' + al.severite) === 'vue.sev.' + al.severite ? al.severite : t('vue.sev.' + al.severite)}
                                                             </span>
                                                             <span className="font-bold text-sm text-slate-800 truncate">{al.nome}</span>
                                                             <span className="text-xs text-slate-400 shrink-0">{al.turma}</span>

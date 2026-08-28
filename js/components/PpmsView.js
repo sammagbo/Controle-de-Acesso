@@ -365,7 +365,7 @@ function PpmsView({ onBack }) {
                                                 <span className="block text-[11px] text-slate-400 mt-0.5">{t('ppms.zona.transito.ajuda')}</span>
                                             )}
                                         </span>
-                                        <span className={`text-3xl font-black tabular-nums ${vazia ? 'text-slate-300' : 'text-navy-500'}`}>
+                                        <span className={`text-3xl font-black tabular-nums ${vazia ? 'text-slate-500' : 'text-navy-500'}`}>
                                             {z.total || 0}
                                         </span>
                                         {!vazia && (

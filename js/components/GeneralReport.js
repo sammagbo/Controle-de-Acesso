@@ -10,7 +10,7 @@
 function JournalTab({ active = true }) {
     const t = useI18n();
     const locale = useLocale();
-    const todayStr = () => new Date().toISOString().slice(0, 10);
+    const todayStr = () => dayKey(new Date());   // heure LOCALE — voir tests/aujourdhuiHeureLocale.test.js
     const [dateFrom, setDateFrom] = React.useState(todayStr());
     const [dateTo, setDateTo] = React.useState(todayStr());
     const [pointId, setPointId] = React.useState('');
@@ -389,7 +389,7 @@ function JournalTab({ active = true }) {
 function ParEleveTab() {
     const t = useI18n();
     const locale = useLocale();
-    const todayStr = () => new Date().toISOString().slice(0, 10);
+    const todayStr = () => dayKey(new Date());   // heure LOCALE — voir tests/aujourdhuiHeureLocale.test.js
 
     const [query,    setQuery]    = React.useState('');
     const [results,  setResults]  = React.useState([]);
@@ -422,7 +422,7 @@ function ParEleveTab() {
         const from = new Date();
         if (period === 'week')       from.setDate(to.getDate() - 6);
         else if (period === 'month') from.setDate(to.getDate() - 29);
-        const fmt = d => d.toISOString().slice(0, 10);
+        const fmt = d => dayKey(d);
         return { dateFrom: fmt(from), dateTo: fmt(to) };
     }, [period]);
 
@@ -458,7 +458,7 @@ function ParEleveTab() {
     const presenceChips = React.useMemo(() => {
         const today = todayStr();
         const todayLogs = logs
-            .filter(l => new Date(tsMs(l.timestamp)).toISOString().slice(0, 10) === today)
+            .filter(l => dayKey(new Date(tsMs(l.timestamp))) === today)
             .sort((a, b) => tsMs(a.timestamp) - tsMs(b.timestamp));
 
         const entry = todayLogs.find(l => l.action === 'ENTRADA' && String(l.pointId).startsWith('PORT'));
@@ -485,7 +485,7 @@ function ParEleveTab() {
     const logsByDay = React.useMemo(() => {
         const days = {};
         logs.forEach(l => {
-            const key = new Date(tsMs(l.timestamp)).toISOString().slice(0, 10);
+            const key = dayKey(new Date(tsMs(l.timestamp)));
             if (!days[key]) days[key] = [];
             days[key].push({ ...l });
         });
@@ -768,8 +768,8 @@ function OverviewTab() {
     const t = useI18n();
     const locale = useLocale();
     const [period, setPeriod] = React.useState('week'); // 'today' | 'week' | 'month' | 'custom'
-    const [customFrom, setCustomFrom] = React.useState(new Date().toISOString().slice(0, 10));
-    const [customTo,   setCustomTo]   = React.useState(new Date().toISOString().slice(0, 10));
+    const [customFrom, setCustomFrom] = React.useState(dayKey(new Date()));
+    const [customTo,   setCustomTo]   = React.useState(dayKey(new Date()));
     const [data, setData] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [lastEvent, setLastEvent] = React.useState(null);  // HH:mm string ou null
@@ -784,7 +784,7 @@ function OverviewTab() {
 
 
     const { dateFrom, dateTo } = React.useMemo(() => {
-        const fmt = d => d.toISOString().slice(0, 10);
+        const fmt = d => dayKey(d);
         if (period === 'custom') {
             const f = customFrom <= customTo ? customFrom : customTo;
             const t = customFrom <= customTo ? customTo : customFrom;
@@ -859,7 +859,7 @@ function OverviewTab() {
 
     const load = React.useCallback(async () => {
         setLoading(true);
-        const today = new Date().toISOString().slice(0, 10);
+        const today = dayKey(new Date());
         try {
             const [d, lastLogArr, visits, meals] = await Promise.all([
                 window.api.fetchOverview({ dateFrom, dateTo, incluirFuncionarios }),

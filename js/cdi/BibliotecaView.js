@@ -267,9 +267,9 @@ function BibliotecaView({ onBack }) {
                   const blob = new Blob([content], { type: 'application/json' });
                   const a = document.createElement('a');
                   a.href = URL.createObjectURL(blob);
-                  a.download = `cdi_backup_${new Date().toISOString().slice(0, 10)}${password ? '_secure' : ''}.json`;
+                  a.download = `cdi_backup_${dayKey(new Date())}${password ? '_secure' : ''}.json`;
                   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                  setLastBackup(new Date().toISOString().slice(0, 10));
+                  setLastBackup(dayKey(new Date()));
                   setUnsavedChanges(false);
                   if (!silent) setToast({ message: t('cdi.backup.feito'), type: 'success' });
             });
@@ -280,7 +280,9 @@ function BibliotecaView({ onBack }) {
             const checkBackup = () => {
                   const now = new Date();
                   const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                  const today = now.toISOString().slice(0, 10);
+                  // ⚠️ jour LOCAL : la sauvegarde automatique de 16:45 comparait avec un
+                  // jour UTC et, apres 21 h, croyait ne pas avoir encore sauvegarde.
+                  const today = dayKey(now);
                   if (timeStr === backupTime && lastBackup !== today) {
                         setToast({ message: t('cdi.backup.auto'), type: 'in' });
                         exportBackup(true);

@@ -299,17 +299,12 @@ function AdminDashboard({ onBack, onShowToast, activeTimers, onNavigateToReport,
                         </div>
                   </div>
 
-                  {/* ⚠️ LA RECHERCHE EST L'ÉLÉMENT PRINCIPAL DE L'ÉCRAN, et elle
-                      passe AVANT les KPI. Quelqu'un qui ouvre ce tableau de bord
-                      cherche presque toujours UNE personne ; les chiffres
-                      répondent à une question qu'on ne se pose qu'ensuite.
-                      Le composant se retire tout seul si le compte n'a pas
-                      PARCOURS_READ. */}
-                  {/* ⚠️ Pas d'enveloppe avec de la marge ici : le composant se
-                      retire tout seul sans PARCOURS_READ, et une enveloppe
-                      laisserait un trou de 2 rem que personne ne saurait
-                      interpreter. La marge vit DANS le composant. */}
-                  <RechercheGlobale />
+                  {/* ⚠️ La recherche vécut ICI un jour (27/08) et déménagea le
+                      lendemain vers l'écran d'ACCUEIL (décision du Sam) : qui
+                      cherche un enfant ne doit pas d'abord entrer dans le
+                      Panneau Administratif. Ne pas la remettre ici — deux
+                      barres pour la même question, c'est deux comportements
+                      qui divergent à la première correction. */}
 
                   {/* ══════════════════════════════════════════════════════════ */}
                   {/* SECTION 1 — KPI CARDS (masquables)                        */}

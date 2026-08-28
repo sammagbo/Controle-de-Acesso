@@ -1163,6 +1163,8 @@
             'creneaux.dia.5': 'Vendredi',
 
             // Recherche globale (tableau de bord admin)
+            'accueil.stats.esconder': 'Masquer les indicateurs',
+            'accueil.stats.mostrar': 'Afficher les indicateurs',
             'admin.kpi.esconder': 'Masquer les indicateurs',
             'admin.kpi.mostrar': 'Afficher les indicateurs',
             'recherche.placeholder': 'Chercher une personne — nom ou classe...',
@@ -2572,6 +2574,8 @@
             'creneaux.dia.5': 'Sexta-feira',
 
             // Busca global (painel administrativo)
+            'accueil.stats.esconder': 'Esconder os indicadores',
+            'accueil.stats.mostrar': 'Mostrar os indicadores',
             'admin.kpi.esconder': 'Esconder os indicadores',
             'admin.kpi.mostrar': 'Mostrar os indicadores',
             'recherche.placeholder': 'Buscar uma pessoa — nome ou turma...',

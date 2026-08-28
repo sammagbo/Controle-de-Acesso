@@ -361,9 +361,54 @@ Rollback : `rollback/R025__drop_cdi_exclusions.sql`. ⚠️ Il efface les
 exclusions **et leur historique** — des décisions pédagogiques prises sur des
 mineurs. Confirmer avec la direction avant.
 
+### ⚠️ V026 — le registre des alertes du CDI
+
+`cdi_alert_events` : chaque alerte MONTRÉE à l'écran du CDI laisse une trace —
+type (`EXCLUSION` / `CAPACITE` / `FERME`), personne le cas échéant, heure du
+**badge** (jamais celle du traitement), et ce que l'écran affichait.
+
+⚠️ **C'est la réponse à une famille six semaines plus tard** (« pourquoi mon
+enfant a-t-il été signalé, et combien de fois ») — la réserve n°1 de la nuit
+du 26→27/08, actée par Sam. Lecture par `CDI_EXCLUSION_WRITE` uniquement ;
+l'écriture (POST de l'écran du CDI) est par aire `cdi`.
+
+⚠️ **Pas d'enum en base** : `tipo` est VARCHAR + CHECK manuel
+(`ck_cdi_alert_events_tipo`). Un type nouveau dans `CdiAlertService.TIPOS` =
+élargir ce CHECK **dans la même livraison**, sinon l'INSERT échoue só na VM
+(a armadilha V009/V015, pela terceira vez).
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb   < deploy/migrations/V026__cdi_alert_events.sql
+echo "exit=$?"
+```
+
+Vérifications :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -c "\d cdi_alert_events"
+
+# ⚠️ Le CHECK doit MORDRE (doit ÉCHOUER) :
+docker exec magbo-postgres psql -U magbo -d magbodb -c   "INSERT INTO cdi_alert_events (tipo,point_id,event_time) VALUES ('AUTRE','BIBLIO',now());"
+
+# La table naît vide :
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc "SELECT count(*) FROM cdi_alert_events;"
+```
+
+⚠️ **La limite structurelle, à connaître avant de répondre à une famille :
+le registre n'écrit que lorsque l'écran du CDI est OUVERT** (le POST part du
+poste, au moment où l'alerte s'affiche). Poste éteint, écran fermé, réseau
+coupé : le badge a eu lieu, l'alerte n'a pas sonné, et il n'y a PAS de ligne.
+**L'absence de ligne ne prouve jamais l'absence de badge** — pour ça il y a
+`access_logs`, qui ne dépend d'aucun écran. L'onglet Historique montre les
+500 dernières lignes et le dit.
+
+Rollback : `rollback/R026__drop_cdi_alert_events.sql`. ⚠️ **Il efface un
+registre de signalements concernant des enfants** — sans le dump antérieur,
+ces lignes ne reviennent pas. Un pg_dump AVANT, toujours.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V025. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V026. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -423,6 +468,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 | `V023__meal_slots_seed.sql` | **seed**: a afixação da Vie Scolaire 2026 + a reprise de `class_schedules` para o que ela não nomeia | Créneaux |
 | `V024__system_settings.sql` | tabela `system_settings` — a **surcouche** dos reglages modificáveis a ecrã (**nasce vazia**; sem linha = default do código) | Configuração |
 | `V025__cdi_exclusions.sql` | tabela `cdi_exclusions` — quem não deve entrar no CDI (**avisa, nunca impede**; dado sensível sobre menor) | CDI |
+| `V026__cdi_alert_events.sql` | tabela `cdi_alert_events` — o registro de cada alerta MOSTRADA no ecrã do CDI (hora do **badge**; dado sensível sobre menor; leitura só por `CDI_EXCLUSION_WRITE`) | CDI |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

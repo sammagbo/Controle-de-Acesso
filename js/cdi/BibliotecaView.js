@@ -357,21 +357,55 @@ function BibliotecaView({ onBack }) {
        *
        * L'exclusion, elle, part a chaque fois : elle nomme un enfant.
        */
+      /**
+       * Le REGISTRE (V026) : chaque alerte montrée est déclarée au serveur.
+       *
+       * ⚠️ FIRE-AND-FORGET, et l'ordre est le contrat : le son et la modale
+       * partent AVANT le POST, jamais en fonction de lui. Un registre en
+       * panne ne casse pas le comptoir — il se contente d'une ligne console.
+       *
+       * ⚠️ L'heure envoyée est celle du BADGE (lastEntry du présent), pas
+       * celle du POST : une file offline vidée à 18h doit dater l'alerte de
+       * 10h, sinon la seule table qui répond à une famille répond faux.
+       */
+      const registrarAlerta = useCallback((tipo, student, detalhe) => {
+            if (!window.api || !window.api.postCdiAlerte) return;   // branche non mergée : rien à faire
+            const quando = student && student.lastEntry
+                  ? cdiIsoLocal(new Date(student.lastEntry)) : null;
+            window.api.postCdiAlerte({
+                  tipo: tipo,
+                  userId: student ? student.id : null,
+                  nomeSnapshot: student ? student.name : null,
+                  pointId: 'BIBLIO',
+                  eventTime: quando,
+                  detalhe: detalhe || null
+            }).catch(e => console.warn("[CDI] registre d'alerte non écrit:", e.message));
+      }, []);
+
       const avisar = useCallback((mapeados, antes, depois) => {
             const excluido = mapeados.map(m => ({ m, x: exclusionDe(m) })).find(o => o.x);
             if (excluido) {
                   if (!muted) CdiSound.exclu();
                   setAlerte({ type: 'exclu', student: excluido.m,
                               porTurma: excluido.x.porTurma, ate: excluido.x.ate });
+                  registrarAlerta('EXCLUSION', excluido.m,
+                        (excluido.x.porTurma ? 'exclusion de classe ' + (excluido.m.class || '')
+                                             : 'exclusion individuelle')
+                        + (excluido.x.ate ? " — jusqu'au " + excluido.x.ate : ''));
                   return true;
             }
             if (antes < capacite && depois >= capacite) {
                   if (!muted) CdiSound.complet();
                   setAlerte({ type: 'complet', dedans: depois, capacite: capacite });
+                  // ⚠️ SEM nome. A V026 o diz: alerta de SALA, pessoa nula. O
+                  // primeiro do tick de polling nao e «quem encheu a sala» — e
+                  // a ordem de um array — e o nome de uma crianca que nao fez
+                  // nada nao entra num registro de sinalizacoes (painel 28/08).
+                  registrarAlerta('CAPACITE', null, depois + '/' + capacite);
                   return true;
             }
             return false;
-      }, [exclusionDe, capacite, muted]);
+      }, [exclusionDe, capacite, muted, registrarAlerta]);
 
       useEffect(() => {
             avisarRef.current = (novosIds, antes, depois, brutos) => {

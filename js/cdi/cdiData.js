@@ -10,6 +10,19 @@ const CDI_STORAGE = { students: 'cdi_students', present: 'cdi_present', logs: 'c
 const CDI_DEFAULT_PIN = '1234';
 const CDI_API_URL = ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
 
+/**
+ * A hora LOCAL em ISO sem fuso ('2026-08-28T10:03:07') — o formato que o
+ * backend le como LocalDateTime.
+ *
+ * ⚠️ NUNCA toISOString(): ela converte para UTC e o registro nasceria com
+ * tres horas de erro — o defeito de fuso de 03/08, do lado do cliente.
+ */
+const cdiIsoLocal = (d) => {
+      const p = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+            + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+};
+
 // Audio
 const cdiAudioCtx = { ctx: null };
 const cdiPlayBeep = (freq, dur, type = 'sine', ganho = 0.1) => {

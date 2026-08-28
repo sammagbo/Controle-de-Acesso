@@ -286,7 +286,20 @@ function MealSlotManagement({ onBack }) {
                                         ? 'bg-warning-50/40 border-warning-200' : 'bg-white border-soft-200'}`}>
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-black text-navy-500">{c.hora.slice(0, 5)}</span>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{c.rotulo}</span>
+                                        {/* ⚠️ ÉDITABLE : c'est ce rotulo que le bandeau de
+                                            l'affiche imprime pour un créneau hors 12H30/13H00.
+                                            La page 11h imprimait « REPRIS DE CLASS_SCHEDULES »
+                                            — un nom de table interne sur un mur que lisent des
+                                            familles — et RIEN à l'écran ne permettait de le
+                                            changer (panel du 28/08). */}
+                                        {podeEscrever ? (
+                                            <input type="text" defaultValue={c.rotulo || ''}
+                                                id={`rot-${c.id}`} maxLength={64}
+                                                placeholder={t('creneaux.rotulo.placeholder')}
+                                                className="w-56 px-1.5 py-0.5 rounded border border-soft-200 text-[10px] font-bold text-slate-500 uppercase" />
+                                        ) : (
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">{c.rotulo}</span>
+                                        )}
                                     </div>
                                     {/* A JANELA do creneau, visivel e editavel: hora −antes / +depois.
                                         E ela que decide AVANT_CRENEAU/APRES_CRENEAU — um numero
@@ -307,9 +320,11 @@ function MealSlotManagement({ onBack }) {
                                                 onClick={() => {
                                                     const a = document.getElementById(`tola-${c.id}`);
                                                     const d2 = document.getElementById(`told-${c.id}`);
+                                                    const r = document.getElementById(`rot-${c.id}`);
                                                     agir(() => window.api.updateMealSlot(c.id, {
                                                         toleranciaAntesMinutos: a ? a.value : null,
-                                                        toleranciaDepoisMinutos: d2 ? d2.value : null
+                                                        toleranciaDepoisMinutos: d2 ? d2.value : null,
+                                                        ...(r ? { rotulo: r.value } : {})
                                                     }));
                                                 }}
                                                 className="text-accent-600 hover:bg-accent-50 px-1.5 rounded font-bold">

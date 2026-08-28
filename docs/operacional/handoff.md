@@ -1,450 +1,638 @@
-# Handoff — estado real do sistema
+# Handoff — l'état réel du système
 
-**Para quem:** quem assumir o MAGBO depois do Sam, ou o próprio Sam voltando
-depois de um tempo longe.
-**Data de corte:** **2026-08-05** (último merge em `main`: `2902e74`).
+**Pour qui :** la personne qui reprend MAGBO Access Control après le départ de
+Sam, ou Sam lui-même revenant après une longue absence.
 
-Este documento descreve o sistema **como ele está**, não como foi planejado.
-Onde há diferença entre a intenção e o que roda hoje, vale o que roda hoje.
+**Date de coupe : 2026-08-29.** Dernier merge sur `main` : `7c4d54e`.
+Suites : backend **943** tests (0 échec, exactement 2 `@Disabled`), npm **684**.
 
-> **Nada aqui contém senha, token ou segredo.** Os segredos vivem no `setx` do
-> PC e no `deploy/.env` da VM, e não saem de lá. Se você encontrar um segredo
-> neste arquivo ou em qualquer outro `.md` do repositório, isso é um incidente:
-> rotacione e remova.
+Ce document décrit le système **tel qu'il tourne**, pas tel qu'il a été pensé.
+Là où l'intention et la réalité divergent, c'est la réalité qui compte.
+
+> **Aucun mot de passe, jeton ou secret ici.** Les secrets vivent dans le `setx`
+> du PC et dans `deploy/.env` sur la VM, et ils n'en sortent pas. Si vous
+> trouvez un secret dans ce fichier ou dans n'importe quel `.md` du dépôt,
+> c'est un incident : faites tourner la valeur et retirez-la.
+
+> **Note de langue.** Ce document était en portugais jusqu'au 05/08. Il est
+> passé au français le 29/08, pour être cohérent avec le manuel, le guide
+> d'installation, les rapports de nuit et le livre du système — tout ce qui
+> sera lu à côté de lui. La version portugaise reste dans l'historique git :
+> `git show 3ea4213:docs/operacional/handoff.md`.
 
 ---
 
-## 1. A semana de 29/07 a 05/08 em uma página
+# ⚠️ À LIRE EN PREMIER — le défaut ouvert le plus grave
 
-Foram **cinco deploys** nesta semana — o sistema saiu de "validado em bancada"
-para "rodando com dado real e sendo corrigido em produção". As dez PRs mergeadas
-estão em `git log --since=2026-07-29`.
+**Depuis le 25/08, le portail ne reconnaît plus que ~46 élèves distincts par
+jour, contre ~500 jusqu'au 24/08.**
 
-| # | O que entrou | Commits principais |
+| Mesure | Jusqu'au 24/08 | Depuis le 25/08 |
 |---|---|---|
-| 1 | Pronote preenche `hikvision_employee_id`; token do webhook aceito na URL | `4bfb46a`, `d13a93d` |
-| 2 | Telas de setor e CDI se atualizam ao vivo (antes só na montagem) | `3a96bce`, `a984fee`, `de97bdd` |
-| 3 | Endurecimento da ingestão do webhook: descarte de tipos desconhecidos, dedup por aparelho+serial, IP na linha de log | `fd07b77`, `c7e65aa` |
-| 4 | **Hora do evento** em vez da hora de recepção; Journal ao vivo com filtro no servidor | `8d78f41`, `4f7d49c` |
-| 5 | Mesma passagem em 30s; fechamento automático de presença; cadastro, importação e ferramentas de servidor | `b20091b`, `687e360`, `63211d9`, `eac03f2` |
-| — | Configurações em tela cheia; CDI conta alunos por padrão; reclassificação servidor→aluno | `c16b2d5`, `23ce665`, `f442db9` |
+| Élèves distincts reconnus / jour | ~500 | **~46** |
+| Personnel reconnu / jour | ~40 | ~40 — **inchangé** |
+| Personnes vues le 24/08 à 7h | 297 | — |
+| Personnes vues le 25/08 à 7h | — | **35** |
 
-**Suíte:** `mvn test` → **350 testes, 0 falhas, 2 `@Disabled`** (as duas queries
-nativas que só rodam em PostgreSQL). `npm test` → **58 testes, 0 falhas**.
+La rupture est **nette entre le 24 et le 25** : ce n'est pas une dérive
+progressive. **Le personnel n'est pas touché**, ce qui est le fait le plus
+instructif du tableau — quoi qu'il se passe, ça ne frappe pas tout le monde.
 
----
+Sur environ **1160 visages non identifiés par jour**, seuls **22** atteignent la
+comparaison de nom, avec des similarités de **0,13 à 0,46** — très en dessous du
+seuil. Les autres n'arrivent même pas jusque-là.
 
-## 2. As sete coisas que mudaram de comportamento
+**Ce n'est pas un défaut logiciel.** Le backend reçoit et traite normalement.
+Le diagnostic du 27/08 a écarté l'hypothèse la plus sérieuse (le changement de
+parser multipart) avec preuve, et n'a trouvé aucun défaut de code — voir
+[`diagnostic-portaria-2026-08-27.md`](diagnostic-portaria-2026-08-27.md), qui
+contient les cinq requêtes SQL à lancer sur la VM et les `grep` de logs.
 
-Se você só ler uma seção, leia esta. São as mudanças que alteram **como o dado
-deve ser lido** — quem não souber delas vai interpretar os números errado.
+**Ce que l'on sait d'autre :** la chute **coïncide avec les imports de photos
+des 25 et 26/08**.
 
-### 2.1 O timestamp é a hora do EVENTO, não a da recepção
+**Piste à instruire :** la bibliothèque de visages et les paramètres des caméras
+DeepinView, côté HikCentral. La procédure est dans
+[`procedimento-hikcentral.md`](procedimento-hikcentral.md).
 
-**Antes de 03/08 o backend gravava `LocalDateTime.now()` da recepção.** Um
-terminal esvaziou a fila offline — 33 eventos em 2 minutos, às 14:51, de
-passagens ocorridas horas antes — e os 33 acessos entraram no banco como se
-tivessem acontecido às 14:51. Os relatórios mostraram **durações médias
-negativas** e alunos na hora e no ponto errados.
+> ⚠️ **La cause n'est pas prouvée.** La coïncidence de dates est une piste, pas
+> une conclusion. Ne réparez rien avant d'avoir mesuré : le diagnostic du 27/08
+> existe précisément pour éviter qu'on « corrige » ce qui n'est pas cassé.
 
-Enfileirar e reenviar é comportamento **normal** dos terminais MinMoe quando o
-destino cai (observado 2× em bancada). A hora de recepção nunca foi uma
-aproximação segura.
+### Note historique, à connaître avant de lire les chiffres d'avant
 
-Hoje, `EventTimeResolver` usa o `dateTime` do envelope do payload (ISO 8601 com
-offset — os terminais ainda saem de fábrica em `+08:00`, então o que importa é o
-**instante**, convertido para `America/Sao_Paulo`).
+La caméra **.166 (SORTIE) était en panne jusqu'au 24/08**. Le portail produisait
+donc environ **950 ENTRÉES et ZÉRO SORTIE par jour**.
 
-**Três guardas derrubam para a hora de recepção:**
-
-| Guarda | Limite | Por quê |
-|---|---|---|
-| `dateTime` ausente ou ilegível | — | Não há hora para usar |
-| Relógio do aparelho adiantado | > **5 min** no futuro | Evento "do futuro" corrompe relatório e presença |
-| Hora antiga demais | > **30 dias** no passado | Aparelho que voltou ao relógio de fábrica (1970) |
-
-**Todo fallback deixa uma linha INFO** com o IP e o motivo:
-
-```
-Hora do evento nao utilizavel, gravando a hora de recepcao (ip=..., motivo=..., dateTime=...)
-```
-
-> ⚠️ **O que NÃO mudou:** as **regras** (janela da cantina, dedup de refeição,
-> permissão de saída) continuam avaliadas contra a **hora da decisão**. Só o
-> timestamp gravado passou a ser o do evento. Uma fila reentregue às 14:51 grava
-> as horas certas, mas foi julgada às 14:51. Ver §5.1 — é uma dívida aberta.
-
-### 2.2 Três camadas de deduplicação, e elas NÃO são a mesma coisa
-
-Esta é a confusão mais cara do sistema. As três existem, as três estão ligadas,
-e cada uma resolve um problema diferente:
-
-| Camada | Property | Janela | O que atrapalha | Chave |
-|---|---|---|---|---|
-| **Ingestão** | `magbo.ingestion-dedup.*` | **60 s** | O aparelho **reenviou o mesmo pacote** | IP de origem + `serialNo` |
-| **Mesma passagem** | `magbo.same-passage-window-seconds` | **30 s** | O terminal reconheceu **duas vezes a mesma pessoa**, gerando eventos **diferentes** | pessoa + ponto + ação |
-| **Refeição duplicada** | `magbo.dedup.window-seconds` | **90 s** | **Regra de negócio**: segunda refeição no dia | pessoa + ponto (cantina) |
-
-Por que a do meio precisou existir: em 03/08, o mesmo aluno gerou ENTRADA às
-`10:06:50` e de novo às `10:06:51`. `serialNo` novo, então o dedup de ingestão
-deixou passar — **e deve mesmo**, são eventos distintos. A janela é por
-`(pessoa + ponto + ação)`, então **ENTRADA seguida de SAIDA continua valendo**.
-
-> **Todo descarte de ingestão deixa uma linha INFO com `ip` + `serialNo`.** Em
-> produção o nível é INFO, então o descarte fica visível no arquivo de log.
-> Um evento que some em silêncio é a pior falha possível aqui.
-
-### 2.3 Fechamento automático de presença
-
-A presença deriva do **último evento**. Quem entra no CDI e não passa o rosto na
-saída ficaria "dentro" para sempre, e no dia seguinte a tela abre com gente de
-ontem.
-
-`PresenceAutoCloseService` roda **a cada 5 minutos** e fecha todo ponto cuja hora
-de fechamento já passou no dia:
-
-```properties
-magbo.presence.auto-close.enabled=true
-magbo.presence.auto-close.cron=0 */5 * * * *
-magbo.presence.auto-close.times[BIBLIO]=17:00
-```
-
-A SAIDA sintética é **declarada, nunca disfarçada de crachá**:
-`flag=FECHAMENTO_AUTO` · `created_by_user=system`.
-
-Três propriedades que importam:
-- **Carimba a hora de FECHAMENTO (17:00), não a hora em que o job rodou.** Se o
-  backend estiver parado às 17:00, o fechamento acontece quando ele voltar, com
-  a hora certa.
-- **É idempotente por duas vias.** A segunda existe porque quem entra às 17:30
-  volta a ser candidato — sem ela, cada execução seguinte gravaria outra SAIDA
-  das 17:00.
-- **Não entra em média de duração.** 17:00 não é hora de saída de ninguém.
-
-> **Hoje só o `BIBLIO` fecha automaticamente.** A cantina não. Ver §5.2.
-
-### 2.4 Os relatórios contam ALUNO por padrão
-
-Desde que os servidores existem em `app_users` (**152 FUNCIONARIO + 49
-PROFESSOR**), eles poluíam os números do CDI: entram por segundos, quase nunca
-passam o rosto na saída, e o fechamento das 17:00 transformava isso em
-"permanência de um dia inteiro" — cerca de 15 `FUNC-###` foram fechados assim
-num único dia.
-
-Hoje o filtro por tipo está em três lugares, todos com o mesmo padrão
-(`incluirFuncionarios = false`):
-- backend: `VisitStatsService` (parâmetro do serviço) e `filtrarPorTipo` no
-  `AccessController` (parâmetro `tipo` dos endpoints de log);
-- frontend: `MagboReport.filterPeopleByTipo` / `filterLogsByTipo`
-  (`js/utils/reportFilters.js`), consumidos pelo `CdiBackend`;
-- UI: a caixa **"Inclure le personnel (CDI)"** no Rapport Général e a linha
-  cinza "Élèves seulement" nas estatísticas do CDI.
-
-> ⚠️ **É filtro de EXIBIÇÃO.** `access_logs` recebe tudo, o Journal mostra tudo.
-> Nada é apagado. Quando dois relatórios discordam, **esta caixa é a primeira
-> coisa a conferir.**
-
-### 2.5 Passagem rápida não é permanência
-
-Uma visita fechada (ENTRADA→SAIDA, mesma pessoa, mesmo ponto) mais curta que
-`magbo.report.min-visit-seconds` (**60 s**) não conta como visita nem entra na
-média. Quem entra para dar um recado e sai não teve permanência.
-
-O emparelhamento é **por pilha**, não posicional. O anterior casava de dois em
-dois sobre uma lista que chega em ordem **decrescente**, e casava a saída de uma
-visita com a entrada de outra — foi o que produziu **durações negativas** no
-relatório do CDI. Hoje vive em `js/utils/reportFilters.js` (`pairVisits`), com
-teste.
-
-> ⚠️ **Não confundir com `magbo.same-passage-window-seconds` (30 s).** Aquela é
-> regra de **ingestão** e descarta a segunda leitura. Esta **não descarta linha
-> nenhuma** — só não conta na estatística.
-
-### 2.6 O piso de visita tem fonte única
-
-O Rapport CDI é calculado **no cliente**, mas o piso mora no **backend**.
-Enquanto o JS tinha a própria constante, mudar a property sem mudar o JS fazia a
-**mesma tela mostrar dois números para o mesmo dia**, e nada acusava a
-divergência.
-
-Hoje: `GET /api/access/report-config` → `{ "minVisitSeconds": 60 }`.
-Autenticado, **não admin** (quem opera o CDI precisa do valor e não é admin).
-O `App.js` busca uma vez depois do login e entrega ao `MagboReport.configure()`.
-
-O `FALLBACK_MIN_VISIT_SECONDS = 60` do JS é **fallback, não configuração**: só
-entra em cena se o backend não responder. **Mexer nele não muda o sistema —
-mexa na property.**
-
-### 2.7 Ferramentas de servidor (professores e funcionários)
-
-Cadastro de aluno continua vindo do Pronote. O que nasceu esta semana é o
-tratamento dos **servidores**:
-
-| Ferramenta | Onde | O que faz |
-|---|---|---|
-| Cadastro manual | Paramètres → *Cadastro Manual* | Matrícula (`FUNC-###` automática), identificador Hikvision, departamento (texto livre) |
-| Importação em lote | Paramètres → *Importar Servidores* | `.xlsx` com `nome, hikvision_employee_id, tipo, departamento, matricula` |
-| Importação do HikCentral | Paramètres → *HikCentral* | Lê o export "Renseignements personnels" (**cabeçalho na linha 9**), simula, e só grava depois da confirmação |
-| Manutenção | Paramètres → *Servidores* | Editar, inativar, reativar, remover (**só sem passagens**) |
-| **Reclassificação** | *Servidores* → **"É um aluno"** | Transfere a face para o aluno certo e inativa o registro falso |
-
-**Por que a reclassificação existe:** 74 alunos estavam fora do departamento
-ALUNOS no HikCentral, com id de 10 dígitos. A importação criou `FUNC-###`
-segurando a face deles, e as passagens entravam como de servidor. A correção em
-massa foi feita **por SQL**; a ferramenta é para o próximo caso.
-
-Regras que a ferramenta respeita e que você não deve afrouxar:
-- as **passagens ficam no registro antigo** — o passado não é reescrito;
-- se o aluno já tem outra face, exige **confirmação explícita** (a face antiga
-  deixa de reconhecê-lo);
-- aluno que não está no MAGBO **não se cadastra por aqui** — entra pelo Pronote;
-- casamento automático por nome **nunca** — trocaria a face de um aluno pela de
-  outro.
+⚠️ **Ces 950 n'étaient pas 950 personnes.** C'était la même population recomptée
+à chaque retour : sans lecture de sortie, chaque rentrée dans l'école
+ré-enregistrait une entrée. Toute comparaison « avant / après » qui prend 950
+pour un effectif est fausse. Le nombre à comparer est celui des **personnes
+distinctes**, colonne de gauche du tableau ci-dessus.
 
 ---
 
-## 3. Assinaturas de leitura — como saber de onde veio um registro
+## 1. À quoi sert le système, et qui s'en sert
 
-Seis meses depois, alguém vai perguntar "esse acesso veio do rosto ou do
-teclado?". Estas são as marcas que respondem:
+MAGBO Access Control enregistre et donne à voir **qui est passé où, et quand**,
+dans le Lycée Molière de Rio de Janeiro. Reconnaissance faciale sur des
+terminaux Hikvision → webhook HTTP → Spring Boot → PostgreSQL → postes
+Electron.
 
-| Origem | `created_by_user` | Microssegundos do `timestamp` | `flag` |
-|---|---|---|---|
-| **Terminal** (face/cartão) | `NULL` | **zero** — o `dateTime` do payload tem precisão de segundo | `NULL`, `FORA_HORARIO` ou `EXCEDEU_TEMPO` |
-| **Lançamento manual** no app | **login do operador** | **≠ zero** — `LocalDateTime.now()` do `POST /api/access` | igual ao acima |
-| **Fechamento automático** | `system` | zero (carimbo `17:00:00`) | `FECHAMENTO_AUTO` |
+**Ce que le système fait :** il observe, il enregistre, il signale.
 
-Ou seja: **microssegundos ≠ 0 combinado com `created_by_user` preenchido = quase
-certamente lançamento manual.** As duas marcas juntas, porque nenhuma sozinha é
-prova: um dia o backend pode truncar o `now()`, e `created_by_user` também é
-usado pelo `system`.
+⚠️ **Ce que le système NE FAIT PAS : il n'ouvre et ne ferme aucune porte.** Le
+webhook est **post-événement** — quand le MAGBO apprend qu'une personne est
+passée, elle est déjà passée. C'est une décision d'architecture, pas une
+limitation à corriger : [`ADR-003`](../architecture/decisoes/ADR-003-webhook-pos-evento.md).
+Le blocage physique, quand il existe, appartient à HikCentral.
 
-```sql
--- Lançamentos manuais de hoje, com o autor
-SELECT id, user_id, point_id, action, timestamp, created_by_user
-  FROM access_logs
- WHERE timestamp::date = CURRENT_DATE
-   AND created_by_user IS NOT NULL
- ORDER BY timestamp DESC;
-```
+La seule exception est la cantine, et elle reste **un geste humain** : le
+terminal valide l'identité, le MAGBO valide la règle, et **l'opérateur applique
+l'exception** — [`ADR-004`](../architecture/decisoes/ADR-004-bloqueio-operacional-assistido.md).
+Quand la documentation dit `DENY`, elle parle d'une décision **logique** écrite
+dans `access_attempts`. Aucune porte ne se ferme.
 
-> **`access_logs` = acesso efetivo/autorizado · `access_attempts` = tudo tentado
-> e negado.** Esta separação (ADR-001) é estrutural: `access_logs` **nunca**
-> recebe evento negado, e nenhuma query legada mudou de resultado por causa dela.
-> Se você precisar dos dois juntos, faça `UNION` na consulta — não misture na
-> gravação.
+**Qui s'en sert :**
 
----
-
-## 4. Operação
-
-### 4.1 Deploy de atualização na VM
-
-> ⚠️ **Confirme os caminhos antes de usar.** Este procedimento é o que foi usado
-> nos cinco deploys da semana, mas **o host, o caminho e o nome do serviço não
-> estão versionados em lugar nenhum** — não pude confirmá-los a partir do
-> repositório. Antes do primeiro deploy, valide cada um e **volte aqui para
-> preencher**. Um handoff com um caminho inventado é pior que um handoff
-> incompleto.
-
-O deploy inicial (containers, banco, migrations) está em
-[`deploy/README.md`](../../deploy/README.md) e na skill `deploy-vm`. O que segue
-é a **atualização** de um sistema já no ar:
-
-1. **Buildar no PC** (a VM não tem Maven nem precisa ter):
-   ```powershell
-   mvn -f backend/pom.xml clean package
-   ```
-   Produz `backend/target/access-control-1.0.0.jar`.
-
-2. **Copiar o jar para a VM** por `scp`.
-
-3. **Reiniciar o backend.**
-
-**Não é mais preciso `sudo`** — o usuário do deploy foi colocado no grupo
-`docker`, então `docker compose restart` roda direto. Se pedir senha, a
-permissão do usuário na VM regrediu (ou você está com outro usuário).
-
-4. **Conferir a saúde**, sempre, antes de sair:
-   ```bash
-   curl -s http://localhost:8080/api/health
-   ```
-   Tem que responder `"database":"CONNECTED"`.
-
-5. **Smoke com CLIQUES, não só com `curl`.** Esta é a lição mais cara do
-   projeto: em 17/07 três espécies diferentes de bug de fiação de UI passaram por
-   toda a bateria de `curl` e só apareceram quando alguém percorreu as telas.
-   O roteiro está em [`docs/frontend-smoke-checklist.md`](../frontend-smoke-checklist.md).
-
-### 4.2 Backups — o que existe, e o que precisa ser verificado
-
-**No PC (manual):** skill `backup-restauracao`.
-```powershell
-docker exec magbo-postgres pg_dump -U magbo -d magbodb -F c -f /tmp/magbo.dump
-docker cp magbo-postgres:/tmp/magbo.dump .\backups\magbo-$(Get-Date -Format yyyyMMdd-HHmm).dump
-```
-Os dumps ficam em `backups/` — **diretório ignorado pelo git**, junto com
-`backup_*.sql`. Nunca commitar dump: contém 923 alunos reais.
-
-**Na VM:** existe [`deploy/backup.sh`](../../deploy/backup.sh) — dump comprimido
-diário, retenção de 30 dias, `rsync` opcional para destino remoto, cron sugerido
-`0 3 * * *`.
-
-> 🔴 **VERIFIQUE ISTO ANTES DE CONFIAR NELE.** Lendo o script no repositório,
-> duas coisas não batem com a instalação real:
->
-> 1. `DB_NAME` tem valor padrão **`magbo_db`**, e o banco chama-se **`magbodb`**;
-> 2. ele chama `pg_dump` **direto no host**, mas o PostgreSQL roda **em
->    container** — o host pode nem ter o cliente instalado.
->
-> Nas duas hipóteses o script sai com erro (tem `set -euo pipefail`), mas o erro
-> vai para `backup.log`, que ninguém lê. **Se o cron estiver ativo com os
-> padrões, é possível que nunca tenha existido um backup automático.**
->
-> Como confirmar, em um minuto na VM:
-> ```bash
-> crontab -l | grep -i backup          # o cron está mesmo ativo?
-> ls -lh /var/backups/magbo/           # existe algum arquivo, e de quando?
-> tail -30 /var/backups/magbo/backup.log
-> ```
-> Se a pasta estiver vazia: **faça um dump manual hoje** e só depois conserte o
-> script (passar `DB_NAME=magbodb` e envolver em `docker exec`).
-
-**Antes de qualquer bateria de testes ou migração: backup primeiro.** Sem
-exceção.
-
-### 4.3 Coisas que quebram em silêncio
-
-| O quê | Como se manifesta | Como conferir |
-|---|---|---|
-| **IP mudou por DHCP** | Eventos simplesmente param de chegar. Nenhum erro. | `ipconfig` no PC, IP no display do terminal, URL da *Écoute HTTP*, e o `terminal_ip` em `door_mappings` |
-| **`magbo-db` legado subiu** | Backend conecta no banco errado (vazio) | `docker ps` → se `magbo-db` estiver rodando: `docker stop magbo-db; docker start magbo-postgres` |
-| **Surefire pulando os ITs** | `mvn test` passa com menos testes que o esperado | O `pom.xml` precisa do `<include>**/*IT.java`. Sem isso, os ITs são pulados **em silêncio** |
-| **Backend sem as 4 env vars** | Conecta no banco errado (os fallbacks do perfil `prod` apontam para outro lugar) | `MAGBO_WEBHOOK_TOKEN`, `MAGBO_DB_URL`, `MAGBO_DB_USERNAME`, `MAGBO_DB_PASSWORD` na **mesma sessão** |
-| **App aberto pelo `.exe` direto** | Tela vazia, sem erro | Abrir pelo `Abrir-MAGBO.bat` (§4.4) |
-
-### 4.4 O aplicativo nos PCs
-
-**Estado em 06/08: os PCs ainda rodam a v2.0.0**, e a v2.1.0 está preparada mas
-não publicada. Procedimento completo em
-[`release-portable.md`](release-portable.md).
-
-O executável **não guarda configuração**: lê variáveis de ambiente e cai em
-`http://localhost:8080` se não achar nada. Abrir o `.exe` direto abre o app
-**vazio**, sem erro. O modelo do lançador está em
-[`deploy/portable/Abrir-MAGBO.bat`](../../deploy/portable/Abrir-MAGBO.bat).
-
----
-
-## 5. Dívidas abertas — o que NÃO corrigir sem decisão
-
-Ordenadas por consequência.
-
-### 5.1 As regras são avaliadas na hora da decisão, não na do evento
-
-O timestamp gravado passou a ser o do evento (§2.1), mas a janela da cantina, o
-dedup de refeição e a permissão de saída continuam olhando a **hora da decisão**.
-
-**Consequência:** uma fila offline reentregue fora do horário de almoço pode
-gerar `FORA_HORARIO` ou `EXCEDEU_TEMPO` para passagens que estavam perfeitamente
-dentro da janela. Não é hipótese — é o mesmo mecanismo do incidente de 03/08,
-sobrevivendo na camada de regras.
-
-**Por que não foi corrigido junto:** mudar isso muda **decisão**, não
-apresentação. Merece entrega própria, com teste de fila reentregue.
-
-### 5.2 A cantina não tem fechamento automático
-
-`magbo.presence.auto-close.times[]` só tem `BIBLIO`. Quem entra na cantina e não
-passa o rosto na saída fica "dentro" indefinidamente. Enquanto a cantina não
-entrou no ar, é inofensivo — **no dia 1 do piloto, deixa de ser.**
-
-### 5.3 `DEVICE_DENIED` para subtipo desconhecido
-
-Falta `UNKNOWN_EVENT` no enum, então subtipo desconhecido entra como
-`DEVICE_DENIED` e **polui `divergenciaHoje`**. Congelado desde a Fase I.
-Acrescentar valor ao enum exige atualizar o CHECK correspondente **na mesma
-entrega** (ver §6).
-
-### 5.4 Endpoints protegidos devolvem 403, não 401
-
-`@PreAuthorize` sem token responde **403**. Só o webhook devolve 401. Cosmético
-para a API, confuso para quem depura.
-
-### 5.5 Duas camadas HTTP no frontend
-
-`js/api.js` (`window.api`) e `js/utils/api.js` (normalisers) coexistem — dívida
-D1. **Não criar uma terceira.** Consolidar só como tarefa própria.
-
-### 5.6 Card "Barrados" == "Alertas Hoje"
-
-Os dois leem o mesmo número. **Aceito por decisão do Sam** — redundância
-consciente, sem campo livre para repontar sem duplicar outro card. Revisar o
-layout do painel pós-piloto, com feedback da direção. **Não é pendência.**
-
-### 5.7 `magbo.policy.meal-pending=DENY` em produção
-
-Decisão D5 (16/07, ADR-004). **Pré-requisito operacional:** o bulk dos alunos
-autorizados tem de ser feito **antes do dia 1** — sem ele, todo aluno fica
-`PENDING` e **nenhuma refeição é registrada**. Dev mantém `OBSERVATION`.
-
----
-
-## 6. Armadilhas de banco
-
-- **`ddl-auto=update` só adiciona.** Nunca remove coluna nem relaxa constraint.
-  Mudanças de schema: **sempre aditivas**, coluna nullable.
-- **SQL versionado** em `deploy/migrations/` (V001..V007 + `rollback/`),
-  idempotente. **Flyway não foi adotado** (baseline de schema Hibernate com
-  ~440k registros seria projeto próprio — decisão registrada no README de lá).
-  O PC usa `ddl-auto` e não precisa dos SQLs; **a VM precisa**, na ordem, antes
-  de subir o backend.
-- **Os CHECK constraints espelham os enums Java.** O Hibernate gera
-  automaticamente para `@Enumerated(STRING)`. **Ao adicionar valor a um enum,
-  atualize o CHECK na mesma entrega.**
-- ⚠️ **`meal_entitlement_events.source` (`UI`|`BULK`|`API`) é guarda MANUAL.**
-  No Java é String livre; o Hibernate **não** gera esse CHECK. Ele existe **só na
-  VM** (via `V003`) — nem o PC (`ddl-auto`) nem os testes (H2 `create-drop`) o
-  têm. Um valor novo de `source` no código faz o INSERT falhar **só na VM**.
-- **Nunca setar `hibernate.jdbc.time_zone`.** As colunas são
-  `timestamp without time zone` em hora local (BRT).
-
----
-
-## 7. Onde procurar o resto
-
-| Assunto | Arquivo |
+| Profil | Ce qu'il fait avec |
 |---|---|
-| Contexto permanente do projeto | `CLAUDE.md` |
-| Padrões por área | `.claude/rules/` |
-| Arquitetura e fluxos | `docs/architecture/` |
-| Decisões com justificativa | `docs/architecture/decisoes/` (ADR-001 a 004) |
-| Endpoints | `docs/architecture/endpoints.md` |
-| Plano e evidências de teste | `docs/testing/` |
-| Auditoria independente A–K | `docs/testing/auditoria-fases-A-K-2026-07.md` |
-| Manual do usuário final (FR) | `docs/manual-utilisateur.md` |
-| Guia do operador da cantina | `docs/operacional/guia-operador-cantina.md` |
-| Publicação do app | `docs/operacional/release-portable.md` |
-| Procedimento HikCentral | `docs/operacional/procedimento-hikcentral.md` |
-| Smoke de frontend (com cliques) | `docs/frontend-smoke-checklist.md` |
+| **Portaria** | voit les passages du portail en direct, enregistre un passage à la main quand la reconnaissance échoue |
+| **Cantine** | Moniteur en direct : qui est dans le réfectoire, qui doit sortir, qui est sorti ; gère les droits repas |
+| **CDI** | présence de la bibliothèque, pointage, mode urgence, capacité et exclusions |
+| **Infirmerie** | visites, durées, sorties non enregistrées |
+| **Vie Scolaire** | recherche d'une personne, parcours du jour, autorisations de sortie, régimes, rapports |
+| **Direction** | rapports, KPI, PPMS |
 
 ---
 
-## 8. Regras de trabalho herdadas
+## 2. Ce qui tourne aujourd'hui
 
-Não são preferências de estilo — cada uma tem uma cicatriz atrás.
+### 2.1 Les terminaux
 
-1. **Nunca commitar ou dar push sem confirmação explícita do Sam.** Regra
-   violada 4× no passado.
-2. **Patches cirúrgicos.** Âncora ausente ou duplicada → **pare e reporte**.
-3. **Um passo → validar → commit → próximo.** Uma decisão por vez.
-4. Português no chat, **inglês nos commits**.
-5. **Nada de dado mock ou placeholder.** Em nenhuma tela, em nenhum teste que
-   valide comportamento real.
-6. Mudanças de banco: **só aditivas**.
-7. **Smoke pós-deploy inclui cliques.** Ver §4.1, passo 5.
+> ⚠️ Ces IP viennent de Sam (28/08) et **ne sont pas dans le dépôt**. La source
+> de vérité en production est la table `door_mappings`.
+> **[À VÉRIFIER]** Confirmer sur la VM :
+> ```bash
+> docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+>   "SELECT terminal_ip, point_id, action, label, ativo FROM door_mappings ORDER BY terminal_ip;"
+> ```
+
+| Point | IP | Rôle |
+|---|---|---|
+| Portail | `.167` | ENTRÉE (caméra DeepinView) |
+| Portail | `.166` | SORTIE (caméra DeepinView) — en panne jusqu'au 24/08 |
+| CDI | `.15`, `.16` | terminaux MinMoe |
+| Cantine | `.10`, `.12`, `.13`, `.14` | terminaux MinMoe |
+
+⚠️ **Sur le `.15`, le champ « Nom de la porte » affiche `CDI-SAIDA`.** Il ment.
+**Fiez-vous à l'IP, jamais au nom affiché par l'appareil.**
+
+⚠️ **Le chemin du webhook sur les terminaux :**
+`Système et maintenance → Réseau → Service réseau → HTTP(S) → Écoute HTTP`.
+**Ce n'est pas le menu « Événement »**, où l'on cherche naturellement.
+
+⚠️ **Les IP dansent (DHCP), et ça casse en silence.** Ni erreur, ni alerte : les
+événements cessent simplement d'arriver. Avant toute session sur le matériel :
+vérifier l'IP du serveur, l'IP au dos de chaque terminal, l'URL de l'*Écoute
+HTTP*, et la colonne `terminal_ip` de `door_mappings`.
+
+⚠️ **Les caméras du portail n'authentifient pas : elles COMPARENT.** L'identité
+est résolue côté MAGBO par `CameraIdentityService`, avec trois pièges mesurés en
+production, tous documentés dans [`.claude/rules/hikvision.md`](../../.claude/rules/hikvision.md) :
+les accents arrivent translittérés (`LABB'E` pour LABBÉ), le nom est tronqué à
+32 caractères, et les échelles de similarité sont mélangées (fraction d'un côté,
+pourcentage de l'autre).
+
+### 2.2 Les migrations
+
+**V001 → V026, toutes appliquées sur la VM de production** (état déclaré par
+Sam le 28/08). Le détail de chacune est dans
+[`deploy/migrations/README.md`](../../deploy/migrations/README.md).
+
+**[À VÉRIFIER]** Confirmer que les tables des dernières migrations existent :
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT tablename FROM pg_tables WHERE schemaname='public'
+    AND tablename IN ('meal_slots','system_settings','cdi_exclusions','cdi_alert_events','cantine_removals')
+   ORDER BY 1;"
+# → les cinq doivent répondre
+```
+
+### 2.3 Ce qui a changé depuis le 05/08
+
+L'ancienne version de ce document s'arrêtait au 05/08. Voici, en une ligne
+chacun, les chantiers postérieurs. Le détail vit dans les rapports de nuit.
+
+| Quoi | Migrations | Où c'est raconté |
+|---|---|---|
+| **Créneaux cantine** — le planning devient une configuration ; `class_schedules` n'est plus lu par la cantine | V021–V023 | [`ADR-005-creneaux-cantine`](../architecture/decisoes/ADR-005-creneaux-cantine.md), [`revue-migrations-v021-v023.md`](revue-migrations-v021-v023.md) |
+| **Régime de sortie** — le droit ANNUEL de sortir, cinq verdicts | V014, V015 | [`nuit-26-27-08-rapport.md`](nuit-26-27-08-rapport.md) |
+| **PPMS** — qui est dans l'école, par zone, maintenant | — | idem |
+| **Photos d'identité** — dans la base, jamais sur disque | V011 | [`.claude/rules/backend.md`](../../.claude/rules/backend.md) |
+| **Capacité et exclusions du CDI** | V025 | [`nuit-26-27-08-rapport.md`](nuit-26-27-08-rapport.md) |
+| **Registre des alertes du CDI** — chaque alerte laisse une trace, avec son auteur | V026 | [`nuit-27-28-08-rapport.md`](nuit-27-28-08-rapport.md) |
+| **Retraits manuels du Moniteur** — un geste d'écran, jamais une suppression | V020 | idem |
+| **Écran de configuration** — les réglages modifiables à l'écran | V024 | [`inventaire-configurabilite.md`](inventaire-configurabilite.md) |
+| **Recherche centrale** sur l'écran d'accueil, avec autocomplétion | — | [`nuit-27-28-08-rapport.md`](nuit-27-28-08-rapport.md) |
+| **L'affiche cantine** imprimable en couleur, fidèle au mur | — | [`controle-affiche-cantine.md`](controle-affiche-cantine.md) |
+
+⚠️ **L'écran de configuration a déménagé le 28/08 :** il n'est plus dans le
+Panneau Administratif, il est dans **l'engrenage du header**, visible avec
+`ADMIN` ou la permission `CONFIG_WRITE`.
+
+### 2.4 Les sept comportements à connaître avant de lire un chiffre
+
+Ces règles décident **comment la donnée doit être lue**. Qui ne les connaît pas
+interprétera les nombres à l'envers. Elles sont détaillées au chapitre 3 du
+livre ([`docs/livre/03-regles-metier.md`](../livre/03-regles-metier.md)) ; voici
+le strict nécessaire.
+
+1. **Le timestamp est l'heure de l'ÉVÉNEMENT, pas celle de la réception.**
+   Depuis le 03/08, `EventTimeResolver` lit le `dateTime` du payload. Trois
+   gardes seulement font retomber sur l'heure de réception : `dateTime` absent
+   ou illisible, horloge de l'appareil en avance de plus de **5 min**, ou date
+   de plus de **30 jours** dans le passé. Chaque repli laisse une ligne INFO
+   avec l'IP et le motif.
+   ⚠️ **Les RÈGLES, elles, restent jugées à l'heure de la décision** — dette
+   ouverte, §6.1.
+
+2. **Trois couches de déduplication, et ce ne sont pas la même chose.**
+
+   | Couche | Fenêtre | Ce qu'elle empêche | Clé |
+   |---|---|---|---|
+   | Ingestion | 60 s | l'appareil a **renvoyé le même paquet** | IP + `serialNo` |
+   | Même passage | 30 s | le terminal a **reconnu deux fois la même personne** | personne + point + action |
+   | Repas dupliqué | 90 s | **règle métier** : deuxième repas dans la journée | personne + point |
+
+3. **Fermeture automatique de présence.** `PresenceAutoCloseService` tourne
+   toutes les 5 minutes et ferme les points dont l'heure de fermeture est
+   passée. La sortie synthétique est déclarée, jamais déguisée :
+   `flag=FECHAMENTO_AUTO`, `created_by_user=system`, et elle porte **l'heure de
+   fermeture**, pas celle où le job a tourné.
+
+   ⚠️ **Deux points sont configurés en production, pas un :** `BIBLIO` à 17:00
+   **et `REFEI1` à 15:00** (`application-prod.properties`). Le commentaire du
+   fichier dit que REFEI1 était « inerte jusqu'au pilote — aucun mouvement,
+   rien à fermer », et il porte l'avertissement suivant, jamais levé :
+   *« CONFÉRER L'HEURE AVEC LA CANTINE avant le jour 1 — qui est encore dedans
+   à 15:00 reçoit une SORTIE synthétique et disparaît du panneau de
+   l'opérateur. »* **La cantine est en service depuis, et l'heure n'a
+   toujours pas été confirmée.** Voir la question 15 au §11.
+
+4. **Les rapports comptent les ÉLÈVES par défaut.** 152 fonctionnaires et 49
+   professeurs polluaient les chiffres du CDI. C'est un filtre **d'affichage** :
+   rien n'est effacé, le Journal montre tout.
+
+5. **Un passage de moins de 60 s ne compte pas comme une visite.**
+   `magbo.report.min-visit-seconds`, et l'appariement entrée/sortie se fait
+   **par pile** (le positionnel produisait des durées négatives).
+
+6. **Le plancher de visite a une source unique :**
+   `GET /api/access/report-config`. Le JS avait une constante en miroir, et le
+   même écran affichait deux nombres pour le même jour.
+
+7. **Deux flags de RÉPÉTITION sortent des écrans standard :** `POSTO_FIXO` (qui
+   travaille au point) et `JA_PRESENTE` (qui entre en étant déjà dedans). La
+   liste vit **une seule fois**, dans `AccessLogRepository.REPETICOES`. Rien
+   n'est effacé : le Journal les montre, avec une lentille pour les filtrer.
+
+### 2.5 Signatures de lecture — d'où vient un enregistrement ?
+
+Dans six mois, quelqu'un demandera « cet accès vient du visage ou du clavier ? ».
+
+| Origine | `created_by_user` | Microsecondes du `timestamp` | `flag` |
+|---|---|---|---|
+| **Terminal** (visage/carte) | `NULL` | **zéro** (le `dateTime` du payload est à la seconde) | `NULL`, `FORA_HORARIO`, `EXCEDEU_TEMPO`… |
+| **Saisie manuelle** | login de l'opérateur | **≠ zéro** (`LocalDateTime.now()`) | idem |
+| **Fermeture automatique** | `system` | zéro (cachet `17:00:00`) | `FECHAMENTO_AUTO` |
+
+**Microsecondes ≠ 0 ET `created_by_user` rempli = saisie manuelle.** Les deux
+marques ensemble, parce qu'aucune seule n'est une preuve.
+
+> **`access_logs` = accès effectif · `access_attempts` = tout ce qui a été tenté
+> et refusé.** Séparation structurelle ([`ADR-001`](../architecture/decisoes/ADR-001-attempts-vs-logs.md)) :
+> `access_logs` ne reçoit **jamais** un événement refusé. Si vous avez besoin
+> des deux, faites un `UNION` **dans la requête** — jamais dans l'écriture.
 
 ---
 
-*Última revisão: 2026-08-06. Se algo aqui divergir do código, o código vence —
-e este arquivo está errado e precisa ser corrigido.*
+## 3. Déployer — le rite complet
+
+Le déploiement **initial** (conteneurs, base, migrations) est dans
+[`deploy/README.md`](../../deploy/README.md) et
+[`reconstruir-do-zero.md`](reconstruir-do-zero.md). Ce qui suit est la **mise à
+jour** d'un système déjà en service.
+
+> ⚠️ **[À COMPLÉTER PAR SAM]** L'hôte de la VM, le chemin du dépôt sur la VM et
+> l'utilisateur de déploiement **ne sont versionnés nulle part**. Les commandes
+> ci-dessous utilisent `/opt/magbo` par convention. **Question précise : quel
+> est le nom d'hôte ou l'IP de la VM, sous quel utilisateur se connecte-t-on, et
+> quel est le chemin réel du dépôt ?**
+
+```bash
+# ── 1. Sur le PC : construire ────────────────────────────────────────
+mvn -f backend/pom.xml clean package
+# → backend/target/access-control-1.0.0.jar
+
+# ── 2. Les deux suites, AVANT de copier quoi que ce soit ─────────────
+cd backend && rm -rf target/test-classes && mvn -o test    # 943, 0 échec, 2 @Disabled
+cd .. && npx vitest run                                     # 684, 0 échec
+```
+
+⚠️ **Mesurer depuis zéro.** `mvn test` incrémental a déjà donné un
+`BUILD SUCCESS` faux : quand seule la signature d'un constructeur change,
+Lombok + un `target/test-classes` périmé laissent passer trois tests cassés.
+
+⚠️ **Le `pom.xml` doit contenir `<include>**/*IT.java`** dans le Surefire. Sans
+lui, les tests d'intégration sont **sautés en silence** et le total baisse sans
+que rien n'échoue. Le critère n'est pas un total fixe : c'est **0 échec et
+exactement 2 `@Disabled`**.
+
+```bash
+# ── 3. Copier le jar sur la VM ───────────────────────────────────────
+scp backend/target/access-control-1.0.0.jar <user>@<vm>:/opt/magbo/backend/target/
+
+# ── 4. Les migrations À LA MAIN, AVANT de remonter le backend ────────
+#     (voir §5 — ddl-auto ne les fera pas)
+
+# ── 5. Redémarrer ────────────────────────────────────────────────────
+cd /opt/magbo/deploy && docker compose restart backend
+# `sudo` n'est plus nécessaire : l'utilisateur de déploiement est dans le
+# groupe `docker`. S'il demande un mot de passe, la permission a régressé.
+
+# ── 6. Vérifier la santé, TOUJOURS, avant de partir ──────────────────
+curl -s http://localhost:8080/api/health
+# → doit contenir "database":"CONNECTED"
+```
+
+**7. Smoke avec des CLICS, pas seulement des `curl`.** C'est la leçon la plus
+chère du projet : le 17/07, **trois espèces différentes** de bug de câblage
+d'interface ont passé toute la batterie de `curl` et ne sont apparues que
+lorsque quelqu'un a parcouru les écrans. Le parcours est dans
+[`docs/frontend-smoke-checklist.md`](../frontend-smoke-checklist.md).
+
+---
+
+## 4. Distribuer le portable
+
+Procédure complète, poste par poste :
+[`guide-installation-postes.md`](guide-installation-postes.md).
+Construction du paquet : [`release-portable.md`](release-portable.md).
+
+Les trois choses qui comptent :
+
+1. **Avant de construire, vérifier qu'aucun CDN n'est revenu :**
+   ```bash
+   grep -cE 'src="https?://|cdn\.|unpkg|jsdelivr' index.html   # doit rendre 0
+   ```
+   Un `<script src="https://…">` nouveau **ne produit aucune erreur** : l'écran
+   ne s'affiche simplement pas sur un poste hors ligne.
+
+2. **Vérifier le paquet** avec `node scripts/verify-package.js`. Le script
+   **dérive** la liste des fichiers obligatoires depuis `index.html` — il ne
+   maintient pas une liste en double qui vieillirait toute seule.
+   État déclaré par Sam le 28/08 : **92/92 fichiers obligatoires**.
+
+3. **Distribuer = remplacer le `.exe` seulement.** Et **ouvrir par le `.bat`**,
+   jamais le `.exe` directement : l'exécutable ne garde aucune configuration, il
+   lit des variables d'environnement, et lancé nu il ouvre une application
+   **vide, sans erreur**. Le lanceur est
+   [`deploy/portable/Abrir-MAGBO.bat`](../../deploy/portable/Abrir-MAGBO.bat).
+
+⚠️ **`build:portable` peut être bloqué par un handle sur `app.asar`** alors
+qu'aucun processus n'est visible. Seul un redémarrage du poste le libère.
+*(Rapporté par Sam ; non reproductible depuis le dépôt.)*
+
+---
+
+## 5. Les migrations et leur ordre
+
+⚠️ **`ddl-auto=update` ne les fera pas.** Il ajoute des colonnes ; il ne crée
+jamais une contrainte `CHECK` sur une table existante et **n'altère jamais** un
+`CHECK` déjà posé. Une valeur nouvelle dans un enum Java passe les tests (H2
+recrée tout) et échoue **uniquement sur la VM**. Ce piège a mordu trois fois :
+V009, V015, V022.
+
+⚠️ **Appliquer À LA MAIN, AVANT de monter le backend.** Celui qui crée la table
+en écrit le schéma : si le backend démarre d'abord, Hibernate crée la table
+*sans* les `CHECK`, et la migration ne les posera plus.
+
+```bash
+cd /opt/magbo
+
+for f in V001__access_attempts V002__meal_entitlements V003__meal_entitlement_events \
+         V004__student_exit_permissions V005__system_users_permissoes V006__indexes \
+         V007__app_users_departamento V008__app_users_camera_person_id \
+         V009__denial_reason_camera V010__app_users_posto_fixo V011__user_photos \
+         V012__exit_permission_two_authorities V013__password_reset_requests \
+         V014__student_regimes V015__denial_reason_regime \
+         V016__access_logs_indice_ponto_hora V017__student_regimes_enum_checks \
+         V018__access_logs_indice_hora V019__access_logs_indice_user_id \
+         V020__cantine_removals V021__meal_slots V022__denial_reason_meal_slot \
+         V023__meal_slots_seed V024__system_settings V025__cdi_exclusions \
+         V026__cdi_alert_events; do
+  echo "== $f"
+  docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
+    < deploy/migrations/$f.sql || { echo "ÉCHEC sur $f — NE PAS monter le backend"; break; }
+done
+```
+
+⚠️⚠️ **`ON_ERROR_STOP=1` n'est pas décoratif.** Sans lui, `psql` continue après
+l'erreur **et sort avec le code 0** : le script annonce le succès, le backend
+démarre, et le défaut se découvre en production des semaines plus tard.
+
+Toutes les migrations sont idempotentes (`IF NOT EXISTS`, blocs `DO $$`) : les
+rejouer sur une base à jour ne fait rien.
+
+⚠️ **Mais `CREATE TABLE IF NOT EXISTS` ignore la FORME de la table existante.**
+Si une table préexiste avec un schéma différent, l'instruction ne fait rien
+**et ne dit rien**. C'est pourquoi V021, V025 et V026 portent une clause de
+garde qui lève une exception explicite dans ce cas.
+
+**Rollbacks :** `deploy/migrations/rollback/`, un par migration sauf V006, V008,
+V009 et V023 (V023 est un *seed* : ses lignes partent avec `R021`). Chaque
+absence est justifiée dans le README des migrations, et
+`tests/migrations.test.js` échoue si une migration nouvelle arrive sans plan de
+retour.
+
+⚠️ **`R011`, `R025` et `R026` effacent des données irremplaçables** : les photos
+d'identité, les exclusions du CDI, le registre des signalements. Un `pg_dump`
+**avant**, toujours.
+
+---
+
+## 6. Sauvegarde et restauration
+
+**Restauration :** procédure complète, avec les pièges, dans
+[`reconstruir-do-zero.md`](reconstruir-do-zero.md).
+
+**Sauvegarde manuelle** (celle en laquelle on peut avoir confiance) :
+
+```bash
+docker exec magbo-postgres pg_dump -U magbo -d magbodb -F c -f /tmp/magbo.dump
+docker cp magbo-postgres:/tmp/magbo.dump ./backups/magbo-$(date +%Y%m%d-%H%M).dump
+```
+
+Les dumps vont dans `backups/`, **ignoré par git**. Ne jamais committer un dump :
+il contient 923 élèves réels, et depuis la V011 **leurs photos**.
+
+### 🔴 Le script automatique n'est probablement pas fonctionnel
+
+[`deploy/backup.sh`](../../deploy/backup.sh) existe : dump quotidien
+compressé, rétention 30 jours, `rsync` optionnel, cron suggéré `0 3 * * *`.
+
+Le défaut de nom de base a été corrigé (`DB_NAME` vaut bien `magbodb`,
+ligne 23). **Mais le script appelle `pg_dump` directement sur l'hôte**
+(ligne 40), alors que PostgreSQL tourne **dans un conteneur** — l'hôte peut
+très bien ne pas avoir le client installé. Le script a `set -euo pipefail` : il
+sort en erreur, et l'erreur part dans `backup.log`, que personne ne lit.
+
+**[À VÉRIFIER] — une minute sur la VM, et c'est la vérification la plus rentable
+de ce document :**
+```bash
+crontab -l | grep -i backup          # le cron est-il seulement actif ?
+ls -lh /var/backups/magbo/           # y a-t-il un fichier, et de quand ?
+tail -30 /var/backups/magbo/backup.log
+```
+Si le dossier est vide : **faire un dump manuel aujourd'hui**, et seulement
+ensuite réparer le script (envelopper l'appel dans `docker exec magbo-postgres …`).
+
+**Avant toute batterie de tests ou toute migration : sauvegarder d'abord.**
+Sans exception.
+
+---
+
+## 7. Les cinq gestes d'urgence
+
+Le tableau qu'on lit à 7h du matin quand rien ne marche.
+
+### 7.1 Les événements ne rentrent plus (aucune erreur)
+
+**Cause la plus probable :** une IP a changé par DHCP. Ni erreur, ni alerte.
+
+**Geste :**
+```bash
+# le mapping que le backend utilise
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT terminal_ip, point_id, ativo FROM door_mappings ORDER BY terminal_ip;"
+# le dernier passage reçu, par point
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT point_id, max(timestamp) FROM access_logs GROUP BY 1 ORDER BY 2 DESC;"
+```
+Puis, sur chaque terminal : relever l'IP au dos de l'appareil, et vérifier que
+l'URL de l'*Écoute HTTP* (`Système et maintenance → Réseau → Service réseau →
+HTTP(S)`) pointe bien vers l'IP actuelle du serveur. Corriger `door_mappings` si
+l'IP du terminal a bougé.
+
+### 7.2 Le backend ne démarre pas, ou se connecte à une base vide
+
+**Sur la VM :** une variable manque dans `deploy/.env`. Les repères du profil
+`prod` pointent ailleurs — le backend démarre et se connecte au mauvais endroit.
+```bash
+cd /opt/magbo/deploy && docker compose logs --tail=50 backend
+```
+`POSTGRES_PASSWORD`, `MAGBO_JWT_SECRET`, `MAGBO_WEBHOOK_TOKEN`, `ADMIN_PIN` et
+`MAGBO_ADMIN_PASSWORD` doivent être remplis. Le modèle est
+[`deploy/.env.example`](../../deploy/.env.example).
+
+**Sur le PC :** le conteneur hérité `magbo-db` a démarré et occupe le port 5432.
+```powershell
+docker ps
+docker stop magbo-db; docker start magbo-postgres
+```
+
+### 7.3 Les horaires sont décalés de trois heures
+
+**Cause :** `TZ` manque sur un des conteneurs. L'image `eclipse-temurin` démarre
+en **UTC** ; la JVM adopte le fuseau du conteneur, et tout `LocalDateTime.now()`
+rend de l'heure UTC — le système horodate **trois heures dans le futur**.
+
+**Geste :** `TZ: America/Sao_Paulo` doit être présent sur **les deux** services
+de `deploy/docker-compose.yml` (le commentaire du fichier explique pourquoi les
+deux). Puis `docker compose up -d` et vérifier :
+```bash
+docker exec magbo-backend date
+docker exec magbo-postgres date
+```
+
+### 7.4 L'application s'ouvre vide, sans erreur
+
+**Deux causes, dans cet ordre de probabilité :**
+
+1. L'application a été ouverte **par le `.exe`** au lieu du `.bat`. Sans les
+   variables d'environnement, elle pointe sur `http://localhost:8080` — qui
+   n'existe pas sur un poste. **Ouvrir par `Abrir-MAGBO.bat`.**
+2. Un `<script src="https://…">` est revenu dans `index.html`. Sur un poste hors
+   ligne, la page ne rend rien et **n'affiche aucune erreur**.
+   `grep -cE 'src="https?://' index.html` → doit rendre `0`.
+
+### 7.5 Un écran affiche une clé i18n crue (`cdi.excl.titulo`)
+
+**Cause :** une clé utilisée dans le code n'existe pas dans le dictionnaire.
+`t()` rend la clé elle-même quand elle manque — c'est visible à l'écran et
+invisible pour les tests qui ne rendent aucun composant.
+
+**Geste :** `npx vitest run tests/i18nChavesUsadas.test.js` nomme la clé
+manquante. L'ajouter dans `js/utils/i18n.js`, **bloc FR d'abord, bloc PT
+ensuite** — les deux dictionnaires doivent avoir exactement les mêmes clés, et
+un test l'exige.
+
+---
+
+## 8. Ce qui est cassé aujourd'hui, et ce qui reste
+
+### 8.1 Cassé
+
+1. **Le portail** — voir la section en tête. Priorité absolue.
+2. **La sauvegarde automatique** est probablement inopérante — §6.
+3. **Le terminal `.10` n'est pas enregistré au HikCentral** : erreur `SYS[904]`,
+   numéro de série en conflit. *[À VÉRIFIER : reproduire l'erreur et relever le
+   message exact dans HikCentral.]*
+4. **Le terminal `.14` est en Wi-Fi**, ce qui le rend le plus susceptible de
+   perdre des paquets et de vider une file d'un coup.
+
+### 8.2 Dettes ouvertes — à NE PAS corriger sans décision
+
+Elles sont gelées par des tests : les « corriger » ferait échouer une suite qui
+protège une décision.
+
+| # | Dette | Pourquoi elle est gelée |
+|---|---|---|
+| 8.2.1 | **Les règles sont évaluées à l'heure de la DÉCISION**, pas à celle de l'événement | Une file hors ligne ne doit pas pouvoir changer un `DENY` en `ALLOW` rétroactivement. Le régime de sortie est **l'exception assumée** : il ne refuse jamais, il décrit — et il juge à l'heure de la passage |
+| 8.2.2 | **La fermeture automatique de la cantine est configurée à 15:00 sans avoir été confirmée** | Écrite quand REFEI1 était inerte ; la cantine est en service depuis. Le fichier de configuration porte l'avertissement. Quiconque est encore dans le réfectoire à 15:00 reçoit une sortie synthétique |
+| 8.2.3 | **`DEVICE_DENIED` est utilisé pour les sous-types inconnus** | Il manque `UNKNOWN_EVENT` dans l'enum. Ça gonfle `divergenciaHoje` |
+| 8.2.4 | **Les endpoints protégés rendent 403, pas 401** | Seul le webhook rend 401 |
+| 8.2.5 | **Deux couches HTTP dans le frontend** (`js/api.js` et `js/utils/api.js`) | Ne pas en créer une troisième ; consolider est un chantier à part |
+| 8.2.6 | **`magbo.policy.meal-pending=DENY` en production** | Prérequis opérationnel : le bulk des autorisés **avant** le jour 1, sinon tout `PENDING` est refusé |
+| 8.2.7 | **7 endpoints sans garde d'autorisation** | Nommés dans `ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA`. ⚠️ L'un d'eux, `registerAccess`, est une **écriture**. Les garder casserait des écrans : c'est un chantier avec ses propres preuves |
+
+### 8.3 Ce qui reste à faire
+
+La liste datée et priorisée est au **chapitre 9 du livre** :
+[`docs/livre/09-ce-qui-reste.md`](../livre/09-ce-qui-reste.md).
+
+---
+
+## 9. Où chercher le reste
+
+| Question | Document |
+|---|---|
+| Le système en entier, pour quelqu'un qui arrive | [`docs/livre/`](../livre/) — neuf chapitres |
+| Comment on se sert de chaque écran | [`docs/manual-utilisateur.md`](../manual-utilisateur.md) |
+| Reconstruire de zéro / restaurer | [`reconstruir-do-zero.md`](reconstruir-do-zero.md) |
+| Installer un poste | [`guide-installation-postes.md`](guide-installation-postes.md) |
+| Les migrations, une par une | [`deploy/migrations/README.md`](../../deploy/migrations/README.md) |
+| Pourquoi le système est comme il est | [`docs/architecture/decisoes/`](../architecture/decisoes/) (les ADR) |
+| Les pièges par domaine | [`.claude/rules/`](../../.claude/rules/) |
+| Ce qui s'est passé les dernières nuits | [`nuit-26-27-08-rapport.md`](nuit-26-27-08-rapport.md), [`nuit-27-28-08-rapport.md`](nuit-27-28-08-rapport.md) |
+| Les réglages modifiables et ceux qui ne le sont pas | [`inventaire-configurabilite.md`](inventaire-configurabilite.md) |
+
+---
+
+## 10. Règles de travail héritées
+
+Elles ont été écrites après avoir été payées. Elles sont dans
+[`CLAUDE.md`](../../CLAUDE.md), et les trois qui coûtent le plus cher quand on
+les oublie :
+
+1. **Un pas → valider → committer → le suivant.** Une décision à la fois.
+2. **Rien de simulé hors des tests.** Pas de données factices dans un écran :
+   quelqu'un finira par les prendre pour vraies.
+3. **Les changements de base sont additifs.** `ddl-auto=update` ajoute et ne
+   retire jamais ; une colonne supprimée ne revient pas.
+
+---
+
+# 11. ⚠️ Les questions pour Sam — quinze minutes
+
+Tout ce que le dépôt ne peut pas dire, rassemblé ici pour qu'on puisse y
+répondre d'un seul coup. Chaque ligne est aussi marquée à sa place dans le
+document.
+
+### Accès et infrastructure
+1. **Quel est le nom d'hôte ou l'IP de la VM**, sous quel utilisateur se
+   connecte-t-on, et quel est le chemin réel du dépôt sur la VM ? (§3)
+2. **Qui détient quels mots de passe ?** Pour chacun : `POSTGRES_PASSWORD`,
+   `MAGBO_JWT_SECRET`, `MAGBO_WEBHOOK_TOKEN`, `ADMIN_PIN`,
+   `MAGBO_ADMIN_PASSWORD`, le compte `admin` de l'application, l'accès web des
+   terminaux Hikvision, HikCentral, la VM. **Où sont-ils rangés aujourd'hui, et
+   qui d'autre y a accès ?**
+3. **Le cron de sauvegarde est-il actif sur la VM**, et existe-t-il un seul
+   fichier dans `/var/backups/magbo/` ? (§6)
+
+### Contacts
+4. **Fabiano (informatique)** : nom complet, e-mail, téléphone. Quelles
+   demandes lui sont encore ouvertes ? (Les réservations DHCP des terminaux et
+   de la VM ont été demandées — où en sont-elles ?)
+5. **La direction** : qui décide, pour ce système, quand il faut trancher ?
+6. **La Vie Scolaire** : qui est l'interlocuteur au quotidien ?
+
+### Engagements et décisions
+7. **Qu'est-ce qui a été promis verbalement, à qui, et pour quand ?**
+   Rien de tel n'est écrit dans le dépôt.
+8. **La liste DAF** attendue : qui la produit, sous quelle forme, pour quoi
+   faire ?
+9. **Les décisions en suspens avec la Vie Scolaire** : les horaires réels de la
+   maternelle et de l'élémentaire (mesurés 11h54–12h37 le 26/08, ce qui
+   contredit les horaires supposés), les six classes de collège du mercredi 13h
+   à confirmer (1E1, 1E2, 2E1, 2E2, 3E1, 3E2), et les classes `5E3` et `3E3` qui
+   figurent sur l'affiche sans avoir un seul élève en base.
+10. **La dispense de badge par classe** est préparée mais désactivée. Qui décide
+    de l'activer, et sait-on que les classes dispensées disparaissent aussi du
+    décompte PPMS ?
+11. **L'e-mail à Fabiano et le PDF du guide d'installation** : envoyés ou non ?
+
+### Matériel
+12. **Le terminal `.10`** (erreur `SYS[904]`, série en conflit) : y a-t-il un
+    ticket ouvert, ou un échange avec Hikvision / le fournisseur ?
+13. **Le terminal `.14` en Wi-Fi** : est-ce définitif, ou un câble est-il prévu ?
+15. **La fermeture automatique de la cantine est réglée à 15:00** et le
+    commentaire du fichier dit que l'heure n'a jamais été confirmée avec la
+    cantine. **Est-ce la bonne heure ?** À 15:00, toute personne encore dans le
+    réfectoire reçoit une sortie qu'elle n'a pas faite. (§2.4)
+
+### Matériel *(suite)*
+14. **Les imports de photos des 25 et 26/08** : quels fichiers, combien de
+    personnes, et par quel chemin (l'écran du MAGBO, ou HikCentral) ? C'est la
+    seule coïncidence connue avec la chute du portail.

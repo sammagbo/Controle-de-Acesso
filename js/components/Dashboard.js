@@ -4,6 +4,26 @@
 
 function Dashboard({ onSelectPoint, accessLogs }) {
       const t = useI18n();
+      // ⚠️ Les tuiles de chiffres sont MASQUABLES depuis que la recherche est
+      // l'élément principal de l'écran (28/08) — même contrat que les KPI du
+      // Panneau Administratif : masquer, jamais supprimer, et par défaut rien
+      // ne change. Une préférence illisible vaut « visible » : un tableau de
+      // bord qui refuse de s'afficher à cause d'un localStorage privé serait
+      // pire que la préférence perdue.
+      const [statsVisiveis, setStatsVisiveis] = React.useState(() => {
+            try {
+                  return localStorage.getItem('magbo.accueil.stats') !== 'off';
+            } catch (e) {
+                  return true;
+            }
+      });
+      const alternarStats = () => {
+            setStatsVisiveis(v => {
+                  const novo = !v;
+                  try { localStorage.setItem('magbo.accueil.stats', novo ? 'on' : 'off'); } catch (e) { /* privé */ }
+                  return novo;
+            });
+      };
       // Agrupamento de milhar segue o IDIOMA DA TELA, nao um pais cravado:
       // 1.295 (pt-BR) contra 1 295 (fr-FR). Estava 'pt-BR' fixo no numero
       // mais visivel do painel principal.
@@ -57,8 +77,30 @@ function Dashboard({ onSelectPoint, accessLogs }) {
 
       return (
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-                  {/* Stats bar */}
-                  <div className="flex flex-wrap items-center gap-4 mb-8">
+                  {/* ⚠️ LA RECHERCHE D'ABORD — grande, centrée, comme une page de
+                      moteur de recherche (décision du Sam, 28/08). Qui ouvre cet
+                      écran cherche presque toujours UNE personne ; les tuiles et
+                      les cartes répondent à une question qu'on ne se pose
+                      qu'ensuite. Le composant se retire TOUT SEUL sans
+                      PARCOURS_READ — pour un opérateur sans ce droit, la BARRE
+                      n'existe pas ; la seule chose nouvelle sur son écran est la
+                      rangée du toggle des tuiles, qui ne parle que de chiffres
+                      qu'il voyait déjà. Le CDI et le Moniteur Cantine n'ont pas
+                      bougé non plus. */}
+                  <RechercheGlobale />
+
+                  {/* Stats bar — masquable, sous la recherche */}
+                  <div className="flex justify-end mb-2">
+                        <button type="button" onClick={alternarStats}
+                              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-navy-500">
+                              <LucideIcon name={statsVisiveis ? 'eye-off' : 'eye'} size={14} />
+                              {/* clés DÉDIÉES : coupler ce libellé à celui des KPI
+                                  du Panneau ferait hériter l'accueil de toute
+                                  reformulation que personne n'a décidée ici. */}
+                              {statsVisiveis ? t('accueil.stats.esconder') : t('accueil.stats.mostrar')}
+                        </button>
+                  </div>
+                  <div className={`flex flex-wrap items-center gap-4 mb-8 ${statsVisiveis ? '' : 'hidden'}`}>
                         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 shadow-sm border border-soft-200">
                               <div className="w-10 h-10 rounded-xl bg-accent-500/10 flex items-center justify-center">
                                     <LucideIcon name="activity" size={20} className="text-accent-500" />

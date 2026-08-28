@@ -607,6 +607,27 @@ const api = {
         return await this.handleResponse(res);
     },
 
+    /**
+     * L'ecran du CDI declare qu'il vient de MONTRER une alerte (V026).
+     *
+     * ⚠️ FIRE-AND-FORGET par contrat : l'alerte s'affiche AVANT ce POST et
+     * jamais en fonction de lui. L'appelant attache un .catch qui LOGUE —
+     * un registre en panne ne peut pas casser le comptoir.
+     */
+    async postCdiAlerte(corpo) {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/alertes`, {
+            method: 'POST', headers: authHeaders(), body: JSON.stringify(corpo || {})
+        });
+        return await this.handleResponse(res);
+    },
+
+    /** ⚠️ L'historique NOMME des enfants — garde par CDI_EXCLUSION_WRITE. */
+    async fetchCdiAlertes() {
+        const res = await fetch(`${API_BASE_URL}/admin/cdi/alertes`, { headers: authHeaders() });
+        const d = await this.handleResponse(res);
+        return Array.isArray(d) ? d : [];
+    },
+
     /** Levee SOFT : la ligne reste, l'historique reste. */
     async liftCdiExclusion(id) {
         const res = await fetch(`${API_BASE_URL}/admin/cdi/exclusions/${id}`, {

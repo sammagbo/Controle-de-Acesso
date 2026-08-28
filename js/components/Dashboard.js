@@ -118,7 +118,9 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               </div>
                               <div>
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.cadastrados')}</p>
-                                    <p className="text-2xl font-bold text-navy-500">{(window.userCache?.all().length || 0)}</p>
+                                    {/* 0 personne n'existe pas dans une école de 923 élèves : un 0 ici
+                                        veut dire « cache pas encore chargé », et inconnu ≠ zéro. */}
+                                    <p className="text-2xl font-bold text-navy-500">{(window.userCache?.all().length || 0) > 0 ? window.userCache.all().length.toLocaleString(locale) : '—'}</p>
                               </div>
                         </div>
                         <div className="flex items-center gap-3 bg-white rounded-2xl px-5 py-3 shadow-sm border border-soft-200">
@@ -127,7 +129,9 @@ function Dashboard({ onSelectPoint, accessLogs }) {
                               </div>
                               <div>
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{t('dashboard.pontos')}</p>
-                                    <p className="text-2xl font-bold text-navy-500">{ACCESS_POINTS.length}</p>
+                                    {/* Les points VISIBLES — la grille en dessous ; compter les écrans
+                                        de gestion cachés donnait 17 pour 11 cartes. */}
+                                    <p className="text-2xl font-bold text-navy-500">{ACCESS_POINTS.filter(p => !p.hidden).length}</p>
                               </div>
                         </div>
                   </div>

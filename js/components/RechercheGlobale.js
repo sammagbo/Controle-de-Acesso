@@ -327,7 +327,7 @@ function RechercheGlobale() {
                                         sinon le parcours d'un agent posté raconte une
                                         journée qui n'a pas eu lieu. */}
                                     {p.flag && (
-                                        <span className="text-[10px] text-slate-400 italic">{p.flag}</span>
+                                        <span className="text-[10px] text-slate-400 italic" title={p.flag}>{window.MagboI18n.tEnum('flag', p.flag)}</span>
                                     )}
                                 </div>
                             ))}

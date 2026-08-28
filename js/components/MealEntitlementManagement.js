@@ -236,7 +236,7 @@ function MealEntitlementManagement() {
       const apiUserIds = Object.keys(entitlements);
       const mergedList = apiUserIds.map(uid => {
             const ent = entitlements[uid];
-            const cachedUser = window.userCache?.byId(uid) || { nome: uid, turma: 'Inconnu', foto_url: window.localAvatar(uid) };
+            const cachedUser = window.userCache?.byId(uid) || { nome: uid, turma: t('cantina.gestao.turma.desconhecida'), foto_url: window.localAvatar(uid) };
             return {
                   ...cachedUser,
                   userId: uid, // explícito: o userCache usa `id`, não `userId` (toggle/histórico/key dependem disto)
@@ -261,7 +261,7 @@ function MealEntitlementManagement() {
                         {canEdit && (
                               <div className="flex gap-2">
                                     <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
-                                    <button onClick={handleImportClick} disabled={importando} className="btn bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
+                                    <button onClick={handleImportClick} disabled={importando} className="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2">
                                           <LucideIcon name={importando ? "loader-2" : "upload"} size={18} className={importando ? "animate-spin" : ""} />
                                           {importando ? t('cantina.gestao.lendo') : t('cantina.gestao.importar')}
                                     </button>
@@ -448,6 +448,9 @@ function MealEntitlementManagement() {
                                     <option value="">{t('cantina.gestao.todos.status')}</option>
                                     <option value="AUTHORIZED">{t('cantina.gestao.status.autorizado')}</option>
                                     <option value="NOT_AUTHORIZED">{t('cantina.gestao.status.nao.autorizado')}</option>
+                                    {/* PENDING = dado nao preenchido, e e o estado de 923 alunos no dia 1:
+                                        um filtro de status sem ele escondia a maioria. */}
+                                    <option value="PENDING">{window.MagboI18n.tEnum('entitlement', 'PENDING')}</option>
                               </select>
                         </div>
                   </div>

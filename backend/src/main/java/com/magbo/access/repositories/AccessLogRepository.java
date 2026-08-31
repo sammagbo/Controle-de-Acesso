@@ -46,6 +46,57 @@ import org.springframework.data.repository.query.Param;
 public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
 
     /**
+     * LA DATE DE LA PASSAGE LA PLUS RÉCENTE — second témoin de l'anti-recul
+     * d'horloge de la licence (ADR-006).
+     *
+     * ⚠️ POURQUOI CETTE REQUÊTE EXISTE, ET ELLE N'A RIEN À VOIR AVEC LES
+     * RAPPORTS. Le témoin de `licence_clock` est UNE ligne : la supprimer
+     * (`DELETE FROM licence_clock`) puis reculer l'horloge fait renaître la
+     * borne sur la date falsifiée, et la licence devient perpétuelle. Et une
+     * horloge simplement FIGÉE — réglée sur une date valide, NTP coupé — ne
+     * déclenche aucun recul du tout.
+     *
+     * Ce second témoin ferme les deux : il avance tout seul, des centaines de
+     * fois par jour, parce que 923 élèves passent des portiques ; il ne
+     * s'efface pas sans toucher au REGISTRE, ce que la licence refuse de faire
+     * par principe ; et il est déjà borné à « pas plus de 5 min dans le futur »
+     * par {@code EventTimeResolver}, donc un terminal resté à l'heure d'usine
+     * (GMT+8) ne peut pas l'empoisonner.
+     * (Panel de revue — sécurité, 31/08/2026.)
+     *
+     * <h4>⚠️ POURQUOI CE N'EST PAS UN {@code MAX}</h4>
+     * La première version l'était, et elle créait un <b>cul-de-sac</b> : une
+     * SEULE ligne datée du futur suffisait à fermer la gestion pour toujours.
+     * Le scénario n'est pas théorique — c'est celui que la procédure décrit
+     * elle-même comme fréquent : « quelqu'un avance l'horloge pour un test,
+     * puis la remet à l'heure ». Pendant cette fenêtre,
+     * {@code AccessController.registerAccess} horodate toute passage manuelle
+     * avec {@code LocalDateTime.now()}, donc avec la date falsifiée. Ensuite le
+     * témoin relit cette ligne à chaque évaluation, et la réparation
+     * documentée ({@code UPDATE licence_clock}) n'y peut plus rien : la seule
+     * issue serait de modifier le REGISTRE, ce que la licence promet de ne
+     * jamais faire. Un incident récupérable était devenu irrécupérable.
+     * (Trouvé par le panel de revue — sécurité ET qualité, ronde 2, 31/08/2026,
+     * indépendamment l'un de l'autre.)
+     *
+     * On prend donc la <b>{@code N}-ième passage la plus récente</b>. Une
+     * journée d'école réelle en compte des centaines ; une ligne empoisonnée
+     * par une horloge fausse, ou forgée à la main, n'en déplace aucune. Le
+     * témoin devient insensible au bruit tout en gardant sa propriété : il
+     * avance tout seul, tous les jours, sans que personne ne le maintienne.
+     *
+     * ⚠️ Conservateur par construction : en période creuse (vacances), la
+     * N-ième passage est plus ANCIENNE que la dernière. C'est le bon côté sur
+     * lequel se tromper — un témoin trop vieux ne peut que rater un recul,
+     * jamais en inventer un.
+     *
+     * ⚠️ Coût : une lecture indexée d'au plus {@code N} lignes, une fois par
+     * jour, servie par l'index {@code (timestamp)} de la V018.
+     */
+    @Query("SELECT a.timestamp FROM AccessLog a ORDER BY a.timestamp DESC")
+    List<LocalDateTime> passagesLesPlusRecentes(Pageable pageable);
+
+    /**
      * As flags cuja linha e REPETICAO — existe, mas nao abre visita nova.
      *
      * Constante de compilacao (String final) para poder ser concatenada dentro

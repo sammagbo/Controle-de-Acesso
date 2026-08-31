@@ -59,6 +59,33 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            // ── LICENCE (ADR-006) ──
+            // ⚠️ TON NEUTRE : ni menace, ni excuse. Et la phrase qui compte le
+            // plus est `licence.continue` — sans elle, quelqu'un pourrait croire
+            // le systeme eteint et se mettre a noter les passages sur papier,
+            // c'est-a-dire perdre les donnees que le systeme continue justement
+            // d'enregistrer.
+            // Repli du helper 402 de js/utils/api.js, quand le corps du refus
+            // est illisible. Le message du SERVEUR passe en priorité.
+            'api.licence.suspendue': 'Cette fonction est suspendue : la période d’utilisation du logiciel est arrivée à son terme. L’enregistrement des passages et la liste PPMS continuent de fonctionner.',
+            'licence.alerte.titre': 'Période d’utilisation : encore {jours} jour(s)',
+            'licence.alerte.texte': 'La période d’utilisation de MAGBO Access Control arrive à son terme. Rien n’est suspendu pour le moment ; ce message est un préavis.',
+            'licence.courtoisie.titre': 'Période d’utilisation dépassée depuis {jours} jour(s)',
+            'licence.courtoisie.texte': 'La date d’échéance est passée. Aucune fonction n’est suspendue : une période de tolérance de 30 jours est en cours.',
+            'licence.expiree.titre': 'Fonctions de gestion suspendues',
+            'licence.expiree.texte': 'La période d’utilisation est arrivée à son terme. Les écrans de gestion — configuration, planning, droits, régimes, autorisations, importations, rapports — sont suspendus.',
+            'licence.continue': 'L’enregistrement des passages, les écrans des postes, la liste PPMS nominative et la connexion des opérateurs continuent de fonctionner normalement.',
+            'licence.contact': 'Pour renouveler, écrire à',
+            'licence.echeance': 'Échéance : {date}',
+            'licence.replier': 'Réduire',
+            'licence.deplier': 'Détails',
+            'licence.motif.absente': 'Aucun fichier de licence n’a été trouvé sur le serveur. Vérifier d’abord le déploiement (le fichier et son montage) avant de conclure à une échéance.',
+            'licence.motif.illisible': 'Le fichier de licence est présent mais illisible. Il a probablement été modifié ou tronqué.',
+            'licence.motif.signature': 'La signature du fichier de licence ne correspond pas : il a été modifié après émission, ou émis avec une autre clé.',
+            'licence.motif.horloge': 'L’horloge du serveur est en retard par rapport à la date la plus récente observée. Corriger l’heure du serveur, puis relire la licence.',
+            'licence.motif.periode': 'La période couverte par la licence est dépassée depuis plus de 30 jours.',
+
+
             // ── Écran en erreur (ErrorBoundary) ──
             // ⚠️ Ces clés sont lues par une CLASSE React, qui n'a pas de hook :
             // js/components/ErrorBoundary.js passe par window.MagboI18n.t() dans
@@ -1549,6 +1576,26 @@
             'login.rodape.seguranca': 'SYSTÈME SÉCURISÉ · CONNEXION CHIFFRÉE'
         },
         pt: {
+
+            // ── LICENÇA (ADR-006) ──
+            'api.licence.suspendue': 'Esta função está suspensa: o período de utilização do software chegou ao fim. O registo das passagens e a lista PPMS continuam a funcionar.',
+            'licence.alerte.titre': 'Período de utilização: faltam {jours} dia(s)',
+            'licence.alerte.texte': 'O período de utilização do MAGBO Access Control aproxima-se do fim. Nada está suspenso por agora; esta mensagem é um pré-aviso.',
+            'licence.courtoisie.titre': 'Período de utilização ultrapassado há {jours} dia(s)',
+            'licence.courtoisie.texte': 'A data de fim já passou. Nenhuma função está suspensa: decorre um período de tolerância de 30 dias.',
+            'licence.expiree.titre': 'Funções de gestão suspensas',
+            'licence.expiree.texte': 'O período de utilização chegou ao fim. Os ecrãs de gestão — configuração, planning, direitos, regimes, autorizações, importações, relatórios — estão suspensos.',
+            'licence.continue': 'O registo das passagens, os ecrãs dos postos, a lista nominativa do PPMS e a ligação dos operadores continuam a funcionar normalmente.',
+            'licence.contact': 'Para renovar, escrever para',
+            'licence.echeance': 'Fim: {date}',
+            'licence.replier': 'Reduzir',
+            'licence.deplier': 'Detalhes',
+            'licence.motif.absente': 'Não foi encontrado nenhum ficheiro de licença no servidor. Conferir primeiro o deploy (o ficheiro e a sua montagem) antes de concluir que expirou.',
+            'licence.motif.illisible': 'O ficheiro de licença existe mas está ilegível. Provavelmente foi alterado ou truncado.',
+            'licence.motif.signature': 'A assinatura do ficheiro de licença não corresponde: foi alterado depois de emitido, ou emitido com outra chave.',
+            'licence.motif.horloge': 'O relógio do servidor está atrasado face à data mais recente observada. Corrigir a hora do servidor e depois reler a licença.',
+            'licence.motif.periode': 'O período coberto pela licença está ultrapassado há mais de 30 dias.',
+
             'idioma.rotulo': 'Idioma',
 
             // ── Tela em erro (ErrorBoundary) — ver o bloco em `fr` ──

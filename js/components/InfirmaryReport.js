@@ -17,6 +17,7 @@ function InfirmaryReport() {
     const [turma, setTurma] = React.useState('');
     const [statut, setStatut] = React.useState(''); // '', 'long', 'noexit'
     const [visits, setVisits] = React.useState([]);
+    const [erro, setErro] = React.useState(null);
     const [loading, setLoading] = React.useState(false);
     const [showPrint, setShowPrint] = React.useState(false);
 
@@ -37,8 +38,19 @@ function InfirmaryReport() {
         setLoading(true);
         try {
             const data = await fetchInfirmaryVisits({ dateFrom, dateTo });
+            setErro(null);
             setVisits(Array.isArray(data) ? data : []);
-        } catch (e) { setVisits([]); }
+        } catch (e) {
+            // ⚠️ « JE NE SAIS PAS » N'EST PAS « ZÉRO ». Un refus de licence (402)
+            // arrive ici avec le message français du serveur ; le remplacer par
+            // une liste vide affiche « aucune visite » un jour où il y en a eu
+            // vingt. Quelqu'un en conclut que le registre a été effacé, et ouvre
+            // un cahier papier — perdant les passages que le système continue
+            // justement d'enregistrer.
+            // (Panel de revue — Vie Scolaire + qualité, ronde 2, 31/08/2026.)
+            setErro(e && e.message ? e.message : null);
+            setVisits([]);
+        }
         finally { setLoading(false); }
     }, [dateFrom, dateTo]);
 
@@ -239,7 +251,7 @@ function InfirmaryReport() {
                         </thead>
                         <tbody>
                             {filtered.length === 0 && !loading && (
-                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{t('rap.enferm.vazio')}</td></tr>
+                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{erro || t('rap.enferm.vazio')}</td></tr>
                             )}
                             {filtered.map((v, i) => {
                                 const b = statusBadge(v);

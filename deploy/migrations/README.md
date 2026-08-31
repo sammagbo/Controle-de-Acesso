@@ -406,9 +406,71 @@ Rollback : `rollback/R026__drop_cdi_alert_events.sql`. ⚠️ **Il efface un
 registre de signalements concernant des enfants** — sans le dump antérieur,
 ces lignes ne reviennent pas. Un pg_dump AVANT, toujours.
 
+### ⚠️ V027 — le témoin d'horloge de la licence (ADR-006)
+
+`licence_clock` : **une seule ligne**, `id = 1`, qui garde la **date la plus
+récente jamais observée** par le système. Si l'horloge de la VM recule de plus
+de deux jours par rapport à elle, la licence est traitée comme **expirée** et
+l'anomalie est journalisée — sans quoi `date -s` sur la VM prolongerait la
+licence indéfiniment.
+
+⚠️ **C'est le CINQUIÈME piège d'horloge du projet**, et le premier traité avant
+d'avoir mordu. Les quatre autres : l'heure de réception au lieu de l'heure de
+l'événement (03/08), le conteneur en UTC (25/08), le régime de sortie jugé à
+`now`, et `cantine_removals.removido_em`.
+
+⚠️ **À APPLIQUER À LA MAIN AVANT de monter le backend nouveau.** Elle est
+additive et `ddl-auto=update` saurait la créer — c'est précisément le problème :
+celui qui crée la table écrit le schéma, et la VM se retrouverait avec une table
+**sans le CHECK `(id = 1)`**, que `ddl-auto` ne corrigera jamais ensuite (leçon
+V017/V020).
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb   < deploy/migrations/V027__licence_clock.sql
+echo "exit=$?"   # 0 = aplicada · outro valor = NÃO aplicada, não subir o backend
+```
+
+Vérifications — **la troisième est celle que personne ne pense à faire**, et
+c'est justement elle qui distingue cette table de celle que `ddl-auto` aurait
+créée :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -c "\d licence_clock"
+
+# ⚠️ Le CHECK d'unicité de ligne doit EXISTER :
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc   "SELECT conname FROM pg_constraint WHERE conrelid='licence_clock'::regclass AND contype='c';"
+# → ck_licence_clock_ligne_unique
+
+# La table naît VIDE ; la ligne apparaît au premier démarrage du backend :
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc "SELECT count(*) FROM licence_clock;"
+# → 0 avant le démarrage, 1 après
+
+# ⚠️ Après le démarrage, la borne doit être à AUJOURD'HUI. Une autre date veut
+# dire que le conteneur n'est pas à l'heure — voir le bloc TZ de docker-compose.
+docker exec magbo-postgres psql -U magbo -d magbodb -c "SELECT * FROM licence_clock;"
+```
+
+⚠️ **Le piège que cette table crée, et sa sortie.** La borne ne recule jamais.
+Si quelqu'un **avance** l'horloge de la VM puis la remet à l'heure, le recul est
+détecté en permanence : les écrans de gestion se ferment et ne se rouvrent pas
+seuls. La réparation est un `UPDATE`, pas le rollback :
+
+```bash
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb   -c "UPDATE licence_clock SET date_max_vue = CURRENT_DATE, observe_le = now() WHERE id = 1;"
+```
+
+Elle demande le même accès que remplacer le JAR — c'est assumé (ADR-006 : ceci
+est une licence, pas une forteresse). Pendant tout ce temps, **les passages,
+les écrans de poste, le PPMS nominatif et la connexion continuent** : c'est
+toute la raison d'être de la dégradation par couches.
+
+Rollback : `rollback/R027__drop_licence_clock.sql` — ⚠️ il **réinitialise**
+l'anti-recul plutôt que de le retirer (le backend recrée la ligne au démarrage
+suivant). Pour réparer une borne coincée, utiliser l'`UPDATE` ci-dessus.
+
 ## 3. Ordem de aplicação
 
-Aplicar **na ordem** V001 → V026. As migrations V001..V004 devem estar aplicadas **antes** de
+Aplicar **na ordem** V001 → V027. As migrations V001..V004 devem estar aplicadas **antes** de
 subir o backend com as fases correspondentes (B/C/D); a V007, antes de subir o backend com o
 cadastro de servidores; a V008/V009, antes das câmeras da portaria; a V010, antes do posto
 fixo. Comando por arquivo:
@@ -442,6 +504,8 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V023__meal_slots_seed.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V024__system_settings.sql
 docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V025__cdi_exclusions.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V026__cdi_alert_events.sql
+docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < deploy/migrations/V027__licence_clock.sql
 ```
 
 | Arquivo | Cria/altera | Fase |
@@ -469,6 +533,7 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
 | `V024__system_settings.sql` | tabela `system_settings` — a **surcouche** dos reglages modificáveis a ecrã (**nasce vazia**; sem linha = default do código) | Configuração |
 | `V025__cdi_exclusions.sql` | tabela `cdi_exclusions` — quem não deve entrar no CDI (**avisa, nunca impede**; dado sensível sobre menor) | CDI |
 | `V026__cdi_alert_events.sql` | tabela `cdi_alert_events` — o registro de cada alerta MOSTRADA no ecrã do CDI (hora do **badge**; dado sensível sobre menor; leitura só por `CDI_EXCLUSION_WRITE`) | CDI |
+| `V027__licence_clock.sql` | tabela `licence_clock` — o **témoin d'horloge** da licença: uma linha só (`id=1`), a data mais recente já observada. Recuo > 2 dias = licença tratada como expirada (**ADR-006**). ⚠️ CHECK `(id = 1)` manual — aplicar **antes** de subir o backend | Licença |
 
 > ⚠️ **`V011` é a primeira migration que guarda dado que não existe em mais lugar nenhum.**
 > As fotos vivem **só** no banco (o container do backend não tem volume onde escrevê-las —

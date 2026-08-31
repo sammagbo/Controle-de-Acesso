@@ -82,6 +82,44 @@ function App() {
       }, [currentUser]);
 
       /**
+       * L'ETAT DE LA LICENCE, cherche UNE fois apres la connexion (ADR-006).
+       *
+       * ⚠️ LE FRONT NE DECIDE RIEN ICI. C'est le serveur qui refuse les routes
+       * de gestion ; ceci ne sert qu'a AFFICHER un etat deja tranche. Une
+       * verification cote client serait contournee en remplacant le .exe du
+       * poste par une version anterieure — et sur ces postes, remplacer un
+       * executable est une manipulation ordinaire.
+       *
+       * ⚠️ UN ECHEC NE CASSE RIEN : `getLicence` rend `null` au lieu de lever,
+       * et sans etat il n'y a simplement pas de bandeau. Un backend d'une
+       * version anterieure (sans cette route) doit continuer a faire tourner
+       * le portail — la licence est une information commerciale, elle ne peut
+       * pas eteindre un poste de travail.
+       */
+      const [licence, setLicence] = React.useState(null);
+      React.useEffect(() => {
+            if (!currentUser) { setLicence(null); return; }
+            let vivo = true;
+            const relire = () => {
+                  if (window.api && window.api.getLicence) {
+                        window.api.getLicence().then(l => { if (vivo) setLicence(l); });
+                  }
+            };
+            relire();
+            // ⚠️ RELU PÉRIODIQUEMENT, et pas une seule fois par session. Deux
+            // raisons, la seconde étant la vraie : (1) la bascule COURTOISIE →
+            // EXPIREE tombe à 03h17, donc quelqu'un connecté avant travaillerait
+            // sans bandeau en se cognant à des 402 ; (2) surtout, APRÈS UN
+            // RENOUVELLEMENT, tout le monde continuerait de lire « fonctions
+            // suspendues » jusqu'à sa prochaine connexion — et quelqu'un
+            // téléphonerait à Sam pour dire que sa clé n'a pas marché.
+            // Dix minutes : la requête est minuscule et ne porte aucune donnée
+            // de personne. (Panel de revue, 31/08/2026.)
+            const tique = setInterval(relire, 10 * 60 * 1000);
+            return () => { vivo = false; clearInterval(tique); };
+      }, [currentUser]);
+
+      /**
        * Liga o cache de fotos à camada HTTP, uma vez.
        *
        * Fica aqui e não dentro do módulo porque o módulo é puro (e testável
@@ -369,12 +407,25 @@ function App() {
             // O CDI é uma aplicação inteira dentro da outra (tela cheia, sem o
             // Header do MAGBO). Um erro aqui não tem cromo nenhum para sobrar —
             // por isso o boundary é o próprio caminho de volta ao painel.
+            //
+            // ⚠️ LE BANDEAU DE LICENCE EST ICI AUSSI, et il l'est DEDANS le
+            // boundary — contrairement à l'application principale, où il est
+            // dehors. La raison tient au kiosque : ici il n'y a aucun chrome
+            // pour survivre, donc un bandeau qui tomberait emporterait tout
+            // l'écran du CDI. Mieux vaut perdre le message que la banque de prêt.
+            //
+            // Pourquoi il fallait l'ajouter : ce `return` est ANTÉRIEUR à celui
+            // de l'application, donc aucun état de licence n'atteignait jamais
+            // le CDI. Or la documentaliste détient CDI_EXCLUSION_WRITE — son
+            // écran d'exclusions se ferme — et elle passe sa journée ici.
+            // (Panel de revue — Vie Scolaire, 31/08/2026.)
             return (
                   <div className="h-screen overflow-hidden">
                         <ErrorBoundary
                               nom={pointLabel('BIBLIO')}
                               onRetour={() => setCurrentPoint(null)}
                               labelRetour={t('erro.voltar')}>
+                              <LicenceBanner licence={licence} auth={window.auth} />
                               <BibliotecaView onBack={() => setCurrentPoint(null)} />
                         </ErrorBoundary>
                   </div>
@@ -402,6 +453,14 @@ function App() {
                                           : null
                   }
             />
+
+            {/* Le bandeau de licence — sous le Header, au-dessus de tout ecran.
+                ⚠️ HORS de l'ErrorBoundary : s'il etait dedans, l'ecran qui
+                tombe emporterait avec lui le message qui explique pourquoi il
+                est peut-etre tombe. Qui le voit est decide par
+                js/utils/licence.js (module pur, teste) ; il ne s'affiche pour
+                personne tant que la licence est VALIDE. */}
+            <LicenceBanner licence={licence} auth={window.auth} />
 
             {/* ⚠️ UMA rede por TELA, e é aqui que ela vale mais.
                 O erro de uma tela custa a tela: o Header continua desenhado,

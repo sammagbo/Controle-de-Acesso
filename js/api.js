@@ -245,9 +245,23 @@ const api = {
             const res = await fetch(`${API_BASE_URL}/access/overview?${params.toString()}`, {
                 headers: authHeaders()
             });
+            // ⚠️ Un refus de LICENCE (402) doit remonter avec sa raison francaise, pas
+            // devenir `null` : la Vue d'ensemble afficherait des ZEROS a cote d'un
+            // bandeau qui dit « suspendu ». (Panel de revue, ronde 2.)
+            if (res.status === 402) {
+                  const corps = await res.json().catch(() => ({}));
+                  const erro = new Error(razaoDoServidor(corps) || T('api.licence.suspendue'));
+                  erro.status = 402;
+                  erro.licence = true;
+                  throw erro;
+            }
             if (!res.ok) return null;
             return await res.json();
         } catch (e) {
+            // ⚠️ Le refus de licence doit TRAVERSER ce catch : le ravaler ici
+            // rendrait `null`, et la Vue d'ensemble afficherait des zeros a
+            // cote d'un bandeau qui dit « suspendu ».
+            if (e && e.licence) throw e;
             console.error('[API] fetchOverview error:', e);
             return null;
         }

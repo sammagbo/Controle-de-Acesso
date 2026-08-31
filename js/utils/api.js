@@ -93,6 +93,41 @@ function razaoDoServidor(data) {
       return data.message || data.error || null;
 }
 
+/**
+ * UN REFUS DE LICENCE (402) DOIT ARRIVER À L'ÉCRAN AVEC SA RAISON.
+ *
+ * ⚠️ POURQUOI CE HELPER EXISTE. Les fonctions de LECTURE de ce fichier — celles
+ * qui tournent quand on OUVRE un écran — rendent `[]` ou lèvent un message
+ * générique sur `!res.ok`. Sous licence expirée, ouvrir « Droits Repas »
+ * affichait donc « Erreur lors du chargement… » : un message qui dit PANNE,
+ * alors que le serveur venait d'envoyer une phrase française expliquant que la
+ * fonction est suspendue et que les passages continuent.
+ *
+ * C'est la classe de défaut la plus chère déjà payée deux fois ici : le
+ * « Forbidden » anglais affiché à la place du texte traduit, et la « session
+ * expirée » annoncée pour une erreur de format de date. Un message qui MENT sur
+ * sa cause coûte plus cher que l'erreur elle-même.
+ *
+ * ⚠️ Il lève, plutôt que de rendre `[]` : « je ne sais pas » ne doit pas
+ * ressembler à « zéro ». Un écran qui affiche « aucune visite » un jour où il y
+ * en a eu vingt fait ouvrir un cahier papier.
+ *
+ * (Panel de revue — Vie Scolaire, 31/08/2026.)
+ */
+async function checkLicenceError(res) {
+      if (res.status !== 402) return;
+      let raison = null;
+      try {
+            raison = razaoDoServidor(await res.clone().json());
+      } catch (e) {
+            // corps illisible : on garde le message générique ci-dessous
+      }
+      const erro = new Error(raison || T('api.licence.suspendue'));
+      erro.status = 402;
+      erro.licence = true;
+      throw erro;
+}
+
 function checkAuthError(res) {
       if (res.status === 401) {
             window.auth?.logout();
@@ -113,6 +148,7 @@ async function fetchUser(id) {
             const res = await fetch(`${API_BASE}/users/${encodeURIComponent(id)}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
+            await checkLicenceError(res);
             checkAuthError(res);
             if (!res.ok) return null;
             const data = await res.json();
@@ -138,6 +174,7 @@ async function registerAccess(payload) {
                   headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload),
             });
+            await checkLicenceError(res);
             checkAuthError(res);
             if (!res.ok) {
                   // ⚠️ ISTO DEVOLVIA `null`, E NULL NÃO TEM RAZÃO NENHUMA.
@@ -195,7 +232,9 @@ async function fetchLogs(pointId, opts = {}) {
                   `${API_BASE}/access/logs/${encodeURIComponent(pointId)}${qs ? '?' + qs : ''}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
+            await checkLicenceError(res);
             checkAuthError(res);
+            await checkLicenceError(res);
             if (!res.ok) return [];
             const data = await res.json();
             return (data || []).map(normaliseLog);
@@ -224,12 +263,14 @@ async function fetchLogsCount(filters = {}) {
             const res = await fetch(`${API_BASE}/access/logs/count?${params.toString()}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
+            await checkLicenceError(res);
             checkAuthError(res);
             if (!res.ok) return null;
             const data = await res.json();
             const n = data && Number(data.total);
             return (typeof n === 'number' && isFinite(n) && n >= 0) ? n : null;
       } catch (e) {
+            if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
             // null, nunca 0: "não sei" e "zero movimento" são respostas
             // diferentes, e o card trata cada uma como o que é.
             return null;
@@ -251,9 +292,11 @@ async function fetchRefectoryLogs(filters = {}) {
             const res = await fetch(`${API_BASE}/access/logs/refectory?${params.toString()}`, {
                   headers: window.authHeaders ? window.authHeaders() : {}
             });
+            await checkLicenceError(res);
             if (!res.ok) return [];
             return await res.json();
       } catch (e) {
+            if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
             console.error('[API] fetchRefectoryLogs error:', e);
             return [];
       }
@@ -271,9 +314,11 @@ async function fetchRefectoryMeals(filters = {}) {
         const res = await fetch(`${API_BASE}/access/refectory/meals?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
         });
+        await checkLicenceError(res);
         if (!res.ok) return [];
         return await res.json();
     } catch (e) {
+          if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
         console.error('[API] fetchRefectoryMeals error:', e);
         return [];
     }
@@ -290,9 +335,11 @@ async function fetchInfirmaryVisits(filters = {}) {
         const res = await fetch(`${API_BASE}/access/infirmary/visits?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
         });
+        await checkLicenceError(res);
         if (!res.ok) return [];
         return await res.json();
     } catch (e) {
+          if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
         console.error('[API] fetchInfirmaryVisits error:', e);
         return [];
     }
@@ -349,9 +396,11 @@ async function fetchIncompleteMovements(filters = {}) {
         const res = await fetch(`${API_BASE}/access/incomplete-movements?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
         });
+        await checkLicenceError(res);
         if (!res.ok) return [];
         return await res.json();
     } catch (e) {
+          if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
         console.error('[API] fetchIncompleteMovements error:', e);
         return [];
     }
@@ -372,6 +421,7 @@ async function getMealEntitlements(filters = {}) {
       const res = await fetch(`${API_BASE}/admin/meal-entitlements?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -384,6 +434,7 @@ async function getMealEntitlementSummary() {
       const res = await fetch(`${API_BASE}/admin/meal-entitlements/summary`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -396,6 +447,7 @@ async function getMealEntitlement(userId) {
       const res = await fetch(`${API_BASE}/admin/meal-entitlements/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 404) return null;
@@ -411,6 +463,7 @@ async function putMealEntitlement(userId, payload) {
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
@@ -429,6 +482,7 @@ async function getMealEntitlementHistory(userId) {
       const res = await fetch(`${API_BASE}/admin/meal-entitlements/${encodeURIComponent(userId)}/history`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.historico'));
@@ -459,6 +513,7 @@ async function postImportDeRefeicao(caminho, items) {
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(items)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
@@ -474,6 +529,7 @@ async function postMealEntitlementBulk(items, overwrite = false) {
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(items)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.importar'));
@@ -500,6 +556,7 @@ async function getExitPermissions(filters = {}) {
       const res = await fetch(`${API_BASE}/admin/exit-permissions?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -512,6 +569,7 @@ async function getActiveExitPermissions() {
       const res = await fetch(`${API_BASE}/admin/exit-permissions/active`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -524,6 +582,7 @@ async function getExitPermissionsByUser(userId) {
       const res = await fetch(`${API_BASE}/admin/exit-permissions/user/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -538,6 +597,7 @@ async function postExitPermission(payload) {
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.criar'));
@@ -553,6 +613,7 @@ async function revokeExitPermission(id, note) {
             headers: window.authHeaders ? window.authHeaders() : { 'Content-Type': 'application/json' },
             body: JSON.stringify({ note })
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.revogar'));
@@ -580,6 +641,7 @@ async function getAttempts(filters = {}) {
       const res = await fetch(`${API_BASE}/access/attempts?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.tentativas'));
@@ -596,6 +658,7 @@ async function getAttemptStats(filters = {}) {
       const res = await fetch(`${API_BASE}/access/attempts/stats?${params.toString()}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.stats'));
@@ -608,6 +671,7 @@ async function getRefectoryAttempts() {
       const res = await fetch(`${API_BASE}/access/attempts/refectory`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             // Se 403 ou erro, retorna lista vazia silenciosamente (para não quebrar polling)
@@ -620,6 +684,7 @@ async function getGateAttempts() {
       const res = await fetch(`${API_BASE}/access/attempts/gate`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             // Se 403 ou erro, retorna lista vazia silenciosamente
@@ -633,6 +698,7 @@ async function getAllAttempts() {
       const res = await fetch(`${API_BASE}/access/attempts?size=50`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             // Se 403 ou erro, retorna lista vazia silenciosamente (para não quebrar polling)
@@ -650,6 +716,7 @@ async function getRegimeDoAluno(userId) {
       const res = await fetch(`${API_BASE}/admin/regimes/user/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -662,6 +729,7 @@ async function getRegimeSummary() {
       const res = await fetch(`${API_BASE}/admin/regimes/summary`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.dados'));
@@ -675,6 +743,7 @@ async function avaliarRegime(userId) {
       const res = await fetch(`${API_BASE}/admin/regimes/evaluate/${encodeURIComponent(userId)}`, {
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) return null;   // o portão nunca trava por falta de veredicto
       return await res.json();
@@ -697,6 +766,7 @@ async function veredictosNoPortao(pointId, limite) {
             if (!res.ok) return null;
             return await res.json();
       } catch (e) {
+            if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
             return null;
       }
 }
@@ -707,6 +777,7 @@ async function simularImportRegimes(linhas) {
             headers: window.authHeaders ? window.authHeaders() : {},
             body: JSON.stringify(linhas)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
@@ -721,6 +792,7 @@ async function aplicarImportRegimes(linhas) {
             headers: window.authHeaders ? window.authHeaders() : {},
             body: JSON.stringify(linhas)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
@@ -735,6 +807,7 @@ async function salvarRegime(payload) {
             headers: window.authHeaders ? window.authHeaders() : {},
             body: JSON.stringify(payload)
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
@@ -752,6 +825,7 @@ async function encerrarRegime(userId, note) {
             method: 'DELETE',
             headers: window.authHeaders ? window.authHeaders() : {}
       });
+      await checkLicenceError(res);
       checkAuthError(res);
       if (!res.ok) {
             if (res.status === 403) throw new Error(T('api.sem.permissao.direito'));
@@ -759,6 +833,37 @@ async function encerrarRegime(userId, note) {
             throw new Error(err.message || T('regime.erro'));
       }
       return await res.json();
+}
+
+
+// =====================================================================
+// LICENCE (ADR-006)
+// =====================================================================
+/**
+ * L'ETAT de la licence, pour le bandeau.
+ *
+ * ⚠️ NE LANCE JAMAIS, et rend `null` en cas d'echec. Cette requete part apres
+ * chaque connexion, sur TOUS les postes : si elle jetait, une panne de reseau
+ * — ou un backend d'une version anterieure, qui n'a pas cette route — ferait
+ * tomber l'ecran du portail pour une information purement commerciale. Le
+ * bandeau disparait, l'operation continue. Meme principe que le verdict de
+ * regime au portail : le soutien s'efface, le travail reste.
+ *
+ * ⚠️ Et il n'y a rien a « reessayer » : le serveur refuse deja les routes de
+ * gestion tout seul. Ce que le front perd ici, c'est l'EXPLICATION, pas la
+ * regle.
+ */
+async function getLicence() {
+      try {
+            const res = await fetch(`${API_BASE}/licence`, {
+                  headers: window.authHeaders ? window.authHeaders() : {}
+            });
+            if (!res.ok) return null;
+            return await res.json();
+      } catch (e) {
+            if (e && e.licence) throw e;   // un refus de licence doit arriver a l'ecran, jamais devenir « vide »
+            return null;
+      }
 }
 
 // Liga as funções da Fase H ao window.api — os componentes consomem
@@ -799,5 +904,9 @@ if (window.api) {
       window.api.aplicarImportRegimes = aplicarImportRegimes;
       window.api.salvarRegime = salvarRegime;
       window.api.encerrarRegime = encerrarRegime;
+      // Licence (ADR-006). Meme discipline que ci-dessus : sans cette ligne le
+      // bandeau n'apparait jamais, et personne ne le remarque — c'est
+      // exactement le defaut du 17/07.
+      window.api.getLicence = getLicence;
 }
 

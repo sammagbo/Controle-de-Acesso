@@ -444,26 +444,55 @@ docker cp magbo-postgres:/tmp/magbo.dump ./backups/magbo-$(date +%Y%m%d-%H%M).du
 Les dumps vont dans `backups/`, **ignoré par git**. Ne jamais committer un dump :
 il contient 923 élèves réels, et depuis la V011 **leurs photos**.
 
-### 🔴 Le script automatique n'est probablement pas fonctionnel
+### ✅ La sauvegarde automatique tourne — vérifiée en production le 31/08/2026
 
-[`deploy/backup.sh`](../../deploy/backup.sh) existe : dump quotidien
-compressé, rétention 30 jours, `rsync` optionnel, cron suggéré `0 3 * * *`.
+*(Répondu par Sam. Le doute de la version précédente de ce document est levé :
+elle fonctionne, et elle n'est pas là où le dépôt le laissait croire.)*
 
-Le défaut de nom de base a été corrigé (`DB_NAME` vaut bien `magbodb`,
-ligne 23). **Mais le script appelle `pg_dump` directement sur l'hôte**
-(ligne 40), alors que PostgreSQL tourne **dans un conteneur** — l'hôte peut
-très bien ne pas avoir le client installé. Le script a `set -euo pipefail` : il
-sort en erreur, et l'erreur part dans `backup.log`, que personne ne lit.
+| Quoi | Où / quand |
+|---|---|
+| Script | `/home/magbo/backup-magbo.sh` |
+| Dumps | `/home/magbo/backups/` |
+| Journal | `/home/magbo/backups/backup.log` |
+| Fréquence | **tous les jours à 19:00**, samedi et dimanche compris |
+| Taille | ~109 Mo par fichier |
+| Format | dumps PostgreSQL **16.14** valides (en-tête `PostgreSQL database dump` confirmé) |
+| Rétention | **14 jours** |
 
-**[À VÉRIFIER] — une minute sur la VM, et c'est la vérification la plus rentable
-de ce document :**
+> ⚠️ **`deploy/backup.sh` n'est PAS le script qui tourne.** Celui du dépôt
+> garde 30 jours, écrit dans `/var/backups/magbo/` et appelle `pg_dump`
+> directement sur l'hôte — ce qui échouerait, PostgreSQL étant en conteneur.
+> **C'est `/home/magbo/backup-magbo.sh` qui fait le travail, et il n'est pas
+> versionné.** Ne pas « réparer » celui du dépôt en croyant réparer la
+> sauvegarde ; et ne pas remplacer celui de la VM par celui du dépôt.
+>
+> **[À COMPLÉTER PAR SAM — souhaitable, pas bloquant]** Verser
+> `/home/magbo/backup-magbo.sh` dans le dépôt (par exemple sous
+> `deploy/backup-vm.sh`) pour qu'il survive à la VM.
+
+**Pour vérifier, à tout moment :**
 ```bash
-crontab -l | grep -i backup          # le cron est-il seulement actif ?
-ls -lh /var/backups/magbo/           # y a-t-il un fichier, et de quand ?
-tail -30 /var/backups/magbo/backup.log
+ssh magbo@192.168.1.253
+crontab -l | grep -i backup
+ls -lht ~/backups/ | head -5        # le plus récent doit dater d'hier 19:00
+tail -20 ~/backups/backup.log
 ```
-Si le dossier est vide : **faire un dump manuel aujourd'hui**, et seulement
-ensuite réparer le script (envelopper l'appel dans `docker exec magbo-postgres …`).
+
+### 🔴 La dette qui reste : les sauvegardes vivent sur la machine sauvegardée
+
+⚠️ **Les dumps sont dans `/home/magbo/backups/`, c'est-à-dire sur la VM
+elle-même.** Une panne de disque, une VM supprimée, un chiffrement malveillant :
+la base **et** ses quatorze sauvegardes partent ensemble.
+
+**Une copie hors machine n'a jamais été mise en place.** C'est la dette la plus
+sérieuse de cette section : la sauvegarde fonctionne parfaitement contre
+l'erreur humaine et le mauvais déploiement, et pas du tout contre la perte de
+la machine.
+
+Ce qu'il faudrait, par ordre de simplicité : un `rsync` nocturne vers un autre
+hôte, ou une copie hebdomadaire sur un disque externe, ou un dépôt distant.
+**Toute solution vaut mieux que la situation actuelle.** Le contenu justifie
+l'effort : 923 élèves réels et, depuis la V011, **leurs photos**.
 
 **Avant toute batterie de tests ou toute migration : sauvegarder d'abord.**
 Sans exception.
@@ -552,7 +581,10 @@ un test l'exige.
 ### 8.1 Cassé
 
 1. **Le portail** — voir la section en tête. Priorité absolue.
-2. **La sauvegarde automatique** est probablement inopérante — §6.
+2. **Les sauvegardes n'existent qu'à un seul endroit : sur la VM sauvegardée.**
+   La sauvegarde automatique **fonctionne** (vérifiée le 31/08, tous les jours à
+   19:00) — mais une panne de disque emporte la base et ses quatorze copies
+   ensemble. Aucune copie hors machine. §6.
 3. **Le terminal `.10` n'est pas enregistré au HikCentral** : erreur `SYS[904]`,
    numéro de série en conflit. *[À VÉRIFIER : reproduire l'erreur et relever le
    message exact dans HikCentral.]*
@@ -627,8 +659,11 @@ document.
    `MAGBO_ADMIN_PASSWORD`, le compte `admin` de l'application, l'accès web des
    terminaux Hikvision, HikCentral, la VM. **Où sont-ils rangés aujourd'hui, et
    qui d'autre y a accès ?**
-3. **Le cron de sauvegarde est-il actif sur la VM**, et existe-t-il un seul
-   fichier dans `/var/backups/magbo/` ? (§6)
+3. ✅ **RÉPONDU (31/08) — la sauvegarde tourne.** Tous les jours à 19:00,
+   ~109 Mo, dumps PostgreSQL 16.14 valides, rétention 14 jours — dans
+   `/home/magbo/backups/`, **pas** dans `/var/backups/magbo/`, et par
+   `/home/magbo/backup-magbo.sh`, **pas** par `deploy/backup.sh`. ⚠️ **Reste
+   ouvert : aucune copie hors machine.** Détail au §6.
 
 ### Contacts
 4. **Fabiano (informatique)** : nom complet, e-mail, téléphone. Quelles

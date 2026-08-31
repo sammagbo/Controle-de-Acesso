@@ -277,6 +277,52 @@ marques ensemble, parce qu'aucune seule n'est une preuve.
 > `access_logs` ne reçoit **jamais** un événement refusé. Si vous avez besoin
 > des deux, faites un `UNION` **dans la requête** — jamais dans l'écriture.
 
+### 2.6 Ce que la production dit du planning de la cantine
+
+*(Mesures relevées par Sam sur les données réelles, écrites ici le 31/08/2026.)*
+
+Le planning affiché au mur et la réalité mesurée **divergent sur quatre
+points**. Aucun ne demande une mesure supplémentaire : ils demandent une
+**décision de la Vie Scolaire**.
+
+**a) La maternelle et l'élémentaire ne mangent pas à l'heure que le système leur
+prête.** Service réel mesuré le 26/08 : **entre 11h54 et 12h37**, en flux
+continu, à environ **4 personnes par minute**. Or le système leur a hérité un
+créneau à **11:00**, repris de `class_schedules` par le seed V023 — parce que
+l'affiche du mur ne les nomme pas.
+
+⚠️ **Aucun horaire n'a été inventé pour elles, et c'est délibéré** : semer un
+créneau faux aurait produit des alertes fausses dès le premier jour. Mais le
+créneau hérité à 11:00 **est** faux, et il produit ces alertes. Il faut soit le
+corriger avec l'heure réelle, soit le retirer pour que ces classes tombent
+franchement dans « créneau non configuré ».
+
+**b) Six classes de collège mangent le mercredi à 13h sans figurer sur
+l'affiche de ce jour.** Ce ne sont pas des débordements :
+
+| Classe | Passages | Remarque |
+|---|---|---|
+| `1E1` | 15 | |
+| `1E2` | 6 | |
+| `2E1` | 15 | |
+| `2E2` | 14 | |
+| `3E1` | 20 | passages **concentrés entre 13h08 et 13h32** |
+| `3E2` | 19 (+1) | idem — horaire cohérent, pas un débordement |
+
+⚠️ **La concentration horaire de `3E1` et `3E2` est l'argument** : des élèves qui
+débordent d'un autre service arrivent dispersés. Vingt passages en vingt-quatre
+minutes, c'est une classe qui vient à son heure. **L'affiche est incomplète, pas
+les élèves en faute.**
+
+**c) `5E3` et `3E3` figurent sur l'affiche et n'ont aucun élève en base.** Elles
+ne changent le verdict de personne, mais elles signalent soit un code de classe
+qui a changé, soit une classe qui n'existe plus. Détail dans
+[`controle-affiche-cantine.md`](controle-affiche-cantine.md), section A.
+
+**d) ✅ Le badge masqué par l'aimant est résolu.** Confirmé le 27/08 sur la photo
+du mur réimprimé : c'est bien **`4E2`**, mercredi 13h. La marque `a_confirmar` a
+été retirée de la V023, de la base et du document de contrôle.
+
 ---
 
 ## 3. Déployer — le rite complet
@@ -699,11 +745,10 @@ document.
    Rien de tel n'est écrit dans le dépôt.
 8. **La liste DAF** attendue : qui la produit, sous quelle forme, pour quoi
    faire ?
-9. **Les décisions en suspens avec la Vie Scolaire** : les horaires réels de la
-   maternelle et de l'élémentaire (mesurés 11h54–12h37 le 26/08, ce qui
-   contredit les horaires supposés), les six classes de collège du mercredi 13h
-   à confirmer (1E1, 1E2, 2E1, 2E2, 3E1, 3E2), et les classes `5E3` et `3E3` qui
-   figurent sur l'affiche sans avoir un seul élève en base.
+9. ⚠️ **Les décisions en suspens avec la Vie Scolaire — les mesures sont
+   faites, il manque les décisions.** Quatre points, détaillés au §2.6. Ils ne
+   demandent aucune mesure supplémentaire : ils demandent **quelqu'un qui
+   tranche**.
 10. **La dispense de badge par classe** est préparée mais désactivée. Qui décide
     de l'activer, et sait-on que les classes dispensées disparaissent aussi du
     décompte PPMS ?

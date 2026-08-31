@@ -130,6 +130,43 @@ incident : faites-la tourner et retirez-la.
 
 ---
 
+# ⚠️ LE RISQUE Nº 2 — le système n'a plus de décideur
+
+*(Répondu par Sam le 31/08/2026 : « en pratique, c'était moi ». Aucun
+remplaçant n'a été désigné.)*
+
+Ce n'est pas une question d'organigramme. **Toutes les questions ouvertes de ce
+document n'ont plus de destinataire** — elles attendent quelqu'un qui n'existe
+pas encore.
+
+**Ce qui est en attente d'une décision, aujourd'hui :**
+
+| Décision | Ce que ça coûte de ne pas la prendre | Où |
+|---|---|---|
+| **L'heure de fermeture de la cantine** | **72 sorties synthétiques par jour**, et les durées de repas faussées d'autant | §2.4 |
+| **Les horaires de la maternelle et de l'élémentaire** | un créneau hérité à 11:00 qui ne correspond pas au service réel (11h54–12h37) | §2.6 |
+| **Les six classes du mercredi 13h** | l'affiche est incomplète ; ces élèves passent hors de tout créneau | §2.6 |
+| **`5E3` et `3E3`** | deux classes affichées qui n'ont aucun élève | §2.6 |
+| **Qui détient les accès** | une seule personne — voir le risque nº 1 | ci-dessus |
+| **La dispense de badge par classe** | préparée, désactivée ; l'activer ampute le décompte PPMS | §11 q.10 |
+| **La copie de sauvegarde hors machine** | une panne de disque emporte la base et ses 14 sauvegardes | §6 |
+
+> ### La première décision à prendre est de désigner qui prendra les suivantes
+>
+> Aucune de ces lignes n'est technique. Aucune ne peut être tranchée par la
+> personne qui reprend le code — ce sont des choix d'établissement : des heures
+> de service, des classes, des droits, un budget de temps.
+>
+> **Tant que personne n'est désigné, ce document est une liste de questions sans
+> lecteur.** C'est pourquoi cette section est en tête plutôt qu'en annexe.
+
+⚠️ **En attendant, rien ne casse.** Le système continue de tourner avec les
+réglages actuels — c'est la vertu d'un système observationnel. Les décisions
+ci-dessus améliorent la justesse des données ; elles n'empêchent pas le
+fonctionnement. **Sauf le risque nº 1**, qui empêche la réparation.
+
+---
+
 ## 1. À quoi sert le système, et qui s'en sert
 
 MAGBO Access Control enregistre et donne à voir **qui est passé où, et quand**,
@@ -829,7 +866,11 @@ document.
    sont-elles réservées en DHCP, ou peuvent-elles encore changer ? »
    ⚠️ **Ne pas attendre la réponse pour se protéger** : la méthode empirique
    est au §2.1, et elle donne le risque réel en une requête.
-5. **La direction** : qui décide, pour ce système, quand il faut trancher ?
+5. ⚠️ **RÉPONDU (31/08) — et la réponse est un vide.** « En pratique, c'était
+   moi. » **Aucun remplaçant n'a été désigné.** Toutes les questions de cette
+   liste, et les sept décisions en attente, n'ont donc plus de destinataire.
+   **Désigner qui décide est la première décision à prendre** — voir « Le risque
+   nº 2 » en tête de ce document.
 6. **La Vie Scolaire** : qui est l'interlocuteur au quotidien ?
 
 ### Engagements et décisions

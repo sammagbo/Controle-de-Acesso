@@ -806,8 +806,26 @@ un test l'exige.
    19:00) — mais une panne de disque emporte la base et ses quatorze copies
    ensemble. Aucune copie hors machine. §6.
 3. **Le terminal `.10` n'est pas enregistré au HikCentral** : erreur `SYS[904]`,
-   numéro de série en conflit. *[À VÉRIFIER : reproduire l'erreur et relever le
-   message exact dans HikCentral.]*
+   numéro de série en conflit. **Un ticket est ouvert chez le fournisseur**
+   (le revendeur des terminaux) — *réponse de Sam, 31/08*. ⚠️ **La référence du
+   ticket n'a pas pu être retrouvée** : la chercher dans la messagerie de Sam ou
+   auprès du service informatique, qui a traité la commande. À défaut, rouvrir
+   une demande : l'erreur `SYS[904]` et le numéro de série du `.10` suffisent à
+   la décrire.
+
+   ⚠️ **Ce que ça change au quotidien, et ce que ça ne change pas.** HikCentral
+   sert au **provisionnement** des personnes (le cycle des identités vers les
+   appareils) — un terminal non enregistré n'en reçoit pas les mises à jour. En
+   revanche, **il continue d'envoyer ses événements au MAGBO** : l'*Écoute HTTP*
+   est un réglage local, indépendant de HikCentral.
+   **[À VÉRIFIER]** Le `.10` produit-il bien des passages ?
+   ```sql
+   SELECT point_id, count(*), max(timestamp)
+     FROM access_logs
+    WHERE timestamp > now() - interval '7 days'
+    GROUP BY 1 ORDER BY 3 DESC;
+   ```
+   Croiser avec `door_mappings` pour savoir quel `point_id` correspond au `.10`.
 4. **Le terminal `.14` est en Wi-Fi**, ce qui le rend le plus susceptible de
    perdre des paquets et de vider une file d'un coup.
 
@@ -1011,8 +1029,14 @@ document.
     change.)*
 
 ### Matériel
-12. **Le terminal `.10`** (erreur `SYS[904]`, série en conflit) : y a-t-il un
-    ticket ouvert, ou un échange avec Hikvision / le fournisseur ?
+12. ⚠️ **RÉPONDU EN PARTIE (31/08).** Un **ticket est ouvert chez le
+    fournisseur** (le revendeur qui a livré les terminaux) pour le `.10`,
+    erreur `SYS[904]`, numéro de série en conflit. **[À COMPLÉTER — la
+    référence du ticket et le nom du contact n'ont pas pu être retrouvés.]**
+    **Où chercher :** la messagerie de Sam, ou le service informatique de
+    l'établissement, qui a traité la commande des terminaux. Sans la référence,
+    rouvrir une demande auprès du fournisseur revient au même — l'erreur et le
+    numéro de série suffisent à la décrire. Détail au §8.1.
 13. **Le terminal `.14` en Wi-Fi** : est-ce définitif, ou un câble est-il prévu ?
 15. ⚠️ **La fermeture automatique de la cantine est réglée à 15:00, et l'effet
     est MESURÉ : 72 sorties synthétiques le 25/08, toutes à 15:00 pile.**

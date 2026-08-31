@@ -1004,7 +1004,11 @@ document.
     que le PPMS ne nomme pas les classes dispensées ; et c'est la **direction**
     qui tranche, pas la personne qui reprend le code. Détail et condition au
     §8.2.9.
-11. **L'e-mail à Fabiano et le PDF du guide d'installation** : envoyés ou non ?
+11. ✅ **RÉPONDU (31/08) — les deux sont partis.** L'e-mail à l'informatique a
+    été envoyé et le PDF du guide d'installation a été remis. Rien à relancer.
+    *(La source du guide reste à [`guide-installation-postes.md`](guide-installation-postes.md) :
+    c'est elle qu'il faut mettre à jour, puis réexporter, si la procédure
+    change.)*
 
 ### Matériel
 12. **Le terminal `.10`** (erreur `SYS[904]`, série en conflit) : y a-t-il un

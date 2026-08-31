@@ -195,6 +195,33 @@ dans `access_attempts`. Aucune porte ne se ferme.
 vérifier l'IP du serveur, l'IP au dos de chaque terminal, l'URL de l'*Écoute
 HTTP*, et la colonne `terminal_ip` de `door_mappings`.
 
+> ### Les réservations DHCP ont-elles été faites ? — la réponse est dans les données
+>
+> Des réservations avaient été demandées au service informatique pour les
+> terminaux et la VM (décision D7). **Sam ne se souvient pas de leur état
+> (31/08)**, et la personne à qui demander reste à retrouver — voir la
+> question 4 au §11.
+>
+> ⚠️ **Il n'est pas nécessaire d'attendre cette réponse pour connaître le
+> risque.** Si les IP n'ont pas bougé depuis des mois, elles sont probablement
+> réservées ; si elles ont bougé récemment, elles ne le sont sûrement pas :
+>
+> ```bash
+> # Quand chaque mapping a-t-il été modifié pour la dernière fois ?
+> docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+>   "SELECT terminal_ip, point_id, updated_at FROM door_mappings
+>     WHERE ativo ORDER BY updated_at DESC;"
+> ```
+>
+> **Comment lire le résultat :** un `updated_at` récent sur plusieurs lignes
+> veut dire que quelqu'un a couru après des IP qui changeaient. Des dates
+> anciennes et stables veulent dire que les adresses tiennent — par réservation,
+> ou par chance. **Dans les deux cas, la parade est la même** : les quatre
+> vérifications ci-dessus avant toute session sur le matériel.
+>
+> *(L'historique connu : le 16/07, le terminal `.12` est devenu `.10` et le
+> serveur a changé d'adresse — sans une seule erreur affichée.)*
+
 ⚠️ **Les caméras du portail n'authentifient pas : elles COMPARENT.** L'identité
 est résolue côté MAGBO par `CameraIdentityService`, avec trois pièges mesurés en
 production, tous documentés dans [`.claude/rules/hikvision.md`](../../.claude/rules/hikvision.md) :
@@ -793,9 +820,15 @@ document.
    ouvert : aucune copie hors machine.** Détail au §6.
 
 ### Contacts
-4. **Fabiano (informatique)** : nom complet, e-mail, téléphone. Quelles
-   demandes lui sont encore ouvertes ? (Les réservations DHCP des terminaux et
-   de la VM ont été demandées — où en sont-elles ?)
+4. ⚠️ **[À COMPLÉTER — Sam n'a plus l'information (31/08)]** **Fabiano
+   (informatique)** : nom complet, e-mail, téléphone. Sam ne se souvient pas de
+   l'état des réservations DHCP demandées pour les terminaux et la VM.
+   **À qui demander :** le secrétariat ou la direction de l'établissement
+   connaissent le service informatique. **Ce qu'il faut lui demander :**
+   « les adresses IP des six terminaux Hikvision et de la VM 192.168.1.253
+   sont-elles réservées en DHCP, ou peuvent-elles encore changer ? »
+   ⚠️ **Ne pas attendre la réponse pour se protéger** : la méthode empirique
+   est au §2.1, et elle donne le risque réel en une requête.
 5. **La direction** : qui décide, pour ce système, quand il faut trancher ?
 6. **La Vie Scolaire** : qui est l'interlocuteur au quotidien ?
 

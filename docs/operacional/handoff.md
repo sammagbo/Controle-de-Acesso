@@ -72,6 +72,64 @@ distinctes**, colonne de gauche du tableau ci-dessus.
 
 ---
 
+# ⚠️ LE RISQUE Nº 1 DE LA REPRISE — les accès
+
+*(Répondu par Sam le 31/08/2026. Ce n'est pas une panne : c'est ce qui empêche
+de réparer une panne.)*
+
+**Les secrets d'application vivent dans `deploy/.env` sur la VM.** Ils sont donc
+récupérables — **par qui possède le SSH de la VM**.
+
+| Secret | Où il vit | Qui l'a |
+|---|---|---|
+| `POSTGRES_PASSWORD` | `deploy/.env` sur la VM | Sam + qui a le SSH |
+| `MAGBO_JWT_SECRET` | idem | idem |
+| `MAGBO_WEBHOOK_TOKEN` | idem | idem |
+| `ADMIN_PIN` | idem | idem |
+| `MAGBO_ADMIN_PASSWORD` | idem | idem |
+| Compte `admin` de l'application | — | **Sam seul** |
+| Accès web des terminaux Hikvision | — | **Sam seul** |
+| HikCentral | — | **Sam seul** |
+| **SSH de la VM** | — | **Sam seul** |
+
+> ## ⚠️⚠️ La chaîne à comprendre avant tout le reste
+>
+> **Le SSH de la VM est la clé de toutes les autres.** Les cinq secrets
+> d'application sont récupérables — mais seulement en se connectant à la VM.
+> Et l'accès à la VM n'est détenu **que par Sam**.
+>
+> **Perdre le SSH, c'est perdre les cinq autres avec lui.** Ce n'est pas une
+> panne : c'est l'impossibilité de réparer la prochaine.
+>
+> ### Ce que ça veut dire concrètement
+>
+> Tant que la VM tourne, tout va bien : le système fonctionne, personne n'a
+> besoin des secrets. **Le jour où elle redémarre mal, où un conteneur refuse de
+> monter, où il faut restaurer une sauvegarde — il faut le SSH.** Sans lui,
+> personne ne peut relancer le système.
+>
+> ### À faire aujourd'hui, avant toute autre chose
+>
+> 1. **Obtenir le SSH de la VM** (`magbo@192.168.1.253`) et le ranger là où
+>    l'établissement range ses accès — pas dans une tête, pas dans ce dépôt.
+> 2. **Une fois connecté, sauvegarder `deploy/.env` hors de la VM.** C'est le
+>    fichier qui contient les cinq secrets, et il n'est **pas** versionné —
+>    délibérément, mais il n'existe donc qu'à un seul endroit.
+> 3. **Récupérer les trois accès qui ne sont nulle part** : le compte `admin` de
+>    l'application, l'accès web des terminaux, HikCentral.
+> 4. **Décider qui d'autre les détient.** Une personne seule, c'est la situation
+>    d'aujourd'hui — et c'est exactement pourquoi ce paragraphe existe.
+>
+> ⚠️ Ces quatre points valent d'être faits **avant** de comprendre le système :
+> comprendre sans pouvoir agir ne sert à rien, et Sam est parti.
+
+⚠️ **Aucune valeur de secret n'est écrite dans ce dépôt, et aucune ne doit
+l'être.** Ce document dit **où** ils vivent et **qui** les détient — jamais ce
+qu'ils valent. Si vous trouvez une valeur de secret dans un `.md`, c'est un
+incident : faites-la tourner et retirez-la.
+
+---
+
 ## 1. À quoi sert le système, et qui s'en sert
 
 MAGBO Access Control enregistre et donne à voir **qui est passé où, et quand**,
@@ -722,11 +780,12 @@ document.
    dans `~/Controle-de-Acesso`. ⚠️ **Le dépôt de la VM diverge d'`origin/main`**
    et son `docker-compose.yml` est modifié sans être commité : ne pas y faire
    `git pull` en croyant y trouver le code de production. Détail au §3.1.
-2. **Qui détient quels mots de passe ?** Pour chacun : `POSTGRES_PASSWORD`,
-   `MAGBO_JWT_SECRET`, `MAGBO_WEBHOOK_TOKEN`, `ADMIN_PIN`,
-   `MAGBO_ADMIN_PASSWORD`, le compte `admin` de l'application, l'accès web des
-   terminaux Hikvision, HikCentral, la VM. **Où sont-ils rangés aujourd'hui, et
-   qui d'autre y a accès ?**
+2. ✅ **RÉPONDU (31/08) — et c'est le risque nº 1 de la reprise.** Les cinq
+   secrets d'application vivent dans `deploy/.env` **sur la VM** ; le compte
+   `admin`, l'accès aux terminaux, HikCentral et **le SSH de la VM** ne sont
+   détenus que par **Sam**. ⚠️ **Le SSH est la clé des cinq autres :** le perdre,
+   c'est perdre tout le reste avec. Les quatre gestes à faire aujourd'hui sont
+   en tête de ce document, section « Le risque nº 1 de la reprise ».
 3. ✅ **RÉPONDU (31/08) — la sauvegarde tourne.** Tous les jours à 19:00,
    ~109 Mo, dumps PostgreSQL 16.14 valides, rétention 14 jours — dans
    `/home/magbo/backups/`, **pas** dans `/var/backups/magbo/`, et par

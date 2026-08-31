@@ -102,10 +102,11 @@ La procédure complète est dans
 > `camera_person_id`** : si ce nombre s'est effondré, la bibliothèque est bien
 > en cause.
 
-**[À COMPLÉTER PAR SAM — non retrouvé le 31/08]** Quels fichiers exactement, et
-pour combien de personnes ? Le détail aiderait à cibler, mais **ne bloque pas**
-l'enquête : les quatre vérifications ci-dessus se font depuis HikCentral, sans
-lui.
+**[À COMPLÉTER — demandé à Sam le 31/08, non retrouvé]** Quels fichiers
+exactement, et pour combien de personnes ? Le détail aiderait à cibler, mais
+**ne bloque pas** l'enquête : les quatre vérifications ci-dessus se font depuis
+HikCentral, qui montre l'état **actuel** des bibliothèques — on n'a pas besoin
+de savoir ce qui y a été versé pour voir ce qu'elles contiennent.
 
 ### Note historique, à connaître avant de lire les chiffres d'avant
 
@@ -761,9 +762,12 @@ elle fonctionne, et elle n'est pas là où le dépôt le laissait croire.)*
 > versionné.** Ne pas « réparer » celui du dépôt en croyant réparer la
 > sauvegarde ; et ne pas remplacer celui de la VM par celui du dépôt.
 >
-> **[À COMPLÉTER PAR SAM — souhaitable, pas bloquant]** Verser
+> **[ACTION — pour qui a le SSH, souhaitable et pas bloquant]** Verser
 > `/home/magbo/backup-magbo.sh` dans le dépôt (par exemple sous
-> `deploy/backup-vm.sh`) pour qu'il survive à la VM.
+> `deploy/backup-vm.sh`) pour qu'il survive à la VM. ⚠️ **Ce n'est pas une
+> question pour Sam :** le fichier est lisible par quiconque peut se connecter,
+> il suffit de le copier. Tant qu'il n'existe qu'à un seul endroit, **le script
+> qui fabrique les sauvegardes n'est lui-même pas sauvegardé.**
 
 **Pour vérifier, à tout moment :**
 ```bash
@@ -1062,11 +1066,28 @@ les oublie :
 
 ---
 
-# 11. ⚠️ Les questions pour Sam — quinze minutes
+# 11. Les quinze questions pour Sam — ✅ posées et répondues le 31/08/2026
 
-Tout ce que le dépôt ne peut pas dire, rassemblé ici pour qu'on puisse y
-répondre d'un seul coup. Chaque ligne est aussi marquée à sa place dans le
-document.
+**Cette section n'est plus une liste d'attente : c'est le compte rendu de ce qui
+a été demandé à Sam avant son départ, et de ce qu'il a répondu.** Tout ce que le
+dépôt ne pouvait pas dire est ici. Chaque réponse est aussi écrite à sa place
+dans le document, avec son détail.
+
+| État | Combien | Lesquelles |
+|---|---|---|
+| ✅ **Répondu** | **12** | 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 13, 15 |
+| ⚠️ **Répondu en partie** | **2** | **12** (le ticket existe, sa référence est perdue) · **14** (le chemin est connu, le détail des fichiers non) |
+| ❌ **Sans réponse** | **1** | **4** — Sam n'a plus l'information ; à qui la demander est écrit ci-dessous |
+
+> ⚠️ **« Répondu » ne veut pas dire « réglé ».** Cinq réponses ouvrent une
+> action, et deux d'entre elles sont devenues les deux risques en tête de ce
+> document : **Q2** (Sam est le seul détenteur des accès) et **Q5** (personne
+> n'a été désigné pour décider). **Q10** est devenue une condition bloquante,
+> **Q8** une démarche à lancer, **Q14** la piste nº 1 du défaut du portail.
+>
+> **La réponse la plus lourde est celle qui est un vide : Q5.** Une liste de
+> questions résolues ne sert à rien si personne n'a le pouvoir de trancher ce
+> qu'elles révèlent.
 
 ### Accès et infrastructure
 1. ✅ **RÉPONDU (31/08) — l'accès à la VM.** `ssh magbo@192.168.1.253`, dépôt
@@ -1121,10 +1142,11 @@ document.
    droit au repas accordé en bloc « temporairement », sans échéance ni processus
    de sortie. ⚠️ **Ne pas retirer ce droit avant d'avoir la liste** — l'ordre
    compte. Détail et requête de contrôle au §8.2.8.
-9. ⚠️ **Les décisions en suspens avec la Vie Scolaire — les mesures sont
-   faites, il manque les décisions.** Quatre points, détaillés au §2.6. Ils ne
-   demandent aucune mesure supplémentaire : ils demandent **quelqu'un qui
-   tranche**.
+9. ✅ **RÉPONDU (31/08) — les mesures sont faites, il manque les décisions.**
+   Quatre points en suspens avec la Vie Scolaire, détaillés au §2.6. ⚠️ **Ils ne
+   demandent aucune mesure supplémentaire** — la production a déjà répondu à ce
+   qu'on peut lui demander. Ils demandent **quelqu'un qui tranche**, et la
+   question 5 dit que ce quelqu'un n'existe pas encore.
 10. 🔴 **RÉPONDU (31/08) — la conséquence PPMS n'avait PAS été mesurée.**
     Activer la dispense retirerait les classes concernées du **décompte
     d'évacuation**, sans que l'écran PPMS le signale. **Ne pas activer** tant
@@ -1152,6 +1174,18 @@ document.
     reste est la dette 8.2.1 (les règles jugées à l'heure de la décision). Ce
     qu'il faut surveiller, et pourquoi une file est invisible dans la base :
     §8.1.
+14. ⚠️ **RÉPONDU (31/08) — par HikCentral.** C'est la réponse la plus utile de
+    cette liste : les photos des 25 et 26/08 sont passées par **les
+    bibliothèques faciales des caméras**, pas par la table `user_photos` du
+    MAGBO. Le lien avec la chute du portail cesse d'être une simple coïncidence
+    de dates — **il y a un mécanisme**. Les quatre vérifications à faire côté
+    HikCentral sont en tête de ce document.
+    **[À COMPLÉTER — non retrouvé le 31/08] :** quels fichiers exactement, et
+    pour combien de personnes. **Pourquoi ça ne bloque pas :** les quatre
+    vérifications se font depuis HikCentral, qui montre l'état actuel des
+    bibliothèques sans avoir besoin de savoir ce qui y a été versé.
+
+### Exploitation
 15. ✅ **RÉPONDU (31/08) — 15:00 est la bonne heure**, confirmée par Sam contre
     le service réel. L'avertissement de `application-prod.properties` est levé :
     personne n'est coupé au milieu de son repas.
@@ -1164,11 +1198,26 @@ document.
     ou personne ne badge en partant). Elle est nouvelle et n'appartient plus à
     Sam — elle s'observe sur place, à la cantine, à 13h.
 
-### Matériel *(suite)*
-14. ⚠️ **RÉPONDU (31/08) — par HikCentral.** C'est la réponse la plus utile de
-    cette liste : les photos sont passées par **les bibliothèques faciales des
-    caméras**, pas par la table `user_photos` du MAGBO. Le lien avec la chute du
-    portail cesse d'être une simple coïncidence de dates — **il y a un
-    mécanisme**. Les quatre vérifications à faire côté HikCentral sont en tête
-    de ce document. *(Reste non retrouvé : quels fichiers exactement et pour
-    combien de personnes — utile, mais l'enquête n'attend pas ce détail.)*
+---
+
+## Ce que ces quinze questions ont changé dans le document
+
+Elles n'ont pas seulement rempli des trous : **elles ont corrigé des
+affirmations fausses**, ce qui est plus important, parce qu'une documentation
+fausse est crue.
+
+| Ce que le document disait | Ce que la réponse a établi |
+|---|---|
+| La sauvegarde était présentée avec les chemins de `deploy/backup.sh` | Elle tourne, mais **ailleurs** : `/home/magbo/backups/`, par `/home/magbo/backup-magbo.sh`. Restaurer avec les anciens chemins n'aurait rien trouvé |
+| « La cantine n'a pas de fermeture automatique » | **Faux** — `REFEI1` est fermé à 15:00, et ça produit 72 sorties synthétiques par jour |
+| L'heure de 15:00 était une dette de réglage | **Elle est juste.** La dette était ailleurs : le taux de sorties non lues |
+| Le dépôt de la VM était supposé refléter `main` | Il **diverge**, avec un `docker-compose.yml` modifié non commité |
+| Les imports de photos étaient « une coïncidence de dates » | Ils sont passés par **HikCentral** : il y a un mécanisme, pas une coïncidence |
+| La dispense de badge était une décision d'ergonomie | Elle touche le **décompte d'évacuation du PPMS** — condition bloquante, décision de la direction |
+
+⚠️ **Et une correction faite en écrivant :** la question 13 était accompagnée
+d'une requête SQL qui groupait sur une heure de réception. **Cette colonne
+n'existe pas** — `access_logs` ne garde qu'un `timestamp`, celui de
+l'événement. La requête a été remplacée par la lecture des journaux du backend,
+et le document dit maintenant qu'une file rejouée est **invisible dans les
+données par conception**.

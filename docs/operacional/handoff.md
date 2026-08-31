@@ -51,13 +51,61 @@ contient les cinq requêtes SQL à lancer sur la VM et les `grep` de logs.
 **Ce que l'on sait d'autre :** la chute **coïncide avec les imports de photos
 des 25 et 26/08**.
 
-**Piste à instruire :** la bibliothèque de visages et les paramètres des caméras
-DeepinView, côté HikCentral. La procédure est dans
+### ⚠️ La piste nº 1 : ces photos sont passées par HikCentral
+
+*(Répondu par Sam le 31/08/2026.)*
+
+**Les imports des 25 et 26/08 ont été faits par HikCentral, pas par l'écran du
+MAGBO.** C'est la réponse qui compte, parce qu'elle change la nature du lien :
+
+| Chemin | Ce qu'il touche | Effet sur la reconnaissance |
+|---|---|---|
+| Écran Photos du MAGBO | la table `user_photos` | **aucun** — ce sont les portraits affichés dans l'application |
+| **HikCentral** | **les bibliothèques faciales des caméras** | **direct** — c'est ce contre quoi la caméra compare |
+
+⚠️ **Le lien n'est donc plus seulement une coïncidence de dates : il y a un
+mécanisme.** HikCentral repeuple les bibliothèques faciales ; les caméras du
+portail ne font que **comparer** un visage à cette bibliothèque. Un
+repeuplement des 25–26/08 peut avoir changé ce à quoi elles comparent.
+
+**Ce qu'il faut vérifier côté HikCentral, dans cet ordre :**
+
+1. **La bibliothèque des élèves existe-t-elle encore, et avec combien de
+   personnes ?** Le personnel n'est pas touché — si les deux bibliothèques sont
+   séparées, comparer leurs effectifs situe le problème immédiatement.
+2. **Les images ont-elles été remplacées, et par lesquelles ?** Une photo de
+   moins bonne qualité, recadrée autrement, ou une photo d'identité scannée à la
+   place d'un portrait, dégrade la similarité — et les mesures montrent
+   justement des similarités **effondrées** (0,13 à 0,46, très en dessous du
+   seuil).
+3. **Le `certificateNumber` a-t-il changé de format ?** ⚠️ C'est déjà arrivé :
+   depuis le 08/08, il porte la matricule complétée à 16 chiffres, *parce que
+   les bibliothèques faciales avaient été repeuplées par le module de personnes
+   du HCP* (`.claude/rules/hikvision.md`). Un repeuplement change ce champ.
+4. **Le `Apply to Device` a-t-il bien été fait ?** Une bibliothèque modifiée au
+   HCP mais non appliquée aux appareils laisse les caméras avec l'ancienne — ou
+   avec rien.
+
+⚠️ **Et le réglage à ne pas manquer** : lors des opérations HikCentral,
+« Restaurer les paramètres par défaut » doit rester **DÉCOCHÉ**. Coché, il
+réinitialise des réglages de l'appareil — dont potentiellement le seuil de
+similarité et l'*Écoute HTTP*.
+
+La procédure complète est dans
 [`procedimento-hikcentral.md`](procedimento-hikcentral.md).
 
-> ⚠️ **La cause n'est pas prouvée.** La coïncidence de dates est une piste, pas
-> une conclusion. Ne réparez rien avant d'avoir mesuré : le diagnostic du 27/08
-> existe précisément pour éviter qu'on « corrige » ce qui n'est pas cassé.
+> ⚠️ **La cause n'est toujours pas prouvée.** Il y a maintenant un mécanisme
+> plausible, ce qui est plus qu'une coïncidence — mais ce n'est pas une preuve.
+> **Mesurez avant de réparer** : les cinq requêtes du diagnostic du 27/08
+> existent précisément pour éviter qu'on « corrige » ce qui n'est pas cassé. En
+> particulier, vérifier d'abord **combien de personnes ont un
+> `camera_person_id`** : si ce nombre s'est effondré, la bibliothèque est bien
+> en cause.
+
+**[À COMPLÉTER PAR SAM — non retrouvé le 31/08]** Quels fichiers exactement, et
+pour combien de personnes ? Le détail aiderait à cibler, mais **ne bloque pas**
+l'enquête : les quatre vérifications ci-dessus se font depuis HikCentral, sans
+lui.
 
 ### Note historique, à connaître avant de lire les chiffres d'avant
 
@@ -1088,6 +1136,10 @@ document.
     `application-prod.properties`. (§2.4)
 
 ### Matériel *(suite)*
-14. **Les imports de photos des 25 et 26/08** : quels fichiers, combien de
-    personnes, et par quel chemin (l'écran du MAGBO, ou HikCentral) ? C'est la
-    seule coïncidence connue avec la chute du portail.
+14. ⚠️ **RÉPONDU (31/08) — par HikCentral.** C'est la réponse la plus utile de
+    cette liste : les photos sont passées par **les bibliothèques faciales des
+    caméras**, pas par la table `user_photos` du MAGBO. Le lien avec la chute du
+    portail cesse d'être une simple coïncidence de dates — **il y a un
+    mécanisme**. Les quatre vérifications à faire côté HikCentral sont en tête
+    de ce document. *(Reste non retrouvé : quels fichiers exactement et pour
+    combien de personnes — utile, mais l'enquête n'attend pas ce détail.)*

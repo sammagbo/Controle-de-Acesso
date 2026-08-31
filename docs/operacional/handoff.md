@@ -908,8 +908,14 @@ document.
    faut faire, au §1.
 
 ### Engagements et décisions
-7. **Qu'est-ce qui a été promis verbalement, à qui, et pour quand ?**
-   Rien de tel n'est écrit dans le dépôt.
+7. ✅ **RÉPONDU (31/08) — rien de formel.** **Aucune promesse ferme n'a été
+   faite à personne**, ni sur une fonctionnalité, ni sur une date. Personne dans
+   l'établissement n'attend une livraison de la part du système.
+   ⚠️ C'est une réponse **utile**, pas un vide : elle veut dire que la reprise
+   commence sans dette envers qui que ce soit, et que le successeur peut
+   prendre le temps de comprendre avant de produire. Le seul engagement en
+   suspens reste **la liste DAF** (question 8), qui est une attente *du* système
+   envers l'établissement, pas l'inverse.
 8. **La liste DAF** attendue : qui la produit, sous quelle forme, pour quoi
    faire ?
 9. ⚠️ **Les décisions en suspens avec la Vie Scolaire — les mesures sont

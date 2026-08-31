@@ -186,10 +186,34 @@ exécuté cette nuit. Suivez `docs/operacional/handoff.md` pour cette partie.
 > base : dump 1 s, restauration 1 s. Sur la base réelle (~440 000 passages + photos),
 > comptez des **minutes** — c'est linéaire, pas structurel.
 
-⚠️ Le script qui tourne sur la VM est `/home/magbo/backup-magbo.sh` (rétention 14 jours).
-La copie du dépôt, `deploy/backup.sh`, n'est **pas le même fichier** (rétention 30 jours ;
-son défaut `DB_NAME` était même faux jusqu'au 12/08/2026). Les sauvegardes sont dans
-`/var/backups/magbo/magbo_AAAAMMJJ_HHMMSS.sql.gz` — à confirmer sur la VM.
+### ✅ Où sont réellement les sauvegardes — vérifié le 31/08/2026
+
+**`/home/magbo/backups/`**, et **pas** `/var/backups/magbo/` comme cette page
+l'indiquait. Cherchées au mauvais endroit pendant un incident, elles paraissent
+absentes alors qu'elles sont là.
+
+```bash
+ssh magbo@192.168.1.253
+ls -lht ~/backups/ | head -5      # le plus récent doit dater d'hier 19:00
+```
+
+| | |
+|---|---|
+| **Script réel** | `/home/magbo/backup-magbo.sh` — **non versionné**, il n'existe que sur la VM |
+| **Dossier** | `/home/magbo/backups/` |
+| **Cadence** | tous les jours à **19:00**, ~109 Mo par dump |
+| **Rétention** | **14 jours** |
+| **Format** | `pg_dump` texte + gzip, PostgreSQL 16.14 |
+
+⚠️ **`deploy/backup.sh` du dépôt n'est PAS ce fichier** (rétention 30 jours ; son
+défaut `DB_NAME` était même faux jusqu'au 12/08/2026) et il appelle `pg_dump`
+**sur l'hôte** alors que PostgreSQL tourne **en conteneur** — lancé tel quel, il
+échoue. Ne remplacez pas celui de la VM par celui du dépôt.
+
+🔴 **Aucune copie hors machine.** Les sauvegardes sont sur la VM qu'elles
+sauvegardent : un disque perdu emporte la base **et** ses quatorze jours de
+dumps. Les photos d'identification n'existent nulle part ailleurs — elles vivent
+uniquement dans `user_photos`, donc dans ces dumps.
 
 ### B.1 — Base cible VIDE ✅
 

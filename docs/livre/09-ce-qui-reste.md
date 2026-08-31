@@ -27,9 +27,16 @@ logs et les actions HikCentral sont dans
 `docs/operacional/diagnostic-portaria-2026-08-27.md`.
 
 **Ce qu'il faut faire, dans l'ordre :** lancer les cinq requêtes du diagnostic
-sur la VM avant de toucher à quoi que ce soit. La cause **n'est pas prouvée** —
-la coïncidence avec les imports de photos des 25 et 26/08 est une piste, pas une
-conclusion.
+sur la VM avant de toucher à quoi que ce soit. La cause **n'est pas prouvée**.
+
+⚠️ **La piste nº 1 s'est renforcée le 31/08 :** les imports de photos des 25 et
+26/08 sont passés **par HikCentral**, donc par les **bibliothèques faciales des
+caméras** — pas par la table `user_photos` du MAGBO, qui n'a aucun effet sur la
+reconnaissance. Le lien cesse d'être une coïncidence de dates : il y a un
+mécanisme. Les quatre vérifications côté HikCentral (la bibliothèque
+existe-t-elle encore et avec combien de personnes · les images ont-elles été
+remplacées · le `certificateNumber` a-t-il changé de format · le
+« Apply to Device » a-t-il été fait) sont en tête du handoff.
 
 **Effort :** une matinée de mesure. La correction dépend de ce qu'elle montre.
 
@@ -207,23 +214,40 @@ qui a changé, soit une classe qui n'existe plus. Le détail est dans
 **Il faut une réponse de la Vie Scolaire** : ces classes existent-elles encore,
 et sous quel code ?
 
-## 4.4 La liste DAF
+## 4.4 La liste DAF — ✅ la demande n'a jamais été lancée
 
-Attendue, jamais reçue.
-**[À COMPLÉTER PAR SAM] : qui la produit, sous quelle forme, et pour quoi
-faire ?**
+*(Répondu par Sam le 31/08/2026.)* Elle n'a été formalisée auprès de personne.
+**Ce n'est donc pas une relance, c'est une démarche à initier.**
 
-## 4.5 Le terminal `.10` non enregistré au HikCentral
+⚠️ **Ce que cela laisse en place, et pourquoi l'ordre compte :** en attendant,
+**995 personnes** (874 élèves + 121 personnels) ont un droit au repas accordé
+**en bloc**, « temporairement », sans échéance ni processus de sortie.
+**Ne retirez pas ce droit avant d'avoir la liste** — l'inverse affamerait ceux
+qui y ont droit pour punir ceux qui n'y ont pas droit. Requête de contrôle au
+§ 8.2.8 du handoff.
 
-Erreur `SYS[904]`, numéro de série en conflit.
-**[À COMPLÉTER PAR SAM] : y a-t-il un ticket ouvert, ou un échange avec le
-fournisseur ?**
+## 4.5 Le terminal `.10` non enregistré au HikCentral — ✅ un ticket existe
 
-## 4.6 Le terminal `.14` en Wi-Fi
+Erreur `SYS[904]`, numéro de série en conflit. *(Répondu par Sam le 31/08.)*
+**Un ticket est ouvert chez le fournisseur** — le revendeur qui a livré les
+terminaux.
 
-C'est celui qui perdra des paquets et videra une file d'un coup — exactement le
-scénario de la première leçon d'horloge (chapitre 8).
-**[À COMPLÉTER PAR SAM] : est-ce définitif, ou un câble est-il prévu ?**
+**[À COMPLÉTER — la référence du ticket et le nom du contact n'ont pas pu être
+retrouvés.]** **Où chercher :** la messagerie de Sam, ou le service informatique
+de l'établissement, qui a traité la commande. ⚠️ **Sans la référence, rouvrir une
+demande revient au même :** l'erreur `SYS[904]` et le numéro de série suffisent à
+décrire le cas.
+
+## 4.6 Le terminal `.14` en Wi-Fi — ✅ définitif, ce n'est pas une action ouverte
+
+*(Répondu par Sam le 31/08.)* **L'emplacement ne permet pas de tirer un câble.**
+C'est une **contrainte permanente**, pas une tâche en attente : ne la comptez
+plus comme du travail à faire.
+
+C'est donc lui qui perdra des paquets et videra une file d'un coup — exactement
+le scénario de la première leçon d'horloge (chapitre 8). Le système sait déjà
+absorber une file rejouée (`EventTimeResolver` écrit l'heure de l'**événement**).
+Ce qui reste est la dette « les règles sont jugées à l'heure de la décision ».
 
 ## 4.7 L'interface servie par la VM / la mise à jour automatique
 
@@ -237,10 +261,22 @@ hors ligne, mais distribution manuelle).
 ⚠️ Le portable a une propriété que la VM n'aurait pas : **il fonctionne quand le
 réseau tombe.** Ce n'est pas un détail dans une école.
 
-## 4.8 L'e-mail à Fabiano et le PDF du guide
+## 4.8 L'e-mail à Fabiano et le PDF du guide — ✅ les deux sont partis
 
-**[À COMPLÉTER PAR SAM] : envoyés ou non ?** Et où en sont les réservations DHCP
-demandées au service informatique pour les terminaux et la VM ?
+*(Répondu par Sam le 31/08.)* L'e-mail au service informatique a été envoyé et le
+PDF du guide d'installation a été remis. **Rien à relancer.** La source reste
+`docs/operacional/guide-installation-postes.md` : c'est elle qu'il faut mettre à
+jour puis réexporter si la procédure change.
+
+⚠️ **Ce qui reste ouvert, c'est le contact lui-même.** Sam ne se souvient ni du
+nom complet de Fabiano, ni de son e-mail, ni de l'état des réservations DHCP.
+**[À COMPLÉTER — Sam n'a plus l'information.]**
+**À qui demander :** le secrétariat ou la direction connaissent le service
+informatique. **Ce qu'il faut lui demander :** « les adresses IP des six
+terminaux et de la VM `192.168.1.253` sont-elles réservées en DHCP, ou
+peuvent-elles encore changer ? »
+**N'attendez pas la réponse pour vous protéger :** la méthode empirique du
+handoff (§ 2.1) donne le risque réel en une requête, sans contact.
 
 ---
 

@@ -227,10 +227,31 @@ personne n'est dispensé). Une turma dispensée ne produit **ni drapeau ni refus
 cantine — mais **la passage reste enregistrée**. ⚠️ La conséquence PPMS est écrite
 à l'écran, à côté du réglage (`js/components/MealSlotManagement.js`).
 
-**[À COMPLÉTER PAR SAM]** Quelles turmas, s'il y en a, doivent être dispensées de
-badge à la cantine — et à partir de quelle date ? Le code le permet, la décision
-n'a pas été prise (le javadoc de `MealSlotService.CHAVE_DISPENSEES` la renvoie
-explicitement à Sam et à la Vie Scolaire).
+### 🔴 N'activez PAS la dispense en l'état — la raison est le PPMS
+
+*(Question posée à Sam le 31/08/2026. Réponse : **la conséquence PPMS n'avait pas
+été mesurée.**)*
+
+Le code permet la dispense ; la décision n'a jamais été prise, et **elle n'était
+pas comprise comme une décision de sécurité**. Elle en est une :
+
+⚠️ **Une classe dispensée de badge ne badge plus — donc elle n'apparaît plus dans
+le décompte d'évacuation du PPMS**, et l'écran PPMS **ne le signale pas**. Le
+jour d'une évacuation réelle, l'équipe de crise compterait des enfants en moins
+sans qu'aucun écran ne dise pourquoi. C'est exactement le défaut que le chapitre
+sur les leçons appelle « je n'ai pas vu » lu comme « il n'était pas là », avec
+des enfants dans un bâtiment.
+
+**Condition bloquante :** ne pas activer tant que **le PPMS ne nomme pas
+explicitement les classes dispensées** et ne dit pas comment elles sont comptées
+autrement (appel papier de l'enseignant, par exemple).
+
+**Et ce n'est pas à la personne qui reprend le code de trancher** — c'est une
+décision de **direction**, parce qu'elle arbitre entre le confort d'un service et
+un décompte d'évacuation. Détail et condition au § 8.2.9 du handoff.
+
+*(Clé de réglage : `magbo.cantine.turmas-dispensees`, CSV, **vide par défaut** —
+l'état actuel est donc le bon.)*
 
 ---
 
@@ -659,10 +680,32 @@ Le CDI ferme à 17:00 et personne n'y dort — mais la présence dérive du **de
 Configuration en production (`application-prod.properties`, lignes 120-127) :
 `BIBLIO=17:00` et `REFEI1=15:00`.
 
-**[À COMPLÉTER PAR SAM]** L'heure de 15:00 pour `REFEI1` porte, dans le fichier
-lui-même, la mention « ⚠️ CONFÉRER L'HEURE AVEC LA CANTINE avant le jour 1 » — qui
-reste encore à l'intérieur à 15:00 reçoit une sortie synthétique et disparaît du
-panneau de l'opérateur. Cette confirmation a-t-elle été faite ?
+### ✅ L'heure de 15:00 est confirmée — mais la sortie reste synthétique
+
+*(Répondu par Sam le 31/08/2026.)*
+
+Le fichier porte la mention « ⚠️ CONFÉRER L'HEURE AVEC LA CANTINE avant le
+jour 1 ». **La confirmation a été faite : 15:00 correspond au service réel.**
+Personne n'est fermé au milieu de son repas.
+
+⚠️ **Ce que cela ne dit pas, et qu'il faut lire lentement :** 15:00 est un
+**plafond juste** — à cette heure-là le service est fini, donc la fermeture ne
+ment pas sur la *présence*. Ce n'est pas une heure de sortie *individuelle*.
+Mesuré en production le 25/08 : **72 sorties écrites à 15:00 pile, dans la même
+minute.** Ce ne sont pas 72 personnes parties à 15:00 — ce sont 72 personnes
+dont la sortie n'a **jamais été lue**.
+
+**Conséquence : pour ces lignes, la durée de repas est un MAXIMUM, pas une
+mesure.** Un déjeuner de vingt minutes peut apparaître à trois heures. Toute
+moyenne qui les inclut est fausse vers le haut. Elles sont reconnaissables
+(`flag=FECHAMENTO_AUTO`, `created_by_user=system`) et donc excluables — le
+handoff, § 2.4, donne la requête et le piège du `flag IS NULL OR` qu'elle
+contient.
+
+**La question ouverte n'est donc plus l'heure, c'est le taux :** pourquoi
+72 sorties ne sont-elles pas lues ? Terminal de sortie absent, mal placé, ou
+personne ne badge en partant. Cela s'observe à la cantine à 13h, pas dans le
+dépôt.
 
 ---
 

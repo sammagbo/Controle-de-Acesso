@@ -61,8 +61,21 @@ similarités de 0,13 à 0,46.
 Le diagnostic du 27/08 a écarté avec preuve l'hypothèse la plus sérieuse (le
 changement de parser multipart) et n'a trouvé aucun défaut de code.
 
-La chute **coïncide** avec les imports de photos des 25 et 26/08. **La cause
-n'est pas prouvée**, et ce livre ne conclut pas à sa place.
+La chute **coïncide** avec les imports de photos des 25 et 26/08 — et depuis le
+31/08 on sait que ces imports sont passés **par HikCentral**, donc par **les
+bibliothèques faciales des caméras**, et non par l'écran Photos du MAGBO (qui
+remplit `user_photos`, sans aucun effet sur la reconnaissance).
+
+⚠️ **Ce n'est donc plus une simple coïncidence de dates : il existe un
+mécanisme.** Les caméras ne font que *comparer* un visage à cette bibliothèque ;
+un repeuplement change ce à quoi elles comparent. C'est arrivé une fois déjà :
+le format du `certificateNumber` a changé le 08/08 pour la même raison.
+
+**La cause n'est pas prouvée pour autant**, et ce livre ne conclut pas à sa
+place. Un mécanisme plausible est plus qu'une coïncidence et moins qu'une
+preuve. **Mesurez avant de réparer** — en commençant par le nombre de personnes
+ayant encore un `camera_person_id` : s'il s'est effondré, la bibliothèque est
+bien en cause.
 
 Les chiffres complets, les cinq requêtes SQL à lancer sur la VM et les actions
 HikCentral sont dans :
@@ -286,7 +299,12 @@ simplement d'arriver. C'est arrivé le 16/07 (terminal `.12`→`.10`, serveur
    **actuelle** du terminal ?
 
 **Une réservation DHCP a été demandée au service informatique** pour les
-terminaux et la VM. **[À COMPLÉTER PAR SAM] : où en est cette demande ?**
+terminaux et la VM. **[À COMPLÉTER — Sam ne se souvient plus de l'état de cette
+demande (répondu le 31/08), et n'a pas retrouvé le contact.]**
+**À qui demander :** le secrétariat ou la direction connaissent le service
+informatique.
+⚠️ **N'attendez pas la réponse pour vous protéger** : les quatre vérifications
+ci-dessus donnent le risque réel en quelques minutes, sans contact.
 
 ⚠️ **Fuseau d'usine.** Les terminaux sortent en **GMT+8**. Il faut corriger en
 GMT−3 et remettre l'heure à l'installation — sinon ils émettent des événements

@@ -264,11 +264,36 @@ Le déploiement **initial** (conteneurs, base, migrations) est dans
 [`reconstruir-do-zero.md`](reconstruir-do-zero.md). Ce qui suit est la **mise à
 jour** d'un système déjà en service.
 
-> ⚠️ **[À COMPLÉTER PAR SAM]** L'hôte de la VM, le chemin du dépôt sur la VM et
-> l'utilisateur de déploiement **ne sont versionnés nulle part**. Les commandes
-> ci-dessous utilisent `/opt/magbo` par convention. **Question précise : quel
-> est le nom d'hôte ou l'IP de la VM, sous quel utilisateur se connecte-t-on, et
-> quel est le chemin réel du dépôt ?**
+### 3.1 L'accès à la VM
+
+*(Répondu par Sam le 31/08/2026.)*
+
+```bash
+ssh magbo@192.168.1.253
+```
+
+| Quoi | Où |
+|---|---|
+| Dépôt sur la VM | `~/Controle-de-Acesso` (soit `/home/magbo/Controle-de-Acesso`) |
+| Compose | `~/Controle-de-Acesso/deploy/docker-compose.yml` |
+| JAR déployé | `~/Controle-de-Acesso/backend/target/access-control-1.0.0.jar` |
+
+> ## ⚠️⚠️ LE DÉPÔT DE LA VM N'EST PAS `origin/main`
+>
+> **Le dépôt git de la VM DIVERGE.** Il porte des commits qui n'existent nulle
+> part ailleurs, et un `docker-compose.yml` **modifié et non commité** — c'est
+> lui qui porte `TZ: America/Sao_Paulo` sur les deux conteneurs, plus
+> `MAGBO_ADMIN_PASSWORD` et `ADMIN_PIN`.
+>
+> **Qui ferait `git pull` sur la VM en s'attendant à y trouver le code de
+> production se tromperait** — et écraserait peut-être la configuration qui fait
+> tourner le système. Avant tout `git` sur la VM : `git status` et
+> `git stash list`, et lire ce qui n'est pas commité.
+>
+> ⚠️ **Le JAR vient TOUJOURS du PC de Sam par `scp`. Jamais d'un build sur la
+> VM.** La VM n'a pas Maven et n'a pas à l'avoir. La conséquence est qu'un
+> `git pull` sur la VM ne change **rien** à ce qui tourne : le backend en
+> service est le fichier `.jar` copié, pas le code du dépôt local.
 
 ```bash
 # ── 1. Sur le PC : construire ────────────────────────────────────────
@@ -291,13 +316,15 @@ exactement 2 `@Disabled`**.
 
 ```bash
 # ── 3. Copier le jar sur la VM ───────────────────────────────────────
-scp backend/target/access-control-1.0.0.jar <user>@<vm>:/opt/magbo/backend/target/
+scp backend/target/access-control-1.0.0.jar \
+    magbo@192.168.1.253:~/Controle-de-Acesso/backend/target/
 
 # ── 4. Les migrations À LA MAIN, AVANT de remonter le backend ────────
 #     (voir §5 — ddl-auto ne les fera pas)
 
 # ── 5. Redémarrer ────────────────────────────────────────────────────
-cd /opt/magbo/deploy && docker compose restart backend
+ssh magbo@192.168.1.253
+cd ~/Controle-de-Acesso/deploy && docker compose restart backend
 # `sudo` n'est plus nécessaire : l'utilisateur de déploiement est dans le
 # groupe `docker`. S'il demande un mot de passe, la permission a régressé.
 
@@ -591,8 +618,10 @@ répondre d'un seul coup. Chaque ligne est aussi marquée à sa place dans le
 document.
 
 ### Accès et infrastructure
-1. **Quel est le nom d'hôte ou l'IP de la VM**, sous quel utilisateur se
-   connecte-t-on, et quel est le chemin réel du dépôt sur la VM ? (§3)
+1. ✅ **RÉPONDU (31/08) — l'accès à la VM.** `ssh magbo@192.168.1.253`, dépôt
+   dans `~/Controle-de-Acesso`. ⚠️ **Le dépôt de la VM diverge d'`origin/main`**
+   et son `docker-compose.yml` est modifié sans être commité : ne pas y faire
+   `git pull` en croyant y trouver le code de production. Détail au §3.1.
 2. **Qui détient quels mots de passe ?** Pour chacun : `POSTGRES_PASSWORD`,
    `MAGBO_JWT_SECRET`, `MAGBO_WEBHOOK_TOKEN`, `ADMIN_PIN`,
    `MAGBO_ADMIN_PASSWORD`, le compte `admin` de l'application, l'accès web des

@@ -217,8 +217,30 @@ le strict nécessaire.
    rien à fermer », et il porte l'avertissement suivant, jamais levé :
    *« CONFÉRER L'HEURE AVEC LA CANTINE avant le jour 1 — qui est encore dedans
    à 15:00 reçoit une SORTIE synthétique et disparaît du panneau de
-   l'opérateur. »* **La cantine est en service depuis, et l'heure n'a
-   toujours pas été confirmée.** Voir la question 15 au §11.
+   l'opérateur. »*
+
+   ⚠️⚠️ **L'avertissement s'est réalisé, et il est mesuré. Le 25/08 :
+   72 sorties écrites à 15:00 pile, dans la même minute.** Ce ne sont pas
+   72 personnes qui sont sorties — ce sont 72 fermetures synthétiques.
+
+   **Ce que ça fausse :** toute durée de repas calculée pour ces 72 personnes
+   se termine à 15:00 au lieu de l'heure réelle. Si le service finit plus tôt,
+   ces durées sont **surestimées** chaque jour, et le nombre de « sorties non
+   enregistrées » est artificiellement bas — le système a comblé le trou
+   lui-même.
+
+   ⚠️ **Ce sont des lignes reconnaissables**, pas une corruption : elles portent
+   `flag=FECHAMENTO_AUTO` et `created_by_user=system`. On peut donc les compter,
+   et les exclure d'une analyse :
+   ```sql
+   SELECT timestamp::date, count(*)
+     FROM access_logs
+    WHERE point_id = 'REFEI1' AND flag = 'FECHAMENTO_AUTO'
+    GROUP BY 1 ORDER BY 1 DESC LIMIT 10;
+   ```
+
+   **L'heure n'a toujours pas été confirmée avec la cantine.** Voir la
+   question 15 au §11.
 
 4. **Les rapports comptent les ÉLÈVES par défaut.** 152 fonctionnaires et 49
    professeurs polluaient les chiffres du CDI. C'est un filtre **d'affichage** :
@@ -691,10 +713,15 @@ document.
 12. **Le terminal `.10`** (erreur `SYS[904]`, série en conflit) : y a-t-il un
     ticket ouvert, ou un échange avec Hikvision / le fournisseur ?
 13. **Le terminal `.14` en Wi-Fi** : est-ce définitif, ou un câble est-il prévu ?
-15. **La fermeture automatique de la cantine est réglée à 15:00** et le
-    commentaire du fichier dit que l'heure n'a jamais été confirmée avec la
-    cantine. **Est-ce la bonne heure ?** À 15:00, toute personne encore dans le
-    réfectoire reçoit une sortie qu'elle n'a pas faite. (§2.4)
+15. ⚠️ **La fermeture automatique de la cantine est réglée à 15:00, et l'effet
+    est MESURÉ : 72 sorties synthétiques le 25/08, toutes à 15:00 pile.**
+    L'heure n'a jamais été confirmée avec la cantine.
+    **[À COMPLÉTER PAR SAM / la cantine] : à quelle heure le service finit-il
+    réellement ?** Si c'est plus tôt, 72 personnes par jour reçoivent une sortie
+    qu'elles n'ont pas faite, et les durées de repas sont faussées d'autant.
+    Le réglage est une seule ligne :
+    `magbo.presence.auto-close.times[REFEI1]` dans
+    `application-prod.properties`. (§2.4)
 
 ### Matériel *(suite)*
 14. **Les imports de photos des 25 et 26/08** : quels fichiers, combien de

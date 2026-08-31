@@ -826,8 +826,42 @@ un test l'exige.
     GROUP BY 1 ORDER BY 3 DESC;
    ```
    Croiser avec `door_mappings` pour savoir quel `point_id` correspond au `.10`.
-4. **Le terminal `.14` est en Wi-Fi**, ce qui le rend le plus susceptible de
-   perdre des paquets et de vider une file d'un coup.
+4. **Le terminal `.14` est en Wi-Fi — définitivement.** *(Réponse de Sam,
+   31/08 : l'emplacement ne permet pas de tirer un câble.)* Ce n'est donc pas
+   une action ouverte mais une **contrainte permanente**, et c'est le terminal
+   le plus exposé aux coupures.
+
+   ✅ **Le système sait déjà l'absorber.** Quand la liaison tombe, le terminal
+   met ses événements en file et les renvoie d'un coup au retour. C'est le
+   scénario exact qui a produit le premier défaut d'horloge du projet — 33
+   événements arrivés à 14h51 le 03/08, tous enregistrés à 14h51, avec des
+   durées moyennes négatives à la clé. Depuis, `EventTimeResolver` lit l'heure
+   du **payload** : une file rejouée écrit les bonnes heures.
+
+   ⚠️ **Ce qui reste vrai malgré ça** — et c'est la dette 8.2.1 : les **règles**
+   sont jugées à l'heure de la **décision**. Une file du `.14` vidée à 15h30
+   écrit les bonnes heures de passage, mais a été **jugée** à 15h30. Pour la
+   cantine, ça peut faire tomber des passages de midi hors de leur créneau.
+
+   **Comment détecter une file rejouée.** ⚠️ **Pas par la base :**
+   `access_logs` ne garde **que** l'heure de l'événement (vérifié dans
+   `AccessLog.java` — les colonnes sont `timestamp`, `created_by_user`, `flag`,
+   `auth_method`, `hikvision_sub_event_type`, et rien qui date la réception).
+   Une file rejouée est donc **invisible dans les données**, et c'est voulu :
+   le but d'`EventTimeResolver` est précisément qu'elle ne laisse pas de trace
+   dans les horaires.
+
+   **La trace est dans les journaux du backend :**
+   ```bash
+   ssh magbo@192.168.1.253
+   docker logs magbo-backend --since 24h | grep -i "Hora do evento nao utilizavel"
+   ```
+   Cette ligne `INFO` sort avec l'IP et le motif à **chaque** repli sur l'heure
+   de réception. Elle ne se déclenche que si le `dateTime` est absent, illisible
+   ou hors bornes — une file simplement en retard n'en produit pas. **Pour voir
+   les coupures elles-mêmes**, chercher plutôt les trous dans les passages du
+   `.14` : une matinée sans un seul événement à un point qui en produit
+   d'habitude est le signe qui compte.
 
 ### 8.2 Dettes ouvertes — à NE PAS corriger sans décision
 
@@ -1037,7 +1071,12 @@ document.
     l'établissement, qui a traité la commande des terminaux. Sans la référence,
     rouvrir une demande auprès du fournisseur revient au même — l'erreur et le
     numéro de série suffisent à la décrire. Détail au §8.1.
-13. **Le terminal `.14` en Wi-Fi** : est-ce définitif, ou un câble est-il prévu ?
+13. ✅ **RÉPONDU (31/08) — définitif.** L'emplacement ne permet pas de tirer un
+    câble : c'est une **contrainte permanente**, pas une action ouverte. Le
+    système sait déjà absorber les files rejouées (`EventTimeResolver`) ; ce qui
+    reste est la dette 8.2.1 (les règles jugées à l'heure de la décision). Ce
+    qu'il faut surveiller, et pourquoi une file est invisible dans la base :
+    §8.1.
 15. ⚠️ **La fermeture automatique de la cantine est réglée à 15:00, et l'effet
     est MESURÉ : 72 sorties synthétiques le 25/08, toutes à 15:00 pile.**
     L'heure n'a jamais été confirmée avec la cantine.

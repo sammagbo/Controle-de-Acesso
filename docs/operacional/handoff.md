@@ -199,6 +199,36 @@ dans `access_attempts`. Aucune porte ne se ferme.
 | **Vie Scolaire** | recherche d'une personne, parcours du jour, autorisations de sortie, régimes, rapports |
 | **Direction** | rapports, KPI, PPMS |
 
+### ⚠️ Qui l'a construit — et pourquoi ça compte pour vous
+
+*(Répondu par Sam le 31/08/2026.)*
+
+**Sam faisait partie de la Vie Scolaire.** Il n'était pas un prestataire à qui
+l'école commandait un logiciel : il était **l'utilisateur du système qu'il
+écrivait**. Il n'y avait donc pas d'interlocuteur métier tiers — le développeur,
+le décideur et l'utilisateur quotidien étaient la même personne.
+
+**Ce que ça explique.** La précision opérationnelle du système vient de là : les
+règles ont été écrites par quelqu'un qui voyait ce qu'elles produisaient au
+comptoir le lendemain. C'est pourquoi le code distingue si soigneusement « non »
+de « je ne sais pas », et pourquoi chaque alerte porte une action.
+
+**Ce que ça coûte aujourd'hui.** Les trois rôles sont partis en même temps, et
+le troisième n'a laissé **aucune trace écrite** : le code dit ce que le système
+fait, ce document dit comment il tourne, mais **ce que les règles *devraient*
+être** vivait dans la tête de son utilisateur.
+
+> **Ce qu'il faut faire, et ce n'est pas technique :** reconstruire la relation
+> avec la Vie Scolaire. Les questions en attente (les horaires de la cantine,
+> les classes du mercredi, `5E3`/`3E3`, la dispense de badge) ne se répondent
+> pas en lisant le code — elles se répondent en parlant aux personnes qui
+> servent les repas et surveillent les sorties.
+>
+> ⚠️ **Commencez par les écouter avant de leur proposer quoi que ce soit.** Le
+> système marche aujourd'hui ; les questions ouvertes améliorent la justesse des
+> données, elles n'arrêtent rien. Vous avez le temps de comprendre avant de
+> changer.
+
 ---
 
 ## 2. Ce qui tourne aujourd'hui
@@ -871,7 +901,11 @@ document.
    liste, et les sept décisions en attente, n'ont donc plus de destinataire.
    **Désigner qui décide est la première décision à prendre** — voir « Le risque
    nº 2 » en tête de ce document.
-6. **La Vie Scolaire** : qui est l'interlocuteur au quotidien ?
+6. ✅ **RÉPONDU (31/08).** **Sam faisait lui-même partie de la Vie Scolaire** :
+   il n'y avait pas d'interlocuteur métier tiers. Le développeur, le décideur et
+   l'utilisateur quotidien étaient la même personne — et le savoir métier
+   (« ce que les règles *devraient* être ») n'a pas de trace écrite. Ce qu'il
+   faut faire, au §1.
 
 ### Engagements et décisions
 7. **Qu'est-ce qui a été promis verbalement, à qui, et pour quand ?**

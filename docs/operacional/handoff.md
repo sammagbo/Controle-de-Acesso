@@ -414,33 +414,60 @@ le strict nécessaire.
    ⚠️ **Deux points sont configurés en production, pas un :** `BIBLIO` à 17:00
    **et `REFEI1` à 15:00** (`application-prod.properties`). Le commentaire du
    fichier dit que REFEI1 était « inerte jusqu'au pilote — aucun mouvement,
-   rien à fermer », et il porte l'avertissement suivant, jamais levé :
-   *« CONFÉRER L'HEURE AVEC LA CANTINE avant le jour 1 — qui est encore dedans
-   à 15:00 reçoit une SORTIE synthétique et disparaît du panneau de
-   l'opérateur. »*
+   rien à fermer », et il porte un avertissement : *« CONFÉRER L'HEURE AVEC LA
+   CANTINE avant le jour 1 — qui est encore dedans à 15:00 reçoit une SORTIE
+   synthétique et disparaît du panneau de l'opérateur. »*
 
-   ⚠️⚠️ **L'avertissement s'est réalisé, et il est mesuré. Le 25/08 :
-   72 sorties écrites à 15:00 pile, dans la même minute.** Ce ne sont pas
-   72 personnes qui sont sorties — ce sont 72 fermetures synthétiques.
+   ### ✅ 15:00 est la bonne heure — confirmé par Sam le 31/08/2026
 
-   **Ce que ça fausse :** toute durée de repas calculée pour ces 72 personnes
-   se termine à 15:00 au lieu de l'heure réelle. Si le service finit plus tôt,
-   ces durées sont **surestimées** chaque jour, et le nombre de « sorties non
-   enregistrées » est artificiellement bas — le système a comblé le trou
-   lui-même.
+   **L'avertissement est levé : l'heure configurée correspond au service réel.**
+   Personne n'est coupé au milieu de son repas, et aucune sortie n'est écrite
+   pour quelqu'un qui serait encore là. Le commentaire d'alerte dans
+   `application-prod.properties` peut être remplacé par cette confirmation et sa
+   date, à la prochaine occasion de toucher au fichier.
+
+   ⚠️⚠️ **Mais cela ne rend pas ces sorties vraies, et c'est la distinction qui
+   compte.** Le 25/08 : **72 sorties écrites à 15:00 pile, dans la même
+   minute.** Ce ne sont pas 72 personnes qui sont sorties à 15:00 — ce sont
+   72 personnes dont la sortie n'a **jamais été lue**, et que le système a
+   fermées à la fin du service.
+
+   **Ce que 15:00 garantit, et ce qu'il ne garantit pas :**
+
+   | | |
+   |---|---|
+   | ✅ **Garanti** | l'heure est un **plafond juste** : à 15:00 le service est fini, donc plus personne n'est dans le réfectoire. La fermeture ne ment pas sur la présence. |
+   | ❌ **Pas garanti** | l'heure de sortie **individuelle**. Quelqu'un entré à 11h50 et parti à 12h10 porte une sortie à 15:00. |
+
+   **Conséquence à retenir : pour ces 72 lignes, la durée de repas est un
+   MAXIMUM, pas une mesure.** Un déjeuner de vingt minutes peut apparaître à
+   trois heures. Toute moyenne de durée à la cantine qui les inclut est fausse
+   vers le haut — et le nombre de « sorties non enregistrées » est
+   artificiellement bas, puisque le système a comblé le trou lui-même.
 
    ⚠️ **Ce sont des lignes reconnaissables**, pas une corruption : elles portent
-   `flag=FECHAMENTO_AUTO` et `created_by_user=system`. On peut donc les compter,
-   et les exclure d'une analyse :
+   `flag=FECHAMENTO_AUTO` et `created_by_user=system`. Les compter :
    ```sql
    SELECT timestamp::date, count(*)
      FROM access_logs
     WHERE point_id = 'REFEI1' AND flag = 'FECHAMENTO_AUTO'
     GROUP BY 1 ORDER BY 1 DESC LIMIT 10;
    ```
+   **Les exclure d'une mesure de durée** — c'est le geste à faire avant de citer
+   une moyenne à qui que ce soit :
+   ```sql
+   -- durées de repas MESURÉES : seulement les sorties réellement lues
+   ... WHERE point_id = 'REFEI1'
+         AND (flag IS NULL OR flag <> 'FECHAMENTO_AUTO')
+   ```
+   ⚠️ Le `flag IS NULL OR` n'est pas un ornement : sans lui, `<>` vaut UNKNOWN
+   pour NULL et **écarte en silence toutes les lignes normales** — c'est-à-dire
+   exactement celles qu'on voulait garder.
 
-   **L'heure n'a toujours pas été confirmée avec la cantine.** Voir la
-   question 15 au §11.
+   **La vraie question qui reste n'est donc plus l'heure, c'est le taux :**
+   pourquoi 72 sorties ne sont-elles pas lues ? Terminal de sortie absent,
+   mal placé, ou personne ne badge en partant ? La réponse change ce qu'on peut
+   mesurer à la cantine — pas le réglage.
 
 4. **Les rapports comptent les ÉLÈVES par défaut.** 152 fonctionnaires et 49
    professeurs polluaient les chiffres du CDI. C'est un filtre **d'affichage** :
@@ -919,7 +946,7 @@ protège une décision.
 | # | Dette | Pourquoi elle est gelée |
 |---|---|---|
 | 8.2.1 | **Les règles sont évaluées à l'heure de la DÉCISION**, pas à celle de l'événement | Une file hors ligne ne doit pas pouvoir changer un `DENY` en `ALLOW` rétroactivement. Le régime de sortie est **l'exception assumée** : il ne refuse jamais, il décrit — et il juge à l'heure de la passage |
-| 8.2.2 | **La fermeture automatique de la cantine est configurée à 15:00 sans avoir été confirmée** | Écrite quand REFEI1 était inerte ; la cantine est en service depuis. Le fichier de configuration porte l'avertissement. Quiconque est encore dans le réfectoire à 15:00 reçoit une sortie synthétique |
+| 8.2.2 | ✅ **L'heure de fermeture de la cantine (15:00) est CONFIRMÉE** (Sam, 31/08) — cette ligne n'est plus une dette de réglage | Ce qui reste n'est pas l'heure mais le **taux** : ~72 sorties par jour ne sont jamais lues et sont fermées par le système. Ces lignes portent `FECHAMENTO_AUTO` : leur durée de repas est un **maximum**, pas une mesure — les exclure de toute moyenne (§2.4) |
 | 8.2.3 | **`DEVICE_DENIED` est utilisé pour les sous-types inconnus** | Il manque `UNKNOWN_EVENT` dans l'enum. Ça gonfle `divergenciaHoje` |
 | 8.2.4 | **Les endpoints protégés rendent 403, pas 401** | Seul le webhook rend 401 |
 | 8.2.5 | **Deux couches HTTP dans le frontend** (`js/api.js` et `js/utils/api.js`) | Ne pas en créer une troisième ; consolider est un chantier à part |
@@ -1125,15 +1152,17 @@ document.
     reste est la dette 8.2.1 (les règles jugées à l'heure de la décision). Ce
     qu'il faut surveiller, et pourquoi une file est invisible dans la base :
     §8.1.
-15. ⚠️ **La fermeture automatique de la cantine est réglée à 15:00, et l'effet
-    est MESURÉ : 72 sorties synthétiques le 25/08, toutes à 15:00 pile.**
-    L'heure n'a jamais été confirmée avec la cantine.
-    **[À COMPLÉTER PAR SAM / la cantine] : à quelle heure le service finit-il
-    réellement ?** Si c'est plus tôt, 72 personnes par jour reçoivent une sortie
-    qu'elles n'ont pas faite, et les durées de repas sont faussées d'autant.
-    Le réglage est une seule ligne :
-    `magbo.presence.auto-close.times[REFEI1]` dans
-    `application-prod.properties`. (§2.4)
+15. ✅ **RÉPONDU (31/08) — 15:00 est la bonne heure**, confirmée par Sam contre
+    le service réel. L'avertissement de `application-prod.properties` est levé :
+    personne n'est coupé au milieu de son repas.
+    ⚠️ **Mais les 72 sorties du 25/08 restent synthétiques** — ce sont
+    72 personnes dont la sortie n'a jamais été *lue*. Pour elles, la durée de
+    repas est un **maximum**, pas une mesure. Les exclure avant toute moyenne :
+    §2.4.
+    **La question qui reste n'est plus l'heure, c'est le taux : pourquoi
+    72 sorties ne sont-elles pas lues ?** (terminal de sortie absent, mal placé,
+    ou personne ne badge en partant). Elle est nouvelle et n'appartient plus à
+    Sam — elle s'observe sur place, à la cantine, à 13h.
 
 ### Matériel *(suite)*
 14. ⚠️ **RÉPONDU (31/08) — par HikCentral.** C'est la réponse la plus utile de

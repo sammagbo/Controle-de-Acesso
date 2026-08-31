@@ -4,7 +4,7 @@
 Sam, ou Sam lui-même revenant après une longue absence.
 
 **Date de coupe : 2026-08-29.** Dernier merge sur `main` : `7c4d54e`.
-Suites : backend **943** tests (0 échec, exactement 2 `@Disabled`), npm **692**.
+Suites : backend **943** tests (0 échec, exactement 2 `@Disabled`), npm **694**.
 
 Ce document décrit le système **tel qu'il tourne**, pas tel qu'il a été pensé.
 Là où l'intention et la réalité divergent, c'est la réalité qui compte.

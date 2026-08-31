@@ -377,9 +377,7 @@ demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
 `[A COMPLETER PAR SAM]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
 et qui est censé la réparer ?
 
-[CAPTURE : la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le
-port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements
-cessent d'arriver]
+[CAPTURE: la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
 
 ---
 
@@ -486,7 +484,7 @@ Mesurés sur `main` @ `7c4d54e` (« Merge fix/balayage-28-08 — 33 corrections 
 |---|---|
 | Contrôleurs / services / modèles / repositories / DTO | 27 / 39 / 35 / 21 / 37 |
 | Fichiers de test Java / JS | 82 / 35 |
-| Suites | `mvn test` **943**, `npm test` **692** |
+| Suites | `mvn test` **943**, `npm test` **694** |
 | Migrations SQL | **V001 → V026** (`deploy/migrations/`) |
 | Permissions granulaires | **10** (`security/Permissions.java`, liste `TODAS`) |
 

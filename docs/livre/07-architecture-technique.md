@@ -239,7 +239,7 @@ README.
 ## 4. Les tests
 
 **Backend 943** (0 échec, exactement 2 `@Disabled`) sur 82 fichiers.
-**npm 692** sur 36 fichiers.
+**npm 694** sur 36 fichiers.
 
 ⚠️ **Le critère n'est pas un total.** Le total monte à chaque livraison ; un
 nombre écrit dans un document vieillit en quelques jours. Le critère est

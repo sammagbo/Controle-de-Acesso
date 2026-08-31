@@ -80,6 +80,23 @@ describe('le convertisseur Markdown du livre', () => {
         expect(html).toContain("l'écran du CDI avec une alerte");
     });
 
+    it('★★★ toutes les FORMES du marqueur de capture sont reconnues', () => {
+        // ⚠️ Défaut réel, trouvé le 29/08 : sept captures étaient annoncées dans
+        // les chapitres et UNE SEULE était rendue. Les autres portaient l'espace
+        // français avant le deux-points, ou des accents graves — le convertisseur
+        // les avalait EN SILENCE. Une capture promise qui disparaît est
+        // exactement ce que la case existe pour empêcher.
+        const formes = [
+            "[CAPTURE: sans espace]",
+            "[CAPTURE : avec l'espace français]",
+            "`[CAPTURE : entre accents graves]`",
+            "  [CAPTURE: indenté]",
+        ];
+        for (const f of formes) {
+            expect(versHtml(f), 'forme non reconnue : ' + f).toContain('capture-etiq');
+        }
+    });
+
     it('★ échappe les entités dans le bon ordre', () => {
         expect(esc('a & b < c > d')).toBe('a &amp; b &lt; c &gt; d');
     });
@@ -108,6 +125,19 @@ describe('le livre assemblé', () => {
         // dès qu'on l'oublie.
         expect(html).toContain('print-color-adjust: exact');
         expect(html).toContain('-webkit-print-color-adjust: exact');
+    });
+
+    it('★★ toutes les captures annoncées sont RENDUES, aucune avalée', () => {
+        if (!existe) return;
+        const dansLesChapitres = fs.readdirSync(path.join(RACINE, 'docs', 'livre'))
+            .filter(f => /^0[1-9]-.+\.md$/.test(f))
+            .reduce((n, f) => n + (fs.readFileSync(path.join(RACINE, 'docs', 'livre', f), 'utf8')
+                .match(/\[CAPTURE\s*:/gi) || []).length, 0);
+        const dansLeHtml = (html.match(/capture-etiq/g) || []).length;
+        expect(dansLeHtml,
+            `${dansLesChapitres} capture(s) annoncée(s) dans les chapitres, ${dansLeHtml} rendue(s). `
+            + 'Une capture avalée par le convertisseur ne sera jamais prise.')
+            .toBeGreaterThanOrEqual(dansLesChapitres);
     });
 
     it('★ il porte les neuf chapitres et le sommaire', () => {

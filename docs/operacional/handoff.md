@@ -826,6 +826,45 @@ protège une décision.
 | 8.2.6 | **`magbo.policy.meal-pending=DENY` en production** | Prérequis opérationnel : le bulk des autorisés **avant** le jour 1, sinon tout `PENDING` est refusé |
 | 8.2.7 | **7 endpoints sans garde d'autorisation** | Nommés dans `ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA`. ⚠️ L'un d'eux, `registerAccess`, est une **écriture**. Les garder casserait des écrans : c'est un chantier avec ses propres preuves |
 
+### 🔴 8.2.9 NE PAS activer la dispense de badge en l'état — le PPMS
+
+*(Répondu par Sam le 31/08/2026 : la conséquence PPMS **n'avait pas été
+mesurée** au moment de préparer la fonctionnalité.)*
+
+La dispense permet de retirer une classe entière de l'obligation de badger. Elle
+est **préparée et désactivée par défaut**, et elle doit le rester tant que le
+point ci-dessous n'est pas traité.
+
+> ## ⚠️⚠️ Une classe dispensée disparaît AUSSI du décompte PPMS
+>
+> Le PPMS est le plan d'évacuation : il répond à « qui est encore dans
+> l'établissement, et où ». **Une classe dispensée de badger n'a plus de
+> passages — donc plus de présence — donc elle n'est pas comptée.**
+>
+> En évacuation, ces enfants **ne figureraient pas** parmi les personnes
+> présentes. Et le pire n'est pas le nombre manquant : **c'est que l'écran ne
+> le dirait pas.** Un décompte amputé qui a l'air complet est plus dangereux
+> qu'un décompte dont on sait qu'il est partiel.
+
+**Ce qui atténue, et ce qui n'atténue pas.** L'écran PPMS dit déjà, au-dessus du
+nombre, qu'il **ne remplace pas l'appel** — c'est la vraie sécurité, et elle
+tient. Mais l'écran de configuration est le seul endroit qui mentionne la
+conséquence (« elles disparaissent du Moniteur **ET** du décompte PPMS ») :
+**l'écran PPMS lui-même n'en dit rien.** Or c'est celui qu'on lit en urgence.
+
+**Condition avant toute activation :**
+
+1. **L'écran PPMS doit signaler les classes dispensées** — nommément, avec leur
+   effectif, sous le nombre total. Tant que ce n'est pas fait, activer la
+   dispense dégrade un outil de sécurité en silence.
+2. **La direction doit trancher**, pas la personne qui reprend le code : c'est
+   un arbitrage entre le confort d'exploitation et l'exhaustivité d'un décompte
+   d'évacuation.
+
+⚠️ **Le réglage est à un clic** (écran de configuration, `magbo.cantine.turmas-dispensees`).
+C'est précisément ce qui rend cet avertissement nécessaire : rien dans
+l'interface n'empêche de l'activer.
+
 ### ⚠️ 8.2.8 Le droit au repas est accordé en bloc, et « temporaire » n'a pas de fin
 
 *(Répondu par Sam le 31/08/2026.)*
@@ -959,9 +998,12 @@ document.
    faites, il manque les décisions.** Quatre points, détaillés au §2.6. Ils ne
    demandent aucune mesure supplémentaire : ils demandent **quelqu'un qui
    tranche**.
-10. **La dispense de badge par classe** est préparée mais désactivée. Qui décide
-    de l'activer, et sait-on que les classes dispensées disparaissent aussi du
-    décompte PPMS ?
+10. 🔴 **RÉPONDU (31/08) — la conséquence PPMS n'avait PAS été mesurée.**
+    Activer la dispense retirerait les classes concernées du **décompte
+    d'évacuation**, sans que l'écran PPMS le signale. **Ne pas activer** tant
+    que le PPMS ne nomme pas les classes dispensées ; et c'est la **direction**
+    qui tranche, pas la personne qui reprend le code. Détail et condition au
+    §8.2.9.
 11. **L'e-mail à Fabiano et le PDF du guide d'installation** : envoyés ou non ?
 
 ### Matériel

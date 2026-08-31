@@ -826,6 +826,39 @@ protège une décision.
 | 8.2.6 | **`magbo.policy.meal-pending=DENY` en production** | Prérequis opérationnel : le bulk des autorisés **avant** le jour 1, sinon tout `PENDING` est refusé |
 | 8.2.7 | **7 endpoints sans garde d'autorisation** | Nommés dans `ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA`. ⚠️ L'un d'eux, `registerAccess`, est une **écriture**. Les garder casserait des écrans : c'est un chantier avec ses propres preuves |
 
+### ⚠️ 8.2.8 Le droit au repas est accordé en bloc, et « temporaire » n'a pas de fin
+
+*(Répondu par Sam le 31/08/2026.)*
+
+**874 élèves et 121 personnels — 995 personnes — ont un droit au repas accordé
+en bloc, à titre temporaire**, en attendant une liste que la DAF devait fournir.
+
+⚠️ **Cette demande n'a jamais été formalisée auprès de qui que ce soit.** Ce
+n'est donc pas une relance à faire : c'est une **démarche à initier**.
+
+**Ce que ça veut dire pour la règle.** `magbo.policy.meal-not-entitled=DENY` est
+bien active — mais elle ne refuse jamais personne, puisque tout le monde est
+autorisé. **La règle existe, elle ne protège rien.** C'est un choix conscient et
+prudent (voir 8.2.6 : la sanction inverse, refuser tous les `PENDING`, aurait
+peint l'école en rouge le jour 1) — mais un « temporaire » sans échéance ni
+processus de sortie devient permanent par défaut.
+
+**Pour voir l'état réel à tout moment :**
+```sql
+SELECT status, count(*) FROM meal_entitlements GROUP BY 1 ORDER BY 2 DESC;
+```
+
+**Ce qu'il faut décider, et ce n'est pas technique :**
+1. **Qui, à la DAF, produit la liste des ayants droit ?**
+2. **Sous quelle forme ?** Le système sait importer un `.xlsx` (écran Droits
+   Repas). ⚠️ **Les matricules doivent rester du TEXTE** — Excel mange les zéros
+   à gauche, et une matricule `0003535` devenue `3535` ne correspond à personne.
+3. **À quelle échéance ?** Sans date, l'autorisation en bloc reste en place.
+
+⚠️ **Ne pas retirer l'autorisation en bloc avant d'avoir la liste.** L'ordre
+compte : sans liste chargée, la retirer refuserait 995 personnes à la cantine
+le lendemain matin.
+
 ### 8.3 Ce qui reste à faire
 
 La liste datée et priorisée est au **chapitre 9 du livre** :
@@ -916,8 +949,12 @@ document.
    prendre le temps de comprendre avant de produire. Le seul engagement en
    suspens reste **la liste DAF** (question 8), qui est une attente *du* système
    envers l'établissement, pas l'inverse.
-8. **La liste DAF** attendue : qui la produit, sous quelle forme, pour quoi
-   faire ?
+8. ⚠️ **RÉPONDU (31/08) — la demande n'a jamais été lancée.** Elle n'a été
+   formalisée auprès de personne : c'est une **démarche à initier**, pas une
+   relance. En attendant, **995 personnes (874 élèves + 121 personnels)** ont un
+   droit au repas accordé en bloc « temporairement », sans échéance ni processus
+   de sortie. ⚠️ **Ne pas retirer ce droit avant d'avoir la liste** — l'ordre
+   compte. Détail et requête de contrôle au §8.2.8.
 9. ⚠️ **Les décisions en suspens avec la Vie Scolaire — les mesures sont
    faites, il manque les décisions.** Quatre points, détaillés au §2.6. Ils ne
    demandent aucune mesure supplémentaire : ils demandent **quelqu'un qui

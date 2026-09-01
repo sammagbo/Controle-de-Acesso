@@ -362,6 +362,17 @@ backend entier de démarrer. Les deux sont corrigés et verrouillés.
 
 ## Conséquences
 
+- ⚠️ **Une licence ne se reproduit dans AUCUN document, et aucun exemple de
+  format ne porte de date plausible.** Corollaire de « une licence ne vit pas
+  dans git », appris à ses dépens le 01/09/2026 : la procédure d'exploitation
+  reproduisait une licence entière, « à recopier si le fichier est perdu ». Une
+  licence plus longue a été émise deux jours après, le document a continué
+  d'afficher l'ancienne, et quiconque l'aurait suivie aurait déployé une licence
+  **expirée en croyant réparer** — fermant les écrans de gestion par le geste
+  censé les rouvrir. Un document dit **comment** obtenir une licence
+  (réémission) et **où lire** celle en service (`/api/health`) ; il n'en contient
+  jamais une. Les illustrations de format utilisent `AAAA-MM-JJ`, jamais une date
+  qu'on pourrait prendre pour la vraie.
 - **Nouvelle table** `licence_clock` (V027) — une ligne, `id = 1`. À appliquer
   **à la main avant** de monter le backend : `ddl-auto` saurait la créer, et
   c'est le problème (elle naîtrait sans le `CHECK (id = 1)`).

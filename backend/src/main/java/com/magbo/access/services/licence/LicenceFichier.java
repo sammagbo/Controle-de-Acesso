@@ -14,12 +14,22 @@ import java.util.List;
  * <pre>
  * # commentaires libres, ignorés
  * MAGBO-LICENCE-V1
- * etablissement=Lycée Molière
- * licence_id=LM-20261130
- * emis_le=2026-08-31
- * expire_le=2026-11-30
+ * etablissement=&lt;nom de l'établissement&gt;
+ * licence_id=&lt;identifiant&gt;
+ * emis_le=AAAA-MM-JJ
+ * expire_le=AAAA-MM-JJ
  * signature=&lt;base64 Ed25519&gt;
  * </pre>
+ *
+ * ⚠️ <b>Les valeurs ci-dessus sont des GABARITS, pas un exemple réaliste.</b>
+ * Une version antérieure montrait une vraie date et un vrai identifiant, et le
+ * même choix ailleurs a déjà coûté cher : la procédure d'exploitation
+ * reproduisait une licence entière « à recopier si le fichier est perdu », elle
+ * a vieilli en deux jours, et quiconque l'aurait suivie aurait déployé une
+ * licence EXPIRÉE en croyant réparer. Un exemple qui ressemble à la licence en
+ * service finit par être pris pour elle. L'état courant se lit sur
+ * {@code /api/health} ; la procédure de réémission est dans
+ * {@code docs/operacional/procedimento-licence.md}.
  *
  * ⚠️ TEXTE LISIBLE, PAS UN BLOB. Sur la VM, quelqu'un doit pouvoir faire
  * {@code cat licence.magbo} et comprendre ce qu'il regarde sans outil. Un JSON

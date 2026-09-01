@@ -3,8 +3,17 @@
 **Pour qui :** la personne qui reprend MAGBO Access Control après le départ de
 Sam, ou Sam lui-même revenant après une longue absence.
 
-**Date de coupe : 2026-08-29.** Dernier merge sur `main` : `7c4d54e`.
-Suites : backend **943** tests (0 échec, exactement 2 `@Disabled`), npm **694**.
+**Date de coupe : 2026-09-01.** Dernier merge sur `main` : `5632d0a`
+(PR #87 — la licence).
+Suites : backend **1055** tests (0 échec, exactement 2 `@Disabled`), npm **719**.
+Migrations **V001 → V027**, toutes appliquées en production.
+
+**La licence est DÉPLOYÉE et valide.** `/api/health` répond
+`"etat":"VALIDE","expireLe":"2027-03-31","gestionOuverte":true`. Ce que ce
+mécanisme fait — et surtout ce qu'il ne ferme **jamais** — est dans
+[`ADR-006`](../architecture/decisoes/ADR-006-licence-degradation-par-couches.md) ;
+la procédure d'émission et de dépôt est dans
+[`procedimento-licence.md`](procedimento-licence.md).
 
 Ce document décrit le système **tel qu'il tourne**, pas tel qu'il a été pensé.
 Là où l'intention et la réalité divergent, c'est la réalité qui compte.
@@ -347,17 +356,28 @@ pourcentage de l'autre).
 
 ### 2.2 Les migrations
 
-**V001 → V026, toutes appliquées sur la VM de production** (état déclaré par
-Sam le 28/08). Le détail de chacune est dans
+**V001 → V027, toutes appliquées sur la VM de production** (V001–V026 déclarées
+par Sam le 28/08 ; V027 appliquée au déploiement de la licence le 01/09). Le
+détail de chacune est dans
 [`deploy/migrations/README.md`](../../deploy/migrations/README.md).
 
 **[À VÉRIFIER]** Confirmer que les tables des dernières migrations existent :
 ```bash
 docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT tablename FROM pg_tables WHERE schemaname='public'
-    AND tablename IN ('meal_slots','system_settings','cdi_exclusions','cdi_alert_events','cantine_removals')
+    AND tablename IN ('meal_slots','system_settings','cdi_exclusions','cdi_alert_events','cantine_removals','licence_clock')
    ORDER BY 1;"
-# → les cinq doivent répondre
+# → les six doivent répondre
+```
+
+⚠️ Pour `licence_clock` (V027), l'existence de la table **ne suffit pas** : ce
+qui la distingue de celle qu'`ddl-auto` aurait créée, c'est son `CHECK`.
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT conname FROM pg_constraint
+    WHERE conrelid='licence_clock'::regclass AND contype='c';"
+# → ck_licence_clock_ligne_unique
 ```
 
 ### 2.3 Ce qui a changé depuis le 05/08
@@ -377,6 +397,7 @@ chacun, les chantiers postérieurs. Le détail vit dans les rapports de nuit.
 | **Écran de configuration** — les réglages modifiables à l'écran | V024 | [`inventaire-configurabilite.md`](inventaire-configurabilite.md) |
 | **Recherche centrale** sur l'écran d'accueil, avec autocomplétion | — | [`nuit-27-28-08-rapport.md`](nuit-27-28-08-rapport.md) |
 | **L'affiche cantine** imprimable en couleur, fidèle au mur | — | [`controle-affiche-cantine.md`](controle-affiche-cantine.md) |
+| **Licence** — dégradation par couches ; une licence expirée AVERTIT, ne supprime rien, et ne ferme **jamais** le webhook ni le PPMS nominatif | V027 | [`ADR-006`](../architecture/decisoes/ADR-006-licence-degradation-par-couches.md), [`procedimento-licence.md`](procedimento-licence.md) |
 
 ⚠️ **L'écran de configuration a déménagé le 28/08 :** il n'est plus dans le
 Panneau Administratif, il est dans **l'engrenage du header**, visible avec
@@ -581,6 +602,29 @@ ssh magbo@192.168.1.253
 > lui qui porte `TZ: America/Sao_Paulo` sur les deux conteneurs, plus
 > `MAGBO_ADMIN_PASSWORD` et `ADMIN_PIN`.
 >
+> ### ⚠️ Depuis le 01/09/2026, ce même fichier porte aussi le volume de la licence
+>
+> La ligne `- ./licence:/licence:ro` dans le service `backend`. Elle **n'est pas
+> davantage dans le dépôt**. Sans elle, le backend ne trouve pas
+> `/licence/licence.magbo`, et `/api/health` répond
+> `"etat":"EXPIREE","motif":"ABSENTE"`.
+>
+> **Cela RESSEMBLE à une échéance et n'en est pas une.** La réparation est
+> d'ajouter le volume et de recréer le conteneur — **pas** de renouveler la
+> licence. Procédure : [`procedimento-licence.md`](procedimento-licence.md).
+>
+> ⚠️ **Ce défaut s'est réellement produit**, au déploiement de la licence du
+> 01/09. Et c'est le **log du backend** qui l'a nommé, pas la sonde :
+>
+> ```
+> aucun fichier a /licence/licence.magbo
+> ```
+>
+> `/api/health` disait seulement `ABSENTE` — le motif, pas la cause. **Le log dit
+> OÙ, le health dit QUOI.** Retenez l'ordre du diagnostic : la sonde vous
+> apprend qu'il y a un problème de licence ; c'est `docker logs magbo-backend`
+> qui vous dit lequel, et il donne le chemin exact que le backend a cherché.
+>
 > **Qui ferait `git pull` sur la VM en s'attendant à y trouver le code de
 > production se tromperait** — et écraserait peut-être la configuration qui fait
 > tourner le système. Avant tout `git` sur la VM : `git status` et
@@ -597,8 +641,8 @@ mvn -f backend/pom.xml clean package
 # → backend/target/access-control-1.0.0.jar
 
 # ── 2. Les deux suites, AVANT de copier quoi que ce soit ─────────────
-cd backend && rm -rf target/test-classes && mvn -o test    # 943, 0 échec, 2 @Disabled
-cd .. && npx vitest run                                     # 684, 0 échec
+cd backend && rm -rf target/test-classes && mvn -o test    # 1055, 0 échec, 2 @Disabled
+cd .. && npx vitest run                                     # 719, 0 échec
 ```
 
 ⚠️ **Mesurer depuis zéro.** `mvn test` incrémental a déjà donné un
@@ -694,7 +738,7 @@ for f in V001__access_attempts V002__meal_entitlements V003__meal_entitlement_ev
          V018__access_logs_indice_hora V019__access_logs_indice_user_id \
          V020__cantine_removals V021__meal_slots V022__denial_reason_meal_slot \
          V023__meal_slots_seed V024__system_settings V025__cdi_exclusions \
-         V026__cdi_alert_events; do
+         V026__cdi_alert_events V027__licence_clock; do
   echo "== $f"
   docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb \
     < deploy/migrations/$f.sql || { echo "ÉCHEC sur $f — NE PAS monter le backend"; break; }
@@ -710,8 +754,16 @@ rejouer sur une base à jour ne fait rien.
 
 ⚠️ **Mais `CREATE TABLE IF NOT EXISTS` ignore la FORME de la table existante.**
 Si une table préexiste avec un schéma différent, l'instruction ne fait rien
-**et ne dit rien**. C'est pourquoi V021, V025 et V026 portent une clause de
-garde qui lève une exception explicite dans ce cas.
+**et ne dit rien**. C'est pourquoi V021, V025, V026 et V027 portent une clause
+de garde qui lève une exception explicite dans ce cas.
+
+⚠️ **V027 va plus loin, et il faut savoir pourquoi.** Sa garde ne suffisait pas :
+si le backend avait déjà créé `licence_clock`, la table existait avec les bons
+noms de colonnes, la garde passait, `CREATE TABLE IF NOT EXISTS` ne faisait
+rien — et le `CHECK (id = 1)`, qui est la seule chose que cette migration
+apporte, n'était **jamais posé**, `psql` sortant avec le code 0. Le fichier pose
+donc désormais la contrainte séparément, dans un bloc idempotent. C'est le seul
+cas du dépôt où une migration devait réparer une table déjà créée par Hibernate.
 
 **Rollbacks :** `deploy/migrations/rollback/`, un par migration sauf V006, V008,
 V009 et V023 (V023 est un *seed* : ses lignes partent avec `R021`). Chaque

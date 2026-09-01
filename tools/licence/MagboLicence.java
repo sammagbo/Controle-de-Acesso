@@ -457,9 +457,9 @@ public final class MagboLicence {
         System.out.println();
         System.out.println("  java tools/licence/MagboLicence.java emettre");
         System.out.println("         --etablissement \"Lycee Moliere\"");
-        System.out.println("         (--mois 3 | --jusqu-au 2026-11-30)");
+        System.out.println("         (--mois 3 | --jusqu-au AAAA-MM-JJ)");
         System.out.println("         --cle-privee <chemin/magbo-licence-privee.pem>");
-        System.out.println("         [--id LM-20261130] [--emis-le AAAA-MM-JJ] [--sortie licence.magbo]");
+        System.out.println("         [--id <identifiant>] [--emis-le AAAA-MM-JJ] [--sortie licence.magbo]");
         System.out.println("      Emet une licence signee. Sans --sortie, elle est affichee a l'ecran.");
         System.out.println();
         System.out.println("  java tools/licence/MagboLicence.java verifier");

@@ -13,6 +13,16 @@ Celle-là ne doit jamais approcher ce dépôt : il est public.
 `licence.exemple.magbo` est suivi par git et montre le format. Sa signature est
 délibérément fausse.
 
+⚠️ **Et une licence ne se recopie pas non plus dans un document.** La procédure
+d'exploitation en a contenu une, « à recopier si le fichier est perdu ». Une
+licence plus longue a été émise deux jours plus tard, le document a continué
+d'afficher l'ancienne, et quiconque l'aurait suivie aurait déployé une licence
+**expirée** en croyant réparer. Une licence perdue se **réémet** (§ 7 de la
+procédure) ; l'échéance en service se **lit** sur `/api/health`. Aucun document
+n'a besoin d'en garder une copie, et un exemple qui ressemble à la licence en
+service finit par être pris pour elle — d'où les gabarits `AAAA-MM-JJ` partout
+où le format est illustré.
+
 ## Vérifier que le déploiement a réussi
 
 Après `docker compose up -d`, une seule commande :

@@ -581,6 +581,29 @@ ssh magbo@192.168.1.253
 > lui qui porte `TZ: America/Sao_Paulo` sur les deux conteneurs, plus
 > `MAGBO_ADMIN_PASSWORD` et `ADMIN_PIN`.
 >
+> ### ⚠️ Depuis le 01/09/2026, ce même fichier porte aussi le volume de la licence
+>
+> La ligne `- ./licence:/licence:ro` dans le service `backend`. Elle **n'est pas
+> davantage dans le dépôt**. Sans elle, le backend ne trouve pas
+> `/licence/licence.magbo`, et `/api/health` répond
+> `"etat":"EXPIREE","motif":"ABSENTE"`.
+>
+> **Cela RESSEMBLE à une échéance et n'en est pas une.** La réparation est
+> d'ajouter le volume et de recréer le conteneur — **pas** de renouveler la
+> licence. Procédure : [`procedimento-licence.md`](procedimento-licence.md).
+>
+> ⚠️ **Ce défaut s'est réellement produit**, au déploiement de la licence du
+> 01/09. Et c'est le **log du backend** qui l'a nommé, pas la sonde :
+>
+> ```
+> aucun fichier a /licence/licence.magbo
+> ```
+>
+> `/api/health` disait seulement `ABSENTE` — le motif, pas la cause. **Le log dit
+> OÙ, le health dit QUOI.** Retenez l'ordre du diagnostic : la sonde vous
+> apprend qu'il y a un problème de licence ; c'est `docker logs magbo-backend`
+> qui vous dit lequel, et il donne le chemin exact que le backend a cherché.
+>
 > **Qui ferait `git pull` sur la VM en s'attendant à y trouver le code de
 > production se tromperait** — et écraserait peut-être la configuration qui fait
 > tourner le système. Avant tout `git` sur la VM : `git status` et

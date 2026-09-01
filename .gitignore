@@ -64,7 +64,17 @@ backups/
 # secretes (elles n'autorisent qu'un etablissement, jusqu'a une date), mais
 # les ranger dans git installerait l'idee qu'une licence vit dans le depot —
 # et la prochaine, quelqu'un y mettrait la cle qui les signe.
-# L'exemple, lui, est suivi : il documente le format.
-deploy/licence/*.magbo
+#
+# ⚠️ LA REGLE EST GLOBALE (`*.magbo`), PAS LIMITEE A deploy/licence/.
+# La premiere version ne couvrait que `deploy/licence/*.magbo`, et un
+# `licence.magbo` s'est retrouve A LA RACINE du depot sans etre ignore : un
+# `git add -A` distrait l'aurait pousse sur un depot PUBLIC. C'est exactement
+# le precedent que l'ADR-006 refuse d'installer — une licence ne vit pas dans
+# git, ou qu'elle soit dans l'arborescence.
+#
+# L'exemple, lui, est suivi : il documente le format. Sa negation vient APRES
+# la regle globale, sinon `*.magbo` le re-ignorerait (dans un .gitignore, le
+# dernier motif qui correspond gagne).
+*.magbo
 !deploy/licence/licence.exemple.magbo
 backend/licence/

@@ -85,15 +85,30 @@ La clé **publique** correspondante est compilée dans le backend
 
 ---
 
-## 1. La licence de l'école, déjà émise
+## 1. Quelle licence tourne en ce moment ?
 
-**Lycée Molière, valable jusqu'au 30/11/2026 inclus.** Le fichier :
+⚠️ **La réponse n'est pas dans ce document, et c'est délibéré.** Elle est sur le
+serveur :
 
+```bash
+curl -s http://localhost:8080/api/health | grep -o '"licence".*'
 ```
-C:\Users\smagbo\magbo-licence-cles\licence.magbo
-```
 
-Son contenu est reproduit au § 7 pour pouvoir être recopié à la main.
+C'est la **seule** source qui ne peut pas mentir : elle lit le fichier qui est
+réellement monté, avec la signature réellement vérifiée. Un document qui
+annoncerait une date deviendrait faux le jour du premier renouvellement — et ce
+défaut s'est produit, voir l'encadré du § 7.
+
+Le fichier lui-même vit à deux endroits, et à aucun autre :
+
+| Où | Quoi |
+|---|---|
+| VM | `~/Controle-de-Acesso/deploy/licence/licence.magbo` (monté en lecture seule) |
+| PC de Sam | le dossier de clés, **hors du dépôt** (voir § 0) |
+
+*Observation datée, pas une vérité permanente — au **01/09/2026**, la licence en
+service était `LYCEEM-20270331`, émise le 2026-09-01, valide jusqu'au
+2027-03-31. Si vous lisez ceci plus tard, la commande ci-dessus fait foi.*
 
 ---
 
@@ -276,20 +291,58 @@ connexion continuent**. Ce n'est jamais une urgence de sécurité.
 
 ---
 
-## 7. La licence de l'école, en clair
+## 7. Le fichier de licence est perdu — le RÉÉMETTRE
 
-À recopier telle quelle dans `deploy/licence/licence.magbo` si le fichier est
-perdu. Les lignes `#` sont des commentaires et peuvent être omises ; **les six
-lignes utiles doivent être exactes, dans cet ordre**, sans espace ajoutée.
+> ### ⚠️ Ce paragraphe contenait une licence en clair. C'était une erreur.
+>
+> Il reproduisait les six lignes signées d'une licence, « à recopier telle
+> quelle si le fichier est perdu ». Deux jours plus tard, une licence plus
+> longue était émise et déployée — et le document continuait d'afficher
+> l'ancienne, échue, avec sa signature valide.
+>
+> Quelqu'un qui aurait suivi cette page pour restaurer un fichier perdu aurait
+> **déployé une licence expirée en croyant réparer**, et vu les écrans de
+> gestion se fermer par le geste censé les rouvrir.
+>
+> **Un document qui contient un artefact daté devient faux dès que l'artefact
+> change.** Celui-ci dit désormais COMMENT en obtenir une ; il n'en contient
+> plus.
 
+Une licence perdue **ne se recopie pas : elle se réémet.** C'est une commande,
+elle prend dix secondes, et le résultat est forcément à jour.
+
+```bash
+# 1. Émettre (§ 3 pour toutes les options)
+java tools/licence/MagboLicence.java emettre \
+     --etablissement "Lycée Molière" \
+     --jusqu-au AAAA-MM-JJ \
+     --cle-privee /chemin/vers/magbo-licence-privee.pem \
+     --sortie licence.magbo
+
+# 2. VÉRIFIER avant d'envoyer — l'étape qu'on saute et qu'on regrette
+java tools/licence/MagboLicence.java verifier \
+     --fichier licence.magbo \
+     --cle-publique /chemin/vers/magbo-licence-publique.txt
+#    → la dernière ligne doit dire : signature : VALIDE
+
+# 3. Déposer (§ 2), puis relire sans redémarrer (§ 5)
+scp licence.magbo utilisateur@vm:~/Controle-de-Acesso/deploy/licence/licence.magbo
 ```
-MAGBO-LICENCE-V1
-etablissement=Lycée Molière
-licence_id=LM-20261130
-emis_le=2026-08-31
-expire_le=2026-11-30
-signature=igD5KdhdFBihzdSpfeLbLNT4h+QpLWL91H9gU+3EtyWGwudsGuDEu8uMmmEC++xEnIQSrG1tp4g2i7HJQrokDQ==
-```
+
+⚠️ **Quelle date mettre dans `--jusqu-au` ?** Celle que la négociation
+commerciale a fixée. Si vous réémettez pour *restaurer* et non pour prolonger,
+lisez d'abord l'échéance en service (§ 1, `/api/health`) et reprenez-la : une
+licence réémise avec la même date d'expiration remplace exactement l'ancienne.
+
+⚠️ **Il n'y a rien à récupérer d'un fichier perdu.** Une licence n'est pas un
+secret et n'est pas unique : ce qui compte est la clé **privée** (§ 0), et tant
+qu'elle existe, une licence se refabrique à l'identique. C'est aussi pourquoi ce
+document n'a pas besoin d'en garder une copie.
+
+### Si vous devez tout de même écrire un fichier de licence à la main
+
+Par exemple parce qu'on vous l'a envoyé par un canal qui ne transporte pas les
+pièces jointes.
 
 ⚠️ Le fichier doit être encodé en **UTF-8** (à cause du `é` et du `è`). Un
 fichier recopié dans un éditeur en **latin-1** donnera `SIGNATURE_INVALIDE` :
@@ -402,11 +455,20 @@ docker exec magbo-postgres psql -U magbo -d magbodb \
 
 ## 10. À dire à la direction aujourd'hui, par écrit
 
-Le bandeau ne prévient qu'à partir du **01/11/2026** (30 jours avant
-l'échéance). D'ici là, personne dans l'établissement ne sait que cette date
-existe. Trois phrases suffisent :
+Le bandeau ne prévient que **30 jours avant l'échéance**. D'ici là, personne
+dans l'établissement ne sait que cette date existe.
 
-1. La période d'utilisation du logiciel court **jusqu'au 30/11/2026 inclus**.
+Commencez par la lire — ne la citez pas de mémoire, et ne la reprenez pas d'un
+document :
+
+```bash
+curl -s http://localhost:8080/api/health | grep -o '"expireLe":"[^"]*"'
+```
+
+Puis trois phrases suffisent :
+
+1. La période d'utilisation du logiciel court **jusqu'au \<date lue ci-dessus\>
+   inclus**.
 2. Passée cette date, il y a **un mois de tolérance pendant lequel rien ne se
    ferme**. Ensuite, seuls les écrans d'administration se suspendent —
    l'enregistrement des passages, les écrans de poste et **le PPMS avec les

@@ -141,6 +141,46 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 - **Ferramentas de servidor** (`63211d9`, `eac03f2`, `f442db9`): cadastro com `FUNC-###`, importação em lote, import do HikCentral com simulação, e **reclassificação servidor→aluno** (74 alunos tinham virado `FUNC-###` na importação).
 - **Assinatura de leitura:** microssegundos ≠ 0 **e** `created_by_user` preenchido = lançamento manual. Terminal grava com precisão de segundo e `created_by_user` nulo; fechamento automático assina `system`.
 
+### LICENÇA (branch `feat/licence`, ADR-006) — 31/08/2026
+> Mecanismo comercial de duração limitada. **Nunca mergeado sem decisão do Sam.**
+
+- **O princípio, e ele não se negocia:** uma licença expirada **AVISA**, não apaga
+  nada e não põe ninguém em risco. O **registo das passagens** (webhook) e a
+  **lista NOMINATIVA do PPMS** funcionam nos QUATRO estados, licença ausente
+  incluída — numa evacuação é o nome que permite achar uma criança. O que fecha
+  são os **ecrãs de GESTÃO**.
+- **Quatro estados:** VALIDE (>30d) → ALERTE (30 últimos dias, faixa só para
+  ADMIN/direção, **nada fecha**) → COURTOISIE (30 dias DEPOIS, **nada fecha**) →
+  EXPIREE (gestão fecha). **Sessenta dias de pré-aviso visível** antes de
+  qualquer fecho — porque o Sam pode estar incontactável e ninguém pode ficar
+  bloqueado por isso.
+- **Assinatura Ed25519, não senha.** Chave **privada** fica com o Sam, **nunca**
+  no repo nem no JAR (o repo é público); só a **pública** é compilada
+  (`LicenceVerifier.CLE_PUBLIQUE`). Zero dependência nova — o JDK 17 traz
+  Ed25519 (JEP 339). Verificação **só no backend** (um posto com o `.exe`
+  trocado por uma versão antiga contornaria qualquer verificação no cliente) e
+  **offline**, sem chamada de rede.
+- ⚠️ **AUSENTE, ILEGÍVEL e FALSIFICADA dão o MESMO efeito** (EXPIREE, sem
+  cortesia). Se «sem ficheiro» abrisse 30 dias, apagar o ficheiro a cada 29 dias
+  seria a licença perpétua; se falsificar fosse mais permissivo, era essa a porta.
+- ⚠️ **O QUINTO ARMADILHA DE RELÓGIO** (`licence_clock`, V027): a data mais
+  recente já observada é persistida; recuo > **2 dias** = licença tratada como
+  expirada. É a primeira das cinco tratada **antes** de morder. A borda **nunca
+  recua** — quem adiantar o relógio da VM e depois o corrigir fica com a gestão
+  fechada até um `UPDATE` manual (documentado em `procedimento-licence.md`).
+- ⚠️ **Endpoint novo? `LicencePorteeGuardTest` fica VERMELHO** até alguém
+  escrever, numa tabela à mão, se ele fecha ou não. O default é **ABERTO** (na
+  dúvida continua a funcionar) e este teste transforma esse default em decisão.
+- ⚠️ **402, nunca 403.** O front trata 403 como «sessão expirada» e desliga —
+  um recusa de licença em 403 diria «Reconnectez-vous» a quem tem sessão válida.
+  É a classe de defeito mais cara já paga aqui (a importação de refeições que
+  acusava a sessão por um erro de formato de data).
+- **Ferramenta de emissão:** `java tools/licence/MagboLicence.java` — sem Maven,
+  sem rede, só um JDK. Procedimento numa página:
+  `docs/operacional/procedimento-licence.md`.
+- **O que NÃO protege:** quem recompila o backend a partir das fontes tira-o.
+  É uma licença, não uma fortaleza, e está assumido no ADR-006.
+
 ### Fases A–K (histórico)
 - **Camada de decisão implementada (Fases A–K da `docs/architecture/ESPECIFICACAO-TECNICA-v1.md`).** Fases A–K + correção B.1 **commitadas e publicadas no GitHub** (16/07; código `e450cd3`, docs `8702ce7`). Validação com hardware: **smoke test 3/3 OK (16/07)**; bateria completa V01–V14 ainda **pendente** — só após `mvn test` verde.
 - **Reunião com o Fabiano (SI) + decisões D1–D9 (2026-07-16):** cantina = **bloqueio operacional assistido** (terminal valida identidade · MAGBO valida regra · operador aplica exceção) — **sem bloqueio físico via HikCentral para refeição, nem no roadmap** (**ADR-004**). Direitos de refeição vivem **só no MAGBO** (sem sync MAGBO↔HCP). O HCP vira provisionamento puro (ciclo de pessoas via CSV → `Apply to Device`; export CSV do MAGBO é a F7b futura). Níveis de acesso administrados pela Direção/Vice; operador executa entitlement no MAGBO. Exceção = registro manual (`POST /api/access`, `created_by_user`). IP fixo: Fabiano pediu reservas ao SI; **VM já criada**, aguardando fim dos testes. Detalhes e as **6 pendências** que sobram: `docs/operacional/procedimento-hikcentral.md`.

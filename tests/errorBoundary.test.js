@@ -164,7 +164,16 @@ describe('ErrorBoundary — a fiação (o que um merge apaga em silêncio)', () 
     it('★ o CDI e o LOGIN têm a sua própria rede', () => {
         // As duas telas que renderizam FORA do cromo comum: se elas quebram,
         // não sobra nem Header nem rodapé — o boundary é o único caminho.
-        expect(APP).toMatch(/<ErrorBoundary[\s\S]{0,300}<BibliotecaView/);
+        //
+        // ⚠️ O <LicenceBanner> é o ÚNICO irmão autorizado entre o boundary e o
+        // CDI, e está nomeado aqui de propósito. Ele fica DENTRO do boundary
+        // (ao contrário da app principal, onde fica fora): no quiosque não há
+        // cromo nenhum para sobrar, então um bandeau que caísse levaria a banca
+        // de empréstimo junto. Nomeá-lo em vez de alargar a janela para 400
+        // mantém o guarda apertado — qualquer OUTRO elemento que se intrometa
+        // continua a reprovar. (Painel de revisão, 31/08/2026.)
+        expect(APP).toMatch(
+            /<ErrorBoundary[\s\S]{0,220}(<LicenceBanner[^>]*\/>\s*)?<BibliotecaView/);
         expect(APP).toMatch(/<ErrorBoundary[\s\S]{0,300}<LoginScreen/);
     });
 });

@@ -17,6 +17,7 @@ function RefectoryReport() {
     const [turma, setTurma] = React.useState('');
     const [statut, setStatut] = React.useState(''); // '', 'ontime', 'late', 'noexit'
     const [meals, setMeals] = React.useState([]);
+    const [erro, setErro] = React.useState(null);
     // A grade de creneaux, carregada UMA vez: serve para agrupar os
     // contadores POR SERVICO (12H30 / 13H00 / 11h00...). Falha = contadores
     // globais na mesma — o rapport nunca fica refem da grade.
@@ -45,8 +46,19 @@ function RefectoryReport() {
         setLoading(true);
         try {
             const data = await fetchRefectoryMeals({ dateFrom, dateTo });
+            setErro(null);
             setMeals(Array.isArray(data) ? data : []);
-        } catch (e) { setMeals([]); }
+        } catch (e) {
+            // ⚠️ « JE NE SAIS PAS » N'EST PAS « ZÉRO ». Un refus de licence (402)
+            // arrive ici avec le message français du serveur ; le remplacer par
+            // une liste vide affiche « aucune visite » un jour où il y en a eu
+            // vingt. Quelqu'un en conclut que le registre a été effacé, et ouvre
+            // un cahier papier — perdant les passages que le système continue
+            // justement d'enregistrer.
+            // (Panel de revue — Vie Scolaire + qualité, ronde 2, 31/08/2026.)
+            setErro(e && e.message ? e.message : null);
+            setMeals([]);
+        }
         finally { setLoading(false); }
     }, [dateFrom, dateTo]);
 
@@ -337,7 +349,7 @@ function RefectoryReport() {
                         </thead>
                         <tbody>
                             {filtered.length === 0 && !loading && (
-                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{t('rap.cantina.vazio')}</td></tr>
+                                <tr><td colSpan="7" className="px-4 py-10 text-center text-sm text-slate-400">{erro || t('rap.cantina.vazio')}</td></tr>
                             )}
                             {filtered.map((m, i) => {
                                 const b = statusBadge(m);

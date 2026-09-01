@@ -1,0 +1,23 @@
+# =====================================================================
+# MAGBO Access Control — fichier de licence (EXEMPLE, NON VALIDE)
+# =====================================================================
+# ⚠️ CE FICHIER N'EST PAS UNE LICENCE. Sa signature est deliberement fausse :
+# depose tel quel, le backend le declare ILLISIBLE/SIGNATURE_INVALIDE et ferme
+# les ecrans de gestion. Il ne sert qu'a montrer le FORMAT.
+#
+# La vraie licence se depose ici sous le nom  licence.magbo  (ignore par git).
+# Pour l'emettre :  java tools/licence/MagboLicence.java emettre ...
+# Procedure complete :  docs/operacional/procedimento-licence.md
+#
+# ── Le format ────────────────────────────────────────────────────────
+# Les lignes commencant par # sont des commentaires : elles ne sont PAS
+# signees et n'ont aucun effet. Les six lignes utiles ci-dessous, elles, le
+# sont — dans cet ORDRE exact. Modifier un seul caractere de l'une d'elles
+# invalide la signature, et c'est tout l'interet du mecanisme.
+# =====================================================================
+MAGBO-LICENCE-V1
+etablissement=Etablissement Exemple
+licence_id=EXEMPLE-00000000
+emis_le=2026-01-01
+expire_le=2026-12-31
+signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

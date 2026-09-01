@@ -73,7 +73,17 @@ class ControllerAuthorizationGuardTest {
             "TotvsLinkController.config",
             "devolve a URL-modelo do TOTVS. Nenhum dado de pessoa",
             "AccessController.countAllLogs",
-            "devolve UMA contagem agregada, sem nome nem ponto nem hora");
+            "devolve UMA contagem agregada, sem nome nem ponto nem hora",
+            "LicenceController.etat",
+            "devolve o ESTADO da licenca (ADR-006): um estado, duas datas, um identificador de "
+                    + "licenca e um contacto. Nenhum dado de pessoa, e nada que nao esteja ja "
+                    + "escrito no bandeau visivel no ecra. E `isAuthenticated()` de proposito: "
+                    + "CADA ecra precisa de poder perguntar se ha um bandeau a mostrar, e e o "
+                    + "FRONT que decide a quem o mostrar (ADMIN e direcao em estado ALERTE, mais "
+                    + "largamente depois da data passada, porque ai alguem pode bater contra um "
+                    + "ecra fechado e merece saber porque). Fecha-la por permissao tornaria o "
+                    + "bandeau mudo exactamente para quem precisa dele. ⚠️ Ela NAO decide nada: "
+                    + "quem recusa as rotas de gestao e o LicenceGate, do lado do servidor");
 
     // ── 3. DIVIDA CONHECIDA ─────────────────────────────────────────────
     /**

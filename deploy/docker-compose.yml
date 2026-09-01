@@ -87,6 +87,24 @@ services:
       MAGBO_REGIME_HABILITADO: ${MAGBO_REGIME_HABILITADO:-false}
       MAGBO_WEBHOOK_TOKEN: ${MAGBO_WEBHOOK_TOKEN:-}
 
+      # ── LICENCE (ADR-006) ─────────────────────────────────────────
+      # Chemin DANS le conteneur. Il pointe vers le volume monte plus bas.
+      #
+      # ⚠️⚠️ SURTOUT PAS SOUS /app. Ce repertoire est le montage de
+      # `../backend/target`, c'est-a-dire la SORTIE DE MAVEN : `mvn clean`
+      # l'efface et chaque build le reecrit. Une licence rangee la
+      # disparaitrait au premier redeploiement, et les ecrans de gestion se
+      # fermeraient sans que personne ne fasse le lien. C'est exactement la
+      # raison qui a envoye les photos d'identification dans PostgreSQL (V011).
+      MAGBO_LICENCE_PATH: ${MAGBO_LICENCE_PATH:-/licence/licence.magbo}
+
+      # ⚠️ IL N'Y A PAS D'AUTRE VARIABLE DE LICENCE, ET C'EST VOULU.
+      # `magbo.licence.gate.enabled` n'agit que sous le harnais de test, jamais
+      # dans le jar livre. Et l'heure du controle quotidien est ECRITE EN DUR
+      # dans le code : elle etait une propriete, et une valeur mal saisie
+      # faisait echouer le demarrage du backend entier — plus de webhook, plus
+      # de PPMS — pour une faute de frappe dans une couche commerciale.
+
       # ── Credenciais de administração ──────────────────────────────
       # ⚠️ OBRIGATÓRIAS (`:?`), e não opcionais com valor de reserva. O Compose
       # RECUSA subir enquanto elas não estiverem no `.env`, com a mensagem
@@ -126,6 +144,23 @@ services:
       - "8080:8080"
     volumes:
       - ../backend/target:/app
+      # ── LICENCE (ADR-006) ─────────────────────────────────────────
+      # ⚠️ EN LECTURE SEULE (`:ro`), et c'est delibere : le backend ne doit
+      # JAMAIS pouvoir reecrire sa propre licence. Le seul etat qu'il persiste
+      # est le temoin d'horloge, et il vit en base (V027, `licence_clock`), ou
+      # le `pg_dump` du procedure de sauvegarde l'emporte deja.
+      #
+      # ⚠️ SI CE MONTAGE MANQUE, le fichier est ABSENT pour le backend et les
+      # ecrans de gestion se ferment — l'enregistrement des passages, les
+      # ecrans de poste et le PPMS nominatif continuent, mais le deploiement
+      # est rate. Verification en une commande, apres le demarrage :
+      #     curl -s http://localhost:8080/api/health | grep -o '"licence".*'
+      #   -> "etat":"VALIDE"  = tout va bien
+      #   -> "motif":"ABSENTE" = ce montage, ou le fichier, manque
+      #
+      # Le repertoire hote `deploy/licence/` est ignore par git (sauf
+      # l'exemple) : une licence emise ne se committe pas.
+      - ./licence:/licence:ro
     working_dir: /app
     command: ["sh", "-c", "java -jar access-control-*.jar"]
 

@@ -823,6 +823,7 @@ function OverviewTab() {
     // "estes são exatamente aqueles".
     const [verIncompletos, setVerIncompletos] = React.useState(false);
     const [incompletos, setIncompletos] = React.useState(null);
+    const [incompletosErro, setIncompletosErro] = React.useState(null);
     const [incompletosCarregando, setIncompletosCarregando] = React.useState(false);
 
     const carregarIncompletos = React.useCallback(async () => {
@@ -839,7 +840,24 @@ function OverviewTab() {
             const r = typeof fetchIncompleteMovements === 'function'
                 ? await fetchIncompleteMovements({ dateFrom, dateTo })
                 : [];
+            setIncompletosErro(null);
             setIncompletos(r || []);
+        } catch (e) {
+            // ⚠️ « JE NE SAIS PAS » N'EST PAS « ZÉRO ». Un refus de licence (402)
+            // arrive ici avec le message français du serveur ; le remplacer par
+            // une liste vide affiche « aucune visite » un jour où il y en a eu
+            // vingt. Quelqu'un en conclut que le registre a été effacé, et ouvre
+            // un cahier papier — perdant les passages que le système continue
+            // justement d'enregistrer.
+            // (Panel de revue — Vie Scolaire + qualité, ronde 2, 31/08/2026.)
+            //
+            // ⚠️ ET CE `catch` MANQUAIT TOUT COURT : le bloc était un
+            // `try … finally`. Une erreur devenait donc une *unhandled
+            // rejection*, `incompletos` restait `null`, et l'écran affichait
+            // « aucun mouvement incomplet » — c'est-à-dire « votre registre est
+            // parfait » — en silence.
+            setIncompletosErro(e && e.message ? e.message : null);
+            setIncompletos([]);
         } finally {
             setIncompletosCarregando(false);
         }
@@ -870,11 +888,11 @@ function OverviewTab() {
                 (typeof fetchInfirmaryVisits === 'function'
                     ? fetchInfirmaryVisits({ dateFrom: today, dateTo: today })
                     : Promise.resolve([])
-                ).catch(() => []),
+                ).catch(e => { if (e && e.licence) throw e; return []; }),
                 (typeof fetchRefectoryMeals === 'function'
                     ? fetchRefectoryMeals({ dateFrom: today, dateTo: today })
                     : Promise.resolve([])
-                ).catch(() => [])
+                ).catch(e => { if (e && e.licence) throw e; return []; })
             ]);
             setData(d);
             const lastLog = Array.isArray(lastLogArr) && lastLogArr.length > 0 ? lastLogArr[0] : null;
@@ -1339,6 +1357,7 @@ function OverviewTab() {
 
                                 {verIncompletos && (
                                     <MouvementsIncomplets
+                                        erro={incompletosErro}
                                         movimentos={incompletos}
                                         carregando={incompletosCarregando}
                                         onFechar={() => setVerIncompletos(false)}

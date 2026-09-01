@@ -94,6 +94,9 @@
       <script type="text/babel" src="js/utils/postoFixo.js?v=1"></script>
       <script type="text/babel" src="js/utils/photoCache.js?v=1"></script>
       <script type="text/babel" src="js/utils/permissions.js?v=1"></script>
+      <!-- Licence (ADR-006) : QUI voit le bandeau. Module pur, avant le
+           composant qui le lit et avant App.js. -->
+      <script type="text/babel" src="js/utils/licence.js?v=1"></script>
       <script type="text/babel" src="js/utils/mealEntitlement.js?v=1"></script>
       <!-- mealSheet REUSA os helpers de cabeçalho do hikcentralSheet: carrega depois dele. -->
       <script type="text/babel" src="js/utils/mealSheet.js?v=1"></script>
@@ -132,6 +135,9 @@
       <script type="text/babel" src="js/components/Toast.js?v=10"></script>
       <script type="text/babel" src="js/components/ActiveTimers.js?v=8"></script>
       <script type="text/babel" src="js/components/Header.js?v=8"></script>
+      <!-- Le bandeau de licence, dessine sous le Header par App.js.
+           Depend de window.MagboLicence, charge plus haut. -->
+      <script type="text/babel" src="js/components/LicenceBanner.js?v=1"></script>
       <script type="text/babel" src="js/components/Dashboard.js?v=8"></script>
       <!-- O veredicto do regime, lido no portão. Antes do SectorView, que o usa. -->
       <script type="text/babel" src="js/components/RegimeVerdictBadge.js?v=1"></script>

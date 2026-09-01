@@ -48,3 +48,23 @@ backend/server.log
 backup_*.sql
 
 backups/
+
+# =====================================================================
+# LICENCE (ADR-006)
+# =====================================================================
+# ⚠️ LA CLE PRIVEE NE DOIT JAMAIS ENTRER ICI. Ce depot est PUBLIC : une cle
+# privee poussee dessus donne a tout internet le droit d'emettre des licences
+# perpetuelles, et un `git push --force` ne la reprend pas — elle reste dans
+# les forks, les caches et les miroirs. Elle vit HORS du depot, chez Sam.
+# `LicenceOutilContratTest#pasDeClePriveeDansLeDepot` echoue si elle apparait.
+*.pem
+*.key
+
+# Les licences EMISES ne se committent pas non plus. Elles ne sont pas
+# secretes (elles n'autorisent qu'un etablissement, jusqu'a une date), mais
+# les ranger dans git installerait l'idee qu'une licence vit dans le depot —
+# et la prochaine, quelqu'un y mettrait la cle qui les signe.
+# L'exemple, lui, est suivi : il documente le format.
+deploy/licence/*.magbo
+!deploy/licence/licence.exemple.magbo
+backend/licence/

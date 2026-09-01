@@ -72,6 +72,8 @@ const MIGRADAS = [
     'js/components/StudentRegimeManagement.js',
     'js/components/RegimeVerdictBadge.js',
     'js/components/PpmsView.js',
+    // Licence (ADR-006) — ecrit en i18n des la premiere ligne.
+    'js/components/LicenceBanner.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

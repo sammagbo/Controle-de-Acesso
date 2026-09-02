@@ -167,12 +167,55 @@ function cheminDuFichier() {
  */
 function lireFichier() {
       try {
-            const brut = fs.readFileSync(cheminDuFichier(), 'utf8');
-            const objet = JSON.parse(brut);
+            const objet = JSON.parse(decoderTexte(fs.readFileSync(cheminDuFichier())));
             return objet && typeof objet === 'object' ? objet : null;
       } catch (e) {
+            // ⚠️ UNE LIGNE, JAMAIS LE CONTENU. Sans elle, « absent » et
+            // « illisible » se ressemblaient : dans les deux cas le journal
+            // disait `source=aucune` et le poste reposait sa question, et
+            // rien ne permettait de savoir qu'un fichier existait mais ne se
+            // lisait pas. Un fichier absent est le cas normal d'un PC neuf ;
+            // il ne mérite pas une ligne.
+            if (!e || e.code !== 'ENOENT') {
+                  console.warn(`[MAGBO] ${posteConfig.NOM_FICHIER} illisible `
+                        + `(${cheminDuFichier()}) : ${e && e.message}`);
+            }
             return null;
       }
+}
+
+/**
+ * Décode le fichier selon la marque d'ordre des octets qu'il porte.
+ *
+ * ⚠️ TROIS MARQUES, ET IL FAUT DIRE LESQUELLES plutôt que de nommer un
+ * outil. `JSON.parse` refuse un texte qui commence par U+FEFF, et un fichier
+ * en UTF-16 lu comme de l'UTF-8 n'est pas du JSON : dans les deux cas
+ * `lireFichier` rendait `null` et le poste reposait sa question à chaque
+ * ouverture — sans message. Or le guide fait justement ouvrir ce fichier au
+ * Bloc-notes pour corriger l'adresse quand la VM a déménagé.
+ *
+ *   • EF BB BF — UTF-8 avec BOM : « Enregistrer sous → UTF-8 avec BOM » du
+ *     Bloc-notes ; `Out-File -Encoding utf8` en PowerShell 5.1.
+ *   • FF FE    — UTF-16 LE : la redirection `>` de PowerShell 5.1 (mesuré
+ *     sur le shell de l'école, `FF FE 7B 00`) ; « Unicode » du Bloc-notes.
+ *   • FE FF    — UTF-16 BE : « Unicode big endian » du Bloc-notes.
+ *
+ * Le programme lui-même écrit de l'UTF-8 nu. Tout le reste est lu comme tel.
+ * (Une première version ne traitait que le premier cas, portait le BOM en
+ * caractère LITTÉRAL dans une regex, et attribuait au mauvais outil —
+ * corrigé au panel, 03/09/2026.)
+ */
+function decoderTexte(octets) {
+      if (octets.length >= 2 && octets[0] === 0xFF && octets[1] === 0xFE) {
+            return octets.subarray(2).toString('utf16le');
+      }
+      if (octets.length >= 2 && octets[0] === 0xFE && octets[1] === 0xFF) {
+            return Buffer.from(octets.subarray(2)).swap16().toString('utf16le');
+      }
+      if (octets.length >= 3 && octets[0] === 0xEF && octets[1] === 0xBB && octets[2] === 0xBF) {
+            return octets.subarray(3).toString('utf8');
+      }
+      return octets.toString('utf8');
 }
 
 /** Écrit le fichier. Rend `null` si tout va bien, sinon le message d'erreur. */

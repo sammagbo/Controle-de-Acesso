@@ -73,6 +73,8 @@
             'poste.poste': 'Ce PC se trouve à',
             'poste.poste.aide': 'Sert à identifier ce poste. Le nom apparaît dans la barre de titre de la fenêtre ; sur un poste verrouillé, qui n’a pas de barre de titre, on le retrouve par Engrenage → Poste.',
             'poste.poste.choisir': '— choisir —',
+            'poste.administratif': 'Poste administratif — pas un point de passage',
+            'poste.administratif.note': 'Ce PC n’est raccordé à aucun portique : aucun passage n’y arrive tout seul. Ce choix ne change que le titre de la fenêtre — les écrans restent ceux de votre compte, et un passage saisi à la main depuis ce PC compte comme partout ailleurs.',
 
             'poste.test.bouton': 'Tester la connexion',
             'poste.test.encours': 'Test en cours…',
@@ -1641,6 +1643,8 @@
             'poste.poste': 'Este PC fica em',
             'poste.poste.aide': 'Serve para identificar este posto. O nome aparece na barra de título da janela; num posto travado, que não tem barra de título, veja em Engrenagem → Posto.',
             'poste.poste.choisir': '— escolher —',
+            'poste.administratif': 'Posto administrativo — não é um ponto de passagem',
+            'poste.administratif.note': 'Este PC não está ligado a nenhuma catraca: nenhuma passagem chega aqui sozinha. Esta escolha só muda o título da janela — as telas continuam sendo as da sua conta, e uma passagem lançada à mão neste PC vale como em qualquer outro posto.',
 
             'poste.test.bouton': 'Testar a conexão',
             'poste.test.encours': 'Testando…',

@@ -13,7 +13,11 @@
 //   3. écran de première configuration (PC neuf)
 
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import PC from '../js/utils/posteConfig.js';
+
+const REPO = path.resolve(__dirname, '..');
 
 /** ACCESS_POINTS réduit à ce dont ces tests ont besoin, même forme que le vrai. */
 const POINTS = [
@@ -172,7 +176,13 @@ describe('la liste des postes — ACCESS_POINTS fait autorité', () => {
     it('★★ ce sont les LIEUX, pas les écrans', () => {
         const ids = PC.postesDisponibles(POINTS).map(p => p.id);
 
-        expect(ids).toEqual(['PORT1', 'PORT2', 'BIBLIO', 'ENFERM', 'REFEI1', 'REFEI2']);
+        // ⚠️ Les LIEUX sont ceux d'ACCESS_POINTS, dans l'ordre, et rien
+        // d'autre. La dernière entrée n'est pas un lieu : c'est le poste
+        // administratif, qui ne vient pas de la constante — voir le bloc qui
+        // lui est consacré, et l'ADR-007.
+        expect(ids.slice(0, -1)).toEqual(['PORT1', 'PORT2', 'BIBLIO', 'ENFERM', 'REFEI1', 'REFEI2']);
+        expect(ids[ids.length - 1]).toBe(PC.POSTE_ADMINISTRATIF);
+
         expect(ids).not.toContain('CANTINA_MONITOR');   // un écran, pas un lieu
         expect(ids).not.toContain('GENERAL_REPORT');
         expect(ids).not.toContain('PPMS');
@@ -405,5 +415,150 @@ describe('★★ ce que la page fait de ce que le pont lui rend', () => {
         // Page ouverte dans un navigateur, tests : il n'y a pas de poste à
         // régler, et poser la question n'aurait aucun sens.
         expect(PC.resoudreDuPont(false, null).doitConfigurer).toBe(false);
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════
+describe('★★ le poste administratif — celui qui n’est pas un point de passage', () => {
+
+    /**
+     * ⚠️ POURQUOI CETTE ENTRÉE EXISTE. L'écran obligeait à choisir un LIEU :
+     * la garde `peutEnregistrer` exige un poste, et la liste ne contenait que
+     * des portails, le CDI, l'infirmerie et les réfectoires. Les machines de
+     * la Vie Scolaire, de la direction et de l'informatique ne sont postées
+     * nulle part — elles ouvrent l'administration, le planning, la recherche.
+     * Le PC du directeur s'intitulait donc « MAGBO — PORT1 », et quelqu'un
+     * allait finir par croire que ce PC enregistrait des passages au portail.
+     */
+    it('★★ l’entrée est proposée, et EN DERNIER', () => {
+        const liste = PC.postesDisponibles(POINTS);
+        expect(liste[liste.length - 1].id).toBe(PC.POSTE_ADMINISTRATIF);
+    });
+
+    it('★★ elle ne vit PAS dans ACCESS_POINTS — la vraie constante, pas la fixture', () => {
+        // ⚠️ LA RAISON EST MESURÉE. `ACCESS_POINTS` fabrique la grille de
+        // cartes du tableau de bord, et `Dashboard.js` lit
+        // `CATEGORY_COLORS[point.category].bg` SANS garde : une entrée dont la
+        // catégorie n'est pas dans CATEGORY_COLORS fait tomber le tableau de
+        // bord pour tous les opérateurs. Ce test lit donc les deux constantes
+        // RÉELLES : la valeur n'est pas dans la liste, et sa catégorie n'a pas
+        // de couleur — si un jour elle en a une, c'est que quelqu'un l'a
+        // ajoutée comme carte, et ce test doit le lui faire dire.
+        const constants = fs.readFileSync(path.join(REPO, 'js', 'data', 'constants.js'), 'utf8');
+        const grille = constants.match(/const ACCESS_POINTS = \[[\s\S]*?\n\];/)[0];
+        const couleurs = constants.match(/const CATEGORY_COLORS = \{[\s\S]*?\n\};/)[0];
+
+        expect(grille).not.toContain("'" + PC.POSTE_ADMINISTRATIF + "'");
+        expect(couleurs).not.toMatch(/administratif/);
+        expect(POINTS.some(p => p.id === PC.POSTE_ADMINISTRATIF)).toBe(false);
+    });
+
+    it('★ son libellé vient du dictionnaire, pas d’un nom en dur', () => {
+        // « Portail Principal » et « CDI » sont des noms propres et ne se
+        // traduisent pas ; « Poste administratif » si. C'est la seule entrée
+        // de cette liste qui porte une clé i18n.
+        const admin = PC.postesDisponibles(POINTS)
+            .find(p => p.id === PC.POSTE_ADMINISTRATIF);
+        expect(admin.cleI18n).toBe('poste.administratif');
+        expect(admin.categorie).toBe('administratif');
+    });
+
+    /**
+     * ⚠️★★ LA VALEUR EST EXPLICITE, JAMAIS VIDE. `aEcrire('', '')` produit un
+     * JSON parfaitement valide qui se relit en « non configuré » : le poste
+     * reposerait sa question à chaque ouverture. C'est le défaut trouvé au 2e
+     * tour de revue du chantier précédent, et « pas de poste » aurait été
+     * exactement le même piège sous un autre nom.
+     */
+    it('★★ elle ne se confond PAS avec « non configuré »', () => {
+        const admin = PC.aEcrire('http://192.168.1.253:8080', PC.POSTE_ADMINISTRATIF);
+        const vide  = PC.aEcrire('http://192.168.1.253:8080', '');
+
+        expect(PC.utilisable(admin)).toBe(true);
+        expect(PC.utilisable(vide)).toBe(false);
+
+        expect(PC.resoudre({ env: {}, fichier: admin }).doitConfigurer).toBe(false);
+        expect(PC.resoudre({ env: {}, fichier: vide }).doitConfigurer).toBe(true);
+    });
+
+    it('★★ elle fait l’aller-retour par le fichier sans se déformer', () => {
+        const ecrit = PC.aEcrire('192.168.1.253:8080/', PC.POSTE_ADMINISTRATIF);
+        const relu = PC.resoudre({ env: {}, fichier: ecrit });
+        expect(relu.sector).toBe('ADMINISTRATIF');
+        expect(relu.apiUrl).toBe('http://192.168.1.253:8080');
+        expect(relu.source).toBe(PC.SOURCES.FICHIER);
+    });
+
+    it('★ l’adresse du serveur reste obligatoire, poste administratif ou non', () => {
+        // Une machine administrative interroge le serveur autant qu'un
+        // portail : sans adresse, elle n'ouvre rien.
+        expect(PC.utilisable(PC.aEcrire('', PC.POSTE_ADMINISTRATIF))).toBe(false);
+    });
+
+    it('★ `estAdministratif` répond sur la valeur, pas sur autre chose', () => {
+        expect(PC.estAdministratif(PC.POSTE_ADMINISTRATIF)).toBe(true);
+        expect(PC.estAdministratif('  ADMINISTRATIF  ')).toBe(true);   // saisie du .bat
+        expect(PC.estAdministratif('PORT1')).toBe(false);
+        expect(PC.estAdministratif('')).toBe(false);
+        expect(PC.estAdministratif(null)).toBe(false);
+        expect(PC.estAdministratif(undefined)).toBe(false);
+        expect(PC.estAdministratif('administratif')).toBe(false);      // la casse compte
+    });
+
+    it('★ elle est acceptée par la validation de poste', () => {
+        expect(PC.posteValide(PC.POSTE_ADMINISTRATIF, POINTS)).toBe(true);
+    });
+
+    /**
+     * ⚠️ AUCUN LIEU CONNU → LISTE VIDE, l'entrée administrative comprise.
+     * Si `ACCESS_POINTS` manque (ordre des `<script>` cassé), n'offrir QUE
+     * « Poste administratif » serait pire que n'offrir rien : la personne qui
+     * installe le PC du portail y verrait la seule option et la choisirait.
+     */
+    it('★★ sans aucun lieu connu, la liste est VIDE — pas réduite à l’entrée administrative', () => {
+        expect(PC.postesDisponibles([])).toEqual([]);
+        expect(PC.postesDisponibles(null)).toEqual([]);
+        expect(PC.postesDisponibles([{ id: 'PPMS', nome: 'PPMS', category: 'monitor' }])).toEqual([]);
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════
+describe('★★ les trois branches de résolution restent CELLES QU’ELLES ÉTAIENT', () => {
+
+    /**
+     * ⚠️ CE CHANTIER NE DOIT RIEN CHANGER À L'ORDRE. `MAGBO_SECTOR` ne pilote
+     * que le titre de la fenêtre — aucun fichier de `js/` ne lit
+     * `config.sector` — et l'entrée administrative ne doit pas commencer à lui
+     * donner un rôle. Ces trois cas sont recopiés du chantier précédent, avec
+     * la valeur nouvelle, pour que la garde morde si l'ordre bouge.
+     */
+    it('★★ environnement AVANT fichier, même quand le fichier dit « administratif »', () => {
+        const r = PC.resoudre({
+            env: { MAGBO_API_URL: 'http://10.0.0.1:8080', MAGBO_SECTOR: 'PORT2' },
+            fichier: PC.aEcrire('http://192.168.1.253:8080', PC.POSTE_ADMINISTRATIF)
+        });
+        expect(r.source).toBe(PC.SOURCES.ENVIRONNEMENT);
+        expect(r.sector).toBe('PORT2');
+        expect(r.doitConfigurer).toBe(false);
+    });
+
+    it('★★ un `.bat` peut poser MAGBO_SECTOR=ADMINISTRATIF, et il gagne', () => {
+        // Le parc doit pouvoir régler une machine administrative par lanceur
+        // comme n'importe quelle autre : la valeur traverse la branche 1 sans
+        // traitement particulier.
+        const r = PC.resoudre({
+            env: { MAGBO_API_URL: 'http://192.168.1.253:8080', MAGBO_SECTOR: 'ADMINISTRATIF' },
+            fichier: null
+        });
+        expect(r.source).toBe(PC.SOURCES.ENVIRONNEMENT);
+        expect(PC.estAdministratif(r.sector)).toBe(true);
+        expect(r.doitConfigurer).toBe(false);
+    });
+
+    it('★★ ni variable ni fichier → on demande, comme avant', () => {
+        const r = PC.resoudre({ env: {}, fichier: null });
+        expect(r.source).toBe(PC.SOURCES.AUCUNE);
+        expect(r.doitConfigurer).toBe(true);
+        expect(r.sector).toBe('');
     });
 });

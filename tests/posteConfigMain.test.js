@@ -512,3 +512,147 @@ describe('l’écran et sa permission', () => {
             .toBeLessThan(iLogin);
     });
 });
+
+// ═════════════════════════════════════════════════════════════════════
+describe('★★ le titre de la fenêtre — exécuté, pas relu', () => {
+
+    /**
+     * ⚠️ LE TITRE EST LE SEUL ENDROIT OÙ LE POSTE CHOISI SE VOIT. Aucun
+     * fichier de `js/` ne lit `config.sector` : il ne pilote rien d'autre.
+     * C'est précisément pour cela qu'il doit être honnête — « MAGBO Access
+     * Control — PORT1 » sur le PC de la direction finit par faire croire que
+     * ce PC enregistre des passages au portail.
+     */
+    const titreAvec = (config) => extraireFonction(MAIN, 'titreFenetre', {
+        configurationCourante: () => config,
+        posteConfig: require('../js/utils/posteConfig.js')
+    })();
+
+    it('un poste réglé porte son code', () => {
+        expect(titreAvec({ doitConfigurer: false, sector: 'BIBLIO' }))
+            .toBe('MAGBO Access Control — BIBLIO');
+    });
+
+    it('★★ une machine administrative ne porte AUCUN code de point', () => {
+        const titre = titreAvec({ doitConfigurer: false, sector: 'ADMINISTRATIF' });
+        expect(titre).toBe('MAGBO Access Control — Poste administratif');
+        for (const code of ['PORT1', 'PORT2', 'PORT3', 'BIBLIO', 'ENFERM', 'REFEI1', 'REFEI2']) {
+            expect(titre).not.toContain(code);
+        }
+    });
+
+    /**
+     * ⚠️ ET IL N'EST PAS NU. Un titre réduit à « MAGBO Access Control » ne se
+     * distinguerait pas de celui d'un poste pas encore réglé : on ne saurait
+     * plus, en regardant la fenêtre, si la machine est administrative ou si
+     * quelqu'un a effacé son fichier de configuration.
+     */
+    it('★★ et il ne se confond pas avec un poste pas encore réglé', () => {
+        const administratif = titreAvec({ doitConfigurer: false, sector: 'ADMINISTRATIF' });
+        const pasReglé = titreAvec({ doitConfigurer: true, sector: '' });
+        expect(pasReglé).toBe('MAGBO Access Control');
+        expect(administratif).not.toBe(pasReglé);
+    });
+
+    it('★ la comparaison passe par le module partagé, pas par une chaîne recopiée', () => {
+        // Deux copies d'une comparaison, c'est une copie qu'on oublie — la
+        // leçon du verrouillage de quiosque, au chantier précédent.
+        expect(MAIN_CODE).toMatch(/posteConfig\.estAdministratif\(/);
+        expect(MAIN_CODE).not.toMatch(/===\s*['"]ADMINISTRATIF['"]/);
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════
+describe('★★ un fichier écrit à la main reste lisible', () => {
+
+    /**
+     * ⚠️★★ UNE MARQUE D'ORDRE DES OCTETS FAIT PERDRE LE RÉGLAGE EN SILENCE,
+     * et le guide conduit droit dedans. La section 7 fait ouvrir
+     * `magbo-poste.json` au Bloc-notes pour corriger l'adresse quand la VM a
+     * déménagé. « UTF-8 avec BOM » place U+FEFF en tête, « Unicode » écrit de
+     * l'UTF-16 — et la redirection `>` de PowerShell 5.1 aussi (mesuré sur le
+     * shell de l'école : `FF FE 7B 00`). `JSON.parse` refuse les trois,
+     * `lireFichier` rendait `null`, et le poste reposait sa question à chaque
+     * ouverture sans qu'aucun message ne dise pourquoi.
+     *
+     * Trouvé par accident : la première mesure du titre de fenêtre rendait le
+     * même titre pour les trois configurations, parce que le harnais avait
+     * écrit les trois fichiers avec un BOM. La mesure était fausse ; le
+     * défaut qu'elle a révélé ne l'était pas. Une première correction ne
+     * traitait que l'UTF-8 et nommait le mauvais outil — le panel a reproduit
+     * les deux autres cas.
+     *
+     * ⚠️ Ce défaut est ANTÉRIEUR au poste administratif et n'a rien à voir
+     * avec lui — il vit dans son propre commit, détachable.
+     */
+    let avertissements = [];
+    const lireAvec = (chemin) => {
+        avertissements = [];
+        return extraireFonction(MAIN, 'lireFichier', {
+            cheminDuFichier: () => chemin,
+            decoderTexte: extraireFonction(MAIN, 'decoderTexte'),
+            posteConfig: require('../js/utils/posteConfig.js'),
+            console: { warn: (m) => avertissements.push(String(m)) }
+        })();
+    };
+
+    const ecrire = (nom, octets) => {
+        const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'magbo-bom-'));
+        const chemin = path.join(dossier, nom);
+        fs.writeFileSync(chemin, octets);
+        return chemin;
+    };
+
+    const CORPS = '{"apiUrl":"http://192.168.1.253:8080","sector":"BIBLIO","version":1}';
+
+    it('sans BOM — le cas que le programme écrit lui-même', () => {
+        const lu = lireAvec(ecrire('magbo-poste.json', Buffer.from(CORPS, 'utf8')));
+        expect(lu).not.toBeNull();
+        expect(lu.sector).toBe('BIBLIO');
+    });
+
+    it('★★ UTF-8 avec BOM — « Enregistrer sous » du Bloc-notes, Out-File -Encoding utf8', () => {
+        const avecBom = Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(CORPS, 'utf8')]);
+        const lu = lireAvec(ecrire('magbo-poste.json', avecBom));
+        expect(lu).not.toBeNull();
+        expect(lu.sector).toBe('BIBLIO');
+    });
+
+    it('★★ UTF-16 LE — la redirection `>` de PowerShell 5.1, « Unicode » du Bloc-notes', () => {
+        const utf16le = Buffer.concat([Buffer.from([0xFF, 0xFE]), Buffer.from(CORPS, 'utf16le')]);
+        const lu = lireAvec(ecrire('magbo-poste.json', utf16le));
+        expect(lu).not.toBeNull();
+        expect(lu.sector).toBe('BIBLIO');
+    });
+
+    it('★ UTF-16 BE — « Unicode big endian » du Bloc-notes', () => {
+        const utf16be = Buffer.concat([Buffer.from([0xFE, 0xFF]), Buffer.from(CORPS, 'utf16le').swap16()]);
+        const lu = lireAvec(ecrire('magbo-poste.json', utf16be));
+        expect(lu).not.toBeNull();
+        expect(lu.sector).toBe('BIBLIO');
+    });
+
+    it('un fichier vraiment cassé rend toujours null — on redemande, on ne lève pas', () => {
+        expect(lireAvec(ecrire('magbo-poste.json', Buffer.from('{ ceci n’est pas du JSON', 'utf8')))).toBeNull();
+        expect(lireAvec(path.join(os.tmpdir(), 'magbo-inexistant-' + CORPS.length + '.json'))).toBeNull();
+    });
+
+    /**
+     * ⚠️ « ABSENT » ET « ILLISIBLE » NE DOIVENT PLUS SE RESSEMBLER. Avant,
+     * le journal disait `source=aucune` dans les deux cas et le catch ne
+     * disait rien : personne ne pouvait savoir qu'un fichier existait mais ne
+     * se lisait pas. Le fichier absent reste silencieux — c'est le cas normal
+     * d'un PC neuf.
+     */
+    it('★★ un fichier illisible laisse UNE ligne — jamais son contenu ; un fichier absent, aucune', () => {
+        const casse = ecrire('magbo-poste.json', Buffer.from('{ "apiUrl": "SECRET-QUI-NE-DOIT-PAS-SORTIR"', 'utf8'));
+        expect(lireAvec(casse)).toBeNull();
+        expect(avertissements).toHaveLength(1);
+        expect(avertissements[0]).toContain('magbo-poste.json');
+        expect(avertissements[0]).toContain(casse);
+        expect(avertissements[0]).not.toContain('SECRET-QUI-NE-DOIT-PAS-SORTIR');
+
+        expect(lireAvec(path.join(os.tmpdir(), 'magbo-absent-' + CORPS.length + '.json'))).toBeNull();
+        expect(avertissements).toHaveLength(0);
+    });
+});

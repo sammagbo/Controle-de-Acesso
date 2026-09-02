@@ -628,3 +628,89 @@ describe('L\'écran — les branches que le chemin normal ne traverse pas', () =
         expect(texte()).toContain(t('poste.actuel.fichier.inutilise'));
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════
+describe('L\'écran — le poste administratif', () => {
+
+    /**
+     * ⚠️ LE DÉFAUT QUE CETTE ENTRÉE CORRIGE. La garde `peutEnregistrer` exige
+     * un poste, et la liste ne contenait que des lieux physiques : le PC de la
+     * direction devait cocher « Portail Principal » et sa fenêtre s'intitulait
+     * « MAGBO — PORT1 ». Quelqu'un allait finir par croire que ce PC
+     * enregistrait des passages.
+     */
+    it('★★ l’option existe, EN DERNIER, et porte le texte du dictionnaire', () => {
+        poserFetch(SERVEUR_OK);
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.253:8080', sector: '' } });
+
+        const options = [...champPoste().querySelectorAll('option')].filter(o => o.value !== '');
+        const derniere = options[options.length - 1];
+
+        expect(derniere.value).toBe(globalThis.MagboPosteConfig.POSTE_ADMINISTRATIF);
+        expect(derniere.textContent.trim()).toBe(t('poste.administratif'));
+        // Le libellé nomme ce que ce n'est PAS : c'est tout l'objet de l'entrée.
+        expect(derniere.textContent).toContain('pas un point de passage');
+    });
+
+    it('★★ le choisir ouvre l’enregistrement comme n’importe quel poste — test réussi compris', async () => {
+        poserFetch(SERVEUR_OK);
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.253:8080', sector: '' } });
+
+        choisirPoste(globalThis.MagboPosteConfig.POSTE_ADMINISTRATIF);
+        // ⚠️ L'adresse du serveur reste obligatoire pour tout le monde : une
+        // machine administrative interroge le serveur autant qu'un portail.
+        expect(bouton('poste.enregistrer').disabled).toBe(true);
+        expect(texte()).toContain(t('poste.pas.pret.test'));
+
+        await cliquer(bouton('poste.test.bouton'));
+        expect(bouton('poste.enregistrer').disabled).toBe(false);
+    });
+
+    it('★★ un serveur injoignable ferme le bouton, poste administratif ou non', async () => {
+        poserFetch(async () => { throw new TypeError('Failed to fetch'); });
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.99:8080', sector: '' } });
+        choisirPoste(globalThis.MagboPosteConfig.POSTE_ADMINISTRATIF);
+
+        await cliquer(bouton('poste.test.bouton'));
+        expect(bouton('poste.enregistrer').disabled).toBe(true);
+    });
+
+    it('★★ ce qui part à l’enregistrement est la valeur explicite, jamais une chaîne vide', async () => {
+        poserFetch(SERVEUR_OK);
+        const enregistre = vi.fn(async () => ({ ok: true, config: {} }));
+        poserPont(enregistre);
+
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.253:8080', sector: '' }, onTermine: () => {} });
+        choisirPoste(globalThis.MagboPosteConfig.POSTE_ADMINISTRATIF);
+        await cliquer(bouton('poste.test.bouton'));
+        await cliquer(bouton('poste.enregistrer'));
+
+        expect(enregistre).toHaveBeenCalledWith({
+            apiUrl: 'http://192.168.1.253:8080',
+            sector: 'ADMINISTRATIF'
+        });
+    });
+
+    it('★ la note n’apparaît QUE sur ce choix', () => {
+        poserFetch(SERVEUR_OK);
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.253:8080', sector: '' } });
+
+        expect(texte()).not.toContain(t('poste.administratif.note'));
+        choisirPoste('BIBLIO');
+        expect(texte()).not.toContain(t('poste.administratif.note'));
+        choisirPoste(globalThis.MagboPosteConfig.POSTE_ADMINISTRATIF);
+        expect(texte()).toContain(t('poste.administratif.note'));
+    });
+
+    it('★ les lieux physiques gardent leur nom propre, non traduit', () => {
+        // La régression que l'ajout d'une clé i18n pourrait provoquer : rendre
+        // `t(p.cleI18n)` pour tout le monde afficherait « poste.… » à la place
+        // de « CDI », puisque ces noms ne sont pas dans le dictionnaire.
+        poserFetch(SERVEUR_OK);
+        monter({ configInitiale: { apiUrl: 'http://192.168.1.253:8080', sector: '' } });
+
+        const options = [...champPoste().querySelectorAll('option')];
+        expect(options.find(o => o.value === 'BIBLIO').textContent.trim()).toBe('CDI');
+        expect(options.find(o => o.value === 'PORT1').textContent.trim()).toBe('Portail Principal');
+    });
+});

@@ -5,8 +5,15 @@
 // específicos. Expõe funções globais usadas por componentes.
 
 (function() {
-      const API_BASE = window.API_BASE_URL
-            || ((window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080') + '/api';
+      // ⚠️ `+` lie plus fort que `||` : sans les parentheses externes,
+      // `window.API_BASE_URL` — si elle etait un jour posee — serait prise
+      // SANS le `/api`, et toutes les requetes de ce cache partiraient une
+      // segment trop haut. Latent aujourd'hui (personne ne pose cette
+      // variable), et c'est la forme que `js/utils/auth.js` avait copiee.
+      // (Panel de revue — qualite, 2e tour, 02/09/2026.)
+      const API_BASE = (window.API_BASE_URL
+            || (window.magboConfig?.getCached?.()?.apiUrl)
+            || 'http://localhost:8080') + '/api';
       let cache = [];
       let loadedAt = null;
 

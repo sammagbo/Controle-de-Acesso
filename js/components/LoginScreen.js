@@ -5,6 +5,16 @@
 // Bloqueia tudo até autenticar via /api/auth/login.
 // Design: institucional inspirado no Lycée Molière (paleta turquesa + navy).
 
+/**
+ * L'adresse du serveur que ce poste utilise reellement.
+ *
+ * ⚠️ Une seule definition : elle servait deja au « mot de passe oublie », et
+ * elle sert maintenant a NOMMER l'adresse dans le message d'echec reseau.
+ */
+function adresseDuServeur() {
+  return (window.magboConfig?.getCached?.()?.apiUrl) || 'http://localhost:8080';
+}
+
 function LoginScreen({ onLoginSuccess }) {
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -21,7 +31,14 @@ function LoginScreen({ onLoginSuccess }) {
     const nome = esqueciNome.trim() || username.trim();
     if (!nome) return;
     try {
-      await fetch(`${window.magboConfig?.MAGBO_API_URL || 'http://localhost:8080'}/api/auth/password-reset-request`, {
+      // ⚠️ `magboConfig.MAGBO_API_URL` N'EXISTE PAS. Le pont expose `getConfig`,
+      // `getCached` et `enregistrerPoste` — jamais cette propriete. La requete
+      // partait donc sur localhost, echouait, le `catch` ci-dessous l'avalait
+      // « de propos delibere », et l'ecran confirmait quand meme : le pedagogue
+      // croyait avoir depose une demande de mot de passe, et l'administrateur
+      // ne voyait jamais rien. Trouve par le panel de revue (qualite,
+      // 02/09/2026) ; defaut ANTERIEUR au chantier.
+      await fetch(`${adresseDuServeur()}/api/auth/password-reset-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: nome })
@@ -60,7 +77,22 @@ function LoginScreen({ onLoginSuccess }) {
       await window.userCache?.reload();
       onLoginSuccess(data);
     } catch (err) {
-      setError(err.message || t('login.erro.conexao'));
+      // ⚠️⚠️ « Failed to fetch » EN ANGLAIS, DANS UNE ECOLE FRANCAISE.
+      //
+      // `err.message` est TOUJOURS renseigne pour une panne reseau, donc le
+      // repli `login.erro.conexao` etait du code mort : ce que l'AED lisait
+      // dans le cadre rouge, c'etait la phrase brute du navigateur. Et le
+      // guide, lui, tranchait « ce n'est pas l'installation, voyez
+      // l'administrateur pour votre mot de passe » — alors que le vrai
+      // probleme est que ce PC ne joint pas le serveur, ce qui arrive le jour
+      // ou la VM change d'adresse. On envoyait quelqu'un reclamer un mot de
+      // passe pendant que le poste attendait une adresse.
+      // (Panel de revue — operateur, 2e tour, 02/09/2026.)
+      const reseau = (err instanceof TypeError)
+        || /failed to fetch|networkerror|load failed|ecconnrefused/i.test(String(err && err.message));
+      setError(reseau
+        ? t('login.erro.reseau', { adresse: adresseDuServeur() })
+        : (err.message || t('login.erro.conexao')));
     } finally {
       setLoading(false);
     }

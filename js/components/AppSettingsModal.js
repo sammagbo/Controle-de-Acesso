@@ -1903,6 +1903,31 @@ function AppSettingsModal({ onClose, onShowToast }) {
                             {t('cfg.aba.config')}
                         </button>
                         )}
+                        {/* ⚠️ LE POSTE — l'adresse du serveur et le lieu de CE PC.
+                            Distinct de la « configuration du système » juste
+                            au-dessus : celle-là gouverne l'école entière et vit
+                            en base ; celui-ci ne concerne que cet ordinateur et
+                            vit dans un fichier à côté du .exe (ADR-007).
+
+                            ⚠️ DERRIÈRE CONFIG_WRITE, comme demandé : un opérateur
+                            ne doit pas pouvoir changer le poste par mégarde — il
+                            ouvrirait l'écran d'un autre lieu sans comprendre ce
+                            qu'il a fait. Un administrateur, lui, corrige une
+                            erreur d'installation sans réinstaller.
+
+                            ⚠️ Ce bouton FERME le modal et laisse App.js rendre
+                            l'écran : le même composant sert la première
+                            configuration et la correction. Deux copies auraient
+                            divergé au premier changement de libellé. */}
+                        {podeConfig && (
+                        <button
+                            onClick={() => { onClose(); window.dispatchEvent(new Event('open-poste-config')); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm font-semibold text-left text-slate-600 hover:bg-white"
+                        >
+                            <LucideIcon name="monitor-cog" size={18} className="text-slate-400" />
+                            {t('poste.onglet')}
+                        </button>
+                        )}
                         {ehAdmin && (<>
                         <button
                             onClick={() => setActiveTab('import')}

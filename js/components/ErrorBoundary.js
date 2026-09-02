@@ -153,8 +153,15 @@ class ErrorBoundary extends React.Component {
                                                 ? textoDeErro('erro.modal.titulo', "Cette fenêtre n'a pas pu s'afficher")
                                                 : textoDeErro('erro.titulo', "Cet écran n'a pas pu s'afficher")}
                                     </h2>
+                                    {/* ⚠️ `sousTitre` existe pour l'écran de PREMIÈRE
+                                        configuration : là, il n'y a pas de « reste de
+                                        l'application » — c'est le premier écran d'un PC
+                                        neuf, et affirmer le contraire enverrait quelqu'un
+                                        chercher une application qui n'a pas démarré.
+                                        (Panel de revue — Vie Scolaire, 2e tour, 02/09/2026.) */}
                                     <p className="text-sm text-slate-600 mt-1">
-                                          {textoDeErro('erro.subtitulo', "Le reste de l'application continue de fonctionner.")}
+                                          {this.props.sousTitre
+                                                || textoDeErro('erro.subtitulo', "Le reste de l'application continue de fonctionner.")}
                                     </p>
 
                                     <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-soft-100 border border-soft-200">
@@ -169,7 +176,8 @@ class ErrorBoundary extends React.Component {
                                         e quem opera precisa saber disso antes de refazer o
                                         trabalho por medo de ter perdido alguma coisa. */}
                                     <p className="text-xs text-slate-500 mt-3 leading-relaxed">
-                                          {textoDeErro('erro.aviso.dados', "Aucune donnée n'a été perdue : cet écran ne fait qu'afficher des enregistrements déjà en base.")}
+                                          {this.props.avis
+                                                || textoDeErro('erro.aviso.dados', "Aucune donnée n'a été perdue : cet écran ne fait qu'afficher des enregistrements déjà en base.")}
                                     </p>
 
                                     <div className="flex flex-wrap items-center gap-2 mt-5">

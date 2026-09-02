@@ -16,6 +16,66 @@ function rendersSectorView(point) {
 
 function App() {
       const t = useI18n();
+
+      /**
+       * La configuration du poste, telle que le processus principal l'a
+       * résolue (environnement → fichier → à demander).
+       *
+       * ⚠️ LUE DE FAÇON SYNCHRONE : `getCached()` n'est plus jamais `null`
+       * depuis que le preload la lit par `sendSync`. Un `useState` avec une
+       * valeur initiale suffit donc — pas d'effet, pas de rendu intermédiaire
+       * pendant lequel l'application partirait sur localhost.
+       */
+      const [poste, setPoste] = React.useState(() => {
+            // ⚠️ LA RÈGLE VIT DANS LE MODULE PARTAGÉ (`resoudreDuPont`), où la
+            // suite l'exécute : écrite ici, elle pouvait être inversée d'un
+            // mot sans qu'aucun des 787 tests ne rougisse — mesuré au 2e tour.
+            if (window.MagboPosteConfig) {
+                  return window.MagboPosteConfig.resoudreDuPont(
+                        !!window.magboConfig,
+                        window.magboConfig && window.magboConfig.getCached
+                              && window.magboConfig.getCached());
+            }
+            const pont = window.magboConfig && window.magboConfig.getCached
+                  && window.magboConfig.getCached();
+            if (pont) return pont;
+            // ⚠️ LE PONT EXISTE MAIS N'A RIEN RENDU (canal muet, versions
+            // dépareillées) : on DEMANDE plutôt que de partir sur une adresse
+            // devinée. Le repli inverse — `doitConfigurer: false` — sautait
+            // l'écran sur un PC neuf et affichait une connexion qui ne pouvait
+            // pas aboutir : le symptôme même que ce chantier supprime.
+            // (Panel de revue — qualité, 02/09/2026.)
+            //
+            // ⚠️ Hors Electron (page ouverte dans un navigateur, tests), il n'y
+            // a pas de pont du tout : là, ne rien demander est correct.
+            if (window.magboConfig) return { doitConfigurer: true };
+            return { doitConfigurer: false };
+      });
+
+      // ⚠️ LE RATTRAPAGE, quand le canal synchrone n'a rien rendu. `preload.js`
+      // repasse alors par la voie asynchrone et émet `magbo-config-prete` —
+      // sans cet écouteur, le rattrapage ne rattrapait que le cache DU
+      // PRELOAD, et l'écran de première configuration restait affiché sur un
+      // poste correctement réglé. (Panel de revue — qualité, 2e tour.)
+      React.useEffect(() => {
+            const relire = () => {
+                  const c = window.magboConfig && window.magboConfig.getCached
+                        && window.magboConfig.getCached();
+                  if (c) setPoste(c);
+            };
+            window.addEventListener('magbo-config-prete', relire);
+            return () => window.removeEventListener('magbo-config-prete', relire);
+      }, []);
+
+      // L'engrenage demande la correction du réglage (onglet Poste, derrière
+      // CONFIG_WRITE — voir AppSettingsModal).
+      const [corrigerPoste, setCorrigerPoste] = React.useState(false);
+      React.useEffect(() => {
+            const ouvrir = () => setCorrigerPoste(true);
+            window.addEventListener('open-poste-config', ouvrir);
+            return () => window.removeEventListener('open-poste-config', ouvrir);
+      }, []);
+
       const [currentUser, setCurrentUser] = React.useState(null);
       const [authChecked, setAuthChecked] = React.useState(false);
 
@@ -391,6 +451,37 @@ function App() {
             }
       }, [accessLogs, activeTimers, currentPoint]);
 
+      // ══════════════════════════════════════════════════════════════
+      // PREMIÈRE CONFIGURATION DU POSTE (ADR-007)
+      // ══════════════════════════════════════════════════════════════
+      // ⚠️ AVANT LE LOGIN, et il ne peut pas en être autrement : sans adresse
+      // de serveur il n'y a personne à qui demander un mot de passe. C'est
+      // aussi pourquoi cet écran ne dépend d'aucune permission — il n'y a pas
+      // encore de session pour en porter une. Ce qu'il protège n'est pas un
+      // secret : c'est l'adresse d'un serveur déjà écrite dans un .bat sur le
+      // bureau, à côté du .exe.
+      //
+      // ⚠️ NE S'AFFICHE JAMAIS sur un poste lancé par `Abrir-MAGBO.bat` : les
+      // variables d'environnement priment et `doitConfigurer` est faux. Le
+      // parc existant ne voit pas cet écran.
+      if (poste.doitConfigurer) {
+            return (
+                  <ErrorBoundary nom={t('poste.titre')}
+                                 sousTitre={t('poste.erreur.sous')}
+                                 avis={t('poste.erreur.avis')}>
+                        <PremierLancement
+                              configInitiale={poste}
+                              mode="premier"
+                              onQuitter={() => {
+                                    if (window.magboConfig && window.magboConfig.quitter) {
+                                          window.magboConfig.quitter();
+                                    }
+                              }}
+                              onTermine={(nouvelle) => setPoste(nouvelle)} />
+                  </ErrorBoundary>
+            );
+      }
+
       // Se não logado → mostra LoginScreen
       if (!currentUser) {
             // Sem `onRetour`: da tela de login não há para onde voltar. Sobra
@@ -398,6 +489,25 @@ function App() {
             return (
                   <ErrorBoundary nom={t('erro.tela.login')}>
                         <LoginScreen onLoginSuccess={(data) => setCurrentUser(window.auth.getUser())} />
+                  </ErrorBoundary>
+            );
+      }
+
+      // ── Correction du réglage du poste, demandée depuis l'engrenage ──
+      // ⚠️ Le contrôle de permission est fait par l'ENGRENAGE (l'onglet n'existe
+      // que pour CONFIG_WRITE) : ici on ne fait que rendre l'écran demandé.
+      // Le refuser une seconde fois ne protégerait rien de plus et donnerait
+      // deux endroits où la règle peut diverger.
+      if (corrigerPoste) {
+            return (
+                  <ErrorBoundary nom={t('poste.titre.correction')}
+                                 onRetour={() => setCorrigerPoste(false)}
+                                 labelRetour={t('erro.voltar')}>
+                        <PremierLancement
+                              configInitiale={poste}
+                              mode="correction"
+                              onAnnuler={() => setCorrigerPoste(false)}
+                              onTermine={(nouvelle) => { setPoste(nouvelle); setCorrigerPoste(false); }} />
                   </ErrorBoundary>
             );
       }

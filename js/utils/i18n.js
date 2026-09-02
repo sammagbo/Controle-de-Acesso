@@ -59,6 +59,58 @@
         fr: {
             'idioma.rotulo': 'Langue',
 
+            // ── PREMIÈRE CONFIGURATION DU POSTE (ADR-007) ──
+            // ⚠️ Ces textes sont lus UNE FOIS, par quelqu'un qui installe un PC
+            // et qui n'est pas informaticien. Ils disent ce qu'il faut taper et
+            // ce qui se passe si c'est faux — pas ce que le programme fait.
+            'poste.titre': 'Configuration de ce poste',
+            'poste.sous': 'Deux réponses, une seule fois. Elles seront conservées sur ce PC — le chemin exact s’affiche ensuite dans Engrenage → Poste.',
+            'poste.titre.correction': 'Configuration de ce poste',
+            'poste.sous.correction': 'Corriger l’adresse du serveur ou le poste de ce PC.',
+
+            'poste.adresse': 'Adresse du serveur',
+            'poste.adresse.aide': 'L’ordinateur de l’école qui garde les données. Ne pas modifier sans raison.',
+            'poste.poste': 'Ce PC se trouve à',
+            'poste.poste.aide': 'Sert à identifier ce poste. Le nom apparaît dans la barre de titre de la fenêtre ; sur un poste verrouillé, qui n’a pas de barre de titre, on le retrouve par Engrenage → Poste.',
+            'poste.poste.choisir': '— choisir —',
+
+            'poste.test.bouton': 'Tester la connexion',
+            'poste.test.encours': 'Test en cours…',
+            'poste.test.obligatoire': 'Le test doit réussir avant d’enregistrer.',
+            'poste.test.ok': 'Le serveur répond.',
+            'poste.test.ok.base': 'Le serveur répond, mais sa base de données ne répond pas. L’adresse est bonne — prévenir la direction.',
+            'poste.test.injoignable': 'Aucune réponse à cette adresse.',
+            'poste.test.delai': 'Le serveur n’a pas répondu à temps.',
+            'poste.test.repond.mal': 'Quelque chose répond à cette adresse, mais refuse la demande.',
+            'poste.test.pas.magbo': 'Quelque chose répond à cette adresse, mais ce n’est pas le serveur MAGBO.',
+            'poste.test.quoi.faire': 'Vérifier l’adresse (les chiffres et le port), que ce PC est bien sur le réseau de l’école, et que le serveur est allumé. Si tout semble correct, prévenez la direction plutôt que d’insister ici : les passages continuent d’être enregistrés par les portiques, c’est seulement cet écran qui est aveugle.',
+
+            'poste.err.url.vide': 'Indiquez l’adresse du serveur.',
+            'poste.err.url.forme': 'Cette adresse n’est pas utilisable. Exemple attendu : http://192.168.1.253:8080',
+            'poste.err.url.port': 'Il manque le port. Exemple attendu : http://192.168.1.253:8080',
+            'poste.err.environnement': 'Ce poste est configuré par une variable d’environnement — le plus souvent son lanceur .bat, parfois une variable système posée par « setx ». Elle a priorité, et enregistrer ici ne changerait rien à la prochaine ouverture. Pour passer au réglage enregistré : retirer le .bat du dossier (et vérifier les variables système), puis rouvrir le .exe.',
+            'poste.err.ecriture': 'Le réglage n’a pas pu être écrit. Fermez l’application, déplacez le dossier du programme dans C:\\MAGBO, puis rouvrez-la. Si cela recommence, prévenez la direction.',
+
+            'poste.annuler': 'Annuler',
+            'poste.quitter': 'Fermer l’application',
+            'poste.erreur.sous': 'Il n’y a rien derrière cet écran : ce PC n’est pas encore réglé.',
+            'poste.erreur.avis': 'Aucune donnée n’est en jeu — cet écran n’enregistre que l’adresse du serveur et le nom du poste. Rouvrez l’application ; si cela recommence, prévenez la direction.',
+            'poste.rechargement': 'À l’enregistrement, l’application se recharge et vous devrez vous reconnecter.',
+            'poste.pas.pret.poste': 'Choisissez le poste où se trouve ce PC.',
+            'poste.pas.pret.test': 'Testez la connexion avant d’enregistrer.',
+            'poste.pas.pret.env': 'Réglage imposé par le lanceur : rien ne peut être enregistré ici.',
+            'poste.pret': 'Prêt à enregistrer.',
+            'poste.enregistrer': 'Enregistrer et ouvrir',
+
+            // ── Onglet de correction, derrière CONFIG_WRITE ──
+            'poste.onglet': 'Poste',
+            'poste.actuel.source.environnement': 'Réglé par le lanceur (.bat) — priorité sur le fichier.',
+            'poste.actuel.source.fichier': 'Réglé sur ce PC, à côté du programme.',
+            'poste.actuel.source.aucune': 'Pas encore réglé sur ce PC.',
+            'poste.actuel.fichier': 'Fichier',
+            'poste.actuel.fichier.inutilise': '(non utilisé tant que le lanceur est là)',
+
+
             // ── LICENCE (ADR-006) ──
             // ⚠️ TON NEUTRE : ni menace, ni excuse. Et la phrase qui compte le
             // plus est `licence.continue` — sans elle, quelqu'un pourrait croire
@@ -1573,9 +1625,58 @@
             'login.entrando': 'CONNEXION...',
             'login.erro.campos': 'Veuillez remplir tous les champs.',
             'login.erro.conexao': 'Erreur de connexion.',
+            'login.erro.reseau': 'Le serveur ne répond pas à l’adresse {adresse}. Ce n’est pas votre mot de passe : ce PC ne joint pas le serveur de l’école. Prévenez la direction, ou voyez le guide d’installation, section 7.',
             'login.rodape.seguranca': 'SYSTÈME SÉCURISÉ · CONNEXION CHIFFRÉE'
         },
         pt: {
+
+            // ── PRIMEIRA CONFIGURAÇÃO DO POSTO (ADR-007) ──
+            'poste.titre': 'Configuração deste posto',
+            'poste.sous': 'Duas respostas, uma única vez. Ficam salvas neste PC — o caminho exato aparece depois em Engrenagem → Posto.',
+            'poste.titre.correction': 'Configuração deste posto',
+            'poste.sous.correction': 'Corrigir o endereço do servidor ou o posto deste PC.',
+
+            'poste.adresse': 'Endereço do servidor',
+            'poste.adresse.aide': 'O computador da escola que guarda os dados. Não alterar sem motivo.',
+            'poste.poste': 'Este PC fica em',
+            'poste.poste.aide': 'Serve para identificar este posto. O nome aparece na barra de título da janela; num posto travado, que não tem barra de título, veja em Engrenagem → Posto.',
+            'poste.poste.choisir': '— escolher —',
+
+            'poste.test.bouton': 'Testar a conexão',
+            'poste.test.encours': 'Testando…',
+            'poste.test.obligatoire': 'O teste precisa passar antes de salvar.',
+            'poste.test.ok': 'O servidor responde.',
+            'poste.test.ok.base': 'O servidor responde, mas a base de dados dele não. O endereço está certo — avisar a direção.',
+            'poste.test.injoignable': 'Nenhuma resposta neste endereço.',
+            'poste.test.delai': 'O servidor não respondeu a tempo.',
+            'poste.test.repond.mal': 'Alguma coisa responde neste endereço, mas recusa o pedido.',
+            'poste.test.pas.magbo': 'Alguma coisa responde neste endereço, mas não é o servidor MAGBO.',
+            'poste.test.quoi.faire': 'Conferir o endereço (os números e a porta), se este PC está na rede da escola e se o servidor está ligado. Se estiver tudo certo, avise a direção em vez de insistir aqui: as passagens continuam sendo registradas pelas catracas, só esta tela está cega.',
+
+            'poste.err.url.vide': 'Indique o endereço do servidor.',
+            'poste.err.url.forme': 'Este endereço não é utilizável. Exemplo esperado: http://192.168.1.253:8080',
+            'poste.err.url.port': 'Falta a porta. Exemplo esperado: http://192.168.1.253:8080',
+            'poste.err.environnement': 'Este posto é configurado por uma variável de ambiente — normalmente o lançador .bat, às vezes uma variável de sistema criada com «setx». Ela tem prioridade, e salvar aqui não mudaria nada na próxima abertura. Para passar ao ajuste salvo: tirar o .bat da pasta (e conferir as variáveis de sistema), depois abrir o .exe de novo.',
+            'poste.err.ecriture': 'Não foi possível salvar o ajuste. Feche o aplicativo, mova a pasta do programa para C:\\MAGBO e abra de novo. Se acontecer outra vez, avise a direção.',
+
+            'poste.annuler': 'Cancelar',
+            'poste.quitter': 'Fechar o aplicativo',
+            'poste.erreur.sous': 'Não há nada atrás desta tela: este PC ainda não foi configurado.',
+            'poste.erreur.avis': 'Nenhum dado está em jogo — esta tela só grava o endereço do servidor e o nome do posto. Abra o aplicativo de novo; se acontecer outra vez, avise a direção.',
+            'poste.rechargement': 'Ao salvar, o aplicativo recarrega e você terá de entrar de novo.',
+            'poste.pas.pret.poste': 'Escolha o posto onde está este PC.',
+            'poste.pas.pret.test': 'Teste a conexão antes de salvar.',
+            'poste.pas.pret.env': 'Ajuste imposto pelo lançador: nada pode ser salvo aqui.',
+            'poste.pret': 'Pronto para salvar.',
+            'poste.enregistrer': 'Salvar e abrir',
+
+            'poste.onglet': 'Posto',
+            'poste.actuel.source.environnement': 'Definido pelo lançador (.bat) — tem prioridade sobre o arquivo.',
+            'poste.actuel.source.fichier': 'Definido neste PC, ao lado do programa.',
+            'poste.actuel.source.aucune': 'Ainda não definido neste PC.',
+            'poste.actuel.fichier': 'Arquivo',
+            'poste.actuel.fichier.inutilise': '(não usado enquanto o lançador estiver lá)',
+
 
             // ── LICENÇA (ADR-006) ──
             'api.licence.suspendue': 'Esta função está suspensa: o período de utilização do software chegou ao fim. O registo das passagens e a lista PPMS continuam a funcionar.',
@@ -3058,6 +3159,7 @@
             'login.entrando': 'CONECTANDO...',
             'login.erro.campos': 'Preencha todos os campos.',
             'login.erro.conexao': 'Erro de conexão.',
+            'login.erro.reseau': 'O servidor não responde no endereço {adresse}. Não é a sua senha: este PC não alcança o servidor da escola. Avise a direção, ou veja o guia de instalação, seção 7.',
             'login.rodape.seguranca': 'SISTEMA SEGURO · CONEXÃO CIFRADA'
         }
     };

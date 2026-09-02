@@ -74,6 +74,10 @@ const MIGRADAS = [
     'js/components/PpmsView.js',
     // Licence (ADR-006) — ecrit en i18n des la premiere ligne.
     'js/components/LicenceBanner.js',
+    // Premiere configuration du poste (ADR-007). C'est le PREMIER ecran
+    // qu'une personne voit sur un PC neuf : un mot en portugais y serait
+    // la premiere chose que l'ecole lit de ce logiciel.
+    'js/components/PremierLancement.js',
 ];
 
 /** Atributos cujo valor o usuário LÊ. `className`, `type`, `name` não entram. */

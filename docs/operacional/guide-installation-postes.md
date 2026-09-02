@@ -1,15 +1,18 @@
 # Installer MAGBO Access Control sur un poste
 
-**Version : v2.1.0 · Août 2026**
+**Septembre 2026 · l'application s'ouvre par son `.exe`**
 
-Cette procédure s'applique à chaque poste de l'école, un par un. Compter
-**dix minutes par machine**. Aucune connaissance technique n'est nécessaire :
-tout se fait par copier-coller de dossier et une ligne à modifier dans un
-fichier texte.
+Compter **cinq minutes par machine**. Aucune connaissance technique : copier un
+fichier, l'ouvrir, répondre à deux questions une seule fois.
 
-> **La règle qui évite 90 % des problèmes :** l'application s'ouvre toujours par
-> `Abrir-MAGBO.bat`, **jamais** par le fichier `.exe`. Un `.exe` ouvert
-> directement affiche une application vide, sans message d'erreur.
+> **Ce qui a changé.** L'application s'ouvrait par `Abrir-MAGBO.bat`, un fichier
+> texte sans icône qu'il fallait modifier au Bloc-notes — et il fallait
+> expliquer à chaque personne de **ne surtout pas** cliquer sur l'icône qui
+> porte le logo. Désormais on clique sur l'application, comme sur Pronote ou
+> Chrome. Elle demande son réglage la première fois, et plus jamais ensuite.
+>
+> ⚠️ **Les postes déjà installés continuent de fonctionner sans être touchés.**
+> Un `.bat` qui existe garde la priorité. Voir la section 8.
 
 ---
 
@@ -17,111 +20,193 @@ fichier texte.
 
 | À vérifier | Comment | Attendu |
 |---|---|---|
-| Le serveur répond | Ouvrir `http://192.168.1.253:8080/api/health` dans un navigateur du poste | Une réponse contenant `"database":"CONNECTED"` |
-| Le poste est sur le réseau de l'école | — | Si la page ci-dessus ne s'ouvre pas, inutile de continuer : c'est un problème réseau, pas d'installation |
-| Vous savez quel secteur ce poste représente | Voir le tableau de la section 3 | Par exemple `BIBLIO` pour le poste du CDI |
+| Le serveur répond | Ouvrir `http://192.168.1.253:8080/api/health` dans un navigateur **du poste** | Une réponse contenant `"database":"CONNECTED"` |
+| Le poste est sur le réseau de l'école | — | Si la page ci-dessus ne s'ouvre pas, inutile de continuer : c'est le réseau, pas l'installation |
+| Vous savez où se trouve ce PC | Portail ? CDI ? Cantine ? | L'application proposera la liste — rien à retenir |
 
-Récupérer le paquet : page **Releases** du dépôt GitHub, version **v2.1.0**,
-fichier `MAGBO-Access-Control-Portable.exe`. Le fichier `Abrir-MAGBO.bat` se
-trouve dans le dépôt sous `deploy/portable/`.
+**Récupérer le programme :** `MAGBO-Access-Control-Portable.exe`. C'est **le
+seul fichier à copier**.
+
+> ⚠️ **Où le prendre — à remplir avant la première tournée.**
+>
+> | | |
+> |---|---|
+> | Emplacement de l'exécutable approuvé | _(chemin du partage, ou étiquette de la clé USB)_ |
+> | Date de construction | _(à noter en même temps)_ |
+>
+> Cette ligne existe parce qu'un guide qui renvoyait à `npm run build:portable`
+> demandait, au premier geste du premier poste, un dépôt et des outils de
+> développement que la personne qui installe n'a pas. La procédure de
+> **construction** — pour qui reconstruit, pas pour qui installe — est dans
+> [`release-portable.md`](release-portable.md), qui est écrit en portugais et
+> adressé à Sam.
+>
+> ⚠️ Il n'y a **pas** de page « Releases » à télécharger. Le guide précédent en
+> citait une, avec un numéro de version qui n'a plus cours.
 
 ---
 
 ## 1. Garder l'ancienne version de côté
 
-Si le poste a déjà une version de MAGBO, **ne pas la supprimer**. La renommer :
+Si le poste a déjà MAGBO, **ne rien supprimer**. Renommer le dossier :
 
 ```
-MAGBO  →  MAGBO-ancien-2026-08-12
+MAGBO  →  MAGBO-ancien-2026-09-02
 ```
 
-C'est le chemin de retour si quelque chose se passe mal en pleine journée.
-Elle pourra être effacée une semaine plus tard, une fois la nouvelle version
-éprouvée.
+C'est le chemin de retour si quelque chose se passe mal en pleine journée. Il
+pourra être effacé une semaine plus tard, une fois la nouvelle version éprouvée.
 
 ---
 
-## 2. Copier les deux fichiers
+## 2. Copier le programme
 
 Créer un dossier `C:\MAGBO` (ou l'emplacement habituel de ce poste) et y placer
-**les deux fichiers ensemble** :
+le `.exe` :
+
+```
+C:\MAGBO\
+   └── MAGBO-Access-Control-Portable.exe
+```
+
+C'est tout. Le fichier de réglage se créera tout seul à côté, à la première
+ouverture.
+
+> ⚠️ **Deux endroits à éviter pour ce dossier**, et la raison est la même dans
+> les deux cas : l'application doit pouvoir **écrire** à côté du programme.
+>
+> - **`C:\Program Files\…`** — écriture interdite sans les droits
+>   d'administrateur.
+> - **Un dossier réseau** (`\serveur\partage\…`) — souvent en lecture seule,
+>   et l'application dépendrait alors du réseau pour s'ouvrir.
+>
+> L'application ne bloque pas pour autant : si le dossier refuse l'écriture,
+> elle range le réglage dans le profil Windows de la personne connectée
+> (`C:\Users\<qui>\AppData\Roaming\MAGBO Access Control\magbo-poste.json`).
+> **Le poste marche, mais le dossier n'est plus complet** : le copier sur une
+> autre machine ne copie plus le réglage, et une autre personne qui ouvre une
+> session sur ce PC retrouve l'écran de configuration. Un dossier local et
+> inscriptible — `C:\MAGBO` — évite les deux.
+
+---
+
+## 3. Première ouverture
+
+Double-cliquer sur **`MAGBO-Access-Control-Portable.exe`** — l'icône avec le
+logo.
+
+**Windows affiche un avertissement bleu** : « Windows a protégé votre
+ordinateur ». C'est normal : l'application n'est pas signée numériquement, ce
+qui est attendu pour un logiciel interne.
+
+> Cliquer sur **« Informations complémentaires »**, puis sur
+> **« Exécuter quand même »**. Cet avertissement n'apparaît qu'une fois par
+> poste.
+
+### L'écran de configuration
+
+Il apparaît **une seule fois**, sur un PC neuf. Deux questions :
+
+**1. L'adresse du serveur** — déjà remplie avec `http://192.168.1.253:8080`.
+Ne pas y toucher, sauf si la VM a déménagé.
+
+**2. Ce PC se trouve à** — choisir dans la liste :
+
+| Ce qu'affiche la liste | Ce que ça règle | Code enregistré |
+|---|---|---|
+| Portail Principal | le poste du portail principal | `PORT1` |
+| Portail Terrain | le portail latéral nord | `PORT2` |
+| Garage | le portail latéral sud | `PORT3` |
+| CDI | la banque de prêt | `BIBLIO` |
+| Infirmerie | le poste de soins | `ENFERM` |
+| Cantine Principale | le réfectoire 1 | `REFEI1` |
+| Cantine Secondaire | le réfectoire 2 | `REFEI2` |
+
+> ⚠️ **La troisième colonne n'est pas de la décoration.** C'est ce code qui
+> s'écrit dans `magbo-poste.json`, qui s'affiche dans la barre de titre, et que
+> pose la ligne `set MAGBO_SECTOR=…` d'un ancien `.bat`. Choisir « CDI » écrit
+> **`BIBLIO`** : ce n'est pas une erreur, ce sont les deux noms de la même
+> pièce — l'un pour les gens, l'autre pour le système.
+
+> ⚠️ Ce choix sert à **identifier ce PC** : le nom apparaît dans la barre de
+> titre de la fenêtre. C'est ce qui permet de dire au téléphone « le PC du CDI
+> affiche ceci » sans se déplacer. Il ne change pas l'écran qui s'ouvre —
+> l'application démarre sur le tableau de bord, comme avant.
+
+### Puis : **Tester la connexion**
+
+**Le bouton d'enregistrement reste fermé tant que le test n'a pas réussi.**
+C'est voulu : un poste enregistré sur une mauvaise adresse s'ouvre tous les
+matins sur un écran vide, et la personne devant lui n'a aucun moyen de deviner
+que c'est l'adresse.
+
+| Ce que dit le test | Ce que ça veut dire | Quoi faire |
+|---|---|---|
+| **Le serveur répond** | Tout va bien | Enregistrer |
+| **Le serveur répond, mais sa base de données ne répond pas** | L'adresse est bonne, le serveur a un problème | Enregistrer quand même, et prévenir la direction |
+| **Aucune réponse à cette adresse** | Adresse fausse, serveur éteint, ou PC hors du réseau | Vérifier les chiffres et le port, puis le réseau |
+| **Le serveur n'a pas répondu à temps** | Souvent une adresse fausse sur le bon réseau | Vérifier les chiffres |
+| **Quelque chose répond, mais ce n'est pas le serveur MAGBO** | L'adresse pointe vers un autre appareil de l'école | Vérifier l'adresse |
+
+Puis **Enregistrer et ouvrir**. Le dossier contient maintenant :
 
 ```
 C:\MAGBO\
    ├── MAGBO-Access-Control-Portable.exe
-   └── Abrir-MAGBO.bat
+   └── magbo-poste.json          ← créé automatiquement
 ```
 
-Les deux doivent rester dans le même dossier : le `.bat` lance le `.exe` qui se
-trouve à côté de lui.
+Ce fichier se lit au Bloc-notes. Il contient l'adresse et le poste, **rien
+d'autre** — aucun mot de passe, aucun code.
 
 ---
 
-## 3. Régler le secteur du poste
-
-Clic droit sur `Abrir-MAGBO.bat` → **Modifier** (ouvre le Bloc-notes).
-
-Deux lignes comptent :
-
-```bat
-set MAGBO_API_URL=http://192.168.1.253:8080
-set MAGBO_SECTOR=PORT1
-```
-
-- `MAGBO_API_URL` : ne pas y toucher. C'est l'adresse fixe du serveur.
-- `MAGBO_SECTOR` : remplacer par le code du poste.
-
-| Poste | Code à écrire |
-|---|---|
-| Portail principal | `PORT1` |
-| Portail secondaire | `PORT2` |
-| Troisième portail | `PORT3` |
-| CDI / Bibliothèque | `BIBLIO` |
-| Infirmerie | `ENFERM` |
-| Cantine — service 1 | `REFEI1` |
-| Cantine — service 2 | `REFEI2` |
-
-Enregistrer et fermer le Bloc-notes.
-
----
-
-## 4. Premier lancement
-
-Double-cliquer sur **`Abrir-MAGBO.bat`**.
-
-**Windows va afficher un avertissement bleu** : « Windows a protégé votre
-ordinateur ». C'est normal — l'application n'est pas signée numériquement, ce
-qui est attendu pour un logiciel interne à l'école.
-
-> Cliquer sur **« Informations complémentaires »**, puis sur
-> **« Exécuter quand même »**.
-
-Cet avertissement n'apparaît qu'à la première ouverture sur chaque poste.
-
----
-
-## 5. Vérifier — à l'écran, pas seulement la fenêtre
+## 4. Vérifier — à l'écran, pas seulement la fenêtre
 
 Une fenêtre qui s'ouvre ne prouve rien. Se connecter, puis contrôler que les
 **données apparaissent réellement** :
 
+- [ ] La barre de titre porte le **code** du poste — pour le CDI :
+      « MAGBO Access Control — BIBLIO » (troisième colonne de la section 3).
 - [ ] Le tableau de bord affiche des chiffres, pas des zéros partout.
 - [ ] **Rapport Général → Journal** : des lignes avec des noms de personnes.
 - [ ] Le nom de l'opérateur connecté apparaît en haut à droite.
 
-Si l'application s'ouvre mais reste vide, voir le tableau de la section 7.
+Si l'application s'ouvre mais reste vide, voir la section 7.
 
 ---
 
-## 6. Refaire le raccourci
+## 5. Le raccourci sur le bureau
 
-Si le poste avait un raccourci sur le bureau ou un lancement automatique au
-démarrage, le refaire en pointant vers **`Abrir-MAGBO.bat`**.
+Clic droit sur le `.exe` → **Envoyer vers** → **Bureau (créer un raccourci)**.
 
-Clic droit sur le `.bat` → **Envoyer vers** → **Bureau (créer un raccourci)**.
+Le raccourci porte l'icône de l'application. ⚠️ **Il n'y a plus de piège** :
+c'est bien sur cette icône qu'il faut cliquer. Si un ancien raccourci pointant
+vers `Abrir-MAGBO.bat` existe encore, le supprimer — voir la section 8.
 
-⚠️ Un raccourci qui pointe vers le `.exe` ouvrira l'application vide. C'est la
-cause la plus fréquente de « l'application ne marche plus ».
+Pour un lancement automatique au démarrage : copier ce raccourci dans
+`shell:startup` (touche Windows + R, taper `shell:startup`, Entrée).
+
+> ⚠️ **Regarder ce que ce dossier contient déjà.** Sur un poste qui tournait
+> avec l'ancienne version, c'est très souvent là — et pas sur le bureau — que
+> vit le raccourci vers `Abrir-MAGBO.bat`. Un raccourci oublié dans
+> `shell:startup` relance le `.bat` à **chaque ouverture de session** : il
+> repose les variables, qui reprennent la priorité. Le poste semble
+> « se dé-migrer » tout seul le lendemain matin, sans que personne n'ait rien
+> touché.
+
+---
+
+## 6. Corriger un réglage plus tard
+
+Sans réinstaller, et sans toucher au fichier.
+
+**Engrenage → Poste.** L'onglet n'apparaît que pour un compte **administrateur**
+ou porteur de la permission **Configuration**. Un opérateur ne peut pas changer
+le poste par mégarde ; un administrateur corrige une erreur d'installation en
+trente secondes.
+
+L'écran est le même qu'à la première ouverture, test de connexion compris.
 
 ---
 
@@ -129,48 +214,166 @@ cause la plus fréquente de « l'application ne marche plus ».
 
 | Symptôme | Cause probable | Remède |
 |---|---|---|
-| L'application s'ouvre **vide**, sans erreur | Ouverte par le `.exe` au lieu du `.bat` | Fermer, rouvrir par `Abrir-MAGBO.bat` |
-| Toujours vide, même par le `.bat` | Le serveur ne répond pas depuis ce poste | Ouvrir `http://192.168.1.253:8080/api/health` dans un navigateur du poste |
+| L'application s'ouvre **vide**, sans erreur | Mauvaise adresse de serveur | Engrenage → Poste → Tester la connexion (section 6) |
+| Toujours vide, et le test réussit | Le serveur répond mais sa base est tombée | Prévenir la direction ; ce n'est pas le poste |
+| L'écran de configuration revient **à chaque ouverture** | Le réglage n'est pas là où on le croit : soit le fichier a été supprimé, soit c'est un **autre compte Windows** qui ouvre la session (voir la ligne suivante) | Vérifier que `magbo-poste.json` est bien à côté du `.exe` |
+| Le poste marche, mais `magbo-poste.json` n'est **pas** à côté du `.exe` | Le dossier refuse l'écriture (`Program Files`, dossier réseau) : le réglage est parti dans `AppData`, donc il ne vaut que pour ce compte Windows | Déplacer le dossier vers `C:\MAGBO`, rouvrir, répondre une fois de plus — encadré de la section 2 |
 | « Windows a protégé votre ordinateur » | Application non signée | « Informations complémentaires » → « Exécuter quand même » |
-| Le mauvais secteur s'affiche | `MAGBO_SECTOR` mal réglé | Section 3, puis fermer et rouvrir l'application |
-| Impossible de se connecter | Compte ou mot de passe | Vérifier auprès de l'administrateur — ce n'est pas un problème d'installation |
-| Le `.bat` s'ouvre et se referme aussitôt | Le `.exe` n'est pas dans le même dossier | Section 2 : les deux fichiers ensemble |
+| Le mauvais poste s'affiche dans le titre | Réglage à corriger | Section 6 |
+| Le poste est verrouillé : **il n'y a pas de barre de titre** | C'est normal en mode kiosque | Le poste se lit dans Engrenage → Poste (section 6) |
+| **« Le serveur ne répond pas à l'adresse … »** au moment de se connecter | Ce PC ne joint pas le serveur : adresse fausse (la VM a déménagé), serveur éteint, ou réseau | Voir la ligne suivante — ce **n'est pas** un problème de mot de passe |
+| L'adresse est fausse et **je ne peux pas me connecter**, donc pas atteindre l'engrenage | L'écran de correction est derrière la connexion, de propos délibéré : changer l'adresse du serveur est un droit d'administrateur | Ouvrir `magbo-poste.json` (à côté du `.exe`) au **Bloc-notes** et corriger l'adresse ; ou le **supprimer** et rouvrir, l'écran de configuration revient (section 9 b) |
+| Impossible de se connecter, et le serveur répond | Compte ou mot de passe | Voir l'administrateur — ce n'est pas l'installation |
+| L'engrenage dit que le poste est réglé par le lanceur | Un `.bat` est encore là et garde la priorité | Section 8 |
 
 ---
 
-## 8. Mode kiosque — seulement pour les postes en libre accès
+## 8. ⚠️ Migrer un poste qui a déjà un `.bat`
+
+**Rien ne presse.** Un poste avec son `Abrir-MAGBO.bat` continue de fonctionner
+exactement comme avant, même après avoir remplacé le `.exe` : le `.bat` pose des
+variables qui **gardent la priorité** sur le fichier de réglage. C'est
+délibéré — mettre à jour le parc ne devait pas pouvoir casser les postes.
+
+Quand vous voulez migrer un poste, dans cet ordre :
+
+1. **Remplacer le `.exe`** par la nouvelle version. Ouvrir, vérifier que tout
+   marche encore par le `.bat`. S'arrêter là est une position stable.
+2. **Noter ce que dit le `.bat`** : ouvrir au Bloc-notes et relever **les deux
+   lignes**, `set MAGBO_API_URL=…` **et** `set MAGBO_SECTOR=…`.
+   - Le code du poste (`PORT2`) se traduit en nom (« Portail Terrain ») avec le
+     tableau de la section 3 — c'est le nom que l'écran proposera.
+   - ⚠️ **Regarder aussi s'il y a `set NODE_ENV=production`** : ce poste est
+     alors en **mode kiosque**, et il faudra le rétablir (étape 4 bis).
+3. **Déplacer le `.bat`** hors du dossier (par exemple sur le bureau, dans un
+   dossier `ancien`). Ne pas le supprimer tout de suite.
+4. **Ouvrir le `.exe`** directement. L'écran de configuration apparaît.
+   ⚠️ **Comparer l'adresse pré-remplie à celle relevée à l'étape 2** : le champ
+   affiche l'adresse par défaut du programme, **pas** celle du `.bat` — qui
+   vient d'être retiré et ne peut plus rien pré-remplir. Si elles diffèrent,
+   corriger avant de tester. Puis choisir le poste, tester, enregistrer.
+
+   > ⚠️ **L'écran de configuration n'apparaît pas ?** Alors le poste est
+   > gouverné par une variable **système**, posée un jour avec `setx` au lieu
+   > d'un `.bat`. Ouvrir une invite de commandes et taper `set MAGBO_` : si des
+   > lignes s'affichent, les supprimer dans **Paramètres → Variables
+   > d'environnement** (compte **et** système), puis fermer et rouvrir la
+   > session Windows.
+
+4 bis. **Si le `.bat` portait `NODE_ENV=production`** (étape 2), ce poste était
+   verrouillé et ne l'est plus. Recréer le `Abrir-MAGBO-kiosque.bat` de la
+   section 10, avec le même code, et lancer le poste par lui. Sans cela, le PC
+   du portail devient un Windows ordinaire, en fenêtre, devant les élèves — et
+   personne n'aura rien fait de travers.
+5. **Refaire le raccourci** vers le `.exe`, et supprimer celui du `.bat` —
+   ⚠️ **aux DEUX endroits** : sur le bureau *et* dans `shell:startup`
+   (Windows + R → `shell:startup`). C'est l'oubli qui défait la migration : le
+   raccourci de démarrage relance le `.bat` à la prochaine ouverture de
+   session, les variables reviennent, et le poste retourne à son ancien réglage
+   sans rien signaler.
+6. **Fermer et rouvrir la session Windows**, et vérifier que c'est bien le
+   `.exe` qui démarre. C'est le seul contrôle qui prouve l'étape 5.
+7. Une semaine plus tard, si tout va bien : supprimer le `.bat`.
+
+> ⚠️ **Ne laissez pas le `.bat` et le fichier de réglage en désaccord.** Tant
+> que le `.bat` est là, c'est lui qui gagne — et l'écran de correction refusera
+> d'enregistrer en vous disant pourquoi, plutôt que d'annoncer un « enregistré »
+> qui serait effacé à la prochaine ouverture.
+
+---
+
+## 9. Revenir en arrière
+
+Trois niveaux, du plus léger au plus lourd. Aucun ne touche au serveur : toutes
+les versions parlent au même backend.
+
+**a) Le réglage est mauvais.** Engrenage → Poste, corriger, tester,
+enregistrer (section 6).
+
+**b) Repartir de zéro sur ce poste.** Fermer l'application, **supprimer
+`magbo-poste.json`**, rouvrir. L'écran de configuration revient comme sur un PC
+neuf. Rien d'autre n'est perdu : ce fichier ne contient que deux réponses.
+
+> Sur un poste en kiosque, l'application s'ouvre alors **en fenêtre** — elle
+> refuse de se verrouiller sur une question. Le verrouillage revient de
+> lui-même dès que vous avez répondu et enregistré.
+
+**c) Revenir à l'ancienne version.** Remettre `Abrir-MAGBO.bat` dans le dossier
+et le rouvrir : il reprend la main immédiatement, sans qu'il y ait rien à
+défaire. Si l'ancien `.exe` a été conservé (section 1), renommer le dossier
+`MAGBO` en `MAGBO-suspendu` et redonner à `MAGBO-ancien-…` son nom d'origine.
+
+---
+
+## 10. Mode kiosque — seulement pour les postes en libre accès
 
 Sur un poste laissé sans surveillance (portail, cantine), on peut verrouiller
-l'application en plein écran, sortie protégée par un code. Dans le `.bat`,
-retirer les `REM` des deux lignes et choisir un code :
+l'application en plein écran.
+
+> ## ⚠️⚠️ IL N'Y A PAS DE SORTIE PAR CODE. Lisez ceci avant de verrouiller.
+>
+> Le mode kiosque bloque **Alt+F4, Ctrl+W, F11, Alt+Tab et la touche Windows**,
+> pour tout le PC, et la fenêtre n'a plus de croix. Le raccourci
+> `Ctrl+Shift+Alt+Q` et la variable `MAGBO_KIOSK_PIN` **existent dans le
+> programme mais ne sont branchés sur rien** : taper un code n'est proposé
+> nulle part. Les versions précédentes de ce guide promettaient une « sortie
+> protégée par un code » ; c'était faux, et cette page ne le répétera pas.
+>
+> **Pour fermer un poste verrouillé : `Ctrl+Alt+Suppr` → Gestionnaire des
+> tâches → MAGBO Access Control → Fin de tâche.**
+>
+> Ne verrouillez donc que des postes où quelqu'un sait faire ce geste, et
+> écrivez-le sur la fiche de suivi. (Câbler une vraie sortie par code est une
+> décision de Sam, pas une retouche de ce guide.)
+
+> ⚠️ **DANS CET ORDRE, ET PAS L'INVERSE : sections 3 et 4 D'ABORD.** Le mode
+> kiosque bloque Alt+F4, Alt+Tab et F11. Configurer le poste **après** l'avoir
+> verrouillé, c'est répondre à deux questions sur une machine dont on ne peut
+> plus sortir — à la cantine, à 11h50. (L'application se protège d'elle-même :
+> tant que le poste n'est pas réglé, elle **refuse** de se verrouiller et
+> s'ouvre en fenêtre normale. Ne comptez pas dessus comme méthode de travail :
+> c'est un filet, pas une procédure.)
+
+⚠️ **Ce réglage reste dans un `.bat`, et c'est voulu.** Le code de sortie n'a
+rien à faire dans un fichier en clair à côté du programme, sur un PC partagé.
+Créer un `Abrir-MAGBO-kiosque.bat` à côté du `.exe` :
 
 ```bat
+@echo off
 set NODE_ENV=production
-set MAGBO_KIOSK_PIN=1234
+set MAGBO_KIOSK_PIN=choisir-un-code
+start "" "%~dp0MAGBO-Access-Control-Portable.exe"
 ```
 
-Ne pas activer ce mode sur un poste administratif : il empêche d'utiliser
-normalement l'ordinateur.
+Ce lanceur-là **ne pose pas** `MAGBO_API_URL` ni `MAGBO_SECTOR` : l'adresse et le
+poste continuent de venir du fichier de réglage, et l'onglet **Engrenage →
+Poste** reste utilisable pour les corriger. Ne pas activer ce mode sur un poste
+administratif — il empêche d'utiliser normalement l'ordinateur.
+
+> ⚠️ **Corriger le réglage depuis l'engrenage recharge l'application**, donc
+> **déconnecte** la personne en cours. L'écran le dit avant, mais sur un poste
+> de portail en pleine sortie, cela vaut la peine de choisir le moment. Le
+> bouton **Annuler** referme l'écran sans rien changer.
 
 ---
 
 ## Fiche de suivi
 
-À remplir au fur et à mesure, pour savoir où en est le parc.
+| Poste | Lieu choisi | Installé le | Par | Ancienne version conservée | `.bat` retiré | Raccourci de démarrage refait | Kiosque rétabli | Vérifié à l'écran |
+|---|---|---|---|---|---|---|---|---|
+| | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
+| | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
+| | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
+| | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
+| | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
 
-| Poste | Secteur | Installé le | Par | Ancienne version conservée | Vérifié à l'écran |
-|---|---|---|---|---|---|
-| | | | | ☐ | ☐ |
-| | | | | ☐ | ☐ |
-| | | | | ☐ | ☐ |
-| | | | | ☐ | ☐ |
-| | | | | ☐ | ☐ |
+> « Raccourci de démarrage refait » = celui du **bureau** *et* celui de
+> `shell:startup` (section 8, étape 5). « Kiosque rétabli » ne concerne que les
+> postes qui étaient verrouillés avant la migration — section 8, étape 4 bis ;
+> laisser vide sinon.
 
 ---
 
-## En cas de retour en arrière
-
-Renommer le dossier `MAGBO` en `MAGBO-v2.1-suspendu`, puis redonner à
-`MAGBO-ancien-2026-08-12` son nom d'origine. L'ancienne version repart telle
-qu'elle était : rien n'a été modifié côté serveur, les deux versions parlent au
-même backend.
+*Le raisonnement derrière ce choix — pourquoi un fichier à côté du programme
+plutôt que le registre Windows, et pourquoi le `.bat` garde la priorité — est
+dans [`ADR-007`](../architecture/decisoes/ADR-007-configuration-du-poste.md).*

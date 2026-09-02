@@ -121,12 +121,33 @@ Ne pas y toucher, sauf si la VM a déménagé.
 | Infirmerie | le poste de soins | `ENFERM` |
 | Cantine Principale | le réfectoire 1 | `REFEI1` |
 | Cantine Secondaire | le réfectoire 2 | `REFEI2` |
+| **Poste administratif — pas un point de passage** | ce PC n'est posté nulle part | `ADMINISTRATIF` |
 
 > ⚠️ **La troisième colonne n'est pas de la décoration.** C'est ce code qui
-> s'écrit dans `magbo-poste.json`, qui s'affiche dans la barre de titre, et que
-> pose la ligne `set MAGBO_SECTOR=…` d'un ancien `.bat`. Choisir « CDI » écrit
-> **`BIBLIO`** : ce n'est pas une erreur, ce sont les deux noms de la même
-> pièce — l'un pour les gens, l'autre pour le système.
+> s'écrit dans `magbo-poste.json` et que pose la ligne `set MAGBO_SECTOR=…`
+> d'un ancien `.bat`. Pour les sept lieux, c'est aussi lui qui s'affiche dans
+> la barre de titre ; **le poste administratif fait exception** : sa barre de
+> titre porte « MAGBO Access Control — Poste administratif », jamais
+> `ADMINISTRATIF`. Choisir « CDI » écrit **`BIBLIO`** : ce n'est pas une
+> erreur, ce sont les deux noms de la même pièce — l'un pour les gens, l'autre
+> pour le système.
+
+### ⚠️ Les machines qui ne sont postées nulle part
+
+**Vie Scolaire, direction, informatique** : ces PC ouvrent le panneau
+d'administration, le planning, la recherche. Ils ne sont **pas** des points de
+passage. Choisir **« Poste administratif — pas un point de passage »**.
+
+| | |
+|---|---|
+| Ce que ça change | **rien**, sinon le titre de la fenêtre, qui affiche « MAGBO Access Control — Poste administratif » au lieu d'un code de portail |
+| Ce que ça ne change pas | l'application est la même, les mêmes écrans s'ouvrent, les mêmes droits s'appliquent — et **un passage saisi à la main depuis ce PC compte comme partout ailleurs** : ce choix ne rend pas la machine inoffensive, il dit seulement qu'aucun portique n'y est raccordé |
+| L'adresse du serveur | **toujours obligatoire**, et le test de connexion doit passer comme partout ailleurs |
+| Le mode kiosque | **ne pas l'activer** sur ces machines (section 10) — il empêche d'utiliser normalement l'ordinateur |
+
+> Pourquoi cette entrée existe : jusqu'ici l'écran obligeait à cocher un lieu.
+> Le PC du directeur s'intitulait « MAGBO Access Control — PORT1 », et quelqu'un
+> allait finir par croire que ce PC enregistrait des passages au portail.
 
 > ⚠️ Ce choix sert à **identifier ce PC** : le nom apparaît dans la barre de
 > titre de la fenêtre. C'est ce qui permet de dire au téléphone « le PC du CDI
@@ -167,7 +188,9 @@ Une fenêtre qui s'ouvre ne prouve rien. Se connecter, puis contrôler que les
 **données apparaissent réellement** :
 
 - [ ] La barre de titre porte le **code** du poste — pour le CDI :
-      « MAGBO Access Control — BIBLIO » (troisième colonne de la section 3).
+      « MAGBO Access Control — BIBLIO » (troisième colonne de la section 3) ;
+      **sur un poste administratif, elle porte
+      « MAGBO Access Control — Poste administratif »**, sans code.
 - [ ] Le tableau de bord affiche des chiffres, pas des zéros partout.
 - [ ] **Rapport Général → Journal** : des lignes avec des noms de personnes.
 - [ ] Le nom de l'opérateur connecté apparaît en haut à droite.
@@ -220,6 +243,8 @@ L'écran est le même qu'à la première ouverture, test de connexion compris.
 | Le poste marche, mais `magbo-poste.json` n'est **pas** à côté du `.exe` | Le dossier refuse l'écriture (`Program Files`, dossier réseau) : le réglage est parti dans `AppData`, donc il ne vaut que pour ce compte Windows | Déplacer le dossier vers `C:\MAGBO`, rouvrir, répondre une fois de plus — encadré de la section 2 |
 | « Windows a protégé votre ordinateur » | Application non signée | « Informations complémentaires » → « Exécuter quand même » |
 | Le mauvais poste s'affiche dans le titre | Réglage à corriger | Section 6 |
+| Le titre affiche un code de portail (`PORT1`, `BIBLIO`…) sur un PC **de bureau** | Ce PC a été réglé comme un point de passage alors qu'il n'en est pas un | Engrenage → Poste → **« Poste administratif — pas un point de passage »** → tester → enregistrer (sections 3 et 6). Si la liste est **grisée**, un `.bat` gouverne encore ce PC : section 8 d'abord |
+| Le titre affiche « MAGBO Access Control » **tout court** | Ce PC n'est pas réglé du tout — ce n'est pas la même chose qu'un poste administratif, qui affiche son libellé | Répondre aux deux questions (section 3) |
 | Le poste est verrouillé : **il n'y a pas de barre de titre** | C'est normal en mode kiosque | Le poste se lit dans Engrenage → Poste (section 6) |
 | **« Le serveur ne répond pas à l'adresse … »** au moment de se connecter | Ce PC ne joint pas le serveur : adresse fausse (la VM a déménagé), serveur éteint, ou réseau | Voir la ligne suivante — ce **n'est pas** un problème de mot de passe |
 | L'adresse est fausse et **je ne peux pas me connecter**, donc pas atteindre l'engrenage | L'écran de correction est derrière la connexion, de propos délibéré : changer l'adresse du serveur est un droit d'administrateur | Ouvrir `magbo-poste.json` (à côté du `.exe`) au **Bloc-notes** et corriger l'adresse ; ou le **supprimer** et rouvrir, l'écran de configuration revient (section 9 b) |
@@ -243,6 +268,10 @@ Quand vous voulez migrer un poste, dans cet ordre :
    lignes**, `set MAGBO_API_URL=…` **et** `set MAGBO_SECTOR=…`.
    - Le code du poste (`PORT2`) se traduit en nom (« Portail Terrain ») avec le
      tableau de la section 3 — c'est le nom que l'écran proposera.
+   - ⚠️ **Si ce PC est un poste de BUREAU** (Vie Scolaire, direction,
+     informatique), **ne traduisez pas l'ancien code** : l'ancien `.bat`
+     portait un code de portail faute d'autre choix. Vous choisirez
+     « Poste administratif — pas un point de passage » (section 3).
    - ⚠️ **Regarder aussi s'il y a `set NODE_ENV=production`** : ce poste est
      alors en **mode kiosque**, et il faudra le rétablir (étape 4 bis).
 3. **Déplacer le `.bat`** hors du dossier (par exemple sur le bureau, dans un
@@ -367,9 +396,11 @@ administratif — il empêche d'utiliser normalement l'ordinateur.
 | | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
 | | | | | ☐ | ☐ | ☐ | ☐ | ☐ |
 
-> « Raccourci de démarrage refait » = celui du **bureau** *et* celui de
-> `shell:startup` (section 8, étape 5). « Kiosque rétabli » ne concerne que les
-> postes qui étaient verrouillés avant la migration — section 8, étape 4 bis ;
+> « Lieu choisi » = le lieu, ou « Poste administratif » pour une machine qui
+> n'est postée nulle part. « Raccourci de démarrage refait » = celui du
+> **bureau** *et* celui de `shell:startup` (section 8, étape 5). « Kiosque
+> rétabli » ne concerne que les postes qui étaient verrouillés avant la
+> migration — section 8, étape 4 bis ;
 > laisser vide sinon.
 
 ---

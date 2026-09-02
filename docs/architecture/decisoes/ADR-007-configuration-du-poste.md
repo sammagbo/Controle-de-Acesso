@@ -218,6 +218,83 @@ cantine. Sept entrées sur dix-sept.
 
 ---
 
+## ⚠️ Le poste qui n'est PAS un point de passage — où vit cette valeur, et pourquoi
+
+**Constat, 03/09/2026.** L'écran obligeait à choisir un lieu physique : la garde
+`peutEnregistrer` exige un poste, et la liste ne contenait que des portails, le
+CDI, l'infirmerie et les réfectoires. Or les machines de la Vie Scolaire, de la
+direction et de l'informatique ne sont postées nulle part — elles ouvrent
+l'administration, le planning, la recherche. Le PC du directeur s'intitulait
+donc **« MAGBO Access Control — PORT1 »**, et le titre est le seul endroit où le
+poste choisi se voit : quelqu'un allait finir par croire que ce PC enregistrait
+des passages au portail.
+
+### La valeur ne vit PAS dans `ACCESS_POINTS`
+
+`ACCESS_POINTS` reste l'autorité pour la liste des **lieux** — la section
+précédente ne bouge pas. Mais un poste administratif n'est pas un lieu, et la
+raison de ne pas l'inscrire là est **mesurée**, pas de principe :
+
+**`ACCESS_POINTS` fabrique la grille de cartes du tableau de bord.**
+`Dashboard.js` itère la constante, filtre par `podeVerPonto`, et rend une carte
+par entrée en lisant `CATEGORY_COLORS[point.category].bg` **sans garde** —
+même chose dans `SectorView.js`. `CATEGORY_COLORS` connaît quatre catégories
+(`portaria`, `especial`, `refeitorio`, `monitor`). Toute entrée ajoutée à
+`ACCESS_POINTS` devient donc une carte à ouvrir, et une entrée dont la catégorie
+n'a pas de couleur fait tomber le tableau de bord dans l'`ErrorBoundary` **pour
+tous les opérateurs de l'école**. Un poste administratif n'est ni un lieu ni un
+écran : il n'a pas de carte à ouvrir, donc rien à faire dans la liste qui
+fabrique les cartes. `ACCESS_POINTS` sert aussi au routage de `App.js` et au
+sélecteur de points de l'administration — trois consommateurs qui n'ont rien à
+faire d'une machine.
+
+> ⚠️ **Une première rédaction de cette section donnait deux autres raisons, et
+> elles étaient fausses.** « La constante est le miroir de l'`AreaMapping` du
+> backend, un poste administratif y créerait un point fantôme » : elle porte
+> déjà **dix** entrées `monitor` que le backend ne connaît pas, et
+> `AreaMapping.areaForPoint` rend `null` pour sept d'entre elles — l'écart
+> existe, il se réconcilie en un mot (`monitor`). « La constante n'a que deux
+> catégories » : elle en a quatre. La **décision** était juste ; ses
+> justifications ne l'étaient pas, et un ADR qui garde une raison commode
+> enseigne à la prochaine personne à ajouter l'entrée en croyant l'interdit
+> folklorique — et à faire tomber le tableau de bord. (Panel, critique de
+> complétude, 03/09/2026.)
+
+Elle vit donc dans **`js/utils/posteConfig.js`**, à côté de la fonction qui
+construit la liste de l'écran — la seule qui a besoin de la connaître. Le module
+compose : les lieux d'abord, dans leur ordre, puis l'entrée administrative en
+dernier. Un test lit les **deux constantes réelles** et vérifie que la valeur
+n'est pas dans la liste et que sa catégorie n'a pas de couleur.
+
+### Trois choix qui ne sont pas arbitraires
+
+- **La valeur est `ADMINISTRATIF`, jamais une chaîne vide.** `aEcrire('', '')`
+  produit un JSON parfaitement valide qui se relit en « non configuré » — le
+  poste reposerait sa question à chaque ouverture. C'est le défaut trouvé au 2e
+  tour de revue du chantier précédent ; « pas de poste » aurait été le même
+  piège sous un autre nom.
+- **Le titre porte un libellé, pas rien.** « MAGBO Access Control » tout court
+  est déjà le titre d'un poste **pas encore réglé** : un titre nu rendrait les
+  deux situations indiscernables. Le libellé est en français en dur dans
+  `posteConfig.js` — le titre est dessiné par Windows avant que la page, et donc
+  la langue choisie (elle vit dans le `localStorage` du rendu), n'existent. Le
+  dictionnaire porte la version traduite, pour l'écran.
+- **Sans aucun lieu connu, la liste est VIDE**, entrée administrative comprise.
+  Si `ACCESS_POINTS` manquait (ordre des `<script>` cassé), n'offrir que
+  « Poste administratif » serait pire que n'offrir rien : la personne qui
+  installe le PC du portail y verrait la seule option disponible.
+
+### Ce que ce chantier ne fait PAS
+
+`MAGBO_SECTOR` continue de ne piloter **que le titre de la fenêtre** — aucun
+fichier de `js/` ne lit `config.sector`, et l'entrée administrative ne lui donne
+aucun rôle nouveau. L'ordre de résolution est inchangé, la priorité des
+variables d'environnement est intacte, et un `.bat` peut poser
+`MAGBO_SECTOR=ADMINISTRATIF` comme n'importe quelle autre valeur : elle traverse
+la branche 1 sans traitement particulier.
+
+---
+
 ## ⚠️ Pourquoi le test de connexion est obligatoire avant d'enregistrer
 
 Un poste enregistré sur une mauvaise adresse s'ouvre **tous les matins sur un

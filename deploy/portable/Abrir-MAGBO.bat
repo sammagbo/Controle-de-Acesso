@@ -24,7 +24,9 @@ REM ===================================================================
 set MAGBO_API_URL=http://192.168.1.253:8080
 set MAGBO_SECTOR=PORT1
 
-REM  Postes possibles : PORT1 PORT2 PORT3 BIBLIO ENFERM REFEI1 REFEI2
+REM  Postes possibles : PORT1 PORT2 PORT3 BIBLIO ENFERM REFEI1 REFEI2 ADMINISTRATIF
+REM  ADMINISTRATIF = poste de bureau, pas un point de passage
+REM  (Vie Scolaire, direction, informatique) - ne change que le titre.
 
 REM ===================================================================
 REM  MODE QUIOSQUE - plein ecran, touches de sortie bloquees, PIN.

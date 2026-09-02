@@ -227,9 +227,21 @@ function PremierLancement({ configInitiale, onTermine, onAnnuler, onQuitter, mod
                                                      focus:ring-2 focus:ring-navy-300 focus:border-navy-400">
                                           <option value="">{t('poste.poste.choisir')}</option>
                                           {postes.map(p => (
-                                                <option key={p.id} value={p.id}>{p.nom}</option>
+                                                <option key={p.id} value={p.id}>
+                                                      {p.cleI18n ? t(p.cleI18n) : p.nom}
+                                                </option>
                                           ))}
                                     </select>
+                                    {/* ⚠️ DIT CE QUE CE CHOIX NE FAIT PAS. C'est tout
+                                        l'objet de cette entrée : lever le doute sur une
+                                        machine qui n'enregistre aucun passage. Sans cette
+                                        ligne, « Poste administratif » se lit comme un lieu
+                                        de plus. */}
+                                    {PC && PC.estAdministratif(poste) && (
+                                          <p className="mt-2 text-xs text-slate-500">
+                                                {t('poste.administratif.note')}
+                                          </p>
+                                    )}
                               </div>
 
                               {/* ⚠️ Le rechargement DÉCONNECTE : le jeton vit en mémoire.

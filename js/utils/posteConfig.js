@@ -54,6 +54,54 @@
     /** Le nom du fichier déposé à côté du .exe. */
     const NOM_FICHIER = 'magbo-poste.json';
 
+    /**
+     * ★ LE POSTE QUI N'EST PAS UN POINT DE PASSAGE.
+     *
+     * Les machines de la Vie Scolaire, de la direction et de l'informatique
+     * ouvrent l'administration, le planning et la recherche. Elles ne sont
+     * postées nulle part. Jusqu'ici l'écran les obligeait à cocher un lieu
+     * physique : le PC du directeur s'intitulait « MAGBO — PORT1 », et
+     * quelqu'un allait finir par croire que ce PC enregistrait des passages.
+     *
+     * ⚠️ CETTE VALEUR NE VIT PAS DANS `ACCESS_POINTS`, ET LA RAISON EST
+     * MESURÉE, PAS DE PRINCIPE. `ACCESS_POINTS` n'est pas seulement une liste
+     * de lieux : c'est la source de la GRILLE DE CARTES du tableau de bord
+     * (`Dashboard.js`), du sélecteur de points de l'administration et du
+     * routage de `App.js`. Toute entrée qu'on y ajoute devient une carte à
+     * ouvrir, et `Dashboard.js` lit `CATEGORY_COLORS[point.category].bg`
+     * SANS garde : une catégorie inconnue fait tomber le tableau de bord
+     * dans l'ErrorBoundary pour tous les opérateurs de l'école. Un poste
+     * administratif n'est ni un lieu ni un écran — il n'a pas de carte à
+     * ouvrir, donc rien à faire dans la liste qui fabrique les cartes.
+     *
+     * (Une première rédaction invoquait le « miroir de l'`AreaMapping` du
+     * backend ». C'était commode et faux : la constante porte déjà dix
+     * entrées `monitor` que le backend ne connaît pas. Corrigé au panel.)
+     *
+     * Il vit donc ici, à côté de la fonction qui construit la liste de
+     * l'écran — la seule qui a besoin de le connaître.
+     *
+     * ⚠️ La chaîne est EXPLICITE, jamais vide. `aEcrire('', '')` produit un
+     * JSON parfaitement valide qui se relit en « non configuré » : le poste
+     * repose alors sa question à chaque ouverture. C'est le défaut trouvé au
+     * 2e tour de revue du chantier précédent, et le réintroduire ici sous
+     * couvert de « pas de poste » serait le même piège avec un autre nom.
+     */
+    const POSTE_ADMINISTRATIF = 'ADMINISTRATIF';
+
+    /**
+     * Le libellé du titre de fenêtre pour ce poste-là.
+     *
+     * ⚠️ EN FRANÇAIS EN DUR, et il faut dire pourquoi plutôt que de faire
+     * semblant. Le titre est dessiné par Windows AVANT que la page n'existe,
+     * donc avant que la langue choisie — qui vit dans le `localStorage` du
+     * rendu — soit lisible. Le processus principal n'a pas d'i18n, et lui en
+     * donner une pour une chaîne obligerait à choisir une langue au démarrage
+     * sans pouvoir la lire. Le dictionnaire porte la version traduite, pour
+     * l'écran ; celle-ci ne sert qu'à la barre de titre.
+     */
+    const TITRE_ADMINISTRATIF = 'Poste administratif';
+
     /** D'où vient la configuration retenue — pour l'écran et pour le journal. */
     const SOURCES = {
         ENVIRONNEMENT: 'environnement',
@@ -143,7 +191,27 @@
      *                     (le module reste pur et testable sans le navigateur)
      */
     function postesDisponibles(accessPoints) {
-        if (!Array.isArray(accessPoints)) return [];
+        // ⚠️ AUCUN LIEU CONNU → LISTE VIDE, l'entrée administrative comprise.
+        // Si `ACCESS_POINTS` manque (ordre des <script> cassé) ou arrive vide,
+        // n'offrir QUE « Poste administratif » serait pire que n'offrir rien :
+        // la personne qui installe le PC du portail y verrait la seule option
+        // disponible et la choisirait. Une liste vide, elle, se voit.
+        const lieux = Array.isArray(accessPoints) ? lieuxPhysiques(accessPoints) : [];
+        if (lieux.length === 0) return [];
+        return lieux.concat([{
+            // ⚠️ EN DERNIER, et sans nom en dur : le libellé vient du
+            // dictionnaire (`cleI18n`), parce que c'est la seule entrée de
+            // cette liste qui n'est pas un nom propre. « Portail Principal »
+            // et « CDI » ne se traduisent pas ; « Poste administratif » si.
+            id: POSTE_ADMINISTRATIF,
+            cleI18n: 'poste.administratif',
+            nom: TITRE_ADMINISTRATIF,
+            categorie: 'administratif'
+        }]);
+    }
+
+    /** Les LIEUX, et rien qu'eux — le filtre historique, inchangé. */
+    function lieuxPhysiques(accessPoints) {
         return accessPoints
             .filter(p => p && p.id && p.category && p.category !== 'monitor')
             // ⚠️ `nome`, pas `nom` : ACCESS_POINTS est écrit en portugais, comme
@@ -155,6 +223,18 @@
     }
 
     /** Le poste choisi existe-t-il dans la liste ? */
+    /**
+     * Ce réglage désigne-t-il une machine administrative ?
+     *
+     * ⚠️ Une fonction, pas une comparaison recopiée : elle est posée dans le
+     * processus principal (titre de la fenêtre) et dans la page (la note sous
+     * la liste). Deux copies d'une comparaison, c'est une copie qu'on oublie —
+     * la leçon du verrouillage de quiosque, au chantier précédent.
+     */
+    function estAdministratif(sector) {
+        return texte(sector) === POSTE_ADMINISTRATIF;
+    }
+
     function posteValide(id, accessPoints) {
         return postesDisponibles(accessPoints).some(p => p.id === texte(id));
     }
@@ -311,6 +391,9 @@
     return {
         DEFAUT_API_URL: DEFAUT_API_URL,
         DEFAUT_SECTOR: DEFAUT_SECTOR,
+        POSTE_ADMINISTRATIF: POSTE_ADMINISTRATIF,
+        TITRE_ADMINISTRATIF: TITRE_ADMINISTRATIF,
+        estAdministratif: estAdministratif,
         NOM_FICHIER: NOM_FICHIER,
         SOURCES: SOURCES,
         normaliserUrl: normaliserUrl,

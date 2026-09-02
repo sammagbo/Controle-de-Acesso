@@ -512,3 +512,52 @@ describe('l’écran et sa permission', () => {
             .toBeLessThan(iLogin);
     });
 });
+
+// ═════════════════════════════════════════════════════════════════════
+describe('★★ le titre de la fenêtre — exécuté, pas relu', () => {
+
+    /**
+     * ⚠️ LE TITRE EST LE SEUL ENDROIT OÙ LE POSTE CHOISI SE VOIT. Aucun
+     * fichier de `js/` ne lit `config.sector` : il ne pilote rien d'autre.
+     * C'est précisément pour cela qu'il doit être honnête — « MAGBO Access
+     * Control — PORT1 » sur le PC de la direction finit par faire croire que
+     * ce PC enregistre des passages au portail.
+     */
+    const titreAvec = (config) => extraireFonction(MAIN, 'titreFenetre', {
+        configurationCourante: () => config,
+        posteConfig: require('../js/utils/posteConfig.js')
+    })();
+
+    it('un poste réglé porte son code', () => {
+        expect(titreAvec({ doitConfigurer: false, sector: 'BIBLIO' }))
+            .toBe('MAGBO Access Control — BIBLIO');
+    });
+
+    it('★★ une machine administrative ne porte AUCUN code de point', () => {
+        const titre = titreAvec({ doitConfigurer: false, sector: 'ADMINISTRATIF' });
+        expect(titre).toBe('MAGBO Access Control — Poste administratif');
+        for (const code of ['PORT1', 'PORT2', 'PORT3', 'BIBLIO', 'ENFERM', 'REFEI1', 'REFEI2']) {
+            expect(titre).not.toContain(code);
+        }
+    });
+
+    /**
+     * ⚠️ ET IL N'EST PAS NU. Un titre réduit à « MAGBO Access Control » ne se
+     * distinguerait pas de celui d'un poste pas encore réglé : on ne saurait
+     * plus, en regardant la fenêtre, si la machine est administrative ou si
+     * quelqu'un a effacé son fichier de configuration.
+     */
+    it('★★ et il ne se confond pas avec un poste pas encore réglé', () => {
+        const administratif = titreAvec({ doitConfigurer: false, sector: 'ADMINISTRATIF' });
+        const pasReglé = titreAvec({ doitConfigurer: true, sector: '' });
+        expect(pasReglé).toBe('MAGBO Access Control');
+        expect(administratif).not.toBe(pasReglé);
+    });
+
+    it('★ la comparaison passe par le module partagé, pas par une chaîne recopiée', () => {
+        // Deux copies d'une comparaison, c'est une copie qu'on oublie — la
+        // leçon du verrouillage de quiosque, au chantier précédent.
+        expect(MAIN_CODE).toMatch(/posteConfig\.estAdministratif\(/);
+        expect(MAIN_CODE).not.toMatch(/===\s*['"]ADMINISTRATIF['"]/);
+    });
+});

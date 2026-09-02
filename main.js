@@ -216,9 +216,19 @@ let mainWindow = null;
  */
 function titreFenetre() {
       const c = configurationCourante();
-      return c.doitConfigurer
-            ? 'MAGBO Access Control'
-            : `MAGBO Access Control — ${c.sector}`;
+      if (c.doitConfigurer) return 'MAGBO Access Control';
+
+      // ⚠️ UNE MACHINE ADMINISTRATIVE NE PORTE PAS DE CODE DE POINT.
+      // Le titre est le SEUL endroit où le poste choisi se voit, et
+      // « MAGBO Access Control — PORT1 » sur le PC de la direction finit par
+      // faire croire que ce PC enregistre des passages au portail. Le libellé
+      // est explicite, et il n'est pas vide : un titre nu ne se distinguerait
+      // pas de celui d'un poste pas encore réglé.
+      if (posteConfig.estAdministratif(c.sector)) {
+            return `MAGBO Access Control — ${posteConfig.TITRE_ADMINISTRATIF}`;
+      }
+
+      return `MAGBO Access Control — ${c.sector}`;
 }
 
 function createWindow() {

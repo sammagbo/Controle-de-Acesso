@@ -97,6 +97,10 @@
       <!-- Licence (ADR-006) : QUI voit le bandeau. Module pur, avant le
            composant qui le lit et avant App.js. -->
       <script type="text/babel" src="js/utils/licence.js?v=1"></script>
+      <!-- Configuration du poste (ADR-007) : l'ordre de résolution.
+           ⚠️ Module UMD chargé AUSSI par le processus principal
+           (`require` dans main.js) — une seule règle, deux processus. -->
+      <script type="text/babel" src="js/utils/posteConfig.js?v=1"></script>
       <script type="text/babel" src="js/utils/mealEntitlement.js?v=1"></script>
       <!-- mealSheet REUSA os helpers de cabeçalho do hikcentralSheet: carrega depois dele. -->
       <script type="text/babel" src="js/utils/mealSheet.js?v=1"></script>
@@ -194,6 +198,9 @@
       <script type="text/babel" src="js/components/UserListPanel.js?v=1"></script>
       <script type="text/babel" src="js/components/AppSettingsModal.js?v=12"></script>
       <script type="text/babel" src="js/components/AdminPinModal.js?v=10"></script>
+      <!-- Écran de première configuration : rendu par App.js AVANT le login,
+           donc chargé avant lui. -->
+      <script type="text/babel" src="js/components/PremierLancement.js?v=1"></script>
       <script type="text/babel" src="js/components/LoginScreen.js?v=1"></script>
       <script type="text/babel" src="js/App.js?v=9"></script>
 </body>

@@ -78,3 +78,13 @@ backups/
 *.magbo
 !deploy/licence/licence.exemple.magbo
 backend/licence/
+
+# =====================================================================
+# CONFIGURATION DU POSTE (ADR-007)
+# =====================================================================
+# `magbo-poste.json` est ecrit A COTE DU .EXE, sur chaque PC, et il decrit CE
+# PC-la : l'adresse du serveur et le lieu ou il se trouve. Il n'a rien a faire
+# dans le depot — deux postes n'ont pas la meme reponse, et committer celui du
+# PC de developpement le distribuerait a tout le monde.
+# En developpement (`npm start`) il est ecrit a la racine ; d'ou cette ligne.
+magbo-poste.json

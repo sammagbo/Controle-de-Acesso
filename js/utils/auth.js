@@ -77,8 +77,36 @@
   }
 
   async function login(username, password) {
-    // We assume API_BASE_URL is available globally or we default to localhost
-    const baseUrl = typeof window !== 'undefined' && window.API_BASE_URL ? window.API_BASE_URL : 'http://localhost:8080/api';
+    // ⚠️⚠️ LA CONNEXION PARTAIT SUR localhost SUR TOUS LES POSTES.
+    //
+    // Cette ligne lisait `window.API_BASE_URL`, qui n'est affecte NULLE PART
+    // dans le depot. `js/api.js` declare bien `const API_BASE_URL`, mais un
+    // `const` de premier niveau va dans l'environnement lexical global, PAS en
+    // propriete de `window` — le seul global que ce fichier publie est
+    // `window.api`. La condition etait donc toujours fausse et le repli
+    // toujours pris : `window.auth.login()` interrogeait
+    // `http://localhost:8080/api/auth/login` sur chaque poste de l'ecole.
+    //
+    // ⚠️ C'est aussi ce qui empechait le chantier « premier lancement » d'aller
+    // au bout : sur un PC neuf, l'ecran de configuration reussissait et l'ecran
+    // SUIVANT ne pouvait pas fonctionner. Trouve par le panel de revue
+    // (qualite, 02/09/2026) ; le defaut est ANTERIEUR au chantier.
+    //
+    // Meme forme que js/utils/userCache.js : la valeur posee a la main gagne si
+    // elle existe un jour, sinon on lit le pont Electron, et le localhost n'est
+    // plus qu'un dernier filet pour une page ouverte hors Electron.
+    //
+    // ⚠️ LES PARENTHESES DE LA DERNIERE LIGNE NE SONT PAS DECORATIVES : `+` lie
+    // plus fort que `||`. Sans elles, le jour ou quelqu'un poserait vraiment
+    // `window.API_BASE_URL` — ce que la ligne annonce comme possible —,
+    // `baseUrl` vaudrait cette valeur SANS `/api`, et la connexion partirait
+    // sur `.../auth/login` au lieu de `.../api/auth/login`. Le meme defaut
+    // dort dans `js/utils/userCache.js`, dont cette forme est copiee ; il y est
+    // corrige dans la meme passe. (Panel de revue — qualite, 2e tour.)
+    const racine = (typeof window !== 'undefined' && window.magboConfig
+           && window.magboConfig.getCached && window.magboConfig.getCached()
+           && window.magboConfig.getCached().apiUrl) || 'http://localhost:8080';
+    const baseUrl = ((typeof window !== 'undefined' && window.API_BASE_URL) || racine) + '/api';
     const res = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,8 @@
 {
   "mesure_le": "2026-09-03",
+  "empreinte": "ad5d6599844cbf86",
   "methode": "impression de prefixes et comptage des pages du PDF (Chrome)",
-  "pages_liminaires": 11,
+  "pages_liminaires": 12,
   "pages": {
     "chapitre-1-vue-d-ensemble": 1,
     "chapitre-2-les-points-de-passage": 12,

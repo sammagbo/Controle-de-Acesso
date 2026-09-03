@@ -21,6 +21,10 @@ const BUILD = path.join(REPO, 'scripts', 'build-livre.js');
 const PAGINER = path.join(REPO, 'scripts', 'paginer-livre.js');
 
 const existe = fs.existsSync(LIVRE);
+
+// ⚠️ MESURÉ : en renommant docs/livre/livre-complet.html, la suite restait
+// 22/22 VERTE — dix-neuf tests s’auto-annulaient par `if (!existe) return;`.
+// Un fichier absent est le premier défaut à voir, pas celui qu’on saute.
 const html = existe ? fs.readFileSync(LIVRE, 'utf8') : '';
 const source = fs.readFileSync(BUILD, 'utf8');
 
@@ -32,6 +36,37 @@ function chapitresNumerotes() {
       while ((m = re.exec(html)) !== null) if (m[2] !== 'liminaire') out.push(m);
       return out;
 }
+
+describe('le livre existe', () => {
+      // ⚠️ CE TEST N’A PAS DE GARDE `if (!existe) return;`, ET C’EST TOUT SON
+      // OBJET. Mesuré : en renommant docs/livre/livre-complet.html, la suite
+      // restait 22/22 VERTE — dix-neuf tests s’auto-annulaient. Un livre absent
+      // est le premier défaut à voir, pas celui qu’on saute.
+      it('★ docs/livre/livre-complet.html est là — sinon rien d’autre ne prouve rien', () => {
+            expect(existe).toBe(true);
+            expect(html.length).toBeGreaterThan(50000);
+      });
+
+      // ⚠️ Le sommaire numéroté n’est valable que pour un état précis des
+      // chapitres ET de la feuille de style. `pagination.json` porte donc une
+      // empreinte, et `build-livre.js` retire les numéros quand elle ne colle
+      // plus. Sans cela, `node scripts/build-livre.js` lancé SEUL réinjectait
+      // des numéros mesurés sur d’autres chapitres en annonçant « ✓ sommaire
+      // paginé » — mesuré : huit entrées fausses sur neuf, décalées de deux
+      // pages, et la suite verte. Un sommaire faux est pire qu’un sommaire sans
+      // numéros : le second se voit, le premier donne confiance.
+      it('★ les numéros de page portent l’empreinte de ce qui a été mesuré', () => {
+            const pag = path.join(REPO, 'docs', 'livre', 'pagination.json');
+            expect(fs.existsSync(pag)).toBe(true);
+            const p = JSON.parse(fs.readFileSync(pag, 'utf8'));
+            expect(typeof p.empreinte).toBe('string');
+            expect(p.empreinte.length).toBeGreaterThan(8);
+
+            // et le générateur la VÉRIFIE, au lieu de faire confiance au fichier
+            const { empreinteDesSources } = require(path.join(REPO, 'scripts', 'build-livre.js'));
+            expect(p.empreinte).toBe(empreinteDesSources());
+      });
+});
 
 describe('les pages liminaires', () => {
       it('la couverture porte le titre, le lieu, l’année et l’auteur', () => {
@@ -153,8 +188,19 @@ describe('la largeur : ce qui empêche le livre de rétrécir', () => {
 
       it('les encadrés gardent leur couleur à l’impression', () => {
             if (!existe) return;
-            expect(html).toContain('print-color-adjust: exact');
-            expect(html).toContain('-webkit-print-color-adjust: exact');
+            // ⚠️ ON CHERCHE DANS LA FEUILLE DE STYLE, PAS DANS LE LIVRE.
+            // `expect(html).toContain('print-color-adjust: exact')` était VRAI
+            // sans aucune règle CSS : la chaîne est écrite deux fois dans la
+            // PROSE du livre (00-sommaire.md, 05-administration.md). Mesuré en
+            // supprimant la règle entière — l’assertion passait quand même.
+            // C’est le piège que le test de `target-counter` documente avoir
+            // payé plus bas ; la leçon n’avait été appliquée qu’à lui.
+            // ⚠️ Et on asserte un BOOLÉEN : sur échec, `toContain` recrache le
+            // livre entier dans le diff — c’est ce qui avait tué la suite en
+            // « Fatal process out of memory ».
+            const css = (html.match(/<style>([^]*?)<[/]style>/) || ['', ''])[1];
+            expect(css.includes('print-color-adjust: exact')).toBe(true);
+            expect(css.includes('-webkit-print-color-adjust: exact')).toBe(true);
       });
 });
 
@@ -229,7 +275,12 @@ describe('les deux scripts ne peuvent pas se désynchroniser', () => {
             expect(source).toMatch(/module\.exports = \{[^}]*\bancre\b[^}]*\}/);
             const paginer = fs.readFileSync(PAGINER, 'utf8');
             expect(paginer).toMatch(/require\('\.\/build-livre\.js'\)/);
-            expect(paginer).not.toMatch(/^function ancre\b/m);
+            // ⚠️ LA FORME RÉELLE EST `const ancre = (t) => …`, pas `function`.
+            // Le garde ne cherchait que `function ancre` : une copie divergente
+            // écrite `const ancre =` passait 22/22. Mesuré — avec une copie qui
+            // ne retirait pas les accents, huit clés sur neuf ne correspondaient
+            // plus et le sommaire perdait ses numéros EN SILENCE.
+            expect(paginer).not.toMatch(new RegExp('(function|const|let|var)[ ]+ancre[^a-zA-Z0-9_]'));
       });
 
       it('le paginateur refuse un livre réduit', () => {

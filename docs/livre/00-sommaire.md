@@ -136,3 +136,57 @@ une fois.
 | `deploy/migrations/README.md` | chaque migration, une par une |
 | `docs/architecture/decisoes/` | pourquoi chaque décision structurelle a été prise |
 | `.claude/rules/` | les pièges par domaine, pour qui écrit du code |
+
+---
+
+## ⚠️ Ce que la mise en page n'a pas encore — mesuré le 03/09/2026
+
+Ces quatre points ont été **mesurés**, et délibérément **non corrigés** : ils
+changent l'objet physique, et cela se décide avant d'être imprimé, pas après.
+
+**1. Trois chapitres sur neuf s'ouvrent encore sur un VERSO** (une page de
+gauche) : les chapitres **2, 8 et 9**, aux feuilles 24, 94 et 102. Les six
+autres, chapitre 1 compris, s'ouvrent bien au recto.
+
+Ce qui gouverne cela est la **parité** : les liminaires occupent **douze** pages,
+un nombre pair, donc le folio 1 tombe sur la feuille 13, une page de droite.
+Quand elles étaient **onze**, c'était l'inverse — six chapitres au verso, et
+tous les folios impairs à gauche. Cette page-ci a fait passer les liminaires de
+onze à douze, et a donc corrigé six ouvertures sur neuf **par accident**.
+⚠️ Ce qui est fragile est exactement cela : la parité tient à la longueur d'un
+texte, et personne ne le saura en le modifiant.
+
+`break-before: right`, qui règlerait tout en une ligne, **ne fonctionne pas dans
+Chrome** (vérifié : 4 pages produites au lieu de 6, dans les deux orthographes).
+*Le correctif :* `scripts/paginer-livre.js` doit **calculer** les pages blanches
+— il connaît déjà la parité de chaque début de chapitre — et les faire écrire
+par `build-livre.js`, avec une passe de convergence, puisque insérer une page
+blanche déplace tous les chapitres suivants. C'est un petit chantier, pas un
+réglage, et c'est pour cela qu'il n'a pas été fait dans la précipitation d'un
+dernier jour.
+
+**2. Le PDF porte dix-neuf liens `file:///C:/Users/…`**, fabriqués par Chrome
+qui absolutise les liens relatifs en annotations. Le texte imprimé, lui, est
+juste. Ces annotations sont mortes pour tout lecteur et **font voyager un nom
+de compte Windows** jusque chez l'imprimeur.
+*Le correctif :* imprimer le PDF final depuis une copie où les `href` qui ne
+commencent ni par `#` ni par `http` ont été retirés — les ancres internes du
+sommaire, elles, doivent survivre.
+
+**3. « L'architecture en une page » tient sur deux pages** (folios 2 et 3) : le
+titre ne garde que cinq lignes d'un bloc d'une soixantaine, et la figure se lit
+à cheval sur un pli. `pre.code { break-inside: auto }` est le bon choix pour les
+blocs longs — mais celui-là est une **figure**, pas du code à dérouler.
+
+**4. Cette page-ci n'a ni folio ni entrée au sommaire** : la section `00` est
+traitée comme une liminaire, alors qu'elle porte du contenu véritable — celui
+que vous lisez. Personne ne peut le citer par un numéro de page. Le colophon
+annonce d'ailleurs « neuf chapitres, plus le sommaire », alors qu'il y a bien
+une dixième section.
+
+> ⚠️ **Et une limite qui vaut pour tout ce livre :** chaque nombre ci-dessus a
+> été mesuré avec **Chrome 152.0.7977.75**. `trouverChrome()` accepte Edge ou
+> Chromium en remplacement **sans contrôler la version**. Une autre machine peut
+> donner un autre nombre de pages pour le même fichier — c'est pourquoi les
+> numéros du sommaire portent une empreinte et se refusent quand elle ne colle
+> plus, plutôt que d'être crus sur parole.

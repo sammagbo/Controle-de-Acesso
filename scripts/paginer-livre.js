@@ -232,7 +232,7 @@ async function principal() {
 
       // ⚠️ `ancre` vient du MÊME module que la table des matières : deux copies
       // de la formule donneraient un sommaire sans numéros, en silence.
-      const { construire, ancre } = require('./build-livre.js');
+      const { construire, ancre, empreinteDesSources } = require('./build-livre.js');
 
       // ── 1. Le livre tel qu'il est, et la vérification qui commande tout.
       console.log('\n① Assemblage et première impression…');
@@ -281,7 +281,7 @@ async function principal() {
       const secs = sections(html);
       const numerotes = secs.filter(s => s.gabarit !== 'liminaire');
       console.log(`\n② Mesure des numéros de page — ${numerotes.length} chapitres, `
-            + `${secs.length - numerotes.length + 1} impressions de plus…`);
+            + `${numerotes.length + 1} impressions de plus…`);
 
       // Toutes les sections liminaires (dont 00-sommaire) précèdent les
       // chapitres numérotés : elles forment le préfixe de base.
@@ -308,8 +308,13 @@ async function principal() {
       }
 
       // ── 4. Réinjection, puis le PDF définitif.
+      // ⚠️ L’EMPREINTE EST ÉCRITE ICI, et c’est elle qui rend ces numéros
+      // réfutables. Sans elle, `build-livre.js` lancé SEUL réinjecte des numéros
+      // mesurés sur d’autres chapitres et annonce « ✓ sommaire paginé » : huit
+      // entrées fausses sur neuf, et la suite de tests verte. Mesuré.
       fs.writeFileSync(PAGINATION, JSON.stringify({
             mesure_le: new Date().toISOString().slice(0, 10),
+            empreinte: empreinteDesSources(),
             methode: 'impression de prefixes et comptage des pages du PDF (Chrome)',
             pages_liminaires: liminairesPages,
             pages,
@@ -322,6 +327,30 @@ async function principal() {
       const echFinale = Object.keys(echelles(PDF));
       if (!(echFinale.length === 1 && echFinale[0] === ECHELLE_NORMALE)) {
             console.error('✗ Le PDF final est réduit (' + echFinale.join(', ') + ').');
+            process.exit(2);
+      }
+
+      // ⚠️ LE POINT FIXE EST REVÉRIFIÉ, ET C’EST LE SEUL MOYEN D’EN ÊTRE SÛR.
+      // Les folios ont été mesurés sur le livre construit avec l’ANCIENNE table
+      // des matières ; on vient de la remplacer par une table numérotée. Si sa
+      // hauteur a changé, tout ce qui la suit a glissé et les numéros qu’on
+      // vient d’écrire sont faux — sans que rien ne le dise.
+      // Le mécanisme est réel : `.somm-titre` est rétractable et la largeur de
+      // `.somm-page` dépend du NOMBRE DE CHIFFRES du folio ; un titre qui tenait
+      // sur une ligne avec un numéro vide peut passer à deux avec « 107 ».
+      // Aujourd’hui il reste ~136 mm de blanc sous la dernière entrée (environ
+      // douze chapitres de marge) : c’est latent, pas actif. Une garde pour un
+      // défaut latent est exactement celle qui sert un jour.
+      // ⚠️ Une seule impression suffit : la table est DANS les liminaires, donc
+      // si leur nombre de pages n’a pas bougé, rien en aval n’a bougé.
+      const liminairesApres = compter(avantChapitres);
+      if (liminairesApres !== liminairesPages) {
+            console.error('');
+            console.error('✗ LA TABLE DES MATIÈRES A CHANGÉ DE HAUTEUR EN GAGNANT SES NUMÉROS.');
+            console.error('  pages liminaires avant : ' + liminairesPages);
+            console.error('  pages liminaires après : ' + liminairesApres);
+            console.error('  Tous les folios mesurés ont donc glissé : ils ne valent rien.');
+            console.error('  Relancer ce script — la deuxième passe part de la bonne hauteur.');
             process.exit(2);
       }
 

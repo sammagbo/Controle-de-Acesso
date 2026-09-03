@@ -10,7 +10,9 @@
     "build:portable": "electron-builder --win portable",
     "verify:package": "node scripts/verify-package.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "livre": "node scripts/build-livre.js",
+    "livre:pdf": "node scripts/build-livre.js && node scripts/paginer-livre.js"
   },
   "build": {
     "appId": "com.magbo.access",

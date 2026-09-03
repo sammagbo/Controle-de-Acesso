@@ -150,13 +150,32 @@ describe('A tela de login — o português vinha do SERVIDOR', () => {
             .rejects.toThrow('Identifiants invalides');
     });
 
-    it('★ mas uma razão ESPECÍFICA do servidor ainda passa', () => {
-        // A tradução vence, e `err.error` fica como segundo termo: se um dia
-        // o backend distinguir "conta desativada" de "senha errada", a razão
-        // específica ainda tem por onde chegar. Trocar isto por um `t()`
-        // seco apagaria essa saída em silêncio.
-        const src = ler('js', 'utils', 'auth.js');
-        expect(src).toMatch(/traduzido \|\| err\.error/);
+    it('★ sem i18n carregado, a razão do SERVIDOR chega à tela', async () => {
+        // ⚠️ ESTE TESTE JÁ FOI VERDE PELO MOTIVO ERRADO, e é a lição que fica.
+        // Ele afirmava `expect(src).toMatch(...)` — uma regex sobre o TEXTO do
+        // arquivo. Em 03/09/2026 o código daquela forma foi removido, e a
+        // asserção continuou VERDE porque passou a casar com o COMENTÁRIO que
+        // explicava a remoção. Um guarda satisfeito por prosa não guarda nada:
+        // ele fica verde exatamente quando o que ele protege deixou de existir.
+        //
+        // A regra que fica: guarda de COMPORTAMENTO, nunca de texto-fonte.
+        // (`tests/i18nChavesUsadas.test.js` tira os comentários antes de
+        //  varrer; este arquivo não, e foi essa diferença que o manteve verde.)
+        //
+        // O que é VERDADE hoje: num 401 a tradução vence, e `err.error` é a
+        // saída de socorro para quando o i18n AINDA NÃO carregou — o que
+        // acontece de verdade, porque a tela de login é a primeira a aparecer.
+        new Function(ler('js', 'utils', 'auth.js'))();
+
+        globalThis.MagboI18n = undefined;   // i18n ausente, de propósito
+        globalThis.fetch = vi.fn(async () => ({
+            ok: false,
+            status: 401,
+            json: async () => ({ error: 'Conta desativada' })
+        }));
+
+        await expect(globalThis.auth.login('admin', 'x'))
+            .rejects.toThrow('Conta desativada');
     });
 });
 

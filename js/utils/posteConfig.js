@@ -133,7 +133,30 @@
         if (!s) return '';
         s = s.replace(/\s+/g, '');
         if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
-        return s.replace(/\/+$/, '');
+        s = s.replace(/\/+$/, '');
+
+        // ⚠️ L'ADRESSE NE PORTE JAMAIS LE `/api` — le programme l'ajoute
+        // lui-même (`base + '/api'`, à cinq endroits). Une base réglée sur
+        // « http://…:8080/api » produit donc `/api/api/auth/login`, que Spring
+        // Security refuse en 403 : c'est la panne du 03/09/2026, qui a coûté
+        // une matinée et se présentait à l'écran comme « Identifiants
+        // invalides » — un refus de ROUTE déguisé en refus de mot de passe.
+        //
+        // Elle était venue du code. Elle peut revenir d'une SAISIE, par deux
+        // portes que l'écran de premier lancement ne surveille pas : la
+        // variable `MAGBO_API_URL` d'un `.bat` (prioritaire, jamais testée) et
+        // un `magbo-poste.json` édité à la main. Les deux passent par ici, et
+        // c'est pour cela que la coupe est ici et pas dans l'écran.
+        //
+        // ⚠️ Elle SE DIT. Une correction silencieuse rendrait un réglage qui
+        // ne ressemble pas à ce qui a été tapé, et la prochaine personne
+        // chercherait longtemps.
+        const sansApi = s.replace(new RegExp('/api/*$', 'i'), '');
+        if (sansApi !== s && typeof console !== 'undefined' && console.warn) {
+            console.warn('[poste] adresse corrigée : ' + s + ' → ' + sansApi
+                + '  (le /api est ajouté par le programme, il ne se règle pas ici)');
+        }
+        return sansApi;
     }
 
     /**

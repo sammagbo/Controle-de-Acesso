@@ -77,46 +77,78 @@
   }
 
   async function login(username, password) {
-    // ⚠️⚠️ LA CONNEXION PARTAIT SUR localhost SUR TOUS LES POSTES.
+    // ⚠️⚠️ LE « /api » EN TROP QUI A BLOQUÉ TOUTE L'ÉCOLE — 03/09/2026.
     //
-    // Cette ligne lisait `window.API_BASE_URL`, qui n'est affecte NULLE PART
-    // dans le depot. `js/api.js` declare bien `const API_BASE_URL`, mais un
-    // `const` de premier niveau va dans l'environnement lexical global, PAS en
-    // propriete de `window` — le seul global que ce fichier publie est
-    // `window.api`. La condition etait donc toujours fausse et le repli
-    // toujours pris : `window.auth.login()` interrogeait
-    // `http://localhost:8080/api/auth/login` sur chaque poste de l'ecole.
+    // Ce qu'on voyait : « Identifiants invalides » avec le BON mot de passe,
+    // sur un serveur qui répondait, et seulement sur le portable reconstruit.
+    // Ce qui partait réellement, mesuré dans l'Electron réel :
     //
-    // ⚠️ C'est aussi ce qui empechait le chantier « premier lancement » d'aller
-    // au bout : sur un PC neuf, l'ecran de configuration reussissait et l'ecran
-    // SUIVANT ne pouvait pas fonctionner. Trouve par le panel de revue
-    // (qualite, 02/09/2026) ; le defaut est ANTERIEUR au chantier.
+    //       http://192.168.1.253:8080/api/api/auth/login
+    //                                 ^^^^ ^^^^
     //
-    // Meme forme que js/utils/userCache.js : la valeur posee a la main gagne si
-    // elle existe un jour, sinon on lit le pont Electron, et le localhost n'est
-    // plus qu'un dernier filet pour une page ouverte hors Electron.
+    // Ce chemin n'est pas dans la liste `permitAll` de SecurityConfig : Spring
+    // Security le refuse par un 403 et la requête n'atteint JAMAIS
+    // AuthController. Le front, lui, traduisait tout non-2xx en « identifiants
+    // invalides » — voir plus bas, c'est le second défaut de la même panne.
     //
-    // ⚠️ LES PARENTHESES DE LA DERNIERE LIGNE NE SONT PAS DECORATIVES : `+` lie
-    // plus fort que `||`. Sans elles, le jour ou quelqu'un poserait vraiment
-    // `window.API_BASE_URL` — ce que la ligne annonce comme possible —,
-    // `baseUrl` vaudrait cette valeur SANS `/api`, et la connexion partirait
-    // sur `.../auth/login` au lieu de `.../api/auth/login`. Le meme defaut
-    // dort dans `js/utils/userCache.js`, dont cette forme est copiee ; il y est
-    // corrige dans la meme passe. (Panel de revue — qualite, 2e tour.)
-    const racine = (typeof window !== 'undefined' && window.magboConfig
+    // ⚠️ LA CAUSE EST UNE CROYANCE FAUSSE, ÉCRITE ICI MÊME. La version
+    // précédente affirmait que `window.API_BASE_URL` « n'est affecté nulle
+    // part dans le dépôt », au motif qu'un `const` de premier niveau va dans
+    // l'environnement lexical global et non en propriété de `window`. C'est
+    // vrai d'un `<script>` ordinaire. `js/api.js` n'en est pas un : il est
+    // chargé en `<script type="text/babel">` (index.html:73), Babel le
+    // transpile AVANT exécution, le préréglage `env` ramène le `const` à un
+    // `var`, et un `var` de premier niveau EST une propriété de `window`.
+    // La globale existe donc, et sa valeur se termine DÉJÀ par `/api`.
+    // (Mesuré : `delete window.API_BASE_URL` rend `false` dans le renderer —
+    // signature d'une liaison `var`, non configurable.)
+    //
+    // ⚠️ ET C'EST CE QUI EXPLIQUE QUE L'ANCIEN PARC MARCHE. Le code d'avant
+    // (8cfc8a3) faisait `window.API_BASE_URL ? window.API_BASE_URL : …` — il
+    // prenait la globale TELLE QUELLE. Si elle avait vraiment été absente,
+    // tous les postes seraient partis sur localhost et aucun n'aurait jamais
+    // fonctionné. Que l'ancien portable marche PROUVE qu'elle est définie.
+    //
+    // La correction ne rétablit pas cette dépendance : elle la supprime. On
+    // construit l'adresse à partir du pont Electron, comme le font déjà
+    // js/api.js:33, js/utils/api.js:6 et js/cdi/cdiData.js:11. Personne ne
+    // doit plus avoir à deviner ce que contient une globale que le dépôt
+    // n'écrit nulle part explicitement.
+    // Gardé par tests/adresseDuLogin.test.js, qui charge js/api.js par le
+    // vrai Babel vendorisé : sans ce chargement, le test ne prouverait rien.
+    const baseUrl = ((typeof window !== 'undefined' && window.magboConfig
            && window.magboConfig.getCached && window.magboConfig.getCached()
-           && window.magboConfig.getCached().apiUrl) || 'http://localhost:8080';
-    const baseUrl = ((typeof window !== 'undefined' && window.API_BASE_URL) || racine) + '/api';
+           && window.magboConfig.getCached().apiUrl) || 'http://localhost:8080') + '/api';
     const res = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     if (!res.ok) {
+      // ⚠️ LE MESSAGE QUI MENTAIT SUR LA NATURE DE LA PANNE — et qui a coûté
+      // la journée de diagnostic du 03/09/2026. La forme précédente était
+      //
+      //       throw new Error(traduzido || err.error || 'api.credenciais');
+      //
+      // où `traduzido` valait TOUJOURS « Identifiants invalides » dès que
+      // l'i18n était chargé. Un 403, un 404, un 502 et une panne du serveur
+      // disaient donc tous les quatre à l'AED que son mot de passe était
+      // faux. On envoyait quelqu'un réclamer un mot de passe pendant que le
+      // poste parlait à la mauvaise adresse.
+      //
+      // Seul un 401 parle des identifiants : c'est le seul statut que
+      // AuthController émette quand l'authentification échoue. Tout le reste
+      // porte son numéro, pour qu'une capture d'écran suffise au diagnostic.
       const err = await res.json().catch(() => ({}));
-      const traduzido = (typeof window !== 'undefined' && window.MagboI18n)
-            ? window.MagboI18n.t('api.credenciais') : null;
-      throw new Error(traduzido || err.error || 'api.credenciais');
+      const t = (cle, params) => ((typeof window !== 'undefined' && window.MagboI18n)
+            ? window.MagboI18n.t(cle, params) : null);
+      if (res.status === 401) {
+        throw new Error(t('api.credenciais') || err.error || 'api.credenciais');
+      }
+      const erreur = new Error(t('login.erro.statut', { statut: res.status })
+            || `HTTP ${res.status}`);
+      erreur.status = res.status;
+      throw erreur;
     }
     const data = await res.json();
     setAuth(data.token, {

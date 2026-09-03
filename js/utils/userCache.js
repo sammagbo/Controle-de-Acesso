@@ -5,14 +5,24 @@
 // específicos. Expõe funções globais usadas por componentes.
 
 (function() {
-      // ⚠️ `+` lie plus fort que `||` : sans les parentheses externes,
-      // `window.API_BASE_URL` — si elle etait un jour posee — serait prise
-      // SANS le `/api`, et toutes les requetes de ce cache partiraient une
-      // segment trop haut. Latent aujourd'hui (personne ne pose cette
-      // variable), et c'est la forme que `js/utils/auth.js` avait copiee.
-      // (Panel de revue — qualite, 2e tour, 02/09/2026.)
-      const API_BASE = (window.API_BASE_URL
-            || (window.magboConfig?.getCached?.()?.apiUrl)
+      // ⚠️ LE MÊME « /api » EN TROP QUE DANS js/utils/auth.js — 03/09/2026.
+      //
+      // Ce fichier lisait `window.API_BASE_URL` puis lui ajoutait `/api`. Or
+      // cette globale existe (js/api.js est un `<script type="text/babel">` ;
+      // Babel ramène son `const` à un `var`, donc à une propriété de
+      // `window`) et se termine DÉJÀ par `/api`. Le cache partait donc sur
+      // `…/api/api/users`, que le serveur ne connaît pas.
+      //
+      // ⚠️ ET PERSONNE NE L'AURAIT VU. `reloadUserCache` avale ses erreurs
+      // (le `catch` plus bas ne fait que journaliser) : l'application se
+      // serait ouverte avec une liste de personnes VIDE, sans un mot à
+      // l'écran, juste après une connexion réussie. Mesuré dans l'Electron
+      // réel le 03/09/2026, en réparant la connexion sans réparer ceci.
+      //
+      // On construit l'adresse comme js/api.js:33, js/utils/api.js:6 et
+      // js/cdi/cdiData.js:11 : depuis le pont Electron, une seule fois.
+      // Gardé par tests/adresseDuLogin.test.js.
+      const API_BASE = ((window.magboConfig?.getCached?.()?.apiUrl)
             || 'http://localhost:8080') + '/api';
       let cache = [];
       let loadedAt = null;

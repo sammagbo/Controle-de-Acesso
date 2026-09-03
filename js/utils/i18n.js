@@ -1628,6 +1628,7 @@
             'login.erro.campos': 'Veuillez remplir tous les champs.',
             'login.erro.conexao': 'Erreur de connexion.',
             'login.erro.reseau': 'Le serveur ne répond pas à l’adresse {adresse}. Ce n’est pas votre mot de passe : ce PC ne joint pas le serveur de l’école. Prévenez la direction, ou voyez le guide d’installation, section 7.',
+            'login.erro.statut': 'Le serveur a refusé la connexion (HTTP {statut}). Ce n’est pas votre mot de passe : notez ce numéro et prévenez la direction.',
             'login.rodape.seguranca': 'SYSTÈME SÉCURISÉ · CONNEXION CHIFFRÉE'
         },
         pt: {
@@ -3164,6 +3165,7 @@
             'login.erro.campos': 'Preencha todos os campos.',
             'login.erro.conexao': 'Erro de conexão.',
             'login.erro.reseau': 'O servidor não responde no endereço {adresse}. Não é a sua senha: este PC não alcança o servidor da escola. Avise a direção, ou veja o guia de instalação, seção 7.',
+            'login.erro.statut': 'O servidor recusou a conexão (HTTP {statut}). Não é a sua senha: anote este número e avise a direção.',
             'login.rodape.seguranca': 'SISTEMA SEGURO · CONEXÃO CIFRADA'
         }
     };

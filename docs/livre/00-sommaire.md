@@ -84,16 +84,39 @@ chapitre 8.
 
 ## Le livre imprimable
 
+Deux commandes, et la seconde est celle qui compte pour l'imprimeur.
+
 ```bash
-node scripts/build-livre.js
+node scripts/build-livre.js      # le HTML, depuis docs/livre/*.md
+node scripts/paginer-livre.js    # les vrais numéros de page + le PDF
 ```
 
-Produit `docs/livre/livre-complet.html` : tous les chapitres, un seul fichier
-autonome (aucun script, aucune requête réseau — il s'ouvre depuis une clé USB
-sur un poste hors ligne).
+La première produit `docs/livre/livre-complet.html` : tous les chapitres, un
+seul fichier autonome (aucun script, aucune requête réseau — il s'ouvre depuis
+une clé USB sur un poste hors ligne).
 
-**Pour le PDF :** ouvrir le fichier dans un navigateur, `Ctrl+P`, **cocher
-« Graphiques d'arrière-plan »**, enregistrer en PDF.
+La seconde produit `docs/livre/livre-complet.pdf`, prêt à relier. Elle fait
+deux choses qu'une feuille de style ne sait pas faire :
+
+1. **Elle numérote la table des matières.** En CSS d'impression cela s'écrit
+   `target-counter()`, que Chrome ne connaît pas — mesuré : le parseur jette la
+   déclaration entière, on perd le numéro *et* le texte qui l'accompagne. La
+   seule méthode exacte est de poser la question au PDF : chaque chapitre
+   ouvre sur une page neuve, donc on imprime le livre arrêté juste avant le
+   chapitre *k*, on compte les pages, et on sait. Les numéros mesurés vivent
+   dans `docs/livre/pagination.json` ; sans ce fichier, la table des matières
+   renvoie aux chapitres **sans numéro** — dégradé, jamais faux.
+2. **Elle refuse un livre réduit.** Quand un élément dépasse la largeur
+   imprimable, Chrome ne le coupe pas et n'avertit pas : il réduit *tout le
+   document*. Le livre sortait ainsi à 80,7 % — un corps déclaré à 10,5 pt
+   imprimé à 8,5 pt, sur les 84 pages, et rien nulle part pour le dire. Le
+   script mesure le facteur d'échelle dans le PDF et s'arrête s'il n'est pas
+   exactement `0.750000`, en nommant les éléments qui débordent.
+
+**À la main, sans les scripts :** ouvrir le HTML dans un navigateur, `Ctrl+P`,
+A4, marges « Par défaut », **cocher « Graphiques d'arrière-plan »**, et
+**« Taille réelle »** — jamais « Ajuster à la page », qui détruirait les marges
+de reliure.
 
 ⚠️ Le style d'impression porte `print-color-adjust: exact` — sans cette ligne,
 le navigateur **jette les fonds colorés** et le livre sort en gris. C'est la

@@ -257,7 +257,7 @@ README.
 Mesuré le **03/09/2026** (à froid : `cd backend && rm -rf target && mvn -o test`,
 puis `npm test`), sur `main` augmentée des trois chantiers de cette date :
 **backend 1055** (0 échec, exactement 2 `@Disabled`) sur **93** fichiers,
-**npm 881** sur **42** fichiers.
+**npm 889** sur **42** fichiers.
 
 ⚠️ **Le critère n'est pas un total.** Le total monte à chaque livraison ; un
 nombre écrit dans un document vieillit en quelques jours. Le critère est

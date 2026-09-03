@@ -568,7 +568,7 @@ quem executa vê 603, acha que quebrou alguma coisa e vai investigar o nada.
 
 **Referência de quando esta página foi conferida:** 03/09/2026, sobre a `main`
 somada aos três canteiros daquele dia → **backend 1055** (2 `@Disabled`) e
-**npm 881**, medidos a frio (`cd backend && rm -rf target && mvn -o test`, depois
+**npm 889**, medidos a frio (`cd backend && rm -rf target && mvn -o test`, depois
 `npm test`). Antes disso a referência era `main` @ `8fef0f9`, 11/08/2026 →
 **backend 603** e **npm 279** — a trajetória fica aqui de propósito, para dar
 ordem de grandeza.

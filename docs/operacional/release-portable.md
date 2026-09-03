@@ -143,7 +143,7 @@ Nada abaixo foi executado. É tudo decisão e ação do Sam.
       (D7) e ainda não está confirmada.
 - [ ] **5.** `npm ci` (garante que as dependências batem com o lockfile).
 - [ ] **6.** `npm test` → **0 falhas**. O total sobe a cada entrega (medido em
-      03/09/2026: **881** testes em **42** arquivos). ⚠️ O critério é
+      03/09/2026: **889** testes em **42** arquivos). ⚠️ O critério é
       **0 falhas**, nunca um total fixo — um total **menor** que o da última
       medição significa que alguém apagou teste.
 

@@ -505,7 +505,7 @@ changeront ; l'état d'**avant** eux était `fc4359c`.
 |---|---|
 | Contrôleurs / services / modèles / repositories / DTO | 28 / 47 / 36 / 22 / 37 |
 | Fichiers de test Java / JS | 93 / 42 |
-| Suites | `mvn test` **1055**, `npm test` **881** |
+| Suites | `mvn test` **1055**, `npm test` **889** |
 | Migrations SQL | **V001 → V027** (`deploy/migrations/`) |
 | Permissions granulaires | **10** (`security/Permissions.java`, liste `TODAS`) |
 

@@ -13,7 +13,7 @@ correctement l'état d'`avant` les chantiers du 03/09, et rien d'autre.
 
 Suites mesurées le 03/09/2026, **depuis zéro** (`rm -rf backend/target`), sur
 l'arbre des trois chantiers réunis : backend **1055** tests (0 échec, exactement
-2 `@Disabled`), npm **881** tests sur **42** fichiers. ⚠️ Ces totaux montent à
+2 `@Disabled`), npm **889** tests sur **42** fichiers. ⚠️ Ces totaux montent à
 chaque livraison — ce qui se lit, c'est **0 échec, exactement 2 `@Disabled`**, et
 un total **inférieur** à celui-ci veut dire que quelqu'un a supprimé un test.
 Migrations **V001 → V027**, toutes appliquées en production.
@@ -462,11 +462,32 @@ en silence** : pas de message, juste une liste de personnes vide. Prouvé dans
 l'Electron réel, pas seulement en test.
 
 **b. Le livre imprimable.** Les chapitres du livre du système se composent
-désormais en un document A4 de **107 pages**, table des matières numérotée et
+désormais en un document A4 de **109 pages**, table des matières numérotée et
 marges de reliure comprises : `npm run livre:pdf`.
 ⚠️ **Ne pas régénérer `docs/livre/livre-complet.html` à la main** ni depuis une
 branche qui n'a pas le générateur réécrit : la sortie remplacerait le nouveau
 livre par l'ancien.
+
+> ### ⚠️ APRÈS TOUTE FUSION QUI TOUCHE UN CHAPITRE, RELANCER `npm run livre:pdf`
+>
+> `docs/livre/pagination.json` porte une **empreinte** des chapitres et de la
+> feuille de style. Dès qu'un chapitre change, elle ne correspond plus et
+> `build-livre.js` **retire les numéros de page** en le disant fort — le sommaire
+> garde ses liens, perd ses numéros, et c'est volontaire.
+>
+> C'est exactement ce qui s'est produit en fusionnant les trois chantiers du
+> 03/09 : la vérification de documentation a corrigé cinq chapitres, donc
+> l'empreinte est tombée. **Un livre sans numéros n'est pas un défaut ; un livre
+> avec de FAUX numéros en est un**, et c'est ce que ce mécanisme empêche.
+>
+> ```bash
+> node scripts/paginer-livre.js     # ~40 s, douze lancements de Chrome
+> git add docs/livre/livre-complet.html docs/livre/livre-complet.pdf >         docs/livre/pagination.json
+> ```
+>
+> Le script **refuse de finir** (code 2) si l'échelle n'est pas exactement
+> `0.750000` ou si la table des matières a changé de hauteur en gagnant ses
+> numéros. Les deux refus sont des mesures, pas des avis.
 
 **c. Cette vérification de documentation.** Un balayage des chiffres, dates et
 états affirmés dans la documentation, avec remesure. C'est ce qui a produit les
@@ -712,7 +733,7 @@ mvn -f backend/pom.xml clean package
 
 # ── 2. Les deux suites, AVANT de copier quoi que ce soit ─────────────
 cd backend && rm -rf target/test-classes && mvn -o test    # 1055, 0 échec, 2 @Disabled
-cd .. && npx vitest run                                     # 881, 0 échec
+cd .. && npx vitest run                                     # 889, 0 échec
 ```
 
 ⚠️ **Mesurer depuis zéro.** `mvn test` incrémental a déjà donné un

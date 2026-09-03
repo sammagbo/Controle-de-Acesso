@@ -135,6 +135,16 @@ describe("la prémisse : ce que la page publie réellement sur window", () => {
             expect(valeur).toBe(RACINE + '/api');
       });
 
+      // ⚠️ DEUX ÉCRANS DÉPENDENT DE CET ACCIDENT, et il faut le savoir avant
+      // d'assainir js/api.js. `js/components/AdminPinModal.js` et
+      // `js/components/UserManagement.js` lisent l'identifiant NU
+      // `API_BASE_URL` — la globale publiée sans le vouloir par le `const` de
+      // js/api.js. Ils sont corrects aujourd'hui (ils ne redoublent pas le
+      // `/api`), mais le jour où quelqu'un enfermera js/api.js dans une IIFE
+      // ou le passera en module, la globale disparaît et SIX `fetch`
+      // d'administration cassent en silence. Les recâbler sur `window.api`
+      // est le vrai correctif ; ce commentaire est là pour qu'on ne
+      // l'apprenne pas en production.
       it("le commentaire qui affirmait le contraire ne doit pas revenir", () => {
             const source = lire('js', 'utils', 'auth.js');
             expect(source).not.toMatch(/n'est affecte NULLE PART|nao e atribuida em lugar nenhum/i);
@@ -154,7 +164,11 @@ describe("l'adresse de la connexion", () => {
             expect(urlsVues[0]).not.toContain('/api/api');
       });
 
-      it("hors Electron (pas de pont), retombe sur localhost, toujours avec un seul /api", async () => {
+      // ⚠️ CE TEST NE GARDE PAS LA RÉGRESSION DU 03/09 — il garde le REPLI, et
+      // il passe à l'identique sur le code d'avant le correctif. Il est ici
+      // pour que le repli hors Electron reste un seul `/api`, pas pour prouver
+      // la correction : ce sont les deux tests précédents qui la prouvent.
+      it("REPLI (ne prouve pas la correction) : hors Electron, localhost avec un seul /api", async () => {
             const pont = window.magboConfig;
             const globale = window.API_BASE_URL;
             try {
@@ -217,4 +231,71 @@ describe("le message d'erreur ne doit pas mentir sur la nature de la panne", () 
                   expect(message).toContain(String(statut));
             });
       }
+});
+
+// =====================================================================
+// LA MÊME PANNE, MAIS PAR LA PORTE D'À CÔTÉ : UNE ADRESSE QUI PORTE /api
+// =====================================================================
+// ⚠️ Le correctif ci-dessus ferme la panne du 03/09 telle qu'elle s'est
+// produite — par le CODE. Elle peut revenir par une SAISIE : il suffit qu'un
+// poste soit réglé sur « http://…:8080/api ». Le programme ajoute son propre
+// `/api`, et on retombe exactement sur `/api/api/auth/login`.
+//
+// L'écran de premier lancement s'en protège tout seul (il exige un
+// `GET {base}/api/health` réussi avant d'activer Enregistrer, donc l'adresse
+// doublée échoue au test et le bouton reste fermé). Mais DEUX portes ne
+// passent pas par cet écran : la variable `MAGBO_API_URL` d'un `.bat` — qui
+// est PRIORITAIRE et n'est jamais testée — et un `magbo-poste.json` édité à la
+// main, ce que le guide d'installation invite explicitement à faire.
+//
+// Les deux traversent `normaliserUrl`. C'est donc là que la coupe est faite.
+describe("une adresse réglée avec /api ne peut plus doubler le segment", () => {
+      const posteConfig = (() => {
+            const src = lire('js', 'utils', 'posteConfig.js');
+            const mod = { exports: {} };
+            new Function('module', 'exports', 'window', 'console', src)(
+                  mod, mod.exports, undefined, { warn() {} });
+            return mod.exports;
+      })();
+
+      it("retire le /api final — c'est la panne du 03/09 par la voie de la saisie", () => {
+            expect(posteConfig.normaliserUrl('http://192.168.1.253:8080/api'))
+                  .toBe('http://192.168.1.253:8080');
+      });
+
+      it("le retire aussi avec barre finale, sans schéma, et en majuscules", () => {
+            expect(posteConfig.normaliserUrl('192.168.1.253:8080/api/'))
+                  .toBe('http://192.168.1.253:8080');
+            expect(posteConfig.normaliserUrl('http://h:8080/API'))
+                  .toBe('http://h:8080');
+      });
+
+      it("⚠️ ne touche PAS à un chemin qui commence seulement par api", () => {
+            // `/apiX` n'est pas `/api` : couper ici casserait une adresse
+            // légitime pour réparer une faute qui n'a pas été commise.
+            expect(posteConfig.normaliserUrl('http://h:8080/apiX'))
+                  .toBe('http://h:8080/apiX');
+      });
+
+      it("garde le reste du chemin quand le serveur vit sous un préfixe", () => {
+            expect(posteConfig.normaliserUrl('http://h:8080/magbo/api'))
+                  .toBe('http://h:8080/magbo');
+      });
+
+      it("★ une adresse déjà correcte n'est pas modifiée", () => {
+            expect(posteConfig.normaliserUrl('http://192.168.1.253:8080'))
+                  .toBe('http://192.168.1.253:8080');
+      });
+
+      it("★ la coupe SE DIT — elle n'est pas silencieuse", () => {
+            // Un réglage corrigé sans le dire ne ressemble plus à ce qui a été
+            // tapé, et la personne suivante cherche longtemps.
+            const src = lire('js', 'utils', 'posteConfig.js');
+            const dit = [];
+            const mod = { exports: {} };
+            new Function('module', 'exports', 'window', 'console', src)(
+                  mod, mod.exports, undefined, { warn: (m) => dit.push(String(m)) });
+            mod.exports.normaliserUrl('http://h:8080/api');
+            expect(dit.join(' ')).toMatch(/\/api/);
+      });
 });

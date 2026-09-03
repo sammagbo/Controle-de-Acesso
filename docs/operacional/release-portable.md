@@ -76,7 +76,11 @@ npm run verify:package
 ```
 
 O `verify:package` lista o conteúdo do pacote, aplica 17 regras de exclusão
-(inclusive `.env`, `.sql`, `.pem`/`.key`) e confere 26 arquivos obrigatórios.
+(inclusive `.env`, `.sql`, `.pem`/`.key`) e confere os arquivos obrigatórios —
+**96 em 03/09/2026**. ⚠️ Esse número **sobe sozinho** e é para ser assim: a lista
+não é escrita à mão, é **derivada do `index.html`** (`scripts/verify-package.js`),
+justamente porque a lista estática anterior — de 26 — mentia. Um número diferente
+aqui não é defeito; a lista estar vazia ou o script não rodar, sim.
 Sai com código 1 se qualquer regra falhar. **Não publicar sem ele aprovar.**
 
 ---
@@ -138,7 +142,10 @@ Nada abaixo foi executado. É tudo decisão e ação do Sam.
       antes, não confiar no que está escrito. A reserva de IP foi pedida ao SI
       (D7) e ainda não está confirmada.
 - [ ] **5.** `npm ci` (garante que as dependências batem com o lockfile).
-- [ ] **6.** `npm test` → deve dar **58 testes, 0 falhas**.
+- [ ] **6.** `npm test` → **0 falhas**. O total sobe a cada entrega (medido em
+      03/09/2026: **889** testes em **42** arquivos). ⚠️ O critério é
+      **0 falhas**, nunca um total fixo — um total **menor** que o da última
+      medição significa que alguém apagou teste.
 
 ### 3.2 Gerar e verificar
 
@@ -178,7 +185,11 @@ Por PC:
 
 - [ ] **16.** Anotar o setor daquele PC antes de mexer (`MAGBO_SECTOR`) — a tela
       inicial mostra qual é.
-- [ ] **17.** Fechar o app (`Ctrl+Shift+Alt+Q` + PIN, se estiver em quiosque).
+- [ ] **17.** Fechar o app. Em janela normal: `Alt+F4` ou o X.
+      ⚠️ **Em quiosque NÃO existe saída por código** — `Ctrl+Shift+Alt+Q` **não
+      faz nada** (o atalho existe em `main.js:383`, mas nenhuma tela escuta o
+      evento; medido em 03/09/2026). Use `Ctrl+Alt+Del` → Gerenciador de
+      Tarefas → **MAGBO Access Control** → Finalizar tarefa.
 - [ ] **18.** Renomear a pasta antiga para `MAGBO-v2.0.0-BACKUP` — **não apagar**.
       É o caminho de volta se algo der errado no meio do dia.
 - [ ] **19.** Copiar a pasta nova (`.exe` + `.bat`).

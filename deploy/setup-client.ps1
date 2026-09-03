@@ -8,7 +8,9 @@
 # Parameters:
 #   -Sector   : Sector ID (PORT1, PORT2, PORT3, BIBLIO, ENFERM, REFEI1, REFEI2)
 #   -ApiUrl   : Backend URL (e.g., http://magbo-access.local:8080)
-#   -KioskPin : Admin PIN to exit kiosk mode (default: 1234)
+#   -KioskPin : KEPT FOR CALL COMPATIBILITY, HAS NO EFFECT. There is no code
+#               exit from kiosk mode at all - see step 4 at the end of this
+#               script. Measured 2026-09-03.
 # ============================================================
 
 param(
@@ -38,12 +40,20 @@ Write-Host "[1/5] Setting environment variables..." -ForegroundColor Green
 
 [Environment]::SetEnvironmentVariable("MAGBO_API_URL", $ApiUrl, "Machine")
 [Environment]::SetEnvironmentVariable("MAGBO_SECTOR", $Sector, "Machine")
-[Environment]::SetEnvironmentVariable("MAGBO_KIOSK_PIN", $KioskPin, "Machine")
+# MAGBO_KIOSK_PIN IS NO LONGER SET, AND THAT IS DELIBERATE.
+# Nothing on the interface side reads it. `preload.js:112-123` does expose
+# verifyKioskPin / exitKiosk / onRequestAdminPin, but NO file under `js/` and
+# not `index.html` ever calls them (measured 2026-09-03: `grep -rn magboIpc`
+# over the repository returns preload.js and three documents, nothing else).
+# Its only consumer is the orphan handler at main.js:394. Setting it made
+# every installer believe in a PIN-protected exit that does not exist - and
+# the summary block a few lines further down used to echo that PIN in clear
+# text into the install console, i.e. into the PowerShell history and into
+# every screenshot of the installation. That echo is gone too.
 [Environment]::SetEnvironmentVariable("NODE_ENV", "production", "Machine")
 
 Write-Host "  MAGBO_API_URL  = $ApiUrl"
 Write-Host "  MAGBO_SECTOR   = $Sector"
-Write-Host "  MAGBO_KIOSK_PIN = $KioskPin"
 Write-Host "  NODE_ENV       = production"
 
 # ─── 2. Run Installer (if available) ───
@@ -129,6 +139,11 @@ Write-Host "  Next steps:"
 Write-Host "    1. Restart the computer"
 Write-Host "    2. Verify the app opens in fullscreen"
 Write-Host "    3. Test Alt+F4 (should be blocked)"
-Write-Host "    4. Emergency exit: Ctrl+Shift+Alt+Q + PIN"
+Write-Host "    4. WARNING - there is NO code exit from kiosk mode." -ForegroundColor Yellow
+Write-Host "       Ctrl+Shift+Alt+Q does nothing: the shortcut is registered" -ForegroundColor Yellow
+Write-Host "       (main.js:383) but no screen listens, and a webContents.send" -ForegroundColor Yellow
+Write-Host "       to a channel with no listener is a SILENT no-op." -ForegroundColor Yellow
+Write-Host "       To close a locked terminal: Ctrl+Alt+Del -> Task Manager ->" -ForegroundColor Yellow
+Write-Host "       MAGBO Access Control -> End task. Measured 2026-09-03." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan

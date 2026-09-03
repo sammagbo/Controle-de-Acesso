@@ -135,8 +135,23 @@ quand l'écran était en portugais.
 ### 2.4 Electron
 
 `main.js` crée la fenêtre, `preload.js` expose la configuration
-(`window.magboConfig` : `MAGBO_API_URL`, `MAGBO_SECTOR`, `MAGBO_KIOSK_PIN`).
-`NODE_ENV=production` active le mode kiosque.
+(`window.magboConfig` : `apiUrl`, `sector`, `source`, `doitConfigurer`,
+`isProduction`, `cheminFichier`, `version` — issus de `MAGBO_API_URL` /
+`MAGBO_SECTOR` ou du fichier `magbo-poste.json`). `NODE_ENV=production` active le
+mode kiosque, à condition que le poste soit déjà réglé
+(`posteConfig.verrouillable`).
+
+⚠️ **Le second pont, `window.magboIpc`, est mort — et `MAGBO_KIOSK_PIN` ne sert à
+rien.** `preload.js:112-123` expose `verifyKioskPin`, `exitKiosk` et
+`onRequestAdminPin` ; `main.js:383` enregistre `Ctrl+Shift+Alt+Q` et émet
+`request-admin-pin` ; `main.js:32` lit le PIN. **Aucun fichier de `js/`,
+d'`index.html` ni de `tests/` n'écoute** (mesuré le 03/09/2026 par recherche
+exhaustive). Le raccourci est donc un no-op silencieux, le PIN n'est demandé par
+aucun écran, et un poste verrouillé se ferme par `Ctrl+Alt+Suppr` → Gestionnaire
+des tâches. C'est la famille de défaut du bug `f947373` : une moitié écrite,
+l'autre jamais branchée, et l'échec est muet. ⚠️ Ne pas confondre avec
+`ADMIN_PIN`, qui est le PIN du backend (`/api/admin/verify`,
+`js/components/AdminPinModal.js`) et qui, lui, fonctionne.
 
 ⚠️ **L'exécutable ne garde aucune configuration.** Il lit des variables
 d'environnement et retombe sur `http://localhost:8080`. Lancé nu, il ouvre une
@@ -210,6 +225,7 @@ survivrait pas au déploiement.
 | V024 | `system_settings` — naît vide | ✅ |
 | V025 | `cdi_exclusions` ⚠️ **donnée sensible sur mineur** | ✅ |
 | V026 | `cdi_alert_events` ⚠️ **idem** | ✅ |
+| V027 | `licence_clock` — le témoin d'horloge de la licence (ADR-006) ⚠️ **à poser à la main AVANT de démarrer le backend** : `ddl-auto` saurait créer la table, et c'est le problème — elle naîtrait **sans** son `CHECK (id = 1)`, qu'il ne corrigerait jamais | ✅ |
 
 ⚠️ **Chaque absence de rollback est justifiée dans
 `deploy/migrations/README.md`**, et `tests/migrations.test.js` échoue si une
@@ -238,8 +254,10 @@ README.
 
 ## 4. Les tests
 
-**Backend 943** (0 échec, exactement 2 `@Disabled`) sur 82 fichiers.
-**npm 694** sur 36 fichiers.
+Mesuré le **03/09/2026** (à froid : `cd backend && rm -rf target && mvn -o test`,
+puis `npm test`), sur `main` augmentée des trois chantiers de cette date :
+**backend 1055** (0 échec, exactement 2 `@Disabled`) sur **93** fichiers,
+**npm 889** sur **42** fichiers.
 
 ⚠️ **Le critère n'est pas un total.** Le total monte à chaque livraison ; un
 nombre écrit dans un document vieillit en quelques jours. Le critère est

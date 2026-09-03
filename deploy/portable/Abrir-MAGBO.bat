@@ -29,12 +29,19 @@ REM  ADMINISTRATIF = poste de bureau, pas un point de passage
 REM  (Vie Scolaire, direction, informatique) - ne change que le titre.
 
 REM ===================================================================
-REM  MODE QUIOSQUE - plein ecran, touches de sortie bloquees, PIN.
+REM  MODE QUIOSQUE - plein ecran, touches de sortie bloquees.
 REM
-REM  !! CES DEUX LIGNES RESTENT ICI ET N'IRONT PAS DANS LE FICHIER DE
-REM  REGLAGE : un code de sortie n'a rien a faire en clair a cote du
-REM  programme, sur un PC partage. Pour un poste en quiosque deja migre,
-REM  faire un Abrir-MAGBO-kiosque.bat qui ne pose QUE ces deux lignes -
+REM  !! IL N'Y A PAS DE SORTIE PAR CODE. Mesure le 03/09/2026 :
+REM  Ctrl+Shift+Alt+Q ne fait RIEN (l'atalho est enregistre dans main.js
+REM  mais aucun ecran n'ecoute l'evenement), et MAGBO_KIOSK_PIN n'est lue
+REM  par aucun ecran. Pour fermer un poste verrouille :
+REM  Ctrl+Alt+Suppr -> Gestionnaire des taches -> MAGBO Access Control
+REM  -> Fin de tache.
+REM
+REM  !! CETTE LIGNE RESTE ICI ET N'IRA PAS DANS LE FICHIER DE REGLAGE :
+REM  verrouiller une machine se decide depuis la machine, pas depuis
+REM  l'application qu'elle affiche. Pour un poste en quiosque deja migre,
+REM  faire un Abrir-MAGBO-kiosque.bat qui ne pose QUE cette ligne -
 REM  l'adresse et le poste continueront de venir du fichier.
 REM ===================================================================
 REM set NODE_ENV=production

@@ -80,7 +80,30 @@ on a production VM using Docker.
    done
    ```
 
-   Apply **V001 → V016, in order**, before considering the deployment done.
+   Apply **V001 → V027, in order**, before considering the deployment done.
+   Measured on 2026-09-03: `ls deploy/migrations/V0*.sql | wc -l` → **27**
+   (V001 through V027), and all 27 are applied in production. This line read
+   «V001 → V016» until then — eleven migrations short.
+
+   ⚠️ **Two of the eleven fail in a way this machine cannot show you.**
+   `V022` widens the `access_attempts.denial_reason` CHECK: skip it and the
+   INSERT that records a refused meal fails **only on the VM** — never on the
+   dev PC, whose `ddl-auto` leaves the existing CHECK alone, and never in the
+   tests, where H2 recreates the table from the Java enum. `V027` creates
+   `licence_clock`, and it must be applied **before the backend starts**:
+   `ddl-auto` would happily create that table itself **without** its
+   `CHECK (id = 1)`, and it never repairs a constraint afterwards (the
+   V017/V020 lesson). V027 carries an idempotent block that catches that one
+   case, but the order stands: **migration first, backend second.**
+
+   ⚠️ **This step is numbered after `docker compose up -d`, and on a first
+   install that order is wrong for V022 and V027.** On an empty database, run
+   `docker compose up -d postgres` alone, apply the 27 migrations, and only
+   then `docker compose up -d`. If the backend has already started, stop it
+   (`docker compose stop backend`), apply, and start it again — V022's own
+   header says the failure it prevents « part le jour même, au premier
+   service », not weeks later.
+
    `npm test -- tests/migrations.test.js` fails if a migration exists in
    `deploy/migrations/` and is not named in that README, if it has no rollback,
    or if the `denial_reason` CHECK has fallen behind the Java enum.

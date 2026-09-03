@@ -249,6 +249,7 @@ L'écran est le même qu'à la première ouverture, test de connexion compris.
 | **« Le serveur ne répond pas à l'adresse … »** au moment de se connecter | Ce PC ne joint pas le serveur : adresse fausse (la VM a déménagé), serveur éteint, ou réseau | Voir la ligne suivante — ce **n'est pas** un problème de mot de passe |
 | L'adresse est fausse et **je ne peux pas me connecter**, donc pas atteindre l'engrenage | L'écran de correction est derrière la connexion, de propos délibéré : changer l'adresse du serveur est un droit d'administrateur | Ouvrir `magbo-poste.json` (à côté du `.exe`) au **Bloc-notes** et corriger l'adresse ; ou le **supprimer** et rouvrir, l'écran de configuration revient (section 9 b) |
 | Impossible de se connecter, et le serveur répond | Compte ou mot de passe | Voir l'administrateur — ce n'est pas l'installation |
+| **« Erreur du serveur (HTTP 403) »** ou un autre numéro, au moment de se connecter | ⚠️ **Ce n'est pas le mot de passe.** Le serveur répond, mais il refuse *l'adresse* : presque toujours une adresse réglée avec `/api` à la fin. Le programme ajoute `/api` lui-même, donc l'adresse doublait le segment et le serveur refusait la route — la panne du 03/09/2026, qui affichait alors « Identifiants invalides » et a coûté une matinée | Régler l'adresse **sans** `/api` : `http://192.168.1.253:8080`, jamais `http://192.168.1.253:8080/api`. Vérifier `magbo-poste.json` à côté du `.exe`, **et** qu'aucun `.bat` ne pose un `MAGBO_API_URL` fautif (il est prioritaire — section 8). Depuis le 03/09 le programme retire ce `/api` tout seul et le dit dans la console ; un poste plus ancien, non |
 | L'engrenage dit que le poste est réglé par le lanceur | Un `.bat` est encore là et garde la priorité | Section 8 |
 
 ---
@@ -363,9 +364,13 @@ l'application en plein écran.
 > s'ouvre en fenêtre normale. Ne comptez pas dessus comme méthode de travail :
 > c'est un filet, pas une procédure.)
 
-⚠️ **Ce réglage reste dans un `.bat`, et c'est voulu.** Le code de sortie n'a
-rien à faire dans un fichier en clair à côté du programme, sur un PC partagé.
-Créer un `Abrir-MAGBO-kiosque.bat` à côté du `.exe` :
+⚠️ **Ce réglage reste dans un `.bat`, et c'est voulu** — mais pas pour la raison
+qui était écrite ici. `NODE_ENV` gouverne le **verrouillage d'une machine**, et
+cela se décide depuis la machine, pas depuis l'application qu'elle affiche.
+⚠️ **Il n'y a AUCUN code de sortie à protéger** : `MAGBO_KIOSK_PIN` n'est lue par
+aucun écran et `Ctrl+Shift+Alt+Q` ne fait rien (mesuré le 03/09/2026 — voir
+l'encadré plus haut). Créer un `Abrir-MAGBO-kiosque.bat` à côté du `.exe`, qui ne
+pose **que cette ligne** — l'adresse et le poste continuent de venir du fichier :
 
 ```bat
 @echo off

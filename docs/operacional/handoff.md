@@ -3,10 +3,22 @@
 **Pour qui :** la personne qui reprend MAGBO Access Control après le départ de
 Sam, ou Sam lui-même revenant après une longue absence.
 
-**Date de coupe : 2026-09-01.** Dernier merge sur `main` : `5632d0a`
-(PR #87 — la licence).
-Suites : backend **1055** tests (0 échec, exactement 2 `@Disabled`), npm **719**.
+**Date de coupe : 2026-09-03**, après les trois chantiers de cette date (voir
+§2.3) : la correction de l'adresse de connexion, le livre imprimable, et cette
+vérification de la documentation.
+
+⚠️ **Cette page s'ancre sur des DATES, pas sur des SHA.** Les identifiants de
+commit changent au moment où Sam fusionne ; une date, non. `fc4359c` désigne
+correctement l'état d'`avant` les chantiers du 03/09, et rien d'autre.
+
+Suites mesurées le 03/09/2026, **depuis zéro** (`rm -rf backend/target`), sur
+l'arbre des trois chantiers réunis : backend **1055** tests (0 échec, exactement
+2 `@Disabled`), npm **889** tests sur **42** fichiers. ⚠️ Ces totaux montent à
+chaque livraison — ce qui se lit, c'est **0 échec, exactement 2 `@Disabled`**, et
+un total **inférieur** à celui-ci veut dire que quelqu'un a supprimé un test.
 Migrations **V001 → V027**, toutes appliquées en production.
+Paquet portable : **96/96** fichiers obligatoires (voir §4 — ce nombre est
+dérivé, il monte à chaque écran nouveau).
 
 **La licence est DÉPLOYÉE et valide.** `/api/health` répond
 `"etat":"VALIDE","expireLe":"2027-03-31","gestionOuverte":true`. Ce que ce
@@ -33,8 +45,8 @@ Là où l'intention et la réalité divergent, c'est la réalité qui compte.
 
 # ⚠️ À LIRE EN PREMIER — le défaut ouvert le plus grave
 
-**Depuis le 25/08, le portail ne reconnaît plus que ~46 élèves distincts par
-jour, contre ~500 jusqu'au 24/08.**
+**Depuis le 25/08/2026, le portail ne reconnaît plus qu'environ 46 élèves
+distincts par jour, contre environ 500 jusqu'au 24/08.**
 
 | Mesure | Jusqu'au 24/08 | Depuis le 25/08 |
 |---|---|---|
@@ -44,78 +56,101 @@ jour, contre ~500 jusqu'au 24/08.**
 | Personnes vues le 25/08 à 7h | — | **35** |
 
 La rupture est **nette entre le 24 et le 25** : ce n'est pas une dérive
-progressive. **Le personnel n'est pas touché**, ce qui est le fait le plus
+progressive. **Le personnel n'est pas touché**, et c'est le fait le plus
 instructif du tableau — quoi qu'il se passe, ça ne frappe pas tout le monde.
 
 Sur environ **1160 visages non identifiés par jour**, seuls **22** atteignent la
 comparaison de nom, avec des similarités de **0,13 à 0,46** — très en dessous du
 seuil. Les autres n'arrivent même pas jusque-là.
 
-**Ce n'est pas un défaut logiciel.** Le backend reçoit et traite normalement.
-Le diagnostic du 27/08 a écarté l'hypothèse la plus sérieuse (le changement de
-parser multipart) avec preuve, et n'a trouvé aucun défaut de code — voir
-[`diagnostic-portaria-2026-08-27.md`](diagnostic-portaria-2026-08-27.md), qui
-contient les cinq requêtes SQL à lancer sur la VM et les `grep` de logs.
+> ## ⚠️ AUCUNE CAUSE N'EST ÉTABLIE
+>
+> Tout ce qui suit est **soit une mesure, soit une vérification à faire**. Rien
+> ici n'est un diagnostic, et rien ici ne doit en devenir un par relecture.
+>
+> Ce paragraphe existe parce qu'une cause écrite dans un document finit par être
+> crue, et qu'une réparation lancée sur une cause supposée coûte plus cher que
+> la panne. **Mesurez avant de réparer.**
 
-**Ce que l'on sait d'autre :** la chute **coïncide avec les imports de photos
-des 25 et 26/08**.
+### Ce que le diagnostic du 27/08 a écarté — et avec quelle force
 
-### ⚠️ La piste nº 1 : ces photos sont passées par HikCentral
+Le diagnostic du 27/08 a **écarté avec preuve** l'hypothèse la plus sérieuse : le
+changement de parser multipart. Il a aussi établi que `CameraIdentityService` et
+`PersonNameMatcher` n'ont reçu **aucun commit depuis le 20/08**, ce qui rend une
+régression d'identification **très improbable**.
+
+⚠️ **« Très improbable » n'est pas « écarté », et le diagnostic laisse un risque
+de code explicitement OUVERT.** Certains firmwares Hikvision envoient
+`Content-Disposition: form-data` **sans** `name=` ; le parser rend alors
+`nome == null`, l'événement tombe dans le branchement générique et **la passage
+meurt en silence**. La signature à chercher dans les journaux du backend est
+`part=null`.
+
+Le détail, les cinq requêtes SQL à lancer sur la VM et les `grep` de logs sont
+dans [`diagnostic-portaria-2026-08-27.md`](diagnostic-portaria-2026-08-27.md).
+
+### Le chemin qu'ont pris les photos des 25 et 26/08 — un fait, pas une explication
 
 *(Répondu par Sam le 31/08/2026.)*
 
-**Les imports des 25 et 26/08 ont été faits par HikCentral, pas par l'écran du
-MAGBO.** C'est la réponse qui compte, parce qu'elle change la nature du lien :
+**Les imports des 25 et 26/08 ont été faits par HikCentral, pas par l'écran
+Photos du MAGBO.** Les deux chemins ne touchent pas la même chose :
 
-| Chemin | Ce qu'il touche | Effet sur la reconnaissance |
+| Chemin | Ce qu'il touche | Rapport avec la reconnaissance |
 |---|---|---|
 | Écran Photos du MAGBO | la table `user_photos` | **aucun** — ce sont les portraits affichés dans l'application |
 | **HikCentral** | **les bibliothèques faciales des caméras** | **direct** — c'est ce contre quoi la caméra compare |
 
-⚠️ **Le lien n'est donc plus seulement une coïncidence de dates : il y a un
-mécanisme.** HikCentral repeuple les bibliothèques faciales ; les caméras du
-portail ne font que **comparer** un visage à cette bibliothèque. Un
-repeuplement des 25–26/08 peut avoir changé ce à quoi elles comparent.
+⚠️ **Ce tableau dit où regarder, il ne dit pas ce qui s'est passé.** Que les
+photos soient passées par le chemin qui touche les bibliothèques est un fait ;
+que ce passage ait causé la chute n'est **pas mesuré**. Les deux se sont produits
+les mêmes jours — c'est une raison d'aller voir, pas une conclusion.
 
-**Ce qu'il faut vérifier côté HikCentral, dans cet ordre :**
+### ⚠️ L'ordre des gestes — mesurer, puis constater, puis seulement toucher
+
+**1. D'abord les cinq requêtes du diagnostic du 27/08**, sur la VM. Elles ne
+changent rien et elles datent la rupture.
+
+**La première de toutes, parce qu'elle discrimine :**
+
+```sql
+-- combien de personnes ont un camera_person_id ?
+SELECT count(*) FROM app_users WHERE camera_person_id IS NOT NULL;
+```
+
+**2. Ensuite, constater l'état des bibliothèques depuis HikCentral** — en
+lecture seule, sans rien appliquer :
 
 1. **La bibliothèque des élèves existe-t-elle encore, et avec combien de
-   personnes ?** Le personnel n'est pas touché — si les deux bibliothèques sont
+   personnes ?** Le personnel n'est pas touché : si les deux bibliothèques sont
    séparées, comparer leurs effectifs situe le problème immédiatement.
 2. **Les images ont-elles été remplacées, et par lesquelles ?** Une photo de
    moins bonne qualité, recadrée autrement, ou une photo d'identité scannée à la
-   place d'un portrait, dégrade la similarité — et les mesures montrent
-   justement des similarités **effondrées** (0,13 à 0,46, très en dessous du
-   seuil).
+   place d'un portrait, dégrade la similarité — et les similarités mesurées sont
+   effondrées (0,13 à 0,46).
 3. **Le `certificateNumber` a-t-il changé de format ?** ⚠️ C'est déjà arrivé :
-   depuis le 08/08, il porte la matricule complétée à 16 chiffres, *parce que
-   les bibliothèques faciales avaient été repeuplées par le module de personnes
-   du HCP* (`.claude/rules/hikvision.md`). Un repeuplement change ce champ.
+   depuis le 08/08 il porte la matricule complétée à 16 chiffres, *parce que les
+   bibliothèques faciales avaient été repeuplées par le module de personnes du
+   HCP* (`.claude/rules/hikvision.md`).
 4. **Le `Apply to Device` a-t-il bien été fait ?** Une bibliothèque modifiée au
    HCP mais non appliquée aux appareils laisse les caméras avec l'ancienne — ou
    avec rien.
 
-⚠️ **Et le réglage à ne pas manquer** : lors des opérations HikCentral,
+**3. Ne modifier quoi que ce soit qu'après.** « Corriger » ce qui n'est pas cassé
+a déjà coûté cher ici, et une bibliothèque faciale repeuplée par erreur n'a pas
+de retour arrière.
+
+⚠️ **Le réglage à ne pas manquer** : lors de toute opération HikCentral,
 « Restaurer les paramètres par défaut » doit rester **DÉCOCHÉ**. Coché, il
 réinitialise des réglages de l'appareil — dont potentiellement le seuil de
-similarité et l'*Écoute HTTP*.
-
-La procédure complète est dans
+similarité et l'*Écoute HTTP*. La procédure complète est dans
 [`procedimento-hikcentral.md`](procedimento-hikcentral.md).
 
-> ⚠️ **La cause n'est toujours pas prouvée.** Il y a maintenant un mécanisme
-> plausible, ce qui est plus qu'une coïncidence — mais ce n'est pas une preuve.
-> **Mesurez avant de réparer** : les cinq requêtes du diagnostic du 27/08
-> existent précisément pour éviter qu'on « corrige » ce qui n'est pas cassé. En
-> particulier, vérifier d'abord **combien de personnes ont un
-> `camera_person_id`** : si ce nombre s'est effondré, la bibliothèque est bien
-> en cause.
-
 **[À COMPLÉTER — demandé à Sam le 31/08, non retrouvé]** Quels fichiers
-exactement, et pour combien de personnes ? Le détail aiderait à cibler, mais
-**ne bloque pas** l'enquête : les quatre vérifications ci-dessus se font depuis
-HikCentral, qui montre l'état **actuel** des bibliothèques — on n'a pas besoin
-de savoir ce qui y a été versé pour voir ce qu'elles contiennent.
+exactement ont été versés, et pour combien de personnes ? Le détail aiderait à
+cibler, mais **ne bloque pas** : les quatre vérifications ci-dessus montrent
+l'état **actuel** des bibliothèques, sans avoir besoin de savoir ce qui y a été
+versé.
 
 ### Note historique, à connaître avant de lire les chiffres d'avant
 
@@ -398,10 +433,66 @@ chacun, les chantiers postérieurs. Le détail vit dans les rapports de nuit.
 | **Recherche centrale** sur l'écran d'accueil, avec autocomplétion | — | [`nuit-27-28-08-rapport.md`](nuit-27-28-08-rapport.md) |
 | **L'affiche cantine** imprimable en couleur, fidèle au mur | — | [`controle-affiche-cantine.md`](controle-affiche-cantine.md) |
 | **Licence** — dégradation par couches ; une licence expirée AVERTIT, ne supprime rien, et ne ferme **jamais** le webhook ni le PPMS nominatif | V027 | [`ADR-006`](../architecture/decisoes/ADR-006-licence-degradation-par-couches.md), [`procedimento-licence.md`](procedimento-licence.md) |
+| **Configuration du poste** — l'application s'ouvre par son `.exe` ; un écran de premier lancement écrit `magbo-poste.json` à côté de l'exécutable ; un PC de bureau se déclare **poste administratif** et n'est donc pas un point de passage ; le `.bat` devient optionnel mais **garde la priorité** | — | [`ADR-007`](../architecture/decisoes/ADR-007-configuration-du-poste.md), [`guide-installation-postes.md`](guide-installation-postes.md) |
 
 ⚠️ **L'écran de configuration a déménagé le 28/08 :** il n'est plus dans le
 Panneau Administratif, il est dans **l'engrenage du header**, visible avec
 `ADMIN` ou la permission `CONFIG_WRITE`.
+
+#### Les trois chantiers du 03/09/2026
+
+Ils ne sont pas encore sur `main` au moment où ces lignes sont écrites : ils
+attendent la fusion par Sam. C'est aussi pourquoi cette page ne cite **aucun
+SHA** comme « état actuel » — les identifiants changeront à la fusion.
+
+**a. L'adresse de connexion — le poste appelait `/api/api/auth/login`.**
+Le symptôme était trompeur au point de coûter une matinée : le poste affichait
+**« Identifiants invalides »** sur un mot de passe juste. Ce qui se passait :
+l'URL construite portait `/api` **deux fois**, Spring Security répondait **403**
+sur cette route inconnue, et l'écran de connexion traduisait **tout** non-2xx en
+« Identifiants invalides » — un refus de route déguisé en refus de mot de passe.
+
+⚠️ **La cause est une globale que l'on croyait absente.** `window.API_BASE_URL`
+**existe bel et bien** : Babel transpile le `const` de `js/api.js` en `var`,
+donc en propriété de `window`, et sa valeur **se termine déjà par `/api`**. Un
+chantier précédent avait ajouté un second `+ '/api'` en croyant la globale
+absente. Corrigé dans `js/utils/auth.js` et dans `js/utils/userCache.js`, qui
+portait le **défaut jumeau** — `GET /api/api/users`, dont le **404 était avalé
+en silence** : pas de message, juste une liste de personnes vide. Prouvé dans
+l'Electron réel, pas seulement en test.
+
+**b. Le livre imprimable.** Les chapitres du livre du système se composent
+désormais en un document A4 de **109 pages**, table des matières numérotée et
+marges de reliure comprises : `npm run livre:pdf`.
+⚠️ **Ne pas régénérer `docs/livre/livre-complet.html` à la main** ni depuis une
+branche qui n'a pas le générateur réécrit : la sortie remplacerait le nouveau
+livre par l'ancien.
+
+> ### ⚠️ APRÈS TOUTE FUSION QUI TOUCHE UN CHAPITRE, RELANCER `npm run livre:pdf`
+>
+> `docs/livre/pagination.json` porte une **empreinte** des chapitres et de la
+> feuille de style. Dès qu'un chapitre change, elle ne correspond plus et
+> `build-livre.js` **retire les numéros de page** en le disant fort — le sommaire
+> garde ses liens, perd ses numéros, et c'est volontaire.
+>
+> C'est exactement ce qui s'est produit en fusionnant les trois chantiers du
+> 03/09 : la vérification de documentation a corrigé cinq chapitres, donc
+> l'empreinte est tombée. **Un livre sans numéros n'est pas un défaut ; un livre
+> avec de FAUX numéros en est un**, et c'est ce que ce mécanisme empêche.
+>
+> ```bash
+> node scripts/paginer-livre.js     # ~40 s, douze lancements de Chrome
+> git add docs/livre/livre-complet.html docs/livre/livre-complet.pdf >         docs/livre/pagination.json
+> ```
+>
+> Le script **refuse de finir** (code 2) si l'échelle n'est pas exactement
+> `0.750000` ou si la table des matières a changé de hauteur en gagnant ses
+> numéros. Les deux refus sont des mesures, pas des avis.
+
+**c. Cette vérification de documentation.** Un balayage des chiffres, dates et
+états affirmés dans la documentation, avec remesure. C'est ce qui a produit les
+totaux et les nombres en tête de cette page — et la section 8.2.10 sur les
+comptes ADMIN.
 
 ### 2.4 Les sept comportements à connaître avant de lire un chiffre
 
@@ -642,7 +733,7 @@ mvn -f backend/pom.xml clean package
 
 # ── 2. Les deux suites, AVANT de copier quoi que ce soit ─────────────
 cd backend && rm -rf target/test-classes && mvn -o test    # 1055, 0 échec, 2 @Disabled
-cd .. && npx vitest run                                     # 719, 0 échec
+cd .. && npx vitest run                                     # 889, 0 échec
 ```
 
 ⚠️ **Mesurer depuis zéro.** `mvn test` incrémental a déjà donné un
@@ -699,13 +790,24 @@ Les trois choses qui comptent :
 2. **Vérifier le paquet** avec `node scripts/verify-package.js`. Le script
    **dérive** la liste des fichiers obligatoires depuis `index.html` — il ne
    maintient pas une liste en double qui vieillirait toute seule.
-   État déclaré par Sam le 28/08 : **92/92 fichiers obligatoires**.
+   Mesuré le 03/09/2026 : **96/96 fichiers obligatoires**. ⚠️ **Ce nombre ne se
+   recopie pas de mémoire** — il est dérivé d'`index.html` et **il monte à chaque
+   écran ajouté**. Pour le connaître à tout instant :
+   ```bash
+   node -e "console.log(require('./scripts/indexAssets.js').requiredPackageFiles().length)"
+   ```
 
-3. **Distribuer = remplacer le `.exe` seulement.** Et **ouvrir par le `.bat`**,
-   jamais le `.exe` directement : l'exécutable ne garde aucune configuration, il
-   lit des variables d'environnement, et lancé nu il ouvre une application
-   **vide, sans erreur**. Le lanceur est
-   [`deploy/portable/Abrir-MAGBO.bat`](../../deploy/portable/Abrir-MAGBO.bat).
+3. **Distribuer = remplacer le `.exe` seulement**, et **ouvrir par le `.exe`**.
+   Depuis les PR #89 et #90
+   ([`ADR-007`](../architecture/decisoes/ADR-007-configuration-du-poste.md)), un
+   poste non configuré affiche un **écran de premier lancement** qui demande
+   l'adresse du serveur et le lieu, puis écrit `magbo-poste.json` à côté de
+   l'exécutable. L'ordre de résolution est : variables d'environnement →
+   `magbo-poste.json` → défaut (`http://192.168.1.253:8080`,
+   `js/utils/posteConfig.js`).
+   ⚠️ **Un `Abrir-MAGBO.bat` encore présent garde la priorité** et grise l'écran
+   de réglage : migrer un poste qui en a un est décrit dans
+   [`guide-installation-postes.md`](guide-installation-postes.md).
 
 ⚠️ **`build:portable` peut être bloqué par un handle sur `app.asar`** alors
 qu'aucun processus n'est visible. Seul un redémarrage du poste le libère.
@@ -907,12 +1009,25 @@ docker exec magbo-postgres date
 
 **Deux causes, dans cet ordre de probabilité :**
 
-1. L'application a été ouverte **par le `.exe`** au lieu du `.bat`. Sans les
-   variables d'environnement, elle pointe sur `http://localhost:8080` — qui
-   n'existe pas sur un poste. **Ouvrir par `Abrir-MAGBO.bat`.**
+1. **Le poste pointe la mauvaise adresse.** Ouvrir le `.exe` ne fait plus tomber
+   sur `localhost` : le défaut est désormais l'adresse de la VM
+   (`DEFAUT_API_URL = 'http://192.168.1.253:8080'`, `js/utils/posteConfig.js:41`).
+   Vérifier `magbo-poste.json` **à côté du `.exe`**, et l'ordre qui gouverne :
+   variables d'environnement d'abord, puis ce fichier, puis le défaut. ⚠️ Si un
+   `Abrir-MAGBO.bat` traîne encore, **c'est lui qui décide** — voir
+   [`guide-installation-postes.md`](guide-installation-postes.md).
+   *(Le `localhost` historique venait de deux lignes de la page, corrigées
+   depuis ; il frappait les postes **même** lancés par le `.bat`. Voir
+   l'[`ADR-007`](../architecture/decisoes/ADR-007-configuration-du-poste.md).)*
 2. Un `<script src="https://…">` est revenu dans `index.html`. Sur un poste hors
    ligne, la page ne rend rien et **n'affiche aucune erreur**.
    `grep -cE 'src="https?://' index.html` → doit rendre `0`.
+
+**Et si l'application s'ouvre mais refuse la connexion** en disant
+« Identifiants invalides » sur un mot de passe juste : ce n'est pas le mot de
+passe. C'est le défaut d'adresse corrigé le 03/09 (`/api/api/auth/login`, refusé
+en 403 et traduit en refus d'identifiants) — §2.3, chantier **a**. Un poste
+resté sur une version antérieure au 03/09 le présente encore.
 
 ### 7.5 Un écran affiche une clé i18n crue (`cdi.excl.titulo`)
 
@@ -1080,6 +1195,222 @@ SELECT status, count(*) FROM meal_entitlements GROUP BY 1 ORDER BY 2 DESC;
 ⚠️ **Ne pas retirer l'autorisation en bloc avant d'avoir la liste.** L'ordre
 compte : sans liste chargée, la retirer refuserait 995 personnes à la cantine
 le lendemain matin.
+
+### ⚠️ 8.2.10 Neuf comptes ADMIN pour un seul OPERATOR
+
+**Ce n'est pas une panne et rien n'est cassé.** C'est une **dette de sécurité** :
+une surface d'administration bien plus large que ce que l'usage réel demande, et
+qui s'est constituée sans que personne ne la décide.
+
+**L'état des comptes**, relevé le 03/09/2026 :
+
+| Compte | Rôle |
+|---|---|
+| `TI` | ADMIN |
+| `VS` | ADMIN |
+| `admin` | ADMIN |
+| `alexandre` | ADMIN |
+| `ccc` | ADMIN |
+| `luciana` | ADMIN |
+| `proviseur` | ADMIN |
+| `rosantos` | ADMIN |
+| `vs` | ADMIN |
+| *(un seul compte, celui de la cantine)* | **OPERATOR** |
+
+**Neuf ADMIN pour un OPERATOR.** Et deux doublons apparents : **`VS` / `vs`** et
+**`TI` / `ccc`**. « Apparents » parce que rien dans la base ne dit qu'ils
+désignent la même personne — c'est justement ce qu'il faut aller demander.
+
+**Pour reconstituer la liste à tout moment** (aucun mot de passe n'y figure, et
+aucun ne doit être lu) :
+
+```sql
+SELECT username, nome_completo, role, ativo, last_login
+  FROM system_users
+ ORDER BY role, last_login DESC NULLS LAST;
+```
+
+> ## ⚠️ AUCUN COMPTE N'EST À DÉSACTIVER SUR LA FOI DE CETTE SECTION
+>
+> **Qui garde ADMIN est une décision d'établissement, pas une correction
+> technique.** Neuf comptes veulent peut-être dire neuf personnes qui en ont
+> réellement besoin ; l'inventaire ne le dit pas, et le code encore moins.
+>
+> Désactiver le mauvais compte, c'est enlever à quelqu'un l'écran dont il se
+> sert tous les matins — et personne, aujourd'hui, ne peut le lui rendre en cinq
+> minutes s'il se trompe. Cette section **pose la question**, elle ne la tranche
+> pas.
+
+#### Pourquoi c'est une dette
+
+**1. La surface.** Le rôle ADMIN n'est pas un cran de plus : c'est tout le
+système. Le code n'a que **deux** rôles — `ADMIN` et `OPERATOR`
+(`backend/src/main/java/com/magbo/access/security/Role.java`) — et il n'y a rien
+entre les deux.
+
+Mesuré le 03/09/2026 (`grep -rn "hasRole('ADMIN')" backend/src/main/java`) :
+**62 gardes**, dont **39 annotations `@PreAuthorize` sans aucune alternative de
+permission**. Ces 39-là ne sont accessibles qu'à un ADMIN, et à personne
+d'autre :
+
+| Ce qui n'est ouvert qu'à un ADMIN | Où | Gardes |
+|---|---|---|
+| Le registre des **personnels** (création, modification, suppression, import) | `StaffController` | 14 |
+| Les **photos d'identité** (import, remplacement, suppression) | `UserPhotoController` | 6 |
+| Le registre des **personnes** (écriture, import en lot) | `UserController` | 5 |
+| L'import **Pronote** · les **demandes de réinitialisation de mot de passe** · deux écritures d'**accès** | `PronoteController`, `PasswordResetRequestController`, `AccessController` | 2 chacun |
+| Les **comptes eux-mêmes** (créer un ADMIN, changer un rôle, redéfinir un mot de passe) | `SystemUserController` | garde au niveau **classe** |
+| **Mappings de portes**, **planning de classes**, **mappings Hikvision**, **statistiques**, **fin de journée**, **relecture de la licence**, **PIN du Panneau Administratif** | sept contrôleurs | 1 chacun |
+
+**2. Les écrans de gestion suivent le rôle, pas le besoin.** L'engrenage du
+header s'ouvre pour un ADMIN **ou** pour qui porte `CONFIG_WRITE`
+(`js/components/Header.js`) ; à l'intérieur, un ADMIN voit **tous** les onglets
+— importations, personnels, photos, cadastre —, l'autre en voit **un**. Neuf
+ADMIN, c'est donc neuf personnes qui peuvent importer un lot de personnes,
+remplacer la photo d'un enfant ou effacer un cadastre, que ce soit leur métier
+ou non.
+
+**3. La traçabilité tient sur les gestes, pas sur les comptes.** Et c'est là que
+la dette mord.
+
+| Ce qui est tracé | Comment |
+|---|---|
+| Droits repas | `meal_entitlement_events.changed_by` |
+| Régimes de sortie | `student_regime_events.changed_by` |
+| Autorisations de sortie | `created_by` / `revoked_by` |
+| Réglages du système | `updated_by` |
+| Photos d'identité | `user_photos.updated_by` |
+| Passages saisis à la main | `access_logs.created_by_user` |
+
+Ces colonnes reçoivent le **nom d'utilisateur de la session**, pas une
+constante : c'est vrai, et c'est solide.
+
+> ### ⚠️ Deux trous, et il faut les nommer
+>
+> **a) Les comptes eux-mêmes ne sont tracés nulle part.** La table
+> `system_users` porte bien un `created_at` — **quand** — mais **aucune colonne
+> d'auteur et aucune table d'événements** : aucune migration n'en ajoute (seules
+> `V005` et `V013` touchent à cette table, pour la colonne `permissoes` et pour
+> les demandes de réinitialisation), et `SystemUserController` n'écrit **aucune
+> ligne de journal** (`grep -c "log\." → 0`, mesuré le 03/09). **Créer un compte
+> ADMIN, changer un rôle ou redéfinir un mot de passe ne laisse aucune trace de
+> qui l'a fait.** C'est aussi pourquoi l'origine des neuf comptes est
+> aujourd'hui irrécupérable : elle n'a jamais été écrite.
+>
+> **b) Un compte partagé annule la traçabilité qui existe.** Le compte `admin`
+> est générique. Si deux personnes s'en servent, `changed_by = 'admin'` ne
+> désigne plus personne, et toutes les colonnes du tableau ci-dessus perdent
+> leur sens **rétroactivement** — on ne peut pas réattribuer après coup.
+>
+> **c) L'ouverture du Panneau Administratif n'est pas nominative non plus :**
+> `AdminController` journalise l'accès **sans le nom d'utilisateur**, et le PIN
+> qu'il vérifie est **un seul PIN pour tout le monde** (`ADMIN_PIN`). Neuf ADMIN
+> partagent le même PIN.
+
+**4. Une conséquence qui joue dans l'autre sens.** Sous licence expirée,
+`/api/system-users/**` est **fermé** (`LicencePortee`, ADR-006) : aucun compte
+ne peut alors être créé ni débloqué, et un opérateur qui oublie son mot de passe
+reste dehors — seuls les comptes **existants** se connectent encore. Aujourd'hui
+les neuf ADMIN sont, de fait, le plan de secours de cette situation. **Ce n'est
+pas un argument pour les garder tous ; c'est un argument pour ne pas descendre à
+un.**
+
+#### La question à poser — et elle n'est pas technique
+
+> ## Qui a encore besoin d'ADMIN ?
+
+Elle se pose personne par personne, et elle a trois branches :
+
+1. **Qui est derrière chaque login ?** `TI`, `VS`, `ccc`, `vs` ne nomment
+   personne. **Commencer par là** : une liste de comptes dont on ignore le
+   titulaire ne se nettoie pas, elle se devine — et on se trompe.
+2. **Qui s'en sert encore ?** `last_login` est écrit à **chaque** connexion
+   (`AuthController`) et répond sans avoir à demander :
+   ```sql
+   SELECT username, role, ativo, last_login
+     FROM system_users
+    WHERE role = 'ADMIN'
+    ORDER BY last_login DESC NULLS LAST;
+   ```
+   ⚠️ **Un `last_login` ancien n'est pas une preuve d'inutilité** : un compte de
+   direction peut ne servir que trois fois par an, et ce sont trois fois où il
+   doit marcher.
+3. **De quoi chaque personne a-t-elle réellement besoin ?** Pour dix gestes, une
+   **permission granulaire** existe déjà et se donne à un OPERATOR sans lui
+   donner le reste (`security/Permissions.java`) : `MEAL_ENTITLEMENT_WRITE`,
+   `EXIT_PERMISSION_WRITE`, `ATTEMPTS_READ`, `REGIME_WRITE`, `PPMS_READ`,
+   `CANTINE_REMOVAL_WRITE`, `MEAL_SLOT_WRITE`, `PARCOURS_READ`, `CONFIG_WRITE`,
+   `CDI_EXCLUSION_WRITE`.
+
+> ### ⚠️ Ce qu'une rétrogradation casse, et ce qu'elle ne casse pas
+>
+> **Elle ne casse rien** pour qui n'utilise que les dix gestes ci-dessus : la
+> permission correspondante rend exactement le même écran, et le backend
+> l'accepte à la place du rôle (`hasRole('ADMIN') or @areaSecurity.hasPermission(...)`
+> — 22 des 62 gardes ont cette forme).
+>
+> **Elle casse tout** pour qui touche aux personnels, aux personnes, aux photos,
+> aux mappings de portes, au planning de classes, à l'import Pronote, aux
+> statistiques, aux comptes ou à la licence : **il n'existe aucune permission
+> pour ces écrans-là**, donc aucun moyen de les rendre à un OPERATOR.
+>
+> ⚠️ **Et ça a déjà été mesuré, le 20/08/2026, avec un vrai compte OPERATOR :**
+> l'onglet Personnels s'ouvrait **en entier** — titre, recherche, en-tête de
+> tableau — et affichait **« 0 personnel(s) »**, le seul indice étant un message
+> « Forbidden », en anglais. *Un écran qui répond « il n'y en a aucun » à un
+> refus de permission ment.* Le correctif a été de **cacher** l'engrenage
+> (commentaire conservé dans `js/components/Header.js`) — mais la leçon vaut
+> pour toute rétrogradation future : **tester le poste de la personne après**,
+> pas seulement l'API.
+
+#### Ce qu'il est raisonnable de faire, dans cet ordre
+
+1. **Écrire qui est derrière chaque login.** C'est un tableau à remplir en
+   parlant aux gens, pas une requête. Sans lui, rien d'autre n'est décidable.
+2. **Relever `last_login` pour les neuf**, et le poser à côté du tableau — comme
+   information, pas comme verdict.
+3. **Trancher les deux doublons** (`VS`/`vs`, `TI`/`ccc`) : deux personnes, ou
+   deux comptes pour une seule ? C'est la seule question dont la réponse est
+   probablement immédiate.
+4. **Faire porter la décision par la direction**, avec les deux trous en tête :
+   un compte partagé efface la traçabilité, et la gestion des comptes n'en
+   laisse aucune.
+
+⚠️ **Ne rien désactiver avant l'étape 1**, et de préférence pas seul.
+
+### ⚠️ 8.2.11 Un disque plein casse les sauvegardes et les builds — en désignant autre chose
+
+**Mesuré le 03/09/2026 sur le PC-TRAB : le disque `C:` était PLEIN — 0 octet
+libre sur 236 Go.**
+
+Ce qui rend ce point digne d'une section, ce n'est pas la panne : c'est **le
+message**. La suite de tests s'arrêtait sur
+`JavaScript heap out of memory` et `Fatal process out of memory: Zone`. Ces
+phrases désignent la **mémoire vive** ; le vrai coupable était le **disque**, et
+personne ne cherche un disque plein quand on lui parle de tas JavaScript.
+
+**Ce qui a libéré la place :** ~1,5 Go de scratchs NSIS dans `%TEMP%` — les
+fichiers `ns*.tmp` laissés derrière eux par les lancements du portable. Ils
+s'accumulent silencieusement, un peu à chaque exécution.
+
+```bat
+REM à faire application fermée
+del /q "%TEMP%\ns*.tmp"
+```
+
+> ⚠️ **Ce n'est pas une curiosité du PC de Sam, c'est un risque d'exploitation.**
+> Une VM pleine ne dit pas « je suis pleine » : elle rend un `pg_dump` tronqué,
+> un build qui échoue sur un message de mémoire, un conteneur qui refuse de
+> démarrer pour une raison sans rapport. **Un disque saturé se manifeste toujours
+> ailleurs que là où il est.**
+>
+> Le geste qui coûte le moins : regarder l'espace libre **avant** de croire un
+> message d'erreur exotique — sur le PC (`Explorateur`, ou
+> `wmic logicaldisk get size,freespace,caption`) comme sur la VM (`df -h`). Et
+> se souvenir que la VM garde **14 jours de sauvegardes** sur son propre disque
+> (§6) : c'est précisément le genre de répertoire qui remplit une machine sans
+> que personne ne le remarque, jusqu'au jour où c'est la sauvegarde elle-même qui
+> ne s'écrit plus.
 
 ### 8.3 Ce qui reste à faire
 

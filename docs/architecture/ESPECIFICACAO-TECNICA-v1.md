@@ -786,6 +786,16 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ⚠️ **Os CHECKs devem listar exatamente os mesmos valores dos enums Java.** Divergência = erro em runtime. Ao adicionar valor a um enum, atualizar o CHECK na mesma entrega.
 
 ### 14.4 Estratégia de migração para a VM
+
+> ⚠️ **ESTE PASSO ENVELHECEU — não é mais o inventário das migrações.** Este documento é
+> a especificação **normativa das Fases A–K** (15/07/2026), e naquele dia existiam seis
+> migrações. Em 03/09/2026 existem **27** (V001..V027), e a lista canônica, com o porquê
+> de cada uma, vive em `deploy/migrations/README.md`. Aplicar só até V006 hoje pula, entre
+> outras, V009/V015/V022/V026 (que **alargam CHECKs de enum** — o INSERT falha *só na VM*)
+> e V027 (`licence_clock`, que precisa nascer com o `CHECK (id = 1)` que o `ddl-auto` nunca
+> poria). O passo 2 abaixo fica como está por ser **história da entrega**, não instrução de
+> hoje.
+
 1. Backup **antes** de qualquer coisa (`pg_dump -F c`) — ver skill `backup-restauracao`.
 2. Aplicar V001..V006 na ordem, conferindo `\d` de cada tabela.
 3. Subir o backend novo. Conferir startup sem erro de schema.

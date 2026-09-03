@@ -244,6 +244,16 @@ app.whenReady().then(() => {
   globalShortcut.register('Alt+Tab', () => { /* bloqueado */ });
 });
 
+// ⚠️⚠️ NUNCA IMPLEMENTADO — o que segue é o PLANO de 2026, não o estado atual.
+// Medido em 03/09/2026: `main.js:383` registra mesmo o atalho e emite
+// `request-admin-pin`, e `preload.js:112-123` expõe a ponte `magboIpc`
+// (verifyKioskPin / exitKiosk / onRequestAdminPin) — mas NENHUM arquivo de
+// `js/` a consome (`grep -rn magboIpc js/ index.html tests/` → 0 ocorrências).
+// `webContents.send` num canal sem ouvinte é um no-op SILENCIOSO: o atalho
+// não faz absolutamente nada, e `showAdminPinDialog` nunca existiu.
+// Hoje um posto travado fecha-se por Ctrl+Alt+Del → Gerenciador de Tarefas →
+// MAGBO Access Control → Finalizar tarefa. Ligar a saída de verdade é decisão
+// do Sam (ADR-007), não um retoque.
 // Modo de "saída de emergência" — combinação especial de teclas
 globalShortcut.register('Ctrl+Shift+Alt+Q', () => {
   // Pedir PIN admin antes de fechar
@@ -834,8 +844,13 @@ LOG_PATH=/var/log/magbo
 ```
 MAGBO_API_URL=http://magbo-access.local:8080
 MAGBO_SECTOR=PORT1|PORT2|PORT3|BIBLIO|ENFERM|REFEI1|REFEI2
-MAGBO_KIOSK_PIN=<PIN_admin_4_digitos>
+NODE_ENV=production   # somente em postos travados (portaria, cantina)
 ```
+
+> ⚠️ **NÃO ponha `MAGBO_KIOSK_PIN`.** Ela é lida por `main.js:32`, mas o seu
+> único leitor é o handler `verify-kiosk-pin`, que **nenhuma tela chama**
+> (medido em 03/09/2026). Pô-la em cada posto é trabalho inútil e, pior,
+> faz acreditar numa saída protegida por código que **não existe**.
 
 ### B. Comandos de manutenção essenciais
 

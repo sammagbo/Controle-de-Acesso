@@ -566,8 +566,12 @@ crescem a cada entrega, e um número fixo escrito aqui envelhece em dias — est
 seção já disse "350 / 58" por duas gerações, o que é pior que não dizer nada:
 quem executa vê 603, acha que quebrou alguma coisa e vai investigar o nada.
 
-**Referência de quando esta página foi conferida:** `main` @ `8fef0f9`,
-11/08/2026 → **backend 603** (2 `@Disabled`) e **npm 279**.
+**Referência de quando esta página foi conferida:** 03/09/2026, sobre a `main`
+somada aos três canteiros daquele dia → **backend 1055** (2 `@Disabled`) e
+**npm 889**, medidos a frio (`cd backend && rm -rf target && mvn -o test`, depois
+`npm test`). Antes disso a referência era `main` @ `8fef0f9`, 11/08/2026 →
+**backend 603** e **npm 279** — a trajetória fica aqui de propósito, para dar
+ordem de grandeza.
 
 - Se o seu número for **maior**, é porque houve entrega com testes novos —
   normal, siga.

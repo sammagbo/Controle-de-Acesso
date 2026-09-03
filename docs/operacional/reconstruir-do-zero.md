@@ -9,7 +9,9 @@ de sauvegarde `magbo_*.sql.gz`, et rien d'autre.
 application ouverte sur la base restaurée). Ce qui n'a **pas** été exécuté est marqué
 ⚠️ NON TESTÉ, avec la raison.
 
-**Version de référence :** `main` après le PR #41 (V015 incluse — voir la note ci-dessous). Si le schéma a évolué
+**Version de référence :** le drill a été exécuté sur `main` après le PR #41 (V015 incluse).
+⚠️ **Au 03/09/2026 il y a 27 migrations (V001→V027)**, toutes appliquées en production :
+V016→V027 sont **postérieures au drill** et n'ont donc jamais été rejouées à blanc. Si le schéma a évolué
 depuis, la mécanique reste la même — c'est l'entité JPA qui fait foi, pas ce fichier.
 
 ---
@@ -116,7 +118,9 @@ for f in deploy/migrations/V0*.sql; do
 done
 ```
 
-Doit imprimer `OK` **quinze fois** (V001…V015).
+Doit imprimer `OK` autant de fois qu'il y a de migrations — **vingt-sept** au
+03/09/2026 (V001…V027). ⚠️ Le drill du 12/08 n'en a vérifié que quinze : les
+douze suivantes n'ont **jamais été rejouées sur une base vierge**.
 
 > ⚠️ **V013 à V015 ajoutées après la vérification du 12/08.** V013 =
 > `password_reset_requests` ; V014 = `student_regimes` + `student_regime_events`
@@ -191,6 +195,11 @@ exécuté cette nuit. Suivez `docs/operacional/handoff.md` pour cette partie.
 **`/home/magbo/backups/`**, et **pas** `/var/backups/magbo/` comme cette page
 l'indiquait. Cherchées au mauvais endroit pendant un incident, elles paraissent
 absentes alors qu'elles sont là.
+
+> ⚠️ **Ce que la sauvegarde NE contient PAS** (vérifié le 03/09/2026) : le
+> **fichier de licence**. `deploy/backup.sh` n'exécute qu'un `pg_dump`, et la
+> licence vit dans un volume à part. Les **photos**, elles, y sont — elles sont en
+> base depuis V011, et c'était précisément la raison de les y mettre. Voir **B.4-bis**.
 
 ```bash
 ssh magbo@192.168.1.253
@@ -282,6 +291,43 @@ personnes restaurées. ✅ Vérifié : 2 personnes de test, autorisation de sort
 deux autorités, droit repas + historique, 14 door_mappings — tout présent après le cycle
 complet dump → restauration → API.
 
+### B.4-bis — ⚠️ REDÉPOSER LE FICHIER DE LICENCE (il n'est PAS dans la sauvegarde)
+
+> **Constaté le 03/09/2026 : le mot « licence » n'apparaissait nulle part dans
+> cette page.** Une restauration menée à la lettre rendait donc un système dont
+> **tous les écrans de gestion sont fermés**, et rien ici ne disait pourquoi.
+
+La sauvegarde est un `pg_dump` — **la base, et rien d'autre** (`deploy/backup.sh`
+n'exécute que `pg_dump | gzip`). Or la licence est un **fichier**, monté depuis un
+volume séparé en lecture seule (`./licence:/licence:ro`, `deploy/docker-compose.yml`),
+et le répertoire hôte est ignoré par git. Elle ne peut donc **pas** être dans le dump,
+par construction.
+
+Sans elle, le backend démarre normalement, les **passages continuent d'être
+enregistrés** et le **PPMS reste nominatif** (c'est le principe de l'ADR-006 : une
+licence absente **avertit**, elle ne met personne en danger) — mais l'état vaut
+`ABSENTE`, traité comme **EXPIREE sans courtoisie**, et la **gestion est fermée**.
+
+```bash
+# 1. Reposer le fichier à l'endroit exact que le compose monte
+ls -l ~/Controle-de-Acesso/deploy/licence/licence.magbo
+
+# 2. Redémarrer le backend, puis vérifier — c'est la seule ligne qui compte
+curl -s http://localhost:8080/api/health | grep -o '"licence".*'
+```
+
+Attendu : `"etat":"VALIDE"`. ⚠️ `"motif":"ABSENTE"` **n'est pas une expiration** :
+c'est un déploiement raté — fichier manquant ou volume mal monté. Émission et
+dépannage : `docs/operacional/procedimento-licence.md`.
+
+> ⚠️ **Le témoin d'horloge, lui, EST dans le dump** (`licence_clock`, V027) : il vit
+> en base. Restaurer un dump ancien y remet une date d'observation ancienne — sans
+> effet, la borne ne fait qu'avancer. Mais restaurer un dump **pris après un
+> dérèglement d'horloge** rapporte la borne dans le futur, et la gestion reste
+> fermée jusqu'à un `UPDATE` manuel (procédure dans `procedimento-licence.md`).
+
+---
+
 ### B.5 — Pièges connus de la restauration
 
 | Symptôme | Cause → remède |
@@ -291,6 +337,7 @@ complet dump → restauration → API.
 | Erreurs `already exists` en cascade | La base n'était pas vierge (backend démarré trop tôt) → recommencez B.1 |
 | Login refusé après restauration | Le mot de passe est celui de la sauvegarde, pas le défaut |
 | Photos absentes mais tables pleines | Vous avez restauré un dump antérieur à V011 — les photos n'existaient pas encore |
+| **Écrans de gestion fermés / 402** après une restauration réussie | La **licence** n'est pas dans le dump — voir **B.4-bis**. `curl /api/health` dira `"motif":"ABSENTE"` |
 
 ---
 

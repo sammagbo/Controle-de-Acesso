@@ -568,8 +568,9 @@ photos**.
 
 ## 5.7 Migrations et état de la base
 
-26 migrations, `deploy/migrations/V001` à `V026`, avec un `rollback/` pour toutes **sauf** V006,
-V008, V009 et V023. Pour V023 c'est normal : c'est un *seed*, et ses lignes partent avec `R021` —
+27 migrations, `deploy/migrations/V001` à `V027`, avec un `rollback/` pour toutes **sauf** V006,
+V008, V009 et V023 — soit 23 fichiers dans `rollback/` (comptés le 03/09/2026 : `ls
+deploy/migrations/V0*.sql | wc -l` → 27, `ls deploy/migrations/rollback/*.sql | wc -l` → 23). Pour V023 c'est normal : c'est un *seed*, et ses lignes partent avec `R021` —
 c'est documenté dans `deploy/migrations/README.md`. Flyway n'est **pas** adopté ; la VM applique
 les fichiers dans l'ordre, à la main, avant de démarrer le backend.
 
@@ -581,8 +582,9 @@ les fichiers dans l'ordre, à la main, avant de démarrer le backend.
 > `meal_entitlement_events.source` et `student_regime_events.source`, qui sont des CHECK **manuels**
 > (`.claude/rules/database.md`).
 
-`[A VERIFIER — état affirmé par Sam le 28/08/2026, non vérifiable dans le dépôt]` V001 à V026
-seraient toutes appliquées sur la VM de production. Le confirmer en listant les objets attendus,
+`[A VERIFIER — état au 03/09/2026, non vérifiable dans le dépôt]` V001 à V027
+seraient toutes appliquées sur la VM de production (V027 = `licence_clock`, posée au
+déploiement de la licence le 01/09). Le confirmer en listant les objets attendus,
 par exemple :
 
 ```bash

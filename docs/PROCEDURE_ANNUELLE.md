@@ -4,10 +4,58 @@ Ce document décrit, étape par étape, comment mettre à jour la liste des él�
 au début de chaque année scolaire. Aucune compétence en programmation n'est
 nécessaire : il suffit de suivre les étapes dans l'ordre.
 
+> ## ⚠️⚠️ À LIRE AVANT DE LANCER LA SYNCHRONISATION — mesuré le 03/09/2026
+>
+> **La désactivation ne se limite PAS aux élèves. Elle frappe TOUT LE MONDE.**
+>
+> Ce que dit le code, et non ce qu'on croit qu'il fait :
+> `PronoteSyncService` (backend, lignes 96-102) parcourt
+> `userRepository.findByAtivoTrue()` — **tous** les comptes actifs, **sans aucun
+> filtre de type** — et met `ativo = false` sur quiconque n'apparaît pas dans le
+> CSV. Or `scripts/convert_pronote.py` écrit `ALUNO` **en dur** pour chaque ligne
+> qu'il produit : le fichier issu de Pronote ne contient **que des élèves**.
+>
+> Conséquence, si la procédure est suivie telle qu'elle est écrite plus bas :
+> **tous les FUNCIONARIO et PROFESSOR** — porteurs, Vie Scolaire, professeurs,
+> agents, direction, y compris les `FUNC-###` créés à la main — passent à
+> `ativo = false` d'un coup. Le dépôt en recensait environ **200** (152 + 49
+> d'après `CLAUDE.md`, chiffres de juillet 2026, non revérifiés en base ici). Le portail cesse
+> de les reconnaître, la cantine aussi, et **rien à l'écran ne dit pourquoi** :
+> le rapport annonce simplement un grand nombre de « désactivés ».
+>
+> ### Ce qu'il faut faire avant de lancer
+>
+> 1. **Sauvegarder la base** (`pg_dump`) — c'est ce qui rend l'erreur réparable.
+> 2. **Lire le nombre de `deactivated` du rapport AVANT d'accepter le résultat.**
+>    Il doit valoir *le nombre d'élèves réellement partis*, pas plus. Un nombre
+>    supérieur à une centaine signifie que le personnel a été emporté.
+> 3. Si c'est arrivé : la désactivation est **réversible**, c'est un `ativo`, rien
+>    n'est effacé. Réactiver le personnel avec, sur la VM :
+>
+>    ```sql
+>    UPDATE app_users SET ativo = true
+>     WHERE tipo IN ('FUNCIONARIO','PROFESSOR') AND ativo = false;
+>    ```
+>
+>    Vérifier ensuite le compte : `SELECT tipo, count(*) FROM app_users
+>    WHERE ativo GROUP BY tipo;`
+>
+> ### Pourquoi ce n'est pas corrigé dans le code
+>
+> Restreindre la désactivation aux `ALUNO` serait une ligne, mais c'est une
+> **décision** et non une évidence : le jour où quelqu'un synchronisera une liste
+> de personnels, il attendra le comportement inverse. Le bon périmètre est
+> « ne désactiver que les types présents dans le CSV », et cela se décide, se code
+> et se teste. Consigné dans `docs/operacional/handoff.md` comme dette ouverte.
+
+---
+
 La synchronisation gère automatiquement les trois cas :
 - **Nouvel élève** (identifiant inconnu) → créé.
 - **Élève qui continue** (identifiant déjà connu) → mis à jour (classe, responsables).
 - **Élève parti** (présent en base, absent du nouvel export) → désactivé
+  — ⚠️ **et, en l’état, TOUTE personne absente du CSV, personnels compris** :
+  voir l’avertissement ci-dessus
   (`ativo = false`). Son historique est conservé, il n'apparaît plus dans les listes.
 
 ---

@@ -174,7 +174,7 @@ Le système est conçu pour fonctionner **prioritairement avec des terminaux Hik
 
 | Couche | Technologie |
 |---|---|
-| **Frontend** | React 18 (via Babel Standalone), Tailwind CSS (CDN), Lucide Icons |
+| **Frontend** | React 18 (via Babel Standalone), Tailwind CSS, Lucide Icons — **tout vendorisé dans `libs/`**, aucun CDN |
 | **Conteneur desktop** | Electron 33 |
 | **Backend** | Java 17+, Spring Boot 3.2, Spring Data JPA, Lombok |
 | **Base de données** | PostgreSQL 16 (production) / H2 in-memory (développement) |
@@ -183,7 +183,7 @@ Le système est conçu pour fonctionner **prioritairement avec des terminaux Hik
 | **Intégration matérielle** | Terminaux de reconnaissance faciale Hikvision via le protocole ISAPI (Webhook) |
 | **Intégration logicielle** | Pronote (synchronisation des élèves, enseignants et personnel via CSV) |
 
-> ⚠️ **Note technique** — En l'état actuel, les balises `<script src="...">` chargent React, Babel et Tailwind via CDN. Pour un déploiement de production, ces ressources devront être pré-compilées localement.
+> ⚠️ **Note technique — il n'y a plus aucun CDN, et il ne faut surtout pas en réintroduire.** React, react-dom, Babel, Tailwind, lucide, jspdf (+autotable), xlsx et les polices sont vendorisés dans `libs/` depuis `4e73147` (R1 résolu). Mesuré le 03/09/2026 : `grep -cE 'src="https?://|cdn\.|unpkg|jsdelivr' index.html` → **0**. Le danger n'est pas cosmétique : un `<script src="https://…">` nouveau ne produit **aucune erreur**, l'écran ne s'affiche simplement pas sur un poste hors ligne.
 
 ---
 

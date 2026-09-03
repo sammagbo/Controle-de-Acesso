@@ -31,7 +31,7 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 6. **IPs dançam** (PC .7→.14→.12; terminal .17→.14 em 3 dias). Pedir reserva DHCP ao SI. Toda sessão: `ipconfig` + IP no display do terminal + conferir `Écoute HTTP` e `door_mappings`.
 7. **Testes (Fase I):** a env var `MAGBO_WEBHOOK_TOKEN` (do `setx` no PC) **vence** o `application-test.properties` no mesmo processo — os ITs precisaram fixar o token via `@SpringBootTest(properties=...)` para não pegar o do ambiente. Na VM o token vem do `.env`. Rodar a suíte com `mvn test` (o surefire já inclui `*IT.java`).
 
-## Estado atual (2026-08-05)
+## Estado atual (2026-09-03)
 
 > 📌 **O estado operacional real vive em [`docs/operacional/handoff.md`](docs/operacional/handoff.md)** —
 > as sete mudanças de comportamento da semana de 29/07–05/08, as assinaturas de
@@ -39,8 +39,59 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 > segue abaixo é o histórico das Fases A–K, mantido porque explica **por que** o
 > sistema é como é.
 
-### A noite de 13→14/08 — quatro branches, nenhuma mergeada
-> Trabalho da madrugada, **aguardando revisão do Sam**. Nada foi para a `main`.
+### 03/09/2026 — três chantiers (login, livro impresso, verificações)
+
+- ⚠️ **O LOGIN ESTAVA QUEBRADO EM TODOS OS POSTOS, e a mensagem mentia.** O posto
+  enviava `POST /api/**api**/auth/login` — um `/api` a mais. O Spring Security
+  recusa com **403** um caminho que não conhece, e a tela traduzia **todo**
+  não-2xx em «Identifiants invalides»: o operador via um erro de senha onde havia
+  um erro de endereço, e trocar a senha nunca resolveria.
+  **A causa é uma armadilha do Babel:** `window.API_BASE_URL` **existe** — o
+  `const` de `js/api.js` é transpilado para `var`, portanto vira propriedade de
+  `window` — e já termina em `/api`. Um chantier anterior acrescentara um segundo
+  `+ '/api'` acreditando que a global não existia. Corrigido em `js/utils/auth.js`
+  e em `js/utils/userCache.js` (defeito gêmeo: `GET /api/api/users`, um 404
+  engolido em silêncio). A mensagem passa a distinguir 401 do resto
+  (chave nova `login.erro.statut`). Trava: `tests/adresseDuLogin.test.js`.
+  ⚠️ **Lição que vale além deste bug:** neste projeto sem bundler, todo `const` de
+  topo de arquivo é global. Antes de escrever `X || fallback` para uma global,
+  **medir se ela existe**, no Electron de verdade — não deduzir.
+- **O livro virou livro** (`npm run livre:pdf`): 107 páginas A4 à escala 1:1,
+  sumário **com números de página**, margens de encadernação (26 mm interior /
+  20 mm exterior), títulos correntes, colofão. ⚠️ O sumário numerado **não** usa
+  `target-counter()` (o Chrome não tem, e a declaração inteira é descartada em
+  silêncio quando aparece): os números são medidos **imprimindo prefixos do livro
+  e contando as páginas do PDF**. `scripts/paginer-livre.js` recusa terminar se a
+  escala px→pt não for exatamente `0.750000` — era **0.807** antes, porque
+  51 tabelas ultrapassavam a largura imprimível e o Chrome **encolhe o documento
+  inteiro** em vez de cortar. Trava: `tests/livreImprimable.test.js`.
+- ⚠️⚠️ **A SINCRONIZAÇÃO ANUAL DO PRONOTE DESATIVA TODO O PESSOAL** — encontrado
+  nesta rodada, **não corrigido de propósito**. `PronoteSyncService` (linhas
+  96-102) percorre `userRepository.findByAtivoTrue()` — **todos** os ativos, sem
+  filtro de tipo — e põe `ativo=false` em quem não estiver no CSV; e
+  `scripts/convert_pronote.py` escreve `ALUNO` **em duro**, logo o ficheiro só tem
+  alunos. Seguir a procedura de setembro como está escrita apaga FUNCIONARIO e
+  PROFESSOR de uma vez. Aviso e `UPDATE` de reparação em
+  `docs/PROCEDURE_ANNUELLE.md`; **a correção é decisão do Sam** (o âmbito certo é
+  «só desativar os tipos presentes no CSV», e isso decide-se, escreve-se e
+  testa-se).
+- **Verificações de documentação:** ~40 afirmações desatualizadas corrigidas
+  (contagens de teste, V001..V006 → V001..V027, «feat/licence não mergeada»,
+  CDN no README). ⚠️ Uma família inteira de mentiras dizia respeito à **saída do
+  modo quiosque por PIN**, que **não existe** — ver `.claude/rules/frontend.md`.
+- ⚠️ **O disco C: do PC-TRAB estava CHEIO (0 byte livre em 236 GB).** A suíte de
+  testes falhava com «JavaScript heap out of memory» — mensagem que aponta para o
+  lado errado. 1,5 GB libertados apagando os scratches NSIS de `%TEMP%`
+  (`ns*.tmp`, deixados pelos lançamentos do portable). **Conferir espaço em disco
+  antes de acreditar num erro de memória**, aqui e na VM.
+
+### A noite de 13→14/08 — quatro branches, **todas mergeadas desde então**
+> ✅ **Resolvido.** Em 03/09/2026 as quatro estão na `main` — `fix/audit-logic`
+> (`0b35872`), `feat/regime-de-sortie` (`9bc2464`), `feat/ppms-evacuation`
+> (`544fa94`) e a documentação. O texto abaixo ficou **no presente da época** de
+> propósito: ele explica *por que* cada decisão foi tomada, e reescrevê-lo no
+> passado apagaria o raciocínio. Leia-o como diário, não como estado atual.
+> A ordem de merge registrada abaixo já foi executada.
 > Ordem de merge: `fix/audit-logic` → `feat/ppms-evacuation` (empilhada nela) ·
 > `feat/regime-de-sortie` é independente · `docs/nuit-14-08` (este texto).
 > ⚠️ `js/App.js` e `js/data/constants.js` recebem uma rota nova em **duas**
@@ -141,8 +192,12 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 - **Ferramentas de servidor** (`63211d9`, `eac03f2`, `f442db9`): cadastro com `FUNC-###`, importação em lote, import do HikCentral com simulação, e **reclassificação servidor→aluno** (74 alunos tinham virado `FUNC-###` na importação).
 - **Assinatura de leitura:** microssegundos ≠ 0 **e** `created_by_user` preenchido = lançamento manual. Terminal grava com precisão de segundo e `created_by_user` nulo; fechamento automático assina `system`.
 
-### LICENÇA (branch `feat/licence`, ADR-006) — 31/08/2026
-> Mecanismo comercial de duração limitada. **Nunca mergeado sem decisão do Sam.**
+### LICENÇA (ADR-006) — decidida em 31/08, **em produção desde 01/09/2026**
+> ✅ **Mergeada** (`5632d0a`, PR #87) e **a rodar**: migração **V027**
+> (`licence_clock`) aplicada, estado **VALIDE até 2027-03-31**. Conferência numa
+> linha: `curl -s http://localhost:8080/api/health | grep -o '"licence".*'`.
+> Mecanismo comercial de duração limitada; os avisos técnicos abaixo continuam
+> todos válidos e **nenhum deles é opcional**.
 
 - **O princípio, e ele não se negocia:** uma licença expirada **AVISA**, não apaga
   nada e não põe ninguém em risco. O **registo das passagens** (webhook) e a
@@ -192,7 +247,7 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 - **MAGBO é observacional:** o webhook é pós-evento; **não bloqueia porta** (ADR-003). Bloqueio físico só via HikCentral — **exceto refeição**, que é **bloqueio operacional assistido** (operador + feed), **sem** bloqueio físico, nem no roadmap (ADR-004). Divergência física×lógica medida por `divergenciaHoje` (`auth_result=SUCCESS` E `authorization_result=DENIED`); para refeição, a divergência é **por design** (carga de exceção do operador).
 - **Políticas por properties** (sem recompilar) `magbo.policy.*`: meal-not-entitled, meal-pending, outside-meal-time, duplicate-meal, exit-not-authorized, user-inactive, missing-door-mapping + `magbo.dedup.{enabled,window-seconds}`. **Produção: `meal-pending=DENY`** (D5, 16/07, ADR-004; pré-requisito operacional: bulk dos autorizados **antes** do dia 1, senão todo `PENDING` é negado); negadas de refeição=DENY, alertas=OBSERVATION. **Dev (`application.properties`) mantém `meal-pending=OBSERVATION`.**
 - **Whitelist rígida de subtipos:** só 75(face)/1(cartão) geram `access_logs`; 8 e desconhecidos → `access_attempts`. `auth_method` gravado em `access_logs`.
-- **Testes automatizados:** o que importa é **0 falhas e exatamente 2 `@Disabled`** — o TOTAL cresce a cada entrega e um número escrito aqui envelhece em dias. Referência da última medição: `main` @ `9fc4961`, 19/08/2026 → `mvn test` **820**, `npm test` **555** (eram 603/279 em 11/08 e 183 no fim da Fase I; a trajetória é só para dar ordem de grandeza). Total **menor** que o da referência = alguém apagou teste; `Skipped` ≠ 2 = alguém desligou uma nativa. ⚠️ Medir **do zero** (`cd backend && rm -rf target && mvn -o test`): o incremental já deu BUILD SUCCESS falso. ⚠️ o `pom.xml` tem `maven-surefire-plugin` com `<include>*IT.java` — **sem isso o Surefire pula os ITs em silêncio**. As 2 queries nativas PostgreSQL-only ficam `@Disabled` (H2 não roda) → conferência manual obrigatória (seção 6-bis do `docs/frontend-smoke-checklist.md`); a assimetria do filtro de posto fixo em `currentOccupancyByPoint` tem um guarda de STRING (`AccessLogRepositoryQueryGuardTest`) porque a suíte não executa a consulta.
+- **Testes automatizados:** o que importa é **0 falhas e exatamente 2 `@Disabled`** — o TOTAL cresce a cada entrega e um número escrito aqui envelhece em dias. Referência da última medição: **03/09/2026**, do zero, sobre a `main` com os três chantiers de 03/09 aplicados → `mvn -o test` **1055**, `npm test` **881** em **42** arquivos (na `main` sozinha, sem os chantiers: **1055** e **849/40**; eram 820/555 em 19/08, 603/279 em 11/08 e 183 no fim da Fase I; a trajetória é só para dar ordem de grandeza). ⚠️ Ancorar sempre na **data**, nunca num SHA: o Sam mergeia e o SHA envelhece no mesmo dia. Total **menor** que o da referência = alguém apagou teste; `Skipped` ≠ 2 = alguém desligou uma nativa. ⚠️ Medir **do zero** (`cd backend && rm -rf target && mvn -o test`): o incremental já deu BUILD SUCCESS falso. ⚠️ o `pom.xml` tem `maven-surefire-plugin` com `<include>*IT.java` — **sem isso o Surefire pula os ITs em silêncio**. As 2 queries nativas PostgreSQL-only ficam `@Disabled` (H2 não roda) → conferência manual obrigatória (seção 6-bis do `docs/frontend-smoke-checklist.md`); a assimetria do filtro de posto fixo em `currentOccupancyByPoint` tem um guarda de STRING (`AccessLogRepositoryQueryGuardTest`) porque a suíte não executa a consulta.
 - **Dívidas conhecidas (congeladas em teste, NÃO corrigir sem decisão):** (2) `DEVICE_DENIED` gravado p/ subtipos desconhecidos (falta `UNKNOWN_EVENT` no enum) — polui `divergenciaHoje`; (4) endpoints `@PreAuthorize` sem token devolvem **403**, não 401 (só o webhook devolve 401). **(1) e (3) corrigidas na B.1 (`e450cd3`, 16/07):** `summary` agora responde 200 (teste `summaryRetornaContagensCorretas`), guard do webhook usa `isBlank()`.
 - **SQL versionado** em `deploy/migrations/` (Fase J); Flyway **não** adotado ainda (decisão registrada no README das migrations).
 - **Backlog pré-piloto:** **F7a e F7c CONCLUÍDOS e provados 16/07** (E2E com Electron real, rede bloqueada, insert SQL ao vivo): **F7a** = destaque visual (~8s) + beep Web Audio (1 por lote) + toggle de som (persistido) no `DeniedAttemptsFeed`; **F7c** = avatares **locais** (`window.localAvatar`, SVG de iniciais inline em `js/utils/helpers.js`) no lugar do `api.dicebear.com` (kiosk offline não quebra mais foto). **F7b permanece (NÃO implementar sem decisão):** botão de **exportação CSV no formato do HCP** (`Person ID` = `hikvision_employee_id` como TEXTO, zeros à esquerda; **nunca** via Excel) — só após o template do HCP ser definido (pendência com o Fabiano).

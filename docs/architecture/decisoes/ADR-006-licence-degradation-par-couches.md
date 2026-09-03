@@ -1,6 +1,7 @@
 # ADR-006 — Licence : dégradation par couches, et le PPMS intouchable
 
-**Date :** 2026-08-31 · **Statut :** accepté · **Branche :** `feat/licence`
+**Date :** 2026-08-31 · **Statut :** accepté, **fusionné et en production**
+(`5632d0a`, PR #87, 2026-09-01 — migration **V027**, `licence_clock`)
 **Auteur de la décision :** Sam (MAGBO STUDIO)
 
 ---

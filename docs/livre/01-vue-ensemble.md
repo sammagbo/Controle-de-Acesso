@@ -259,9 +259,26 @@ tout est vendorisé dans `libs/`. ⚠️ **Aucun CDN** : un `<script src="https:
 ajouté ne produit pas d'erreur — l'écran ne s'affiche simplement pas en mode
 kiosque hors ligne. Se vérifie en une commande :
 `grep -cE 'src="https?://|cdn\.|unpkg|jsdelivr' index.html` → **0**. Chaque poste
-est configuré par des variables passées par le raccourci : `MAGBO_API_URL`,
-`MAGBO_SECTOR`, `MAGBO_KIOSK_PIN` (`main.js`, lignes 14-17, exposées au front par
-`preload.js` sous `window.magboConfig`). Ouvrir le `.exe` directement donne une
+est configuré par des variables passées par le raccourci : `MAGBO_API_URL` et
+`MAGBO_SECTOR` (lues par `js/utils/posteConfig.js`, exposées au front par
+`preload.js` sous `window.magboConfig`, qui publie `apiUrl`, `sector`, `source`,
+`doitConfigurer`, `isProduction`, `cheminFichier`, `version`), plus
+`NODE_ENV=production` (`main.js:33`) qui arme le mode kiosque — à condition que le
+poste soit déjà réglé (`posteConfig.verrouillable`).
+
+⚠️ **`MAGBO_KIOSK_PIN` n'est PAS exposée au front, et il n'existe aucune sortie du
+kiosque par code.** La variable est bien lue (`main.js:32`) et `preload.js:112-123`
+publie un second pont, `window.magboIpc`, avec `verifyKioskPin`, `exitKiosk` et
+`onRequestAdminPin` ; `main.js:383` enregistre `Ctrl+Shift+Alt+Q` et émet
+`request-admin-pin`. Mais **aucun fichier de `js/`, d'`index.html` ni de `tests/` ne
+consomme ce pont** (mesuré le 03/09/2026 : `grep -rn 'magboIpc\|MAGBO_KIOSK_PIN' js/
+index.html tests/` ne rend rien). Un `webContents.send` vers un canal sans écouteur
+ne lève rien et ne journalise rien : le raccourci est un **no-op silencieux**, et
+celui qui le tape ne peut pas distinguer « l'application est plantée » de « ce geste
+n'a jamais rien fait ». On ferme un poste verrouillé par `Ctrl+Alt+Suppr` →
+Gestionnaire des tâches. ⚠️ Ne pas confondre avec `ADMIN_PIN`, qui est le PIN du
+**backend** (`/api/admin/verify`, `js/components/AdminPinModal.js`) : celui-là
+fonctionne et reste obligatoire. Voir ADR-007. Ouvrir le `.exe` directement donne une
 application **vide, sans message** — c'est la panne la plus fréquente signalée
 dans le manuel, et ce n'en est pas une.
 
@@ -477,15 +494,19 @@ sens ; avec eux, il faut savoir où ils sont pour les charger.
 
 ## 8. Repères chiffrés du dépôt
 
-Mesurés sur `main` @ `7c4d54e` (« Merge fix/balayage-28-08 — 33 corrections sur
-17 écrans »).
+Mesurés le **03/09/2026**, sur `main` augmentée des trois chantiers de cette
+date (`fix/adresse-du-login`, `feat/livre-imprimable`, `docs/verifications-finales`).
+Comment : les comptes de fichiers par `find`, les suites **à froid**
+(`cd backend && rm -rf target && mvn -o test`, puis `npm test`). ⚠️ **L'ancre est
+une date, pas un SHA** — ces chantiers seront fusionnés par Sam et les SHA
+changeront ; l'état d'**avant** eux était `fc4359c`.
 
 | Quoi | Combien |
 |---|---|
-| Contrôleurs / services / modèles / repositories / DTO | 27 / 39 / 35 / 21 / 37 |
-| Fichiers de test Java / JS | 82 / 35 |
-| Suites | `mvn test` **943**, `npm test` **694** |
-| Migrations SQL | **V001 → V026** (`deploy/migrations/`) |
+| Contrôleurs / services / modèles / repositories / DTO | 28 / 47 / 36 / 22 / 37 |
+| Fichiers de test Java / JS | 93 / 42 |
+| Suites | `mvn test` **1055**, `npm test` **881** |
+| Migrations SQL | **V001 → V027** (`deploy/migrations/`) |
 | Permissions granulaires | **10** (`security/Permissions.java`, liste `TODAS`) |
 
 ⚠️ **Le critère de la suite n'est pas un total, c'est : 0 échec et exactement
@@ -502,9 +523,15 @@ déjà produit un `BUILD SUCCESS` mensonger.
 **sauf V006, V008, V009 et V023** — V023 est une *seed*, ses lignes partent avec
 `R021`. C'est documenté dans `deploy/migrations/README.md`.
 
-**État de production**, affirmé par **Sam le 28/08/2026**, non vérifiable depuis
-le dépôt : V001 à V026 toutes appliquées sur la VM ; le portable (le paquet
-Electron distribué aux postes) complet, 92/92 fichiers obligatoires.
+**État de production au 03/09/2026.** Ce qui concerne la VM n'est pas vérifiable
+depuis le dépôt : **V001 à V027** y sont toutes appliquées — V027 est
+`licence_clock`, posée au déploiement de la licence le 01/09, et la licence est
+valide jusqu'au **2027-03-31**. Le portable (le paquet Electron distribué aux
+postes) est complet : **96/96** fichiers obligatoires, mesuré le 03/09/2026 par
+`node scripts/verify-package.js`. ⚠️ **Ce 96 n'est pas une constante** : la liste
+des fichiers obligatoires est **dérivée d'`index.html`**
+(`scripts/indexAssets.js`), donc elle monte à chaque écran nouveau. Ce qui doit
+rester vrai, c'est l'égalité des deux nombres, pas leur valeur.
 
 `[A VERIFIER]` Confirmer les migrations réellement appliquées sur la VM avant
 d'en appliquer une nouvelle — la procédure et la vérification propre à chaque
@@ -549,14 +576,12 @@ l'envoie jamais), **ADR-003** (observationnel), **ADR-004** (cantine assistée),
    numéro a été attribué deux fois.** Je le signale sans le corriger :
    renuméroter casserait les renvois existants ; c'est une décision, pas une
    retouche. `[A COMPLETER PAR SAM]` Lequel des deux garde le numéro 005 ?
-2. ⚠️ **`docs/operacional/handoff.md` s'arrête au 05/08/2026** et le dit
-   lui-même en tête. Trois semaines et deux nuits de travail lui manquent :
-   créneaux de cantine, régime, PPMS, photos d'identification, réglages à
-   l'écran, exclusions du CDI, configuration dans l'engrenage, recherche sur
-   l'accueil. Le rapport de la nuit du 27→28/08 (§9) le désigne comme **la tâche
-   dont la valeur dépend le plus d'être faite par quelqu'un qui a vu le système
-   tourner**. Jusque-là : ce livre et les rapports de nuit priment sur le
-   handoff.
+2. ⚠️ **`docs/operacional/handoff.md` ne s'arrête plus au 05/08/2026.** Il a été
+   repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge
+   couvert `5632d0a` (PR #87 — la licence) : vérifié le 03/09/2026 à
+   `handoff.md:6`. Ce qui lui manque désormais, ce sont les deux PR postérieures,
+   **#89** (premier lancement) et **#90** (poste administratif, ADR-007). Là où
+   il diverge du code, **le code gagne**.
 3. ⚠️ **Sept endpoints ne sont pas gardés** (`/api/users`,
    `/api/access/logs/*`, `registerAccess`). C'est une dette **documentée et
    assertée en test** — `ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA`,

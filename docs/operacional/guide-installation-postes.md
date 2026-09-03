@@ -363,9 +363,13 @@ l'application en plein écran.
 > s'ouvre en fenêtre normale. Ne comptez pas dessus comme méthode de travail :
 > c'est un filet, pas une procédure.)
 
-⚠️ **Ce réglage reste dans un `.bat`, et c'est voulu.** Le code de sortie n'a
-rien à faire dans un fichier en clair à côté du programme, sur un PC partagé.
-Créer un `Abrir-MAGBO-kiosque.bat` à côté du `.exe` :
+⚠️ **Ce réglage reste dans un `.bat`, et c'est voulu** — mais pas pour la raison
+qui était écrite ici. `NODE_ENV` gouverne le **verrouillage d'une machine**, et
+cela se décide depuis la machine, pas depuis l'application qu'elle affiche.
+⚠️ **Il n'y a AUCUN code de sortie à protéger** : `MAGBO_KIOSK_PIN` n'est lue par
+aucun écran et `Ctrl+Shift+Alt+Q` ne fait rien (mesuré le 03/09/2026 — voir
+l'encadré plus haut). Créer un `Abrir-MAGBO-kiosque.bat` à côté du `.exe`, qui ne
+pose **que cette ligne** — l'adresse et le poste continuent de venir du fichier :
 
 ```bat
 @echo off

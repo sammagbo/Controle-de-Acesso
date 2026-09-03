@@ -548,12 +548,24 @@ docker exec -i magbo-postgres psql -v ON_ERROR_STOP=1 -U magbo -d magbodb < depl
    docker exec magbo-postgres pg_dump -U magbo -d magbodb -F c -f /tmp/pre-migracao.dump
    (copiar o dump para fora do container: docker cp magbo-postgres:/tmp/pre-migracao.dump ./)
 
-2. Aplicar V001..V006 na ordem (comandos da secao 3), conferindo o \d de cada tabela:
+2. Aplicar V001..V027 na ordem (comandos da secao 3), conferindo o \d de cada tabela.
+   (Medido em 03/09/2026: `ls deploy/migrations/V0*.sql | wc -l` -> 27. Esta linha
+   dizia V001..V006 e contradizia a secao 3 do PROPRIO arquivo, que ja dizia
+   V001 -> V027: conforme a secao que se lesse, aplicavam-se 6 ou 27 migracoes.
+   As seis abaixo sao so as das Fases B-F; a tabela da secao 3 nomeia o que cada
+   migracao posterior cria, e e por ela que se confere o resto.)
    docker exec magbo-postgres psql -U magbo -d magbodb -c "\d access_attempts"
    docker exec magbo-postgres psql -U magbo -d magbodb -c "\d meal_entitlements"
    docker exec magbo-postgres psql -U magbo -d magbodb -c "\d meal_entitlement_events"
    docker exec magbo-postgres psql -U magbo -d magbodb -c "\d student_exit_permissions"
    docker exec magbo-postgres psql -U magbo -d magbodb -c "\d system_users"
+
+2-bis. ⚠️ A V027 (`licence_clock`) tem de estar aplicada ANTES de subir o backend, e
+   o `\d` nao basta: se o `ddl-auto` criou a tabela primeiro, ela existe com as
+   mesmas colunas e SEM o CHECK, e a V027 sai com codigo 0 na mesma. Conferir o
+   CHECK, que e a unica coisa que distingue as duas:
+   docker exec magbo-postgres psql -U magbo -d magbodb -c "SELECT conname FROM pg_constraint WHERE conrelid = 'licence_clock'::regclass AND contype = 'c';"
+   -> ck_licence_clock_ligne_unique
 
 3. Subir o backend novo; conferir startup SEM erro de schema (nenhum ALTER inesperado do
    Hibernate nos logs; os 2 WARN de SECURITY [prod] sao normais).
@@ -656,7 +668,15 @@ diretório**: `app_users`, `system_users`, `access_logs`, `door_mappings`,
 `class_schedules` e `responsaveis` nasceram do `ddl-auto` do Hibernate, antes
 de este diretório existir. Só V001–V004, V006, V009 e V011 são autônomas.
 
-**Consequência prática:** `psql < V001..V011` **não** reconstrói o banco. Quem
+> ⚠️ **Esta lista de autônomas foi medida em 10–11/08/2026, quando o diretório
+> parava na V011, e NÃO foi reverificada para V012–V027** (verificação de
+> 03/09/2026). Ela pode estar incompleta em qualquer sentido: uma migration
+> posterior que crie a sua própria tabela é autônoma e não está aqui. Antes de
+> confiar nela, remedir num container vazio (o procedimento está logo abaixo, em
+> «Reverificar»). Não reescrever a lista sem essa medição — uma lista de
+> autonomia inventada faz alguém pular a etapa (a) e ficar sem metade do schema.
+
+**Consequência prática:** `psql < V001..V027` **não** reconstrói o banco. Quem
 tentar montar um ambiente novo só com este diretório terá metade do schema.
 
 **Para reconstruir do zero, em ordem:**
@@ -669,13 +689,15 @@ tentar montar um ambiente novo só com este diretório terá metade do schema.
    a. subir o backend com `ddl-auto=update` contra o banco vazio e **deixá-lo
       criar o schema-base** (ele cria todas as tabelas e os CHECKs de enum);
    b. derrubar o backend;
-   c. aplicar V001..V011 na ordem — aqui elas só **acrescentam** o que o
+   c. aplicar V001..V027 na ordem — aqui elas só **acrescentam** o que o
       Hibernate não gera (índices da V006, CHECK de `source` da V003, o CHECK
       ampliado da V009);
    d. subir o backend de novo.
 
-**Reverificar:** criar um banco vazio e rodar as 11 na ordem; as quatro linhas
-de erro acima têm de aparecer. Se **não** aparecerem, alguém tornou as
+**Reverificar:** criar um banco vazio e rodar as **27** na ordem (eram 11 quando
+esta seção foi escrita; medido em 03/09/2026: 27 arquivos, V001→V027); as quatro
+linhas de erro acima têm de aparecer — e anotar quais **outras** falham, porque é
+essa medição que atualiza a lista de autônomas acima. Se **não** aparecerem, alguém tornou as
 migrations autônomas — ótimo, e então esta seção é que está velha.
 
 ### 8.2 Índice UNIQUE duplicado se as migrations rodarem DEPOIS do Hibernate

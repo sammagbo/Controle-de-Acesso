@@ -785,8 +785,8 @@ qui n'existe pas encore.
 Rien de ce qui suit n'est vérifiable depuis le dépôt. Les états de production
 ci-dessous ont été **affirmés par Sam le 28/08/2026**.
 
-**[À VÉRIFIER]** Les migrations **V001 → V026** sont appliquées (affirmé par Sam le
-28/08). Les tables créées par les six dernières :
+**[À VÉRIFIER]** Les migrations **V001 → V027** sont appliquées (état au
+03/09/2026). Les tables créées par les six dernières :
 
 ```bash
 docker exec magbo-postgres psql -U magbo -d magbodb -tAc \

@@ -119,9 +119,40 @@ Le nom d'une permission existe à **trois** endroits qui doivent bouger ensemble
 
 ### 5.2.4 Ce que le dépôt ne peut pas dire
 
-`[À COMPLÉTER PAR SAMMY]` Quels comptes opérateurs existent réellement sur la VM de production,
-avec quel rôle, quels secteurs et quelles permissions ? En particulier : **qui détient
-`CONFIG_WRITE`** aujourd'hui, et **qui détient `REGIME_WRITE`** à la Vie Scolaire ?
+**Le relevé existe, daté du 03/09/2026** (`docs/operacional/handoff.md`, § 8.2.10)
+— mais il ne porte qu'une seule colonne, le rôle :
+
+| Rôle | Comptes |
+|---|---|
+| **ADMIN** | `TI`, `VS`, `admin`, `alexandre`, `ccc`, `luciana`, `proviseur`, `rosantos`, `vs` — **neuf** |
+| **OPERATOR** | un seul, celui de la cantine |
+
+🔴 **Neuf ADMIN sur dix comptes — et le rôle ADMIN possède les dix permissions
+particulières.** La grille fine décrite au § 5.2 ne protège donc rien
+aujourd'hui : elle décrit un mécanisme réel, appliqué à une population où
+presque tout le monde a déjà tout. Et la liste **nominative** du PPMS — celle
+que la décision du 14/08 voulait « restreindre, pas fermer » — est lisible par
+neuf personnes.
+
+**[À COMPLÉTER PAR LA DIRECTION]** Neuf ADMIN pour un OPERATOR : est-ce
+l'organisation voulue ? Réponse de Sammy le 04/09/2026 : ce n'est pas sa
+décision. Attribuer un rôle d'administration est un acte d'organisation, pas un
+réglage technique.
+
+`[A VERIFIER]` Ce que le relevé ne dit pas — les **secteurs** et les
+**permissions granulaires** de chaque compte, donc qui détient réellement
+`CONFIG_WRITE` et `REGIME_WRITE` — se lit en une requête sur la VM :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT username, role, setores_permitidos, permissoes, ativo
+     FROM system_users ORDER BY role, username"
+```
+
+⚠️ **Une identité manque avant les permissions.** Le handoff demande lui-même
+« qui est derrière chaque login » et signale `VS` / `vs` et `TI` / `ccc` comme
+doublons apparents. Retirer des droits à des comptes dont on ne sait pas encore
+qui les tient reviendrait à couper au hasard.
 
 **Où ils sont consignés : répondu** (Sammy, 31/08/2026 —
 `docs/operacional/handoff.md`, § « LE RISQUE Nº 1 DE LA REPRISE »). Les cinq

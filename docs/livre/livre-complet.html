@@ -1312,7 +1312,15 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 </ol>
 <blockquote><p>⚠ Oublier <code>TODAS</code> est le piège historique : la permission existe alors <em>uniquement</em> comme littéral dans un <code>@PreAuthorize</code>. L'admin ne peut pas l'accorder (« Permission invalide ») et l'écran concerné devient accessible au seul ADMIN — c'est-à-dire justement au profil qui ne devrait pas l'utiliser. C'est arrivé à <code>REGIME_WRITE</code>, rattrapé le 14/08/2026 (<code>Permissions.java:13-22</code> et <code>:99-113</code>).</p></blockquote>
 <h3 id="5-2-4-ce-que-le-depot-ne-peut-pas-dire">5.2.4 Ce que le dépôt ne peut pas dire</h3>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> Quels comptes opérateurs existent réellement sur la VM de production, avec quel rôle, quels secteurs et quelles permissions ? En particulier : <strong>qui détient <code>CONFIG_WRITE</code></strong> aujourd'hui, et <strong>qui détient <code>REGIME_WRITE</code></strong> à la Vie Scolaire ?</p>
+<p><strong>Le relevé existe, daté du 03/09/2026</strong> (<code>docs/operacional/handoff.md</code>, § 8.2.10) — mais il ne porte qu'une seule colonne, le rôle :</p>
+<table><thead><tr><th>Rôle</th><th>Comptes</th></tr></thead><tbody><tr><td><strong>ADMIN</strong></td><td><code>TI</code>, <code>VS</code>, <code>admin</code>, <code>alexandre</code>, <code>ccc</code>, <code>luciana</code>, <code>proviseur</code>, <code>rosantos</code>, <code>vs</code> — <strong>neuf</strong></td></tr><tr><td><strong>OPERATOR</strong></td><td>un seul, celui de la cantine</td></tr></tbody></table>
+<p>🔴 <strong>Neuf ADMIN sur dix comptes — et le rôle ADMIN possède les dix permissions particulières.</strong> La grille fine décrite au § 5.2 ne protège donc rien aujourd'hui : elle décrit un mécanisme réel, appliqué à une population où presque tout le monde a déjà tout. Et la liste <strong>nominative</strong> du PPMS — celle que la décision du 14/08 voulait « restreindre, pas fermer » — est lisible par neuf personnes.</p>
+<p><strong>[À COMPLÉTER PAR LA DIRECTION]</strong> Neuf ADMIN pour un OPERATOR : est-ce l'organisation voulue ? Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Attribuer un rôle d'administration est un acte d'organisation, pas un réglage technique.</p>
+<p><code>[A VERIFIER]</code> Ce que le relevé ne dit pas — les <strong>secteurs</strong> et les <strong>permissions granulaires</strong> de chaque compte, donc qui détient réellement <code>CONFIG_WRITE</code> et <code>REGIME_WRITE</code> — se lit en une requête sur la VM :</p>
+<pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT username, role, setores_permitidos, permissoes, ativo
+     FROM system_users ORDER BY role, username"</code></pre>
+<p>⚠ <strong>Une identité manque avant les permissions.</strong> Le handoff demande lui-même « qui est derrière chaque login » et signale <code>VS</code> / <code>vs</code> et <code>TI</code> / <code>ccc</code> comme doublons apparents. Retirer des droits à des comptes dont on ne sait pas encore qui les tient reviendrait à couper au hasard.</p>
 <p><strong>Où ils sont consignés : répondu</strong> (Sammy, 31/08/2026 — <code>docs/operacional/handoff.md</code>, § « LE RISQUE Nº 1 DE LA REPRISE »). Les cinq secrets de déploiement vivent dans le <code>.env</code> de la VM et se récupèrent par SSH ; le compte applicatif <code>admin</code> et l'accès web des appareils ne vivent nulle part ailleurs que chez Sammy.</p>
 <p><strong>Décision du 04/09/2026 : les accès vont dans un coffre tenu par la direction.</strong> Ce livre écrit qu'il existe et qui l'ouvre — jamais les valeurs, jamais l'emplacement exact. ⚠ Il n'y a rien à publier ici : le livre s'imprime, et le dépôt est public.</p>
 <p>⚠ <strong>Le coffre doit contenir le SSH de la VM</strong>, pas seulement les mots de passe applicatifs — sans lui il ne couvre que la moitié de la panne. La raison est au chapitre 6, § 2.1.</p>
@@ -2089,7 +2097,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>37cd2ce</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>9ba15ae</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

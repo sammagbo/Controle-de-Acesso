@@ -686,7 +686,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <p>⚠ <strong>Trois réserves, toutes importantes :</strong></p>
 <ol>
 <li>Sammy annonce « six terminaux » et énumère <strong>huit</strong> adresses. La lecture la plus probable est six terminaux MinMoe (CDI + cantine) <strong>plus</strong> deux caméras au portail, mais je ne l'ai pas vérifiée.</li>
-<li>Les adresses sont données en dernier octet seul. Le serveur est en <code>192.168.1.253</code> (<code>docs/operacional/guide-installation-postes.md</code>, §Avant de commencer), l'ancien banc d'essai était en <code>172.20.40.x</code> : <strong>le préfixe réel des appareils n'est écrit nulle part dans le dépôt.</strong></li>
+<li>Les adresses sont données en dernier octet seul, et le préfixe n'est établi que pour deux d'entre elles. Les caméras du portail portent leur adresse complète dans le code — <code>192.168.1.167</code> et <code>192.168.1.166</code> (<code>DoorMappingBootstrap:44-46</code>). Pour les six autres, rien : le serveur est en <code>192.168.1.253</code> (<code>docs/operacional/guide-installation-postes.md</code>, §Avant de commencer) et l'ancien banc d'essai était en <code>172.20.40.x</code>, mais <strong>le préfixe réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.</strong></li>
 <li>La caméra <code>.166</code> (SORTIE) est en <strong>panne physique connue</strong> depuis au moins le 27/08 — c'est écrit noir sur blanc dans <code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>, §1 et §3. Toute lecture des chiffres du portail doit <strong>isoler ce point</strong>, sinon la panne masque tout le reste : une chute qui ne touche que les <code>SAIDA</code>, c'est elle, et rien d'autre à chercher.</li>
 </ol>
 <p><code>[A VERIFIER]</code> L'inventaire réel des points actifs, avec le sens de chaque appareil, se lit en une requête sur la VM :</p>
@@ -698,9 +698,9 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
   "SELECT point_id, action, count(*) FROM access_logs
     WHERE timestamp &gt;= current_date - 21 GROUP BY 1,2 ORDER BY 1,2;"</code></pre>
 <p>⚠ <strong>Avant toute session matériel :</strong> une IP qui change par DHCP casse à la fois l'« Écoute HTTP » de l'appareil et son <code>door_mappings</code>, <strong>sans aucune erreur</strong>. C'est arrivé le 16/07/2026 (terminal <code>.12</code> → <code>.10</code>, <code>docs/operacional/procedimento-hikcentral.md</code>). La checklist complète est dans <code>.claude/rules/hikvision.md</code>.</p>
-<p><strong>Il n'y a pas UN préfixe, il y en a deux, et le dépôt le montre :</strong></p>
-<table><thead><tr><th>Appareil</th><th>Plage observée</th><th>Source</th></tr></thead><tbody><tr><td>Caméras du portail (DeepinView)</td><td><code>192.168.1.167</code> / <code>.166</code></td><td><code>DoorMappingBootstrap:44-46</code>, correspondances réelles</td></tr><tr><td>Terminaux MinMoe</td><td><code>172.20.40.x</code></td><td>charge utile réelle, <code>ESPECIFICACAO-TECNICA-v1.md:687</code> ; smoke test du 16/07/2026</td></tr><tr><td>VM du serveur</td><td><code>192.168.1.253</code></td><td>modèle du lanceur, défaut du poste, <code>ssh</code> des sauvegardes</td></tr><tr><td>HikCentral</td><td><code>192.168.1.90</code></td><td><code>procedimento-hikcentral.md</code></td></tr></tbody></table>
-<p>Autrement dit : les caméras du portail partagent la plage du serveur, les terminaux MinMoe étaient sur une autre. ⚠ La ligne des MinMoe date du 16/07/2026 et n'a pas été revérifiée depuis — c'est un relevé, pas une garantie.</p>
+<p><strong>Le préfixe est établi pour une partie des appareils seulement</strong>, et la distinction est celle qui compte :</p>
+<table><thead><tr><th>Appareil</th><th>Adresse</th><th>D'où elle vient</th></tr></thead><tbody><tr><td>Caméras du portail (DeepinView)</td><td><code>192.168.1.167</code> et <code>192.168.1.166</code> — <strong>complètes</strong></td><td><code>DoorMappingBootstrap:44-46</code>, correspondances réelles dans le code</td></tr><tr><td>VM du serveur</td><td><code>192.168.1.253</code> — <strong>réservée</strong></td><td>modèle du lanceur, défaut du poste, <code>ssh</code> des sauvegardes</td></tr><tr><td>HikCentral</td><td><code>192.168.1.90</code></td><td><code>docs/operacional/procedimento-hikcentral.md</code></td></tr><tr><td>Terminaux MinMoe</td><td>⚠ <strong>préfixe inconnu</strong></td><td>voir la réserve 2 ci-dessus</td></tr></tbody></table>
+<p>⚠ <strong><code>172.20.40.x</code> n'est PAS une réponse.</strong> C'est ce que portait le banc d'essai — la charge utile réelle de <code>ESPECIFICACAO-TECNICA-v1.md:687</code> et le smoke test du 16/07/2026 — et rien n'établit que les terminaux de production y soient. Les prendre pour le préfixe de production serait exactement l'erreur que la réserve 2 signale.</p>
 <p><strong>L'adresse du serveur, elle, est FIXE</strong> : réservation confirmée auprès du service informatique (Sammy, 04/09/2026).</p>
 <p><code>[À COMPLÉTER PAR SAMMY]</code> <strong>Et les TERMINAUX, sont-ils réservés eux aussi ?</strong> La réponse ci-dessus ne porte que sur la VM. Tant que les terminaux sont en DHCP, un redémarrage suffit pour qu'ils cessent d'émettre : ni erreur, ni alerte, les événements s'arrêtent simplement d'arriver (c'est arrivé le 16/07, <code>.12</code> → <code>.10</code>).</p>
 <p><code>[À COMPLÉTER PAR SAMMY]</code> La caméra <code>.166</code> : la panne a-t-elle été signalée, à qui, et qui est censé la réparer ?</p>
@@ -2050,7 +2050,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>e9ae6b3</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>00ee251</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

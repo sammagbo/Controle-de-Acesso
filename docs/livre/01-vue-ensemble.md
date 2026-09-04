@@ -353,10 +353,13 @@ explique pourquoi mieux que n'importe quel résumé.
 1. Sammy annonce « six terminaux » et énumère **huit** adresses. La lecture la plus
    probable est six terminaux MinMoe (CDI + cantine) **plus** deux caméras au
    portail, mais je ne l'ai pas vérifiée.
-2. Les adresses sont données en dernier octet seul. Le serveur est en
+2. Les adresses sont données en dernier octet seul, et le préfixe n'est établi
+   que pour deux d'entre elles. Les caméras du portail portent leur adresse
+   complète dans le code — `192.168.1.167` et `192.168.1.166`
+   (`DoorMappingBootstrap:44-46`). Pour les six autres, rien : le serveur est en
    `192.168.1.253` (`docs/operacional/guide-installation-postes.md`, §Avant de
-   commencer), l'ancien banc d'essai était en `172.20.40.x` : **le préfixe réel
-   des appareils n'est écrit nulle part dans le dépôt.**
+   commencer) et l'ancien banc d'essai était en `172.20.40.x`, mais **le préfixe
+   réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.**
 3. La caméra `.166` (SORTIE) est en **panne physique connue** depuis au moins le
    27/08 — c'est écrit noir sur blanc dans
    `docs/operacional/diagnostic-portaria-2026-08-27.md`, §1 et §3. Toute lecture
@@ -387,18 +390,21 @@ C'est arrivé le 16/07/2026 (terminal `.12` → `.10`,
 `docs/operacional/procedimento-hikcentral.md`). La checklist complète est dans
 `.claude/rules/hikvision.md`.
 
-**Il n'y a pas UN préfixe, il y en a deux, et le dépôt le montre :**
+**Le préfixe est établi pour une partie des appareils seulement**, et la
+distinction est celle qui compte :
 
-| Appareil | Plage observée | Source |
+| Appareil | Adresse | D'où elle vient |
 |---|---|---|
-| Caméras du portail (DeepinView) | `192.168.1.167` / `.166` | `DoorMappingBootstrap:44-46`, correspondances réelles |
-| Terminaux MinMoe | `172.20.40.x` | charge utile réelle, `ESPECIFICACAO-TECNICA-v1.md:687` ; smoke test du 16/07/2026 |
-| VM du serveur | `192.168.1.253` | modèle du lanceur, défaut du poste, `ssh` des sauvegardes |
-| HikCentral | `192.168.1.90` | `procedimento-hikcentral.md` |
+| Caméras du portail (DeepinView) | `192.168.1.167` et `192.168.1.166` — **complètes** | `DoorMappingBootstrap:44-46`, correspondances réelles dans le code |
+| VM du serveur | `192.168.1.253` — **réservée** | modèle du lanceur, défaut du poste, `ssh` des sauvegardes |
+| HikCentral | `192.168.1.90` | `docs/operacional/procedimento-hikcentral.md` |
+| Terminaux MinMoe | ⚠️ **préfixe inconnu** | voir la réserve 2 ci-dessus |
 
-Autrement dit : les caméras du portail partagent la plage du serveur, les
-terminaux MinMoe étaient sur une autre. ⚠️ La ligne des MinMoe date du 16/07/2026
-et n'a pas été revérifiée depuis — c'est un relevé, pas une garantie.
+⚠️ **`172.20.40.x` n'est PAS une réponse.** C'est ce que portait le banc d'essai
+— la charge utile réelle de `ESPECIFICACAO-TECNICA-v1.md:687` et le smoke test
+du 16/07/2026 — et rien n'établit que les terminaux de production y soient. Les
+prendre pour le préfixe de production serait exactement l'erreur que la réserve 2
+signale.
 
 **L'adresse du serveur, elle, est FIXE** : réservation confirmée auprès du service
 informatique (Sammy, 04/09/2026).

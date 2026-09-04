@@ -243,17 +243,38 @@ Le cycle complet — MAGBO génère le CSV → l'informatique l'importe → *App
 > └──────────────────────────────────────────────────────────────────────────┘
 > ```
 
-**Origine de cette consigne : Sammy, le 28/08/2026.** Elle n'est **pas** vérifiable dans le dépôt —
-aucun fichier du projet ne mentionne cette case, qui appartient à l'interface du HikCentral et non
-à MAGBO.
+**Origine de cette consigne : Sammy, le 28/08/2026**, précisée par lui le 31/08 —
+et sa portée est **plus large que les deux exports** :
+
+> « Lors de **toute opération HikCentral**, "Restaurer les paramètres par défaut"
+> doit rester **DÉCOCHÉ**. Coché, il réinitialise des réglages de l'appareil —
+> dont potentiellement le seuil de similarité et l'*Écoute HTTP*. »
+> — `docs/operacional/handoff.md:143-147`
+
+⚠️ **Elle casse de deux façons distinctes, et la seconde ne peut pas venir d'un
+export.** Côté export, la case remet la sélection de champs du HCP à son état
+d'usine : le fichier qui en sort n'a plus l'en-tête à la ligne 9 ni les colonnes
+attendues par leur nom, et l'import de MAGBO ne reconnaît plus rien. Côté
+**appareil** — c'est-à-dire sur le chemin *Apply to Device* — elle réinitialise
+des réglages du terminal ou de la caméra. Un export ne touche aucun appareil :
+ce second mécanisme désigne l'import, et lui seul.
+
+⚠️ **Dette de documentation.** Cette consigne ne figure PAS dans
+`docs/operacional/procedimento-hikcentral.md`, que ce chapitre et le handoff
+désignent tous deux comme « la procédure complète » (vérifié : zéro occurrence).
+Elle vit dans le handoff, qui est un document de reprise, pas un mode d'emploi.
+Elle devrait descendre dans la procédure.
 
 `[A VERIFIER]` Ouvrir le HikCentral (`192.168.1.90`) → module Personnes → **Exporter**, et
 localiser la case exacte ainsi que l'écran où elle apparaît (export des renseignements, export des
 photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la
 recopier ici.
 
-`[À COMPLÉTER PAR SAMMY]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
-Device*), ou uniquement pour les deux exports ?
+`[A VERIFIER]` Sur **quels écrans exactement** la case apparaît, et sous quel
+libellé : le même intitulé existe-t-il littéralement à l'import, ou « toute
+opération » couvre-t-il plusieurs cases distinctes ? Cela demande d'ouvrir le
+HCP, pas de lire le dépôt — et c'est la seule part de cette consigne qui reste
+non vérifiée.
 
 ### 5.3.6 Import du personnel
 

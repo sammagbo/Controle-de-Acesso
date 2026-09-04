@@ -499,10 +499,10 @@ li { margin: .3rem 0; }
       <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">22</span></a></li>
       <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">40</span></a></li>
       <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">46</span></a></li>
-      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">62</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">79</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">86</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">94</span></a></li>
+      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">63</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">80</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">87</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">95</span></a></li>
   </ol>
 </section>
 
@@ -1345,9 +1345,12 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 │  « Feuille non reconnue » et, dans le meilleur des cas, on perd une      │
 │  demi-heure ; dans le pire, on croit que l'export est vide.              │
 └──────────────────────────────────────────────────────────────────────────┘</code></pre></blockquote>
-<p><strong>Origine de cette consigne : Sammy, le 28/08/2026.</strong> Elle n'est <strong>pas</strong> vérifiable dans le dépôt — aucun fichier du projet ne mentionne cette case, qui appartient à l'interface du HikCentral et non à MAGBO.</p>
+<p><strong>Origine de cette consigne : Sammy, le 28/08/2026</strong>, précisée par lui le 31/08 — et sa portée est <strong>plus large que les deux exports</strong> :</p>
+<blockquote><p>« Lors de <strong>toute opération HikCentral</strong>, "Restaurer les paramètres par défaut" doit rester <strong>DÉCOCHÉ</strong>. Coché, il réinitialise des réglages de l'appareil — dont potentiellement le seuil de similarité et l'<em>Écoute HTTP</em>. » — <code>docs/operacional/handoff.md:143-147</code></p></blockquote>
+<p>⚠ <strong>Elle casse de deux façons distinctes, et la seconde ne peut pas venir d'un export.</strong> Côté export, la case remet la sélection de champs du HCP à son état d'usine : le fichier qui en sort n'a plus l'en-tête à la ligne 9 ni les colonnes attendues par leur nom, et l'import de MAGBO ne reconnaît plus rien. Côté <strong>appareil</strong> — c'est-à-dire sur le chemin <em>Apply to Device</em> — elle réinitialise des réglages du terminal ou de la caméra. Un export ne touche aucun appareil : ce second mécanisme désigne l'import, et lui seul.</p>
+<p>⚠ <strong>Dette de documentation.</strong> Cette consigne ne figure PAS dans <code>docs/operacional/procedimento-hikcentral.md</code>, que ce chapitre et le handoff désignent tous deux comme « la procédure complète » (vérifié : zéro occurrence). Elle vit dans le handoff, qui est un document de reprise, pas un mode d'emploi. Elle devrait descendre dans la procédure.</p>
 <p><code>[A VERIFIER]</code> Ouvrir le HikCentral (<code>192.168.1.90</code>) → module Personnes → <strong>Exporter</strong>, et localiser la case exacte ainsi que l'écran où elle apparaît (export des renseignements, export des photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la recopier ici.</p>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> La consigne vaut-elle aussi pour l'<strong>import</strong> dans le HCP (<em>Apply to Device</em>), ou uniquement pour les deux exports ?</p>
+<p><code>[A VERIFIER]</code> Sur <strong>quels écrans exactement</strong> la case apparaît, et sous quel libellé : le même intitulé existe-t-il littéralement à l'import, ou « toute opération » couvre-t-il plusieurs cases distinctes ? Cela demande d'ouvrir le HCP, pas de lire le dépôt — et c'est la seule part de cette consigne qui reste non vérifiée.</p>
 <h3 id="5-3-6-import-du-personnel">5.3.6 Import du personnel</h3>
 <p>Deux chemins, tous deux dans l'engrenage :</p>
 <ul>
@@ -1495,7 +1498,10 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li><strong>La VM ne sert que le backend.</strong> Le tableau de bord est une application Electron installée poste par poste, mise à jour par un paquet séparé (§ 6). Un backend à jour avec des postes restés en arrière <strong>n'est pas une panne visible</strong> : l'écran affiche l'ancienne version sans le dire.</li>
 </ol>
 <p>Ce que le compose ne fait <strong>pas</strong>, et qu'il faut savoir : pas de HTTPS (HTTP simple, un reverse proxy reste à poser), CORS ouvert (<code>*</code>), et le port 8080 exposé sur toutes les interfaces. La liste complète est la « Security checklist before production » de <code>deploy/README.md</code>.</p>
-<blockquote><p>⚠ <strong><code>deploy/setup-server.sh</code> et <code>deploy/smoke-tests.md</code> décrivent un AUTRE déploiement</strong> — systemd, PostgreSQL installé par apt, un jar nommé <code>magbo-access-1.0.0.jar</code>. Ce nom n'a jamais existé : le <code>pom.xml</code> produit <code>access-control-1.0.0.jar</code> (<code>backend/pom.xml</code>, <code>artifactId</code> = <code>access-control</code>, version 1.0.0), et <code>DB_NAME</code> y vaut <code>magbo_db</code>, qui n'est aucune des deux bases réelles. Ces deux fichiers sont <strong>historiques</strong>. Le chemin canonique est <code>deploy/docker-compose.yml</code>. <code>[À COMPLÉTER PAR SAMMY]</code> Ces deux fichiers peuvent-ils être supprimés du dépôt, ou décrivent-ils encore une installation quelque part ?</p></blockquote>
+<blockquote><p>⚠ <strong>Un déploiement qui n'existe pas est décrit par TROIS fichiers, et ils n'ont pas le même statut</strong> — systemd, PostgreSQL installé par apt, un jar nommé <code>magbo-access-1.0.0.jar</code>. Ce nom n'a jamais existé : le <code>pom.xml</code> produit <code>access-control-1.0.0.jar</code>, et le <code>DB_NAME</code> de ces fichiers vaut <code>magbo_db</code>, qui n'est aucune des deux bases réelles. Le chemin canonique est <code>deploy/docker-compose.yml</code>.</p>
+<p><strong><code>deploy/setup-server.sh</code> et <code>DEPLOYMENT.md</code> sont des fossiles.</strong> Rien dans le dépôt ne les cite — <code>DEPLOYMENT.md</code> fait pourtant 39 Ko à la racine, et le marqueur d'origine ne le voyait même pas. <code>docs/operacional/</code> ne contient pas une seule occurrence de <code>systemctl</code>. ⚠ Et <code>setup-server.sh</code> est <strong>exécutable</strong> : il installerait un PostgreSQL sur le port 5432 que le conteneur occupe déjà. Un fichier mort qui casserait la production s'il était lancé n'est pas un fichier neutre.</p>
+<p><strong><code>deploy/smoke-tests.md</code>, lui, est VIVANT</strong> — et le marqueur le condamnait avec les autres. La procédure de déploiement VM le cite comme étape 5 (<code>.claude/skills/deploy-vm/SKILL.md:8</code>) et il a été révisé le 03/09/2026. Il n'est pas à supprimer : il est à finir. ⚠ Sa section S4 fait encore lire le journal dans <code>/var/log/magbo/</code> <strong>sur l'hôte</strong>, où personne n'écrit : sur la VM en conteneurs, le journal est celui de <code>docker logs</code>.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> Que faire des deux fossiles — les effacer, les déplacer sous un <code>docs/archive/</code>, ou seulement les coiffer d'un bandeau « ARCHIVE — NE PAS EXÉCUTER » ? Et, la seule chose que le dépôt ne peut pas savoir : cette installation systemd a-t-elle jamais tourné sur une machine hors de vue, avant la VM Docker actuelle ?</p></blockquote>
 <hr>
 <h2 id="2-le-env-variable-par-variable">2. Le <code>.env</code> — variable par variable</h2>
 <p>Le fichier vit dans <code>deploy/</code> (il est dans le <code>.gitignore</code> : <code>git pull</code> ne l'écrase pas et ne le recrée pas non plus). Modèle : <code>deploy/.env.example</code>.</p>
@@ -2055,7 +2061,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>71b25a9</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>4257f19</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

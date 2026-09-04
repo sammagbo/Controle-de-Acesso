@@ -86,6 +86,80 @@ function cellules(ligne) {
     return ligne.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
 }
 
+/**
+ * Le type d'une image, lu sur ses OCTETS.
+ *
+ * ⚠️ Pas sur l'extension : c'est la règle que le dépôt applique déjà aux
+ * photos d'identité (PhotoZipReader), et pour la même raison — quelqu'un
+ * renommera un JPEG en .png, et un livre qui annonce image/png sur des octets
+ * JPEG produit une case vide chez l'imprimeur, sans message.
+ */
+function typeImage(b) {
+    if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+    if (b.length > 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+    return null;
+}
+
+/**
+ * Une capture d'écran : l'image si elle existe, la case si elle manque.
+ *
+ * Le marqueur s'écrit  [CAPTURE: nom-du-fichier.png — la légende]  et le nom de
+ * fichier est FACULTATIF : sans lui, la case s'affiche comme avant.
+ *
+ * ⚠️ LE NOM DE FICHIER EST DANS LE MARQUEUR, ET PAS DÉDUIT DE L'ORDRE.
+ * Numéroter les captures dans l'ordre d'apparition était plus simple à écrire
+ * et faux au premier ajout : insérer une capture au chapitre 5 aurait décalé
+ * toutes les suivantes, et des photos déjà prises se seraient affichées sous
+ * la mauvaise légende — en silence, ce qui est la seule chose que ce livre
+ * ne s'autorise pas.
+ *
+ * ⚠️ L'IMAGE EST INCORPORÉE EN data: ET NON LIÉE. Le livre doit s'ouvrir
+ * depuis une clé USB sur un poste hors ligne : un src="captures/x.png" ferait
+ * du livre un dossier au lieu d'un fichier, et la première personne qui
+ * enverrait le seul .html par courriel enverrait un livre sans images.
+ * tests/buildLivre.test.js garde la règle : aucune balise qui charge quoi que
+ * ce soit, sauf une image déjà contenue dans le fichier.
+ *
+ * ⚠️ Aucune barre oblique inversée ici, donc aucune expression régulière :
+ * ce dépôt en a déjà perdu une en écrivant un fichier (4146dd5).
+ */
+function capture(contenu) {
+    let fichier = null;
+    let legende = contenu;
+    const sep = contenu.indexOf(' — ');
+    if (sep > 0) {
+        const tete = contenu.slice(0, sep).trim();
+        const bas = tete.toLowerCase();
+        const estImage = bas.endsWith('.png') || bas.endsWith('.jpg') || bas.endsWith('.jpeg');
+        if (estImage && tete.indexOf(' ') < 0) {
+            fichier = tete;
+            legende = contenu.slice(sep + 3).trim();
+        }
+    }
+
+    if (fichier) {
+        const chemin = path.join(DOSSIER, 'captures', fichier);
+        let octets = null;
+        try { octets = fs.readFileSync(chemin); } catch (e) { octets = null; }
+        if (octets && octets.length) {
+            const type = typeImage(octets);
+            if (!type) {
+                throw new Error('captures/' + fichier + " n'est ni un PNG ni un JPEG"
+                      + " (lu sur les octets, pas sur l'extension).");
+            }
+            return '<figure class="capture-image" data-capture="' + esc(fichier) + '">'
+                  + '<img src="data:' + type + ';base64,' + octets.toString('base64') + '"'
+                  + ' alt="' + esc(legende) + '">'
+                  + '<figcaption>' + inline(legende) + '</figcaption></figure>';
+        }
+    }
+
+    return '<div class="capture" data-capture="' + esc(fichier || '') + '">'
+          + '<span class="capture-etiq">Capture d' + "'" + 'écran attendue'
+          + (fichier ? ' — <code>captures/' + esc(fichier) + '</code>' : '')
+          + '</span>' + inline(legende) + '</div>';
+}
+
 const EST_SEPARATEUR = l => /^\s*\|?[\s:-]*-[-\s:|]*\|?\s*$/.test(l) && l.includes('-');
 
 /**
@@ -142,7 +216,7 @@ function versHtml(md) {
         const cap = l.match(/^\s*`?\[CAPTURE\s*:\s*(.+?)\]`?\s*$/i);
         if (cap) {
             fermerListe(listes);
-            out.push(`<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>${inline(cap[1])}</div>`);
+            out.push(capture(cap[1]));
             i++;
             continue;
         }
@@ -363,6 +437,10 @@ li { margin: .3rem 0; }
 .capture { margin: 1rem 0; padding: .9rem 1rem; border: 2px dashed var(--gris);
   border-radius: 6px; background: var(--fond-doux); color: var(--gris);
   font-style: italic; font-size: .92em; }
+.capture-image { margin: 1.5rem 0; }
+.capture-image img { max-width: 100%; height: auto; display: block;
+  border: 1px solid var(--gris); }
+.capture-image figcaption { font-size: .85rem; color: #556677; margin-top: .4rem; }
 .capture-etiq { display: block; font-style: normal; font-weight: 700;
   font-size: .75em; letter-spacing: .08em; text-transform: uppercase;
   color: var(--navy-clair); margin-bottom: .25rem; }
@@ -591,11 +669,27 @@ li { margin: .3rem 0; }
     line-height: 1.38; padding: 2.5mm 3mm; margin: 3.5mm 0; border-radius: 0;
     border-width: .5pt; border-left-width: 2.4pt; }
 
-  blockquote, .capture, .avert { break-inside: avoid; page-break-inside: avoid;
+  blockquote, .capture, .capture-image, .avert { break-inside: avoid; page-break-inside: avoid;
     border-radius: 0; }
   blockquote { margin: 3.5mm 0; padding: 2mm 3mm; border-left-width: 2.4pt; }
   .avert { margin: 4mm 0; padding: 2.5mm 3mm; border-width: .8pt; }
   .capture { margin: 3.5mm 0; padding: 3mm; border-width: .8pt; font-size: 9pt; }
+
+  /* ⚠️ LES DEUX LIMITES SONT DES GARDES, PAS DE LA MISE EN PAGE.
+     max-width : une image plus large que les 164 mm imprimables ne serait pas
+     rognée par Chrome — il réduirait TOUT le document, en silence, exactement
+     comme les 51 tableaux qui le sortaient à 80,7 % (voir table-layout plus
+     haut). paginer-livre.js refusera de finir si cela arrive : c'est la
+     vérification à relire après avoir ajouté une capture.
+     max-height : la hauteur imprimable vaut 255 mm ; au-delà de 170 mm, la
+     figure et sa légende ne tiennent plus ensemble sur une page et la règle
+     break-inside les repousserait entièrement à la page suivante, en laissant
+     un demi-feuillet blanc. */
+  .capture-image { margin: 4.5mm 0; text-align: center; }
+  .capture-image img { max-width: 100%; max-height: 170mm; height: auto;
+    border: .4pt solid var(--gris); }
+  .capture-image figcaption { font-size: 8.5pt; color: #556677; margin-top: 1.4mm;
+    text-align: left; }
   ul, ol { margin: 0 0 3.2mm; padding-left: 6mm; }
   li { margin: 0 0 1mm; }
 

@@ -55,7 +55,7 @@ La garde côté serveur s'écrit toujours de la même façon :
 Où l'on crée et modifie un compte : **Panneau Administratif → Gestion des opérateurs**
 (`js/components/AdminDashboard.js:455-490`, écran `js/components/UserManagement.js`).
 
-[CAPTURE: le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous]
+[CAPTURE: 05-formulaire-operateur.png — le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous]
 
 ### 5.2.2 La liste complète des permissions
 
@@ -387,8 +387,8 @@ carte du créneau ; l'endpoint l'acceptait déjà (`MealSlotManagement.js:289-30
 `MealSlotController:184`). Le défaut et sa correction sont racontés dans
 `docs/operacional/nuit-27-28-08-rapport.md` (Chantier 3).
 
-[CAPTURE: la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes]
-[CAPTURE: l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage]
+[CAPTURE: 05-carte-creneau.png — la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes]
+[CAPTURE: 05-affiche-cantine.png — l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage]
 
 ### 5.4.4 Le contrôle à faire à chaque rentrée
 
@@ -463,7 +463,7 @@ en-tête et l. 224-240).
   l'environnement (`.env` de la VM, `setx` du PC). Un écran qui les afficherait les mettrait sur
   une capture d'écran le jour même.
 
-[CAPTURE: l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir]
+[CAPTURE: 05-configuration-systeme.png — l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir]
 
 ### Ce qui n'est PAS dans cet écran
 

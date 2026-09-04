@@ -394,7 +394,7 @@ demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
 `[A COMPLETER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
 et qui est censé la réparer ?
 
-[CAPTURE: la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
+[CAPTURE: 01-ecoute-http-terminal.png — la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
 
 ---
 

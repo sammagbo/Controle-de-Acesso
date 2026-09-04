@@ -113,9 +113,21 @@ describe('le livre assemblé', () => {
         // un bloc de code est échappée (`&lt;script`) et donc inerte : la
         // distinction est tout l'objet de ce test.
         const balises = html.match(/<(script|link|img|iframe)\b[^>]*>/gi) || [];
-        expect(balises,
+        // ⚠️ UNE CAPTURE INCORPORÉE N'EST PAS UNE RESSOURCE RÉSEAU. Depuis
+        // que les captures existent, le livre porte des <img> — mais en data:,
+        // donc DÉJÀ CONTENUS dans le fichier. Ce test garde l'intention
+        // (« s'ouvrir depuis une clé USB, hors ligne »), pas la lettre.
+        // ⚠️ Un src="captures/x.png" reste un ÉCHEC : il ferait du livre un
+        // dossier au lieu d'un fichier, et le premier qui enverrait le seul
+        // .html par courriel enverrait un livre sans images.
+        // ⚠️ Comparé sans expression régulière, de propos délibéré : ce dépôt a
+        // déjà perdu un antislash en écrivant un fichier (4146dd5).
+        const externes = balises.filter(b =>
+            b.slice(0, 4).toLowerCase() !== '<img'
+            || b.indexOf('src=' + '"' + 'data:image/') < 0);
+        expect(externes,
             'Le livre doit s\'ouvrir depuis une clé USB sur un poste hors ligne. '
-            + 'Balises actives trouvées : ' + balises.join(' , ')).toEqual([]);
+            + 'Balises actives trouvées : ' + externes.join(' , ')).toEqual([]);
     });
 
     it('★★★ le style d\'impression garde les couleurs', () => {

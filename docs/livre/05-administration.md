@@ -123,9 +123,33 @@ Le nom d'une permission existe à **trois** endroits qui doivent bouger ensemble
 avec quel rôle, quels secteurs et quelles permissions ? En particulier : **qui détient
 `CONFIG_WRITE`** aujourd'hui, et **qui détient `REGIME_WRITE`** à la Vie Scolaire ?
 
-`[À COMPLÉTER PAR SAMMY]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
-sur la VM (les défauts `admin1234` / `1234` doivent avoir été changés — voir
-`.claude/rules/deploy-seguranca.md`). Où sont-ils consignés ?
+**Où ils sont consignés : répondu** (Sammy, 31/08/2026 —
+`docs/operacional/handoff.md`, § « LE RISQUE Nº 1 DE LA REPRISE »). Les cinq
+secrets de déploiement vivent dans le `.env` de la VM et se récupèrent par SSH ;
+le compte applicatif `admin` et l'accès web des appareils ne vivent nulle part
+ailleurs que chez Sammy.
+
+**Décision du 04/09/2026 : les accès vont dans un coffre tenu par la direction.**
+Ce livre écrit qu'il existe et qui l'ouvre — jamais les valeurs, jamais
+l'emplacement exact. ⚠️ Il n'y a rien à publier ici : le livre s'imprime, et le
+dépôt est public.
+
+⚠️ **Le coffre doit contenir le SSH de la VM**, pas seulement les mots de passe
+applicatifs — sans lui il ne couvre que la moitié de la panne. La raison est au
+chapitre 6, § 2.1.
+
+⚠️ **Vérifier que les défauts ont été changés ne demande de publier RIEN.** Une
+ligne, refaisable par n'importe qui :
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://192.168.1.253:8080/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin1234"}'
+```
+
+**401 = le défaut a bien été changé.** 200 = il ne l'a pas été, et cela se
+corrige le jour même. Les valeurs par défaut sont déjà écrites en clair dans
+`.claude/rules/deploy-seguranca.md` : cette commande ne révèle rien de neuf, elle
+mesure seulement.
 
 `[A VERIFIER]` La liste vivante des comptes se lit avec un jeton ADMIN :
 `curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/system-users`

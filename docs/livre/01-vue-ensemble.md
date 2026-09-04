@@ -486,9 +486,30 @@ que fera la production.
   d'abord la règle aux élèves, puisque l'entité s'appelle
   `StudentExitPermission`.
 
-`[À COMPLÉTER PAR SAMMY]` Le régime de sortie : les régimes des élèves existent-ils
-quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun
-sens ; avec eux, il faut savoir où ils sont pour les charger.
+**Répondu par Sammy le 04/09/2026 : les régimes n'existent que sur PAPIER**, dans
+les carnets que tient la Vie Scolaire, classe par classe. Ce que cela implique
+n'est pas une formalité :
+
+- ⚠️ **Pronote ne les porte pas, et le chemin court a été cherché.** Le CSV du
+  `PronoteSyncService` a huit colonnes obligatoires — matricule, nom, type,
+  classe, responsable et son contact — et **aucune** de régime général ni de
+  régime de sortie ; l'import Excel des élèves non plus. C'est écrit et vérifié
+  dans `js/utils/regimeSheet.js:8-14`. Il n'y a pas d'export à brancher.
+- **L'outil de chargement, lui, existe déjà** et attend une feuille de calcul :
+  Matricule · Régime général · Régime de sortie · Valable du · Valable au ·
+  Autorisé par · Document · Signé le (`js/utils/regimeSheet.js:31-41`).
+- **Ce qui manque est donc une saisie**, ligne par ligne, pour les 923 élèves :
+  le carnet d'un côté, la feuille de l'autre. Ce n'est pas un développement,
+  c'est du temps de Vie Scolaire.
+
+🔴 **Personne n'est nommé pour la faire, et aucune date ne l'est non plus.** Tant
+qu'elle n'a pas eu lieu, `magbo.regime.desconhecido` doit rester `OBSERVATION`
+(voir § 3.9) : au premier jour, 923 élèves sont sans régime, et passer à `DENY`
+peindrait l'école entière en rouge.
+
+`[À COMPLÉTER PAR SAMMY / Vie Scolaire]` Qui saisit les carnets, et pour quelle
+date ? C'est la seule chose qui sépare le régime de sortie d'une règle écrite,
+testée, déployée — et éteinte.
 
 ---
 

@@ -721,7 +721,14 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <li>⚠ <strong>Avant d'allumer <code>magbo.regime.habilitado</code> sur la VM, appliquer V015</strong> : elle élargit le <code>CHECK</code> de <code>access_attempts.denial_reason</code> (<code>REGIME_NOT_ALLOWED</code>, <code>REGIME_UNKNOWN</code>). Sans elle, l'<code>INSERT</code> échoue <strong>uniquement en production</strong> — le PC et les tests ne reproduisent pas la panne.</li>
 <li><strong>La règle de permission de sortie ne tourne PAS sur les caméras du portail.</strong> Le champ <code>Passagem.aplicarPermissaoDeSaida</code> vaut <code>true</code> sur les terminaux et <code>false</code> sur les caméras, avec une justification de quinze lignes dans <code>AccessDecisionService</code> : <code>ExitPermissionService.evaluate()</code> refuse toute personne sans permission active et ne regarde pas le type d'utilisateur ; l'allumer ferait de <strong>chaque sortie de personnel</strong> un <code>EXIT_NOT_AUTHORIZED</code>, des centaines par jour, sans que personne ne l'ait décidé. C'est une décision de politique laissée en suspens — et elle exige probablement de restreindre d'abord la règle aux élèves, puisque l'entité s'appelle <code>StudentExitPermission</code>.</li>
 </ul>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> Le régime de sortie : les régimes des élèves existent-ils quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun sens ; avec eux, il faut savoir où ils sont pour les charger.</p>
+<p><strong>Répondu par Sammy le 04/09/2026 : les régimes n'existent que sur PAPIER</strong>, dans les carnets que tient la Vie Scolaire, classe par classe. Ce que cela implique n'est pas une formalité :</p>
+<ul>
+<li>⚠ <strong>Pronote ne les porte pas, et le chemin court a été cherché.</strong> Le CSV du <code>PronoteSyncService</code> a huit colonnes obligatoires — matricule, nom, type, classe, responsable et son contact — et <strong>aucune</strong> de régime général ni de régime de sortie ; l'import Excel des élèves non plus. C'est écrit et vérifié dans <code>js/utils/regimeSheet.js:8-14</code>. Il n'y a pas d'export à brancher.</li>
+<li><strong>L'outil de chargement, lui, existe déjà</strong> et attend une feuille de calcul : Matricule · Régime général · Régime de sortie · Valable du · Valable au · Autorisé par · Document · Signé le (<code>js/utils/regimeSheet.js:31-41</code>).</li>
+<li><strong>Ce qui manque est donc une saisie</strong>, ligne par ligne, pour les 923 élèves : le carnet d'un côté, la feuille de l'autre. Ce n'est pas un développement, c'est du temps de Vie Scolaire.</li>
+</ul>
+<p>🔴 <strong>Personne n'est nommé pour la faire, et aucune date ne l'est non plus.</strong> Tant qu'elle n'a pas eu lieu, <code>magbo.regime.desconhecido</code> doit rester <code>OBSERVATION</code> (voir § 3.9) : au premier jour, 923 élèves sont sans régime, et passer à <code>DENY</code> peindrait l'école entière en rouge.</p>
+<p><code>[À COMPLÉTER PAR SAMMY / Vie Scolaire]</code> Qui saisit les carnets, et pour quelle date ? C'est la seule chose qui sépare le régime de sortie d'une règle écrite, testée, déployée — et éteinte.</p>
 <hr>
 <h2 id="8-reperes-chiffres-du-depot">8. Repères chiffrés du dépôt</h2>
 <p>Mesurés le <strong>03/09/2026</strong>, sur <code>main</code> augmentée des trois chantiers de cette date (<code>fix/adresse-du-login</code>, <code>feat/livre-imprimable</code>, <code>docs/verifications-finales</code>). Comment : les comptes de fichiers par <code>find</code>, les suites <strong>à froid</strong> (<code>cd backend &amp;&amp; rm -rf target &amp;&amp; mvn -o test</code>, puis <code>npm test</code>). ⚠ <strong>L'ancre est une date, pas un SHA</strong> — ces chantiers seront fusionnés par Sammy et les SHA changeront ; l'état d'<strong>avant</strong> eux était <code>fc4359c</code>.</p>
@@ -2030,7 +2037,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>aef3695</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>046eb8c</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

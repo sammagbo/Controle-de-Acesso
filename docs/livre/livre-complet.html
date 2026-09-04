@@ -496,13 +496,13 @@ li { margin: .3rem 0; }
   <ol class="somm">
       <li><a href="#chapitre-1-vue-d-ensemble"><span class="somm-titre">Chapitre 1 — Vue d'ensemble</span><span class="somm-points"></span><span class="somm-page">1</span></a></li>
       <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">13</span></a></li>
-      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">20</span></a></li>
-      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">38</span></a></li>
-      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">44</span></a></li>
-      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">60</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">77</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">84</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">92</span></a></li>
+      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">21</span></a></li>
+      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">39</span></a></li>
+      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">45</span></a></li>
+      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">61</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">78</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">85</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">93</span></a></li>
   </ol>
 </section>
 
@@ -835,13 +835,19 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <hr>
 <h2 id="5-l-infirmerie">5. L'infirmerie</h2>
 <p><strong>Point <code>ENFERM</code>.</strong></p>
-<blockquote><p><strong>[À VÉRIFIER]</strong> Le dépôt ne dit pas quel matériel sert l'infirmerie, ni s'il y en a un. Le rapport de nuit du 14/08 mentionne l'enfermaria comme un point « sans fermeture automatique, dont l'enregistrement est manuel » — ce qui suggère une saisie à la main plutôt qu'un terminal. <strong>[À COMPLÉTER PAR SAMMY] : l'infirmerie a-t-elle un terminal, ou les visites sont-elles saisies à la main ?</strong></p></blockquote>
-<p><strong>Ce qui est propre à l'infirmerie :</strong></p>
+<p>🔴 <strong>Répondu par Sammy le 04/09/2026 : l'infirmerie n'a pas de terminal, et les visites n'y sont pas enregistrées du tout.</strong> Ni lecture faciale, ni saisie à la main. Le point existe dans le système, et il ne reçoit rien.</p>
+<p>⚠ <strong>Ce qui suit décrit donc une mécanique qui tourne à vide.</strong> Elle est écrite, elle fonctionne, et elle attend des lignes qui n'arrivent pas :</p>
 <ul>
-<li>Les visites longues sont comptées à part (<code>countLongInfirmaryStays</code>).</li>
-<li><strong>Pas de fermeture automatique</strong> : quelqu'un peut donc rester « dedans » à la fin de la journée, et c'est visible dans le rapport comme « sortie non enregistrée ». C'est voulu — une visite à l'infirmerie qui ne se ferme pas est une information, pas une nuisance.</li>
+<li>les visites longues sont comptées à part (<code>countLongInfirmaryStays</code>) — sur zéro ligne ;</li>
+<li>il n'y a <strong>pas de fermeture automatique</strong>, ce qui serait une information utile si des visites entraient : une visite qui ne se ferme pas se voit dans le rapport comme « sortie non enregistrée ». En l'état il n'y a rien à fermer ;</li>
+<li>l'écran du rapport infirmerie (<code>InfirmaryReport</code>) s'ouvre et n'a rien à montrer.</li>
 </ul>
-<p><strong>Écran :</strong> le rapport infirmerie (<code>InfirmaryReport</code>).</p>
+<p>⚠ <strong>Un mapping n'est pas un appareil.</strong> <code>DoorMappingBootstrap</code> sème bien <code>ENFERM</code> en porte 5, lecteurs 1 et 2 (entrée et sortie) — mais ce sont des correspondances <strong>génériques, sans adresse IP</strong>, exactement comme celles du CDI et de la cantine. Elles attendent un terminal qui n'existe pas. Quiconque lit la table <code>door_mappings</code> en conclura que l'infirmerie est équipée ; elle ne l'est pas.</p>
+<h3 id="la-consequence-le-ppms-ne-peut-pas-savoir-qu-un-enfant-est-a-l-infirmerie">🔴 La conséquence : le PPMS ne peut pas savoir qu'un enfant est à l'infirmerie</h3>
+<p>La liste nominative de « qui est à l'intérieur » se construit sur les passages <strong>enregistrés</strong>. Une visite qui n'entre jamais dans <code>access_logs</code> n'y figure pas. Un enfant allongé à l'infirmerie pendant une évacuation est, pour l'écran, quelqu'un qui a quitté l'établissement — ou qui n'est jamais entré.</p>
+<p>C'est le même raisonnement que la condition bloquante du § 3.5 sur la dispense de badge, à une différence près, et elle est de taille : <strong>personne n'a choisi celle-ci</strong>. Là-bas, activer une dispense aurait retiré des enfants du décompte ; ici, c'est l'absence de matériel qui les en retire, sans qu'aucune décision ne l'ait déclenché et sans que rien ne le signale.</p>
+<p>⚠ <strong>Et le code croit encore autre chose.</strong> <code>PpmsService</code> (l. 74-79) prévoit un troisième avertissement pour les points sans fermeture automatique — « aujourd'hui l'infirmerie, dont l'enregistrement est manuel et dont la sortie n'est presque jamais lancée » — né d'une objection de l'infirmière au panel du 14/08. Cet avertissement protège contre une présence qui <strong>reste collée</strong> : quelqu'un affiché à l'infirmerie depuis 9 h alors qu'il est reparti. Or le risque réel est l'inverse : personne n'y est jamais affiché. La garde a été dessinée pour le mauvais mode de panne, et elle ne se déclenchera jamais pour <code>ENFERM</code> puisque le point est toujours vide. Cela ne change aucun comportement — mais cela oriente vers le mauvais raccommodage : ce n'est pas la saisie qui est imparfaite, c'est le point qui n'existe que sur le papier.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> Faut-il équiper l'infirmerie, ou assumer qu'elle reste hors du système ? Les deux réponses sont défendables — mais la seconde doit être écrite, et l'écran PPMS doit alors le dire à qui le lit pendant une évacuation.</p>
 <hr>
 <h2 id="6-comment-un-terminal-sait-ou-envoyer-ses-evenements">6. ⚠ Comment un terminal sait où envoyer ses événements</h2>
 <p>C'est le réglage qui casse en silence, et le menu n'est pas là où on le cherche.</p>
@@ -2037,7 +2043,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>046eb8c</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>68aad89</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

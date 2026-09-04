@@ -1,17 +1,17 @@
 {
   "mesure_le": "2026-09-04",
-  "empreinte": "e7e674dc57dcccea",
+  "empreinte": "5f8200fbbd2a14b8",
   "methode": "impression de prefixes et comptage des pages du PDF (Chrome)",
   "pages_liminaires": 12,
   "pages": {
     "chapitre-1-vue-d-ensemble": 1,
     "chapitre-2-les-points-de-passage": 13,
-    "chapitre-3-les-regles-metier": 20,
-    "chapitre-4-guide-de-l-operateur": 38,
-    "chapitre-5-administration": 44,
-    "chapitre-6-exploitation": 60,
-    "chapitre-7-architecture-technique": 77,
-    "chapitre-8-les-lecons-du-projet": 84,
-    "chapitre-9-ce-qui-reste": 92
+    "chapitre-3-les-regles-metier": 21,
+    "chapitre-4-guide-de-l-operateur": 39,
+    "chapitre-5-administration": 45,
+    "chapitre-6-exploitation": 61,
+    "chapitre-7-architecture-technique": 78,
+    "chapitre-8-les-lecons-du-projet": 85,
+    "chapitre-9-ce-qui-reste": 93
   }
 }

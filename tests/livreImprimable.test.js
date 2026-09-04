@@ -86,10 +86,29 @@ describe('les pages liminaires', () => {
             expect(html).toContain('class="page-colophon"');
       });
 
-      it('l’emplacement de la dédicace est SIGNALÉ, pour que Sammy le trouve', () => {
+      it('★★ la dédicace est COMPOSÉE, et ses coupures de ligne sont celles de l’auteur', () => {
             if (!existe) return;
-            expect(html).toMatch(/DÉDICACE — À COMPOSER PAR SAMMY/);
-            expect(html).toContain('class="dedicace-texte"');
+            // Cette garde a changé d'objet le 04/09/2026. Elle vérifiait qu'un
+            // EMPLACEMENT VIDE était bien signalé ; elle vérifie maintenant que
+            // le texte est là et qu'il est arrivé intact.
+            const i = html.indexOf('class="dedicace-texte"');
+            expect(i).toBeGreaterThan(-1);
+            const dedicace = html.slice(i, i + 400);
+
+            expect(dedicace.includes('À celle ou celui qui reprendra ce système :')).toBe(true);
+            expect(dedicace.includes("ce livre existe pour que vous n'ayez pas")).toBe(true);
+            expect(dedicace.includes('à le redécouvrir seul.')).toBe(true);
+
+            // ⚠️ LES DEUX <br> SONT LE TEXTE. Trois lignes voulues telles
+            // quelles : sans eux le texte se replie tout seul dans les 84 mm et
+            // la coupure tombe ailleurs qu'où elle a été pensée.
+            expect((dedicace.match(/<br>/g) || []).length).toBe(2);
+
+            // ⚠️ ET LE REPÈRE D'ATTENTE A DISPARU. Tant qu'il était là, le livre
+            // partait à l'imprimeur en se donnant une consigne à lui-même sur la
+            // seule page qui n'existe que pour dire une chose personnelle.
+            expect(html.includes('À composer par')).toBe(false);
+            expect(html.includes('À COMPOSER PAR')).toBe(false);
       });
 
       it('le colophon dit la version, la date, le commit et comment régénérer', () => {

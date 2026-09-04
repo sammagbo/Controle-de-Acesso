@@ -960,18 +960,35 @@ function construire() {
 <section class="page-blanche"></section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ▼▼▼  DÉDICACE — À COMPOSER PAR SAMMY  ▼▼▼
-     Remplacer le texte entre <div class="dedicace-texte"> et </div> dans
-     scripts/build-livre.js (c'est lui qui produit cette page), puis
-     régénérer. Deux ou trois lignes, pas davantage : rien d'autre sur la
-     page, ni titre, ni filet, ni numéro.
+     ▼▼▼  DÉDICACE  ▼▼▼
+     Écrite par Sammy K. MAGBO le 04/09/2026, et composée mot pour mot.
+
+     ⚠️ LES DEUX <br> SONT LE TEXTE, PAS DE LA MISE EN PAGE. Les trois lignes
+     et l'endroit où elles se coupent sont de l'auteur. Sans les <br>, le
+     texte se replierait tout seul dans les 84 mm de la colonne et la coupure
+     tomberait ailleurs qu'où elle a été pensée — au premier changement de
+     police, de corps ou de largeur, elle bougerait encore. Ne pas les
+     remplacer par du texte au fil.
+
+     ⚠️ Cette page ne porte RIEN D'AUTRE : ni titre, ni filet, ni numéro. Une
+     dédicace s'ouvre sur un recto et rien ne lui fait face ; les deux pages
+     blanches qui l'encadrent sont là pour cela, et un test les garde.
+
+     Avant le 04/09/2026 cette page portait encore sa phrase d'attente : le
+     livre serait parti chez l'imprimeur en se donnant une consigne à
+     lui-même, sur la seule page qui n'existe que pour dire une chose
+     personnelle. ⚠️ La phrase n'est pas recopiée ici, et c'est voulu : un
+     test cherche sa disparition, et ce dépôt a déjà vu une garde rester
+     verte parce qu'un commentaire citait ce qu'elle traquait (4146dd5).
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="page-dedicace">
   <div class="dedicace-texte">
-    À composer par Sammy.
+    À celle ou celui qui reprendra ce système :<br>
+    ce livre existe pour que vous n'ayez pas<br>
+    à le redécouvrir seul.
   </div>
 </section>
-<!-- ▲▲▲  FIN DE L'EMPLACEMENT DE LA DÉDICACE  ▲▲▲ -->
+<!-- ▲▲▲  FIN DE LA DÉDICACE  ▲▲▲ -->
 
 <!-- Rien ne fait face à une dédicace. -->
 <section class="page-blanche"></section>

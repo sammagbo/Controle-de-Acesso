@@ -500,9 +500,9 @@ li { margin: .3rem 0; }
       <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">42</span></a></li>
       <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">48</span></a></li>
       <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">65</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">82</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">89</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">97</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">83</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">90</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">98</span></a></li>
   </ol>
 </section>
 
@@ -1541,7 +1541,11 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <blockquote><p>⚠ <strong>Un déploiement qui n'existe pas est décrit par TROIS fichiers, et ils n'ont pas le même statut</strong> — systemd, PostgreSQL installé par apt, un jar nommé <code>magbo-access-1.0.0.jar</code>. Ce nom n'a jamais existé : le <code>pom.xml</code> produit <code>access-control-1.0.0.jar</code>, et le <code>DB_NAME</code> de ces fichiers vaut <code>magbo_db</code>, qui n'est aucune des deux bases réelles. Le chemin canonique est <code>deploy/docker-compose.yml</code>.</p>
 <p><strong><code>deploy/setup-server.sh</code> et <code>DEPLOYMENT.md</code> sont des fossiles.</strong> Rien dans le dépôt ne les cite — <code>DEPLOYMENT.md</code> fait pourtant 39 Ko à la racine, et le marqueur d'origine ne le voyait même pas. <code>docs/operacional/</code> ne contient pas une seule occurrence de <code>systemctl</code>. ⚠ Et <code>setup-server.sh</code> est <strong>exécutable</strong> : il installerait un PostgreSQL sur le port 5432 que le conteneur occupe déjà. Un fichier mort qui casserait la production s'il était lancé n'est pas un fichier neutre.</p>
 <p><strong><code>deploy/smoke-tests.md</code>, lui, est VIVANT</strong> — et le marqueur le condamnait avec les autres. La procédure de déploiement VM le cite comme étape 5 (<code>.claude/skills/deploy-vm/SKILL.md:8</code>) et il a été révisé le 03/09/2026. Il n'est pas à supprimer : il est à finir. ⚠ Sa section S4 fait encore lire le journal dans <code>/var/log/magbo/</code> <strong>sur l'hôte</strong>, où personne n'écrit : sur la VM en conteneurs, le journal est celui de <code>docker logs</code>.</p>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> Que faire des deux fossiles — les effacer, les déplacer sous un <code>docs/archive/</code>, ou seulement les coiffer d'un bandeau « ARCHIVE — NE PAS EXÉCUTER » ? Et, la seule chose que le dépôt ne peut pas savoir : cette installation systemd a-t-elle jamais tourné sur une machine hors de vue, avant la VM Docker actuelle ?</p></blockquote>
+<p><strong>Décision du 04/09/2026 : un bandeau, pas une suppression.</strong> Les deux fossiles restent où ils sont et reçoivent en tête « ARCHIVE — NE PAS EXÉCUTER ».</p>
+<p>⚠ <strong>C'est le choix le moins coûteux, et il faut savoir ce qu'il ne couvre pas.</strong> Un bandeau protège qui <strong>lit</strong>. Il ne protège pas qui lance <code>bash deploy/setup-server.sh</code> sans lire — et c'est précisément ce que fait quelqu'un qui cherche à réparer vite. Le fichier reste exécutable et ses chemins mordent toujours l'installation réelle : PostgreSQL sur le 5432 que le conteneur occupe, écriture dans <code>/opt/magbo</code>. Le bandeau rend le piège lisible ; il ne le désamorce pas.</p>
+<p>⚠ <strong><code>DEPLOYMENT.md</code> est le plus trompeur des deux</strong>, parce qu'il est à la <strong>racine</strong> — là où l'on regarde en premier, et où un fichier de 39 Ko qui s'appelle « DEPLOYMENT » a l'air d'être la référence. Son bandeau est le plus urgent.</p>
+<p>⚠ <strong>Et il n'est pas encore posé.</strong> Ce chantier-ci est le livre ; poser les deux bandeaux est une tâche, pas un état acquis.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> La seule chose que le dépôt ne peut pas savoir : cette installation systemd a-t-elle jamais tourné sur une machine hors de vue, avant la VM Docker actuelle ? Si oui, ces fichiers en sont la seule description, et cela change ce qu'on écrit sur le bandeau.</p></blockquote>
 <hr>
 <h2 id="2-le-env-variable-par-variable">2. Le <code>.env</code> — variable par variable</h2>
 <p>Le fichier vit dans <code>deploy/</code> (il est dans le <code>.gitignore</code> : <code>git pull</code> ne l'écrase pas et ne le recrée pas non plus). Modèle : <code>deploy/.env.example</code>.</p>
@@ -2111,7 +2115,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>b68e3a1</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>e4e5977</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

@@ -703,7 +703,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <p>⚠ <strong><code>172.20.40.x</code> n'est PAS une réponse.</strong> C'est ce que portait le banc d'essai — la charge utile réelle de <code>ESPECIFICACAO-TECNICA-v1.md:687</code> et le smoke test du 16/07/2026 — et rien n'établit que les terminaux de production y soient. Les prendre pour le préfixe de production serait exactement l'erreur que la réserve 2 signale.</p>
 <p><strong>L'adresse du serveur, elle, est FIXE</strong> : réservation confirmée auprès du service informatique (Sammy, 04/09/2026).</p>
 <p><code>[À COMPLÉTER PAR SAMMY]</code> <strong>Et les TERMINAUX, sont-ils réservés eux aussi ?</strong> La réponse ci-dessus ne porte que sur la VM. Tant que les terminaux sont en DHCP, un redémarrage suffit pour qu'ils cessent d'émettre : ni erreur, ni alerte, les événements s'arrêtent simplement d'arriver (c'est arrivé le 16/07, <code>.12</code> → <code>.10</code>).</p>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> La caméra <code>.166</code> : la panne a-t-elle été signalée, à qui, et qui est censé la réparer ?</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> <strong>Quand un appareil tombe en panne, qui est prévenu et qui répare ?</strong> Le cas de la <code>.166</code> est clos — elle fonctionne, voir la réserve 3 ci-dessus. Mais rien dans le dépôt ne dit par quel chemin une panne matérielle est signalée, ni à qui. ⚠ <strong>La remise en service de cette caméra en est la preuve par l'absence</strong> : elle a bien eu lieu, et sa date n'est consignée nulle part. Une panne qui se répare sans laisser de trace se répétera sans qu'on sache si c'est la même.</p>
 <div class="capture" data-capture="01-ecoute-http-terminal.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/01-ecoute-http-terminal.png</code></span>la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver</div>
 <hr>
 <h2 id="6-qui-utilise-le-systeme">6. Qui utilise le système</h2>
@@ -2055,7 +2055,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>d40693a</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>71b25a9</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

@@ -417,8 +417,13 @@ réponse ci-dessus ne porte que sur la VM. Tant que les terminaux sont en DHCP, 
 redémarrage suffit pour qu'ils cessent d'émettre : ni erreur, ni alerte, les
 événements s'arrêtent simplement d'arriver (c'est arrivé le 16/07, `.12` → `.10`).
 
-`[À COMPLÉTER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
-et qui est censé la réparer ?
+`[À COMPLÉTER PAR SAMMY]` **Quand un appareil tombe en panne, qui est prévenu et
+qui répare ?** Le cas de la `.166` est clos — elle fonctionne, voir la réserve 3
+ci-dessus. Mais rien dans le dépôt ne dit par quel chemin une panne matérielle
+est signalée, ni à qui. ⚠️ **La remise en service de cette caméra en est la
+preuve par l'absence** : elle a bien eu lieu, et sa date n'est consignée nulle
+part. Une panne qui se répare sans laisser de trace se répétera sans qu'on
+sache si c'est la même.
 
 [CAPTURE: 01-ecoute-http-terminal.png — la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
 

@@ -625,9 +625,12 @@ l'envoie jamais), **ADR-003** (observationnel), **ADR-004** (cantine assistée),
    `ADR-005-creneaux-cantine.md` (26/08 — le planning de cantine devient une
    configuration, migrations V021-V023) et
    `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` (14/08 — TOTVS). **Le
-   numéro a été attribué deux fois.** Je le signale sans le corriger :
-   renuméroter casserait les renvois existants ; c'est une décision, pas une
-   retouche. `[À COMPLÉTER PAR SAMMY]` Lequel des deux garde le numéro 005 ?
+   numéro a été attribué deux fois.** Le chapitre 9 (§ 3.6) porte le tableau
+   chronologique et l'argument : **TOTVS garde le 005**, parce qu'elle a pris le
+   numéro onze jours plus tôt et qu'un journal de décisions se numérote dans
+   l'ordre. Rien dans le dépôt ne contredit cet argument — mais personne ne l'a
+   ratifié, et **le numéro de remplacement proposé là-bas est périmé** : voir
+   `03-regles-metier.md` § 3.13, qui porte le détail et la question.
 2. ⚠️ **`docs/operacional/handoff.md` ne s'arrête plus au 05/08/2026.** Il a été
    repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge
    couvert `5632d0a` (PR #87 — la licence) : vérifié le 03/09/2026 à

@@ -863,11 +863,41 @@ ADR-005** :
 - `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md`.
 
 Les deux sont des décisions réelles et acceptées ; c'est la **numérotation** qui est
-en double. Renuméroter casserait les liens existants dans le code et la
-documentation, donc le fait est **signalé, pas corrigé**.
+en double.
 
-**[À COMPLÉTER PAR SAMMY]** Lequel des deux garde le numéro 005, et le second devient
-lequel ? (Une redirection depuis l'ancien nom serait préférable à un renommage sec.)
+**Ce que le dépôt établit déjà.** TOTVS a pris le numéro le 14/08/2026
+(`b388275`), les créneaux le 26/08 (`7567a75`) : onze jours d'écart. Le chapitre 9
+(§ 3.6) en tire l'argument — **TOTVS garde le 005**, parce qu'un journal de
+décisions se numérote dans l'ordre où elles sont prises. Rien dans le dépôt ne le
+contredit. Mais c'est une **proposition**, pas une décision : aucun renommage,
+aucune redirection, aucun `git mv` n'existe dans `docs/architecture/decisoes/`.
+
+⚠️⚠️ **ET LA SECONDE MOITIÉ DE CETTE PROPOSITION EST PÉRIMÉE — ne l'appliquez
+pas telle quelle.** Le chapitre 9 propose de faire des créneaux l'`ADR-006`. Il a
+été écrit le 31/08 à 10h42 ; l'`ADR-006` — la licence — a été créé **le même jour
+à 19h58**, puis mis en production le 01/09 (`5632d0a`, PR #87, migration V027).
+L'`ADR-007` (configuration du poste) a pris le suivant le 02/09. Renuméroter les
+créneaux en 006 recréerait exactement la collision qu'on répare. **Le premier
+numéro libre est `ADR-008`** — vérifié : aucune occurrence dans le dépôt.
+
+⚠️ **Et le travail n'est pas le renommage.** Vingt-neuf renvois nomment l'un des
+deux fichiers en entier : ceux-là se corrigent mécaniquement. Le risque est
+ailleurs — **six références citent le numéro NU, dans le code et le SQL**, et
+elles deviendraient silencieusement fausses au lieu de simplement ambiguës :
+
+| Où | Vers quoi il pointe |
+|---|---|
+| `TotvsLinkController.java:26` | TOTVS |
+| `MealSlot.java:13` | les créneaux |
+| `AccessDecisionService.java:751` | les créneaux |
+| `MealSlotService.java:28` | les créneaux |
+| `deploy/migrations/V021__meal_slots.sql:11` | les créneaux |
+| `deploy/migrations/V021__meal_slots.sql:144` | les créneaux — ⚠️ dans un `COMMENT ON`, **stocké dans la base de production** : celui-là ne se corrige pas en éditant le dépôt |
+
+**[À COMPLÉTER PAR SAMMY]** Deux choses, et deux seulement : **ratifier** que
+TOTVS garde le 005, et **confirmer `ADR-008`** pour les créneaux — ou décider de
+ne rien renuméroter et de s'en tenir à la parade déjà en vigueur, écrite au
+chapitre 5 : *citer le nom de fichier complet, jamais le seul numéro*.
 
 ---
 

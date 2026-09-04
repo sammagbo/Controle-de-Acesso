@@ -119,11 +119,11 @@ Le nom d'une permission existe à **trois** endroits qui doivent bouger ensemble
 
 ### 5.2.4 Ce que le dépôt ne peut pas dire
 
-`[A COMPLETER PAR SAMMY]` Quels comptes opérateurs existent réellement sur la VM de production,
+`[À COMPLÉTER PAR SAMMY]` Quels comptes opérateurs existent réellement sur la VM de production,
 avec quel rôle, quels secteurs et quelles permissions ? En particulier : **qui détient
 `CONFIG_WRITE`** aujourd'hui, et **qui détient `REGIME_WRITE`** à la Vie Scolaire ?
 
-`[A COMPLETER PAR SAMMY]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
+`[À COMPLÉTER PAR SAMMY]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
 sur la VM (les défauts `admin1234` / `1234` doivent avoir été changés — voir
 `.claude/rules/deploy-seguranca.md`). Où sont-ils consignés ?
 
@@ -252,7 +252,7 @@ localiser la case exacte ainsi que l'écran où elle apparaît (export des rense
 photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la
 recopier ici.
 
-`[A COMPLETER PAR SAMMY]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
+`[À COMPLÉTER PAR SAMMY]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
 Device*), ou uniquement pour les deux exports ?
 
 ### 5.3.6 Import du personnel
@@ -611,7 +611,7 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 > Avant toute séance matériel : IP du serveur, IP au écran du terminal, URL de l'Écoute HTTP,
 > `door_mappings` (`.claude/rules/hikvision.md`).
 
-`[A COMPLETER PAR SAMMY]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
+`[À COMPLÉTER PAR SAMMY]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
 exécutées ? Si oui, quelles adresses sont fixes (terminaux + VM) ? *(pendência 6 de
 `docs/operacional/procedimento-hikcentral.md`)*
 

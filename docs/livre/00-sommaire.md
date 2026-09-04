@@ -12,14 +12,14 @@ qui ne peut poser de question à personne.
 ## ⚠️ Comment lire ce livre
 
 **Chaque affirmation technique est vérifiable dans le dépôt.** Quand un fichier
-est cité, c'est qu'il dit ce qui est écrit. Deux marqueurs signalent les
+est cité, c'est qu'il dit ce qui est écrit. Trois marqueurs signalent les
 limites :
 
 | Marqueur | Ce qu'il veut dire |
 |---|---|
 | `[À VÉRIFIER]` | je n'ai pas pu le confirmer depuis le dépôt — suivi de **la commande ou la requête qui le tranche** |
 | `[À COMPLÉTER PAR SAMMY]` | seul Sammy le savait — suivi de **la question précise** |
-| `[CAPTURE: …]` | une capture d'écran manque à cet endroit |
+| `[CAPTURE: …]` | une capture d'écran manque à cet endroit — la case **nomme le fichier attendu** ; le mode d'emploi est dans `docs/livre/captures/LISEZ-MOI.md` |
 
 > **Une documentation fausse est pire qu'absente, parce qu'on lui fait
 > confiance.** Si vous trouvez une affirmation que le dépôt contredit,

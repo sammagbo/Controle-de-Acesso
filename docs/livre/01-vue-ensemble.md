@@ -8,7 +8,7 @@ Les chapitres suivants entrent dans le détail ; celui-ci donne la carte.
 
 > Convention du livre : `[A VERIFIER]` marque une affirmation que je n'ai pas
 > pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la
-> tranche. `[A COMPLETER PAR SAMMY]` marque ce que seul Sammy savait.
+> tranche. `[À COMPLÉTER PAR SAMMY]` marque ce que seul Sammy savait.
 
 ---
 
@@ -387,11 +387,11 @@ C'est arrivé le 16/07/2026 (terminal `.12` → `.10`,
 `docs/operacional/procedimento-hikcentral.md`). La checklist complète est dans
 `.claude/rules/hikvision.md`.
 
-`[A COMPLETER PAR SAMMY]` Quel est le préfixe réseau des appareils Hikvision —
+`[À COMPLÉTER PAR SAMMY]` Quel est le préfixe réseau des appareils Hikvision —
 `192.168.1.x` comme le serveur, ou un autre VLAN ? Et la réservation DHCP
 demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
 
-`[A COMPLETER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
+`[À COMPLÉTER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
 et qui est censé la réparer ?
 
 [CAPTURE: 01-ecoute-http-terminal.png — la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
@@ -486,7 +486,7 @@ que fera la production.
   d'abord la règle aux élèves, puisque l'entité s'appelle
   `StudentExitPermission`.
 
-`[A COMPLETER PAR SAMMY]` Le régime de sortie : les régimes des élèves existent-ils
+`[À COMPLÉTER PAR SAMMY]` Le régime de sortie : les régimes des élèves existent-ils
 quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun
 sens ; avec eux, il faut savoir où ils sont pour les charger.
 
@@ -575,7 +575,7 @@ l'envoie jamais), **ADR-003** (observationnel), **ADR-004** (cantine assistée),
    `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` (14/08 — TOTVS). **Le
    numéro a été attribué deux fois.** Je le signale sans le corriger :
    renuméroter casserait les renvois existants ; c'est une décision, pas une
-   retouche. `[A COMPLETER PAR SAMMY]` Lequel des deux garde le numéro 005 ?
+   retouche. `[À COMPLÉTER PAR SAMMY]` Lequel des deux garde le numéro 005 ?
 2. ⚠️ **`docs/operacional/handoff.md` ne s'arrête plus au 05/08/2026.** Il a été
    repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge
    couvert `5632d0a` (PR #87 — la licence) : vérifié le 03/09/2026 à

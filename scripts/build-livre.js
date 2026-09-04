@@ -46,6 +46,24 @@ function esc(s) {
 }
 
 /**
+ * Comme esc(), plus le guillemet double — POUR LES ATTRIBUTS SEULEMENT.
+ *
+ * ⚠️ DEUX FONCTIONS ET NON UNE, ET LA DIFFÉRENCE COMPTE DANS LES DEUX SENS.
+ * Un attribut non échappé se referme sur le premier guillemet de la légende :
+ * `alt="l'écran « Droits Repas »"` passe, mais `alt="le bouton "Enregistrer""`
+ * produit du HTML mal formé, en silence, puisque rien ne valide le HTML ici.
+ * Aucune des sept légendes actuelles n'en contient : le défaut était dormant.
+ * ⚠️ Et dans l'autre sens : échapper le guillemet PARTOUT, y compris dans le
+ * texte, a été essayé et rejeté — le livre cite des commandes shell en ligne
+ * (une commande grep dont le motif est entre guillemets), et le source HTML
+ * doit y rester lisible — un test du dépôt le garde depuis toujours. Le rendu
+ * imprimé aurait été identique ; la source, non.
+ */
+function escAttr(s) {
+    return esc(s).replace(/"/g, '&quot;');
+}
+
+/**
  * Mise en forme DANS une ligne : code, gras, italique, liens.
  *
  * ⚠️ Le code inline est traité EN PREMIER et mis de côté : sans ça, un
@@ -126,15 +144,34 @@ function typeImage(b) {
 function capture(contenu) {
     let fichier = null;
     let legende = contenu;
-    const sep = contenu.indexOf(' — ');
-    if (sep > 0) {
-        const tete = contenu.slice(0, sep).trim();
-        const bas = tete.toLowerCase();
-        const estImage = bas.endsWith('.png') || bas.endsWith('.jpg') || bas.endsWith('.jpeg');
-        if (estImage && tete.indexOf(' ') < 0) {
-            fichier = tete;
-            legende = contenu.slice(sep + 3).trim();
-        }
+    // ⚠⚠ TROIS TIRETS ACCEPTÉS, ET UN REFUS BRUYANT SI AUCUN NE VIENT.
+    // Ce marqueur s'écrit à la main dans un chapitre. N'accepter que le tiret
+    // cadratin entouré d'espaces, c'était garantir qu'un jour quelqu'un tape un
+    // trait d'union : la capture prise, nommée et déposée au bon endroit serait
+    // restée invisible, et la seule trace aurait été une case redemandant un
+    // fichier déjà livré. Silencieux, donc interdit ici.
+    const SEPARATEURS = [' — ', ' – ', ' - '];
+    const ressembleAUnFichier = (t) => {
+        const b = t.toLowerCase();
+        return (b.endsWith('.png') || b.endsWith('.jpg') || b.endsWith('.jpeg'))
+              && t.indexOf(' ') < 0;
+    };
+    let sep = -1;
+    let taille = 0;
+    for (const marque of SEPARATEURS) {
+        const k = contenu.indexOf(marque);
+        if (k > 0 && (sep < 0 || k < sep)) { sep = k; taille = marque.length; }
+    }
+    if (sep > 0 && ressembleAUnFichier(contenu.slice(0, sep).trim())) {
+        fichier = contenu.slice(0, sep).trim();
+        legende = contenu.slice(sep + taille).trim();
+    } else if (ressembleAUnFichier(contenu.split(' ')[0])) {
+        // La tête EST un nom de fichier, mais aucun séparateur reconnu ne suit :
+        // échouer maintenant vaut mieux qu'imprimer le nom du fichier dans la
+        // légende et attendre que quelqu'un s'en aperçoive sur épreuve.
+        throw new Error("marqueur [CAPTURE: ...] mal formé : « " + contenu.slice(0, 60)
+              + " ». Le nom de fichier doit être suivi d'un tiret ENTOURÉ D'ESPACES"
+              + " (cadratin, demi-cadratin ou trait d'union), puis de la légende.");
     }
 
     if (fichier) {
@@ -147,14 +184,14 @@ function capture(contenu) {
                 throw new Error('captures/' + fichier + " n'est ni un PNG ni un JPEG"
                       + " (lu sur les octets, pas sur l'extension).");
             }
-            return '<figure class="capture-image" data-capture="' + esc(fichier) + '">'
+            return '<figure class="capture-image" data-capture="' + escAttr(fichier) + '">'
                   + '<img src="data:' + type + ';base64,' + octets.toString('base64') + '"'
-                  + ' alt="' + esc(legende) + '">'
+                  + ' alt="' + escAttr(legende) + '">'
                   + '<figcaption>' + inline(legende) + '</figcaption></figure>';
         }
     }
 
-    return '<div class="capture" data-capture="' + esc(fichier || '') + '">'
+    return '<div class="capture" data-capture="' + escAttr(fichier || '') + '">'
           + '<span class="capture-etiq">Capture d' + "'" + 'écran attendue'
           + (fichier ? ' — <code>captures/' + esc(fichier) + '</code>' : '')
           + '</span>' + inline(legende) + '</div>';
@@ -556,6 +593,11 @@ li { margin: .3rem 0; }
      ligne, et un paragraphe français rend 14 lignes avec ET sans césure.
      Chrome livre ses dictionnaires de coupure par le composant updater ;
      celui du français n'est pas là.
+     ⚠️ La contre-épreuve se refait en deux minutes, et HORS du gabarit du
+     livre : une page à part, lang=fr, Cambria 10,5 pt, une colonne FORCÉE à
+     24 mm, le mot « anticonstitutionnellement » seul. Avec la césure active il
+     se coupe sur trois lignes ; ici il déborde sur UNE. Voir
+     scripts/mesurer-justification.js, qui refait aussi le comptage ci-dessous.
      On pose la déclaration quand même : le jour où le dictionnaire arrive,
      le livre s'améliore sans que personne ait à re-décider. */
   .chapitre p, .chapitre li, .page-avertissement p {
@@ -583,20 +625,39 @@ li { margin: .3rem 0; }
      entièrement à la suivante, et la justification étire alors la poignée de
      mots restée derrière jusqu'à la marge. Au fer à gauche le défaut ne se
      voyait pas : une ligne courte restait courte.
-     MESURÉ le 04/09/2026 sur les 1320 lignes justifiables du livre, en
-     comparant l'espace réellement rendu à l'espace naturel (3,09 px) :
-        tout justifié        — 21,1 % des lignes à ≥ 2x, 8,7 % à ≥ 3x
-        avec cette exception —  4,9 % à ≥ 2x, 2,2 % à ≥ 3x
-        témoin au fer à gauche — 3,3 % à ≥ 2x, 2,0 % à ≥ 3x
-     Autrement dit : le texte de prose se justifie proprement, les paragraphes
-     truffés de code ne le peuvent pas, et l'exception les ramène au niveau du
-     témoin. 109 pages et échelle 0,750000 dans les trois cas.
+     MESURÉ sur les 1320 lignes justifiables du livre, en comparant l'espace
+     réellement rendue à l'espace naturelle (3,09 px). ⚠️ CES CHIFFRES SE
+     REFONT — c'est tout leur intérêt :
+        node scripts/build-livre.js && node scripts/mesurer-justification.js
+        état      médiane    ≥ 2x     ≥ 3x
+        tout        1,47x     22,9 %    9,2 %   (l'exception annulée)
+        publié      1,00x      4,8 %    2,1 %   (le livre tel qu'il sort)
+        témoin      1,00x      3,3 %    2,0 %   (tout au fer à gauche)
+     Le témoin n'est pas à zéro et ne peut pas l'être : il mesure le bruit de la
+     méthode. C'est à LUI qu'il faut comparer « publié », pas à 1,00 — et
+     publié est à 1,5 point de lui, quand tout-justifié en est à vingt.
+     Autrement dit : la prose se justifie proprement, les paragraphes truffés
+     de code ne le peuvent pas, et l'exception les ramène au plancher.
+     109 pages et échelle 0,750000 dans les trois cas.
      ⚠️ MESURÉ AUSSI, ET ÇA NE MARCHE PAS : rendre le code coupable partout
      (overflow-wrap: anywhere sur le code en ligne) ne change RIEN — chiffres
      identiques à la virgule près. La coupure ne se déclenche que si le jeton
      ne tient pas SEUL sur une ligne ; ici il tient. Ne pas réessayer. */
-  .chapitre p:has(code), .chapitre li:has(code) {
+  .chapitre p:has(code), .chapitre li:has(code),
+  .page-avertissement p:has(code) {
     text-align: left; }
+
+  /* ⚠⚠ SI :has() N'EXISTE PAS, ON NE JUSTIFIE PLUS RIEN DU TOUT.
+     L'exception ci-dessus est la clef de voûte du compromis : sans elle, la
+     mesure dit 21,1 % des lignes à deux espaces ou plus. Un moteur qui ne
+     connaît pas :has() ignore la règle EN SILENCE et rend exactement le livre
+     troué qu'on vient de mesurer — personne ne le verrait avant la presse.
+     Le repli choisit le fer à gauche : moins beau, jamais abîmé.
+     Chrome connaît :has() depuis la version 105 ; ce bloc sert le jour où
+     quelqu'un imprime ce livre avec autre chose. */
+  @supports not selector(:has(*)) {
+    .chapitre p, .chapitre li, .page-avertissement p { text-align: left; }
+  }
 
   /* Assurance, et rien de plus : un jeton plus large que la colonne ferait
      réduire TOUT le document par Chrome (voir table-layout: fixed plus bas).
@@ -615,9 +676,9 @@ li { margin: .3rem 0; }
      vraies par héritage : c'est voulu, pour qu'un futur « text-align » posé plus
      haut ne les emporte pas en silence. */
   pre, pre.code, code, table, th, td,
-  h1, h2, h3, h4, figcaption,
-  .capture, .capture-etiq, .avert, .avert p,
-  .chapitre blockquote, .chapitre blockquote p {
+  h1, h2, h3, h4, h5, h6, figcaption,
+  .capture, .capture-etiq, .avert, .avert p, .avert li,
+  .chapitre blockquote, .chapitre blockquote p, .chapitre blockquote li {
     text-align: left; hyphens: none; -webkit-hyphens: none; }
 
   h1, h2, h3, h4 { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -681,10 +742,12 @@ li { margin: .3rem 0; }
      comme les 51 tableaux qui le sortaient à 80,7 % (voir table-layout plus
      haut). paginer-livre.js refusera de finir si cela arrive : c'est la
      vérification à relire après avoir ajouté une capture.
-     max-height : la hauteur imprimable vaut 255 mm ; au-delà de 170 mm, la
-     figure et sa légende ne tiennent plus ensemble sur une page et la règle
-     break-inside les repousserait entièrement à la page suivante, en laissant
-     un demi-feuillet blanc. */
+     max-height : la hauteur imprimable vaut 255 mm, donc une figure de 170 mm
+     tient largement — ce n'est pas une limite de débordement. C'est une limite
+     de VOISINAGE : au-delà, la figure et sa légende occupent tant de la page
+     que break-inside: avoid les repousse seules sur la suivante dès qu'un
+     paragraphe les précède, en laissant derrière un demi-feuillet blanc.
+     170 mm laisse un tiers de page au texte qui accompagne l'image. */
   .capture-image { margin: 4.5mm 0; text-align: center; }
   .capture-image img { max-width: 100%; max-height: 170mm; height: auto;
     border: .4pt solid var(--gris); }

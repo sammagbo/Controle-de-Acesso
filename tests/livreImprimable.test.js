@@ -86,7 +86,7 @@ describe('les pages liminaires', () => {
             expect(html).toContain('class="page-colophon"');
       });
 
-      it('l’emplacement de la dédicace est SIGNALÉ, pour que Sam le trouve', () => {
+      it('l’emplacement de la dédicace est SIGNALÉ, pour que Sammy le trouve', () => {
             if (!existe) return;
             expect(html).toMatch(/DÉDICACE — À COMPOSER PAR SAMMY/);
             expect(html).toContain('class="dedicace-texte"');
@@ -184,6 +184,43 @@ describe('la largeur : ce qui empêche le livre de rétrécir', () => {
             if (!existe) return;
             expect(html).toMatch(/pre\.code \{[^}]*white-space: pre-wrap/);
             expect(html).toMatch(/pre\.code \{[^}]*overflow-wrap: anywhere/);
+      });
+
+      it('★★★ la justification, et les trois lignes sans lesquelles elle abîme le livre', () => {
+            if (!existe) return;
+            // ⚠️ CE TEST GARDE UN CHOIX MESURÉ, pas un goût. Pour refaire les
+            // chiffres cités ci-dessous, en une minute :
+            //     node scripts/build-livre.js && node scripts/mesurer-justification.js
+            // ⚠️ On cherche dans la FEUILLE DE STYLE et on asserte un BOOLÉEN,
+            // pour les deux raisons expliquées au test suivant.
+            const css = (html.match(/<style>([^]*?)<[/]style>/) || ['', ''])[1];
+
+            // 1. le texte courant est justifié.
+            expect(css.includes('text-align: justify')).toBe(true);
+
+            // 2. ⚠️ LES 0,1 px. Ils empêchent Chrome de réduire TOUT le livre :
+            //    justifier pose le dernier glyphe exactement sur la marge et
+            //    l'arrondi sous-pixel le fait déborder — échelle 0,749962 au
+            //    lieu de 0,750000, et paginer-livre.js refuse de finir. Qui les
+            //    « nettoie » gardait jusqu'ici une suite verte et ne l'apprenait
+            //    qu'au tirage suivant, s'il le lançait.
+            expect(css.includes('padding-right: 0.1px')).toBe(true);
+
+            // 3. ⚠️ L'EXCEPTION :has(code), la clef de voûte. Sans elle 22,9 %
+            //    des lignes s'ouvrent à deux espaces ou plus, contre 4,8 % avec
+            //    (témoin au fer à gauche : 3,3 %). Les TROIS familles de texte
+            //    courant doivent y figurer — la page d'avertissement comprise :
+            //    ses trois paragraphes citent tous du code, et elle est restée
+            //    justifiée sans exception pendant un commit entier.
+            expect(css.includes('.chapitre p:has(code)')).toBe(true);
+            expect(css.includes('.chapitre li:has(code)')).toBe(true);
+            expect(css.includes('.page-avertissement p:has(code)')).toBe(true);
+
+            // 4. ⚠️ LE REPLI. Un moteur qui ne connaît pas :has() ignorerait
+            //    l'exception EN SILENCE et rendrait le livre troué. Le repli
+            //    renonce à la justification plutôt que de l'appliquer sans son
+            //    exception : moins beau, jamais abîmé.
+            expect(css.includes('@supports not selector(:has(*))')).toBe(true);
       });
 
       it('les encadrés gardent leur couleur à l’impression', () => {

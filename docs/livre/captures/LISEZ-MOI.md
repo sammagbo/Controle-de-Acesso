@@ -20,9 +20,11 @@ renommez-le **aussi** dans le marqueur, sinon la case en pointillés revient.
 
 ## Les règles, avant de déclencher
 
-- **PNG ou JPEG.** Le type est lu sur les octets du fichier, pas sur son
-  extension : un JPEG renommé en `.png` fait échouer la génération avec un
-  message clair, il ne produit pas une image cassée chez l'imprimeur.
+- **PNG ou JPEG.** Le type est lu sur **les octets** du fichier, jamais sur son
+  extension. Un JPEG enregistré sous `.png` est donc correctement incorporé —
+  comme JPEG, et sans rien dire : c'est voulu, l'extension ne décide de rien.
+  En revanche un fichier qui n'est **ni** PNG **ni** JPEG (un `.webp`, un `.bmp`,
+  un PDF renommé) arrête la génération avec un message qui le nomme.
 - **Largeur visée : 1200 à 1600 px.** L'image est ramenée à la colonne de
   164 mm. En dessous de 1000 px le texte de l'écran devient illisible à
   l'impression ; au-delà de 2000 px vous alourdissez le livre pour rien.
@@ -42,10 +44,12 @@ nombre de captures que vous avez ajoutées :
 grep -c 'class="capture-image"' docs/livre/livre-complet.html
 ```
 
-Si `node scripts/paginer-livre.js` s'arrête sur **« LE LIVRE EST RÉDUIT PAR
-CHROME »**, une image dépasse la largeur imprimable : réduisez-la et
-relancez. Ne passez pas outre — Chrome ne rogne pas ce qui dépasse, il réduit
-**tout le livre**, en silence.
+Une capture ne peut pas déborder de la colonne : le style d'impression lui
+impose `max-width: 100%`. Si malgré tout `node scripts/paginer-livre.js`
+s'arrête sur **« LE LIVRE EST RÉDUIT PAR CHROME »**, la cause est **ailleurs**
+(un tableau, un bloc de code, une ligne trop longue) — le script imprime alors
+la liste des éléments qui dépassent. Ne passez jamais outre : Chrome ne rogne
+pas ce qui dépasse, il réduit **tout le livre**, en silence.
 
 ---
 

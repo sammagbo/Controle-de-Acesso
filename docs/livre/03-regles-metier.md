@@ -597,9 +597,31 @@ défaut même que le mécanisme existe pour empêcher.
 régimes soient chargés. Le passer à `DENY` avant transformerait l'école entière en
 rouge — l'erreur déjà documentée pour `meal-pending` (D5/ADR-004).
 
-**[À COMPLÉTER PAR SAMMY]** À quelle condition précise le régime doit-il être activé
-en production (nombre d'élèves saisis ? date ? accord de la Vie Scolaire ?), et qui
-décide de passer `desconhecido` à `DENY` ?
+**Répondu le 04/09/2026 — en deux parties, parce que ce sont deux choses.**
+
+**La condition n'est pas un seuil, c'est un ORDRE**, et il était déjà écrit : ici
+même, au chapitre 1, et dans `docs/frontend-smoke-checklist.md`.
+
+1. appliquer **V014 et V015** (et V017) sur la VM — sans elles l'INSERT échoue
+   **uniquement là-bas**, à l'intérieur de la transaction de la passage ;
+2. accorder `REGIME_WRITE` à qui saisit ;
+3. **charger les régimes** — ils n'existent que sur papier, voir le chapitre 1 ;
+4. et **seulement alors** `magbo.regime.habilitado=true`, qui naît à `false`.
+
+Aucun de ces quatre pas n'est un nombre d'élèves ni une date : c'est une
+séquence, et elle se lit dans cet ordre.
+
+**Le second interrupteur a désormais un propriétaire : la DIRECTION décide, sur
+proposition de la VIE SCOLAIRE.** Faire passer `magbo.regime.desconhecido` de
+`OBSERVATION` à `DENY` n'est pas un réglage technique : c'est décider qu'un élève
+dont le régime n'a pas été saisi se voit refuser la sortie. Celui qui tient les
+carnets propose ; celui qui répond des élèves signe.
+
+⚠️ **Et l'ordre entre les deux ne se négocie pas.** Tant que les régimes ne sont
+pas chargés, `desconhecido` reste `OBSERVATION` — au premier jour, 923 élèves
+sont sans régime, et basculer avant les peindrait tous en rouge. C'est l'erreur
+de `meal-pending` (D5 / ADR-004) refaite à l'identique, sur un objet plus lourd :
+là-bas il s'agissait d'un repas, ici d'une sortie d'école.
 
 ---
 

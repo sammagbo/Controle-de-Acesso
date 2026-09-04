@@ -1074,7 +1074,17 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <p>⚠ <code>magbo.regime.habilitado</code> = <strong><code>false</code></strong>, dans <code>application.properties</code> (ligne 248) <strong>et</strong> dans le champ Java, et <code>MAGBO_REGIME_HABILITADO=false</code> dans <code>deploy/.env.example</code>. Régime désactivé → <code>NON_APPLICABLE</code> pour tout le monde.</p>
 <p>⚠ <strong>Appliquer V015 (et V017) AVANT de l'activer</strong> : sans elles, le CHECK de <code>access_attempts.denial_reason</code> ne connaît pas <code>REGIME_NOT_ALLOWED</code> et l'INSERT échoue <strong>uniquement sur la VM</strong>, à l'intérieur de la transaction de la passage.</p>
 <p>⚠ <code>magbo.regime.desconhecido</code> doit <strong>rester <code>OBSERVATION</code></strong> jusqu'à ce que les régimes soient chargés. Le passer à <code>DENY</code> avant transformerait l'école entière en rouge — l'erreur déjà documentée pour <code>meal-pending</code> (D5/ADR-004).</p>
-<p><strong>[À COMPLÉTER PAR SAMMY]</strong> À quelle condition précise le régime doit-il être activé en production (nombre d'élèves saisis ? date ? accord de la Vie Scolaire ?), et qui décide de passer <code>desconhecido</code> à <code>DENY</code> ?</p>
+<p><strong>Répondu le 04/09/2026 — en deux parties, parce que ce sont deux choses.</strong></p>
+<p><strong>La condition n'est pas un seuil, c'est un ORDRE</strong>, et il était déjà écrit : ici même, au chapitre 1, et dans <code>docs/frontend-smoke-checklist.md</code>.</p>
+<ol>
+<li>appliquer <strong>V014 et V015</strong> (et V017) sur la VM — sans elles l'INSERT échoue <strong>uniquement là-bas</strong>, à l'intérieur de la transaction de la passage ;</li>
+<li>accorder <code>REGIME_WRITE</code> à qui saisit ;</li>
+<li><strong>charger les régimes</strong> — ils n'existent que sur papier, voir le chapitre 1 ;</li>
+<li>et <strong>seulement alors</strong> <code>magbo.regime.habilitado=true</code>, qui naît à <code>false</code>.</li>
+</ol>
+<p>Aucun de ces quatre pas n'est un nombre d'élèves ni une date : c'est une séquence, et elle se lit dans cet ordre.</p>
+<p><strong>Le second interrupteur a désormais un propriétaire : la DIRECTION décide, sur proposition de la VIE SCOLAIRE.</strong> Faire passer <code>magbo.regime.desconhecido</code> de <code>OBSERVATION</code> à <code>DENY</code> n'est pas un réglage technique : c'est décider qu'un élève dont le régime n'a pas été saisi se voit refuser la sortie. Celui qui tient les carnets propose ; celui qui répond des élèves signe.</p>
+<p>⚠ <strong>Et l'ordre entre les deux ne se négocie pas.</strong> Tant que les régimes ne sont pas chargés, <code>desconhecido</code> reste <code>OBSERVATION</code> — au premier jour, 923 élèves sont sans régime, et basculer avant les peindrait tous en rouge. C'est l'erreur de <code>meal-pending</code> (D5 / ADR-004) refaite à l'identique, sur un objet plus lourd : là-bas il s'agissait d'un repas, ici d'une sortie d'école.</p>
 <hr>
 <h2 id="3-10-autorisations-de-sortie-ponctuelles-student-exit-permissions-v004-v012">3.10 Autorisations de sortie ponctuelles — <code>student_exit_permissions</code> (V004, V012)</h2>
 <p><code>services/ExitPermissionService.java</code></p>
@@ -2073,7 +2083,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>7647d05</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>03b75aa</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

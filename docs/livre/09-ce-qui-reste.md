@@ -166,15 +166,20 @@ qu'elle n'est plus lue par la cantine et par qui elle l'est encore.
 | `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` | TOTVS : la traçabilité reste chez le propriétaire de la donnée | **14/08/2026** | 14/08 (`b388275`) |
 | `ADR-005-creneaux-cantine.md` | Le planning de cantine devient une configuration | **26/08/2026** | 25/08 (`7567a75`) |
 
-**Proposition — je ne renumérote pas moi-même :**
+**Tranché le 04/09/2026 : on ne renumérote rien.** La règle est de citer le nom
+de fichier complet, jamais le seul numéro — ce que le chapitre 5 pratiquait déjà.
 
-> **TOTVS garde `ADR-005`** (décision du 14/08, entrée dans le dépôt le
-> 14/08 — c'est elle qui a pris le numéro en premier).
-> **Les créneaux deviennent `ADR-006`** (décision du 26/08).
+⚠️ **La proposition qui figurait ici était périmée, et il faut savoir pourquoi**,
+parce que c'est une leçon sur les propositions écrites et jamais relues. Elle
+suggérait de faire des créneaux l'`ADR-006`. Elle a été écrite le 31/08 à 10h42
+(`0060f0b`) ; l'`ADR-006` — la licence — a été créé **le même jour à 19h58**
+(`473f45c`), puis mis en production le 01/09. L'`ADR-007` a pris le suivant le
+02/09. Neuf heures et seize minutes séparaient une proposition de sa péremption,
+et personne ne l'a relue en huit jours : l'appliquer aurait recréé exactement la
+collision qu'elle réparait.
 
-C'est le sens de lecture d'un journal de décisions : le numéro suit l'ordre
-chronologique, et renuméroter la plus ancienne casserait les références déjà
-écrites ailleurs.
+Le détail du coût — vingt-neuf renvois par nom, six par numéro nu dont un dans
+la base — est au chapitre 3.
 
 **Ce qu'il faut faire :** renommer le fichier des créneaux, corriger son titre
 et son en-tête, et vérifier les renvois — `grep -rn "ADR-005" docs/ .claude/ CLAUDE.md`

@@ -948,10 +948,17 @@ elles deviendraient silencieusement fausses au lieu de simplement ambiguës :
 | `deploy/migrations/V021__meal_slots.sql:11` | les créneaux |
 | `deploy/migrations/V021__meal_slots.sql:144` | les créneaux — ⚠️ dans un `COMMENT ON`, **stocké dans la base de production** : celui-là ne se corrige pas en éditant le dépôt |
 
-**[À COMPLÉTER PAR SAMMY]** Deux choses, et deux seulement : **ratifier** que
-TOTVS garde le 005, et **confirmer `ADR-008`** pour les créneaux — ou décider de
-ne rien renuméroter et de s'en tenir à la parade déjà en vigueur, écrite au
-chapitre 5 : *citer le nom de fichier complet, jamais le seul numéro*.
+**Décision du 04/09/2026 : on ne renumérote pas.** La parade devient la règle —
+*citer le nom de fichier complet, jamais le seul numéro*. Coût nul, risque nul,
+et les six citations du numéro nu dans le code et le SQL restent exactes, y
+compris celle qui vit dans un `COMMENT ON` de la base de production.
+
+⚠️ **Exactes, mais ambiguës — et c'est ce qui reste.** Qui tombe sur « ADR-005 »
+dans `MealSlot.java` ne peut pas savoir lequel des deux est visé sans ouvrir les
+deux fichiers. L'amélioration la moins chère n'est donc pas un renommage : c'est
+d'écrire le nom du fichier **à côté** du numéro, aux six endroits du tableau
+ci-dessus. Un mot par ligne, aucune migration, et le `COMMENT ON` cesse d'être un
+obstacle puisqu'aucun numéro ne change.
 
 ---
 

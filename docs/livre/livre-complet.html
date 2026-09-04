@@ -500,9 +500,9 @@ li { margin: .3rem 0; }
       <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">38</span></a></li>
       <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">44</span></a></li>
       <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">60</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">76</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">83</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">91</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">77</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">84</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">92</span></a></li>
   </ol>
 </section>
 
@@ -1609,9 +1609,15 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 <p><strong>Pour vérifier, à tout moment :</strong></p>
 <pre class="code" data-lang="bash"><code>ssh magbo@192.168.1.253
 crontab -l | grep -i backup           # le cron est-il actif ?
-ls -lht ~/backups/ | head -5          # le plus récent doit dater d'hier 19:00</code></pre>
+ls -lht ~/backups/ | head -5          # le plus récent doit dater d'hier 19:00
+tail -20 ~/backups/backup.log         # ce que la dernière exécution a dit</code></pre>
 <p>Si le dossier est vide : <strong>faites un dump manuel aujourd'hui</strong>, puis corrigez le script (<code>DB_NAME=magbodb</code> et envelopper dans <code>docker exec</code>).</p>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> Le cron de sauvegarde est-il actif sur la VM, sous quel utilisateur, et existe-t-il une copie hors-machine (<code>MAGBO_BACKUP_REMOTE</code>) ? La règle 3-2-1 est écrite dans l'en-tête du script, mais la destination distante n'est nulle part dans le dépôt.</p>
+<p><strong>Vérifié en production le 31/08/2026 :</strong> le cron tourne — y compris le samedi et le dimanche —, chaque fichier pèse environ 109 Mo, ce sont des dumps PostgreSQL 16.14 valides (l'en-tête <code>PostgreSQL database dump</code> a été lu), et la rétention appliquée est bien de quatorze jours.</p>
+<p>⚠ <strong>La règle 3-2-1 est écrite dans l'en-tête du script, et elle n'est pas appliquée.</strong> Ce n'est pas une question ouverte : la copie hors machine n'existe pas, c'est dit en rouge quelques lignes plus haut, et le dépôt ne porte aucune valeur pour <code>MAGBO_BACKUP_REMOTE</code>. Une intention dans un en-tête n'est pas un état.</p>
+<p><code>[À VÉRIFIER]</code> <strong>Sous quel compte</strong> ce cron s'exécute n'est pas établi — c'est la seule chose que cette section ne sache pas dire. Deux lignes la tranchent :</p>
+<pre class="code" data-lang="bash"><code>ssh magbo@192.168.1.253 'crontab -l | grep -i backup'        # le cron de magbo
+ssh magbo@192.168.1.253 'sudo crontab -l | grep -i backup'   # celui de root</code></pre>
+<p>⚠ Ce n'est pas une curiosité d'inventaire. Si les sauvegardes tiennent au crontab de <code>magbo</code>, elles s'arrêtent le jour où ce compte change de shell, expire ou est désactivé — sans erreur, sans alerte, et personne ne s'en apercevrait avant d'en avoir besoin. C'est exactement la forme de panne contre laquelle ce chapitre existe.</p>
 <h3 id="5-2-retour-arriere-quatre-niveaux-du-plus-leger-au-plus-lourd">5.2 Retour arrière — quatre niveaux, du plus léger au plus lourd</h3>
 <ol>
 <li><strong>Comportement</strong> : éteindre la fonctionnalité par configuration (par ex. <code>MAGBO_REGIME_HABILITADO=false</code>) et recréer le conteneur. Les tables restent inertes, rien n'est effacé. <strong>Première option, toujours.</strong></li>
@@ -2024,7 +2030,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>e3e53e5</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>aef3695</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

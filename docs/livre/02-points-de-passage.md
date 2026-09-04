@@ -292,9 +292,28 @@ point est toujours vide. Cela ne change aucun comportement — mais cela oriente
 vers le mauvais raccommodage : ce n'est pas la saisie qui est imparfaite, c'est
 le point qui n'existe que sur le papier.
 
-`[À COMPLÉTER PAR SAMMY]` Faut-il équiper l'infirmerie, ou assumer qu'elle reste
-hors du système ? Les deux réponses sont défendables — mais la seconde doit être
-écrite, et l'écran PPMS doit alors le dire à qui le lit pendant une évacuation.
+**Décision du 04/09/2026 : l'infirmerie sera équipée.** Sammy tranche pour le
+terminal ; la seconde branche — assumer qu'elle reste dehors — est écartée.
+
+**Ce qui existe déjà côté logiciel, et ce n'est pas rien.** Le point `ENFERM`,
+ses deux correspondances entrée/sortie semées par `DoorMappingBootstrap`,
+l'écran du rapport infirmerie, le comptage des visites longues, et le mécanisme
+de fermeture automatique — qui a simplement une heure pour `BIBLIO` (17:00) et
+`REFEI1` (15:00), et aucune pour ce point.
+**Il manque l'appareil, et une ligne `door_mappings` portant son IP réelle.**
+
+⚠️ **Décider n'est pas fermer.** Tant que le terminal n'est pas posé, tout ce qui
+est écrit plus haut reste vrai, mot pour mot : le PPMS ne peut pas savoir qu'un
+enfant est à l'infirmerie. Une décision prise et non exécutée protège exactement
+autant qu'une décision non prise — c'est le même piège que le coffre du
+chapitre 6, qui ne protège personne tant que rien n'y est déposé.
+
+⚠️ **Et le jour où l'appareil sera posé, le commentaire de `PpmsService`
+(l. 74-79) devra être relu.** Il décrit l'infirmerie comme « un point dont
+l'enregistrement est manuel et dont la sortie n'est presque jamais lancée ». Cela
+ne décrit ni l'état d'aujourd'hui — rien n'y est enregistré — ni celui de demain,
+où un terminal enregistrera les deux sens. Il décrit un troisième état, qui n'a
+jamais existé.
 
 ---
 

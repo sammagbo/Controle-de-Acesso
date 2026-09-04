@@ -360,12 +360,15 @@ explique pourquoi mieux que n'importe quel résumé.
    `192.168.1.253` (`docs/operacional/guide-installation-postes.md`, §Avant de
    commencer) et l'ancien banc d'essai était en `172.20.40.x`, mais **le préfixe
    réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.**
-3. La caméra `.166` (SORTIE) est en **panne physique connue** depuis au moins le
-   27/08 — c'est écrit noir sur blanc dans
-   `docs/operacional/diagnostic-portaria-2026-08-27.md`, §1 et §3. Toute lecture
-   des chiffres du portail doit **isoler ce point**, sinon la panne masque tout
-   le reste : une chute qui ne touche que les `SAIDA`, c'est elle, et rien
-   d'autre à chercher.
+3. La caméra `.166` (SORTIE) **fonctionne** — réparée ou remplacée, confirmé par
+   Sammy le 04/09/2026. Elle a bien été en panne physique, et c'est écrit noir
+   sur blanc dans `docs/operacional/diagnostic-portaria-2026-08-27.md`, §1 et §3.
+   ⚠️ La mise en garde reste donc entière **pour les chiffres antérieurs** :
+   toute lecture du portail qui traverse cette période doit **isoler ce point**,
+   sinon la panne masque tout le reste — une chute qui ne touche que les `SAIDA`,
+   c'est elle, et rien d'autre à chercher.
+   ⚠️ **La date de la remise en service n'est consignée nulle part.** La dernière
+   trace écrite de la panne est le diagnostic du 27/08.
 
 `[A VERIFIER]` L'inventaire réel des points actifs, avec le sens de chaque
 appareil, se lit en une requête sur la VM :

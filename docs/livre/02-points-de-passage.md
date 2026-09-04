@@ -88,6 +88,11 @@ HikCentral sont dans :
 > ENTRÉES et zéro SORTIE par jour. **Ces 950 n'étaient pas 950 personnes** —
 > c'était la même population recomptée à chaque retour, faute de lecture de
 > sortie. Le seul nombre comparable est celui des personnes **distinctes**.
+>
+> ⚠️ **« jusqu'au 24/08 » date les CHIFFRES, pas la réparation.** Le diagnostic
+> du 27/08 décrit encore la caméra comme physiquement en panne, et la date de la
+> remise en service n'est consignée nulle part. Elle fonctionne aujourd'hui
+> (Sammy, 04/09/2026) : ne pas lire cette note comme « réparée le 24 ».
 
 ### 2.3 Comment le MAGBO met un nom sur un visage
 

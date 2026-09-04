@@ -495,14 +495,14 @@ li { margin: .3rem 0; }
   <h2 class="lim-titre">Table des matières</h2>
   <ol class="somm">
       <li><a href="#chapitre-1-vue-d-ensemble"><span class="somm-titre">Chapitre 1 — Vue d'ensemble</span><span class="somm-points"></span><span class="somm-page">1</span></a></li>
-      <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">13</span></a></li>
-      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">21</span></a></li>
-      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">39</span></a></li>
-      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">45</span></a></li>
-      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">61</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">78</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">85</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">93</span></a></li>
+      <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">14</span></a></li>
+      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">22</span></a></li>
+      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">40</span></a></li>
+      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">46</span></a></li>
+      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">62</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">79</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">86</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">94</span></a></li>
   </ol>
 </section>
 
@@ -687,7 +687,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <ol>
 <li>Sammy annonce « six terminaux » et énumère <strong>huit</strong> adresses. La lecture la plus probable est six terminaux MinMoe (CDI + cantine) <strong>plus</strong> deux caméras au portail, mais je ne l'ai pas vérifiée.</li>
 <li>Les adresses sont données en dernier octet seul, et le préfixe n'est établi que pour deux d'entre elles. Les caméras du portail portent leur adresse complète dans le code — <code>192.168.1.167</code> et <code>192.168.1.166</code> (<code>DoorMappingBootstrap:44-46</code>). Pour les six autres, rien : le serveur est en <code>192.168.1.253</code> (<code>docs/operacional/guide-installation-postes.md</code>, §Avant de commencer) et l'ancien banc d'essai était en <code>172.20.40.x</code>, mais <strong>le préfixe réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.</strong></li>
-<li>La caméra <code>.166</code> (SORTIE) est en <strong>panne physique connue</strong> depuis au moins le 27/08 — c'est écrit noir sur blanc dans <code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>, §1 et §3. Toute lecture des chiffres du portail doit <strong>isoler ce point</strong>, sinon la panne masque tout le reste : une chute qui ne touche que les <code>SAIDA</code>, c'est elle, et rien d'autre à chercher.</li>
+<li>La caméra <code>.166</code> (SORTIE) <strong>fonctionne</strong> — réparée ou remplacée, confirmé par Sammy le 04/09/2026. Elle a bien été en panne physique, et c'est écrit noir sur blanc dans <code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>, §1 et §3. ⚠ La mise en garde reste donc entière <strong>pour les chiffres antérieurs</strong> : toute lecture du portail qui traverse cette période doit <strong>isoler ce point</strong>, sinon la panne masque tout le reste — une chute qui ne touche que les <code>SAIDA</code>, c'est elle, et rien d'autre à chercher. ⚠ <strong>La date de la remise en service n'est consignée nulle part.</strong> La dernière trace écrite de la panne est le diagnostic du 27/08.</li>
 </ol>
 <p><code>[A VERIFIER]</code> L'inventaire réel des points actifs, avec le sens de chaque appareil, se lit en une requête sur la VM :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
@@ -783,7 +783,8 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <li><code>docs/operacional/handoff.md</code> — en tête, c'est le document à ouvrir en premier</li>
 <li><code>docs/operacional/diagnostic-portaria-2026-08-27.md</code> — le détail de ce qui a été écarté et de ce qui reste à mesurer</li>
 </ul>
-<blockquote><p>⚠ <strong>Avant de comparer avec « avant », lisez la note historique.</strong> La caméra <code>.166</code> (SORTIE) était en panne jusqu'au 24/08 : le portail produisait ~950 ENTRÉES et zéro SORTIE par jour. <strong>Ces 950 n'étaient pas 950 personnes</strong> — c'était la même population recomptée à chaque retour, faute de lecture de sortie. Le seul nombre comparable est celui des personnes <strong>distinctes</strong>.</p></blockquote>
+<blockquote><p>⚠ <strong>Avant de comparer avec « avant », lisez la note historique.</strong> La caméra <code>.166</code> (SORTIE) était en panne jusqu'au 24/08 : le portail produisait ~950 ENTRÉES et zéro SORTIE par jour. <strong>Ces 950 n'étaient pas 950 personnes</strong> — c'était la même population recomptée à chaque retour, faute de lecture de sortie. Le seul nombre comparable est celui des personnes <strong>distinctes</strong>.</p>
+<p>⚠ <strong>« jusqu'au 24/08 » date les CHIFFRES, pas la réparation.</strong> Le diagnostic du 27/08 décrit encore la caméra comme physiquement en panne, et la date de la remise en service n'est consignée nulle part. Elle fonctionne aujourd'hui (Sammy, 04/09/2026) : ne pas lire cette note comme « réparée le 24 ».</p></blockquote>
 <h3 id="2-3-comment-le-magbo-met-un-nom-sur-un-visage">2.3 Comment le MAGBO met un nom sur un visage</h3>
 <p><code>CameraIdentityService</code> essaie quatre choses, <strong>dans cet ordre</strong>, et l'ordre est la décision :</p>
 <ol>
@@ -1714,7 +1715,8 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   "SELECT terminal_ip, door_no, reader_no, point_id, action, label
      FROM door_mappings WHERE ativo ORDER BY terminal_ip NULLS LAST, point_id;"</code></pre>
 <p>Les IP de cantine <code>.10</code> / <code>.12</code> (ENTRADA) et <code>.13</code> / <code>.14</code> (SORTIE) sont cohérentes avec le relevé de production du 24/08 cité dans <code>services/MultipartTolerante.java</code>.</p>
-<p><code>[À COMPLÉTER PAR SAMMY]</code> La caméra <code>.166</code> (SORTIE du portail) était donnée <strong>en panne physique</strong> au 27/08 (<code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>). A-t-elle été remplacée ? Tant qu'elle est morte, toute analyse des sorties du portail est faussée, et il vaut mieux la retirer des <code>door_mappings</code> pour que son absence soit explicite plutôt qu'un trou.</p>
+<p><strong>Répondu par Sammy le 04/09/2026 : la caméra <code>.166</code> (SORTIE du portail) fonctionne</strong>, réparée ou remplacée. Il n'y a donc rien à retirer des <code>door_mappings</code>, et l'analyse des sorties du portail redevient lisible.</p>
+<p>⚠ <strong>Pour les chiffres d'AVANT, la mise en garde reste entière.</strong> La dernière trace écrite de la panne est le diagnostic du 27/08 (<code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>), et la date de la remise en service n'est consignée nulle part. Pendant la panne, le portail enregistrait des entrées et <strong>zéro sortie</strong> : toute comparaison qui traverse cette période doit isoler le point, sinon elle attribue à autre chose ce que la caméra morte explique à elle seule.</p>
 <hr>
 <h3 id="ou-aller-ensuite">Où aller ensuite</h3>
 <table><thead><tr><th>Besoin</th><th>Document</th></tr></thead><tbody><tr><td>Reconstruire de zéro, restaurer une sauvegarde</td><td><code>docs/operacional/reconstruir-do-zero.md</code></td></tr><tr><td>Mettre à jour une VM qui sert l'école</td><td><code>docs/operacional/mise-a-jour-vm.md</code></td></tr><tr><td>Installer l'app sur un poste (imprimable, FR)</td><td><code>docs/operacional/guide-installation-postes.md</code></td></tr><tr><td>Publier une release du portable</td><td><code>docs/operacional/release-portable.md</code></td></tr><tr><td>Migrations : la liste et le pourquoi de chacune</td><td><code>deploy/migrations/README.md</code></td></tr><tr><td>Smoke après déploiement (avec des clics)</td><td><code>docs/frontend-smoke-checklist.md</code></td></tr><tr><td>Ce que l'opérateur voit, écran par écran</td><td><code>docs/manual-utilisateur.md</code></td></tr><tr><td>Terminaux, caméras, bibliothèques faciales</td><td><code>docs/operacional/procedimento-hikcentral.md</code>, <code>.claude/rules/hikvision.md</code></td></tr></tbody></table>
@@ -2050,7 +2052,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>00ee251</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>edcf9b3</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

@@ -497,12 +497,12 @@ li { margin: .3rem 0; }
       <li><a href="#chapitre-1-vue-d-ensemble"><span class="somm-titre">Chapitre 1 — Vue d'ensemble</span><span class="somm-points"></span><span class="somm-page">1</span></a></li>
       <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">14</span></a></li>
       <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">22</span></a></li>
-      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">41</span></a></li>
-      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">47</span></a></li>
-      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">64</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">81</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">88</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">96</span></a></li>
+      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">42</span></a></li>
+      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">48</span></a></li>
+      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">65</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">82</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">89</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">97</span></a></li>
   </ol>
 </section>
 
@@ -1097,7 +1097,12 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <li>Écran : <em>Sorties</em>, permission <code>EXIT_PERMISSION_WRITE</code>. « Autorisé par » vient du <strong>cadastre</strong> (<code>responsavel_id</code>), pas d'un champ libre : le champ est une preuve.</li>
 </ul>
 <p>⚠ <strong>La règle de sortie est DÉSACTIVÉE sur les caméras du portail</strong>, et c'est délibéré. Le champ <code>Passagem#aplicarPermissaoDeSaida</code> vaut <code>true</code> pour les terminaux et <strong><code>false</code></strong> pour les caméras : <code>evaluate()</code> refuse <strong>toute</strong> personne sans permission active et ne regarde pas le type d'utilisateur, donc l'activer ferait de <strong>chaque sortie d'agent à 17h</strong> un <code>EXIT_NOT_AUTHORIZED</code> — des centaines par jour, sans que personne l'ait décidé.</p>
-<p><strong>[À COMPLÉTER PAR SAMMY]</strong> Faut-il brancher l'évaluation de sortie sur les caméras du portail, et faut-il d'abord restreindre la règle aux <code>ALUNO</code> (l'entité s'appelle <code>StudentExitPermission</code>) ? Le javadoc renvoie explicitement la décision à Sammy.</p>
+<p><strong>Trois précisions avant la question, parce que le marqueur en portait trop.</strong></p>
+<p><strong>1. L'évaluation EST déjà branchée sur les caméras.</strong> Le bloc tourne sur les <code>SAIDA</code> du portail « pour les DEUX branches — terminal et caméra », et il appelle déjà <code>exitPermissionService.evaluate()</code>. Ce qui n'est pas branché, c'est le <strong>refus</strong>, pas le regard. La question n'a jamais été de câbler quelque chose : elle est de décider ce qu'on fait de ce qu'on voit déjà.</p>
+<p><strong>2. La restriction aux <code>ALUNO</code> existe — du côté de l'ÉCRITURE, et à deux serrures.</strong> Seul un élève peut recevoir une permission : <code>StudentSearchService</code> filtre sur <code>UserType.ALUNO</code>, et <code>apenasAlunos()</code> est explicitement « la seconde serrure » côté écran.</p>
+<p><strong>3. ⚠ Mais du côté de l'ÉVALUATION, les deux garde-fous manquent.</strong> <code>ExitPermissionService</code> ne filtre <strong>pas</strong> le type — zéro occurrence de <code>UserType</code> dans le fichier — et n'a <strong>pas</strong> de fin de journée. Le <code>RegimeSortieService</code>, juste à côté, a les deux : « pas un ALUNO → <code>NON_APPLICABLE</code> » et un palier de fin de journée. Le patron est écrit, testé et en production ; il n'a simplement pas été appliqué ici.</p>
+<p>⚠ <strong>C'est ce qui rend l'ordre non négociable.</strong> Sans ces deux paliers, allumer le refus produirait des centaines de lignes par jour contre des agents qui sortent à l'heure normale — ordre de grandeur : ~950 passages quotidiens au portail. Et l'état actuel n'est pas qu'un commentaire : il est <strong>gelé par un test</strong>, <code>PortariaCameraIT#sentidoVemDoIp</code>, qui fait sortir un FUNCIONARIO sans permission devant la caméra et exige un <code>access_log</code>. Ce test devra changer le jour où la politique changera — c'est lui qui rendra le changement visible.</p>
+<p><code>[À COMPLÉTER PAR LA DIRECTION]</code> <strong>Faut-il passer de l'observation au refus au portail ?</strong> Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Refuser la sortie d'un élève est un acte scolaire, pas un réglage — comme le passage de <code>magbo.regime.desconhecido</code> à <code>DENY</code> (§ 3.9), la direction décide, sur proposition de la Vie Scolaire. Les deux paliers du point 3 sont une <strong>pré-condition technique</strong>, pas une réponse : ils rendent le refus possible sans le rendre souhaitable.</p>
 <hr>
 <h2 id="3-11-ppms-qui-est-encore-a-l-interieur">3.11 PPMS — qui est encore à l'intérieur</h2>
 <p><code>services/PpmsService.java</code> · <code>GET /api/ppms/inside</code> · permission <strong><code>PPMS_READ</code></strong></p>
@@ -2083,7 +2088,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>03b75aa</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>04eb5b7</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

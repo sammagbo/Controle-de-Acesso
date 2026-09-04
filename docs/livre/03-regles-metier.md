@@ -651,9 +651,41 @@ permission active et ne regarde pas le type d'utilisateur, donc l'activer ferait
 **chaque sortie d'agent à 17h** un `EXIT_NOT_AUTHORIZED` — des centaines par jour,
 sans que personne l'ait décidé.
 
-**[À COMPLÉTER PAR SAMMY]** Faut-il brancher l'évaluation de sortie sur les caméras du
-portail, et faut-il d'abord restreindre la règle aux `ALUNO` (l'entité s'appelle
-`StudentExitPermission`) ? Le javadoc renvoie explicitement la décision à Sammy.
+**Trois précisions avant la question, parce que le marqueur en portait trop.**
+
+**1. L'évaluation EST déjà branchée sur les caméras.** Le bloc tourne sur les
+`SAIDA` du portail « pour les DEUX branches — terminal et caméra », et il appelle
+déjà `exitPermissionService.evaluate()`. Ce qui n'est pas branché, c'est le
+**refus**, pas le regard. La question n'a jamais été de câbler quelque chose :
+elle est de décider ce qu'on fait de ce qu'on voit déjà.
+
+**2. La restriction aux `ALUNO` existe — du côté de l'ÉCRITURE, et à deux
+serrures.** Seul un élève peut recevoir une permission : `StudentSearchService`
+filtre sur `UserType.ALUNO`, et `apenasAlunos()` est explicitement « la seconde
+serrure » côté écran.
+
+**3. ⚠️ Mais du côté de l'ÉVALUATION, les deux garde-fous manquent.**
+`ExitPermissionService` ne filtre **pas** le type — zéro occurrence de
+`UserType` dans le fichier — et n'a **pas** de fin de journée. Le
+`RegimeSortieService`, juste à côté, a les deux : « pas un ALUNO →
+`NON_APPLICABLE` » et un palier de fin de journée. Le patron est écrit, testé et
+en production ; il n'a simplement pas été appliqué ici.
+
+⚠️ **C'est ce qui rend l'ordre non négociable.** Sans ces deux paliers, allumer
+le refus produirait des centaines de lignes par jour contre des agents qui
+sortent à l'heure normale — ordre de grandeur : ~950 passages quotidiens au
+portail. Et l'état actuel n'est pas qu'un commentaire : il est **gelé par un
+test**, `PortariaCameraIT#sentidoVemDoIp`, qui fait sortir un FUNCIONARIO sans
+permission devant la caméra et exige un `access_log`. Ce test devra changer le
+jour où la politique changera — c'est lui qui rendra le changement visible.
+
+`[À COMPLÉTER PAR LA DIRECTION]` **Faut-il passer de l'observation au refus au
+portail ?** Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Refuser
+la sortie d'un élève est un acte scolaire, pas un réglage — comme le passage de
+`magbo.regime.desconhecido` à `DENY` (§ 3.9), la direction décide, sur
+proposition de la Vie Scolaire. Les deux paliers du point 3 sont une
+**pré-condition technique**, pas une réponse : ils rendent le refus possible
+sans le rendre souhaitable.
 
 ---
 

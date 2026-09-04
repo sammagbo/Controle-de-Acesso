@@ -121,7 +121,7 @@ production**.
 | `missing-door-mapping` | `FALLBACK` | `FALLBACK` |
 
 ⚠️ **`meal-pending=DENY` en production a un prérequis opérationnel** (décision D5
-de Sam, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée
+de Sammy, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée
 **en masse avant le jour 1**. Sans cet import, tout élève est `PENDING`, donc
 refusé, et **aucun repas n'est enregistré**. C'est écrit dans le fichier de
 properties lui-même (lignes 60-63).
@@ -229,7 +229,7 @@ cantine — mais **la passage reste enregistrée**. ⚠️ La conséquence PPMS 
 
 ### 🔴 N'activez PAS la dispense en l'état — la raison est le PPMS
 
-*(Question posée à Sam le 31/08/2026. Réponse : **la conséquence PPMS n'avait pas
+*(Question posée à Sammy le 31/08/2026. Réponse : **la conséquence PPMS n'avait pas
 été mesurée.**)*
 
 Le code permet la dispense ; la décision n'a jamais été prise, et **elle n'était
@@ -597,7 +597,7 @@ défaut même que le mécanisme existe pour empêcher.
 régimes soient chargés. Le passer à `DENY` avant transformerait l'école entière en
 rouge — l'erreur déjà documentée pour `meal-pending` (D5/ADR-004).
 
-**[À COMPLÉTER PAR SAM]** À quelle condition précise le régime doit-il être activé
+**[À COMPLÉTER PAR SAMMY]** À quelle condition précise le régime doit-il être activé
 en production (nombre d'élèves saisis ? date ? accord de la Vie Scolaire ?), et qui
 décide de passer `desconhecido` à `DENY` ?
 
@@ -629,9 +629,9 @@ permission active et ne regarde pas le type d'utilisateur, donc l'activer ferait
 **chaque sortie d'agent à 17h** un `EXIT_NOT_AUTHORIZED` — des centaines par jour,
 sans que personne l'ait décidé.
 
-**[À COMPLÉTER PAR SAM]** Faut-il brancher l'évaluation de sortie sur les caméras du
+**[À COMPLÉTER PAR SAMMY]** Faut-il brancher l'évaluation de sortie sur les caméras du
 portail, et faut-il d'abord restreindre la règle aux `ALUNO` (l'entité s'appelle
-`StudentExitPermission`) ? Le javadoc renvoie explicitement la décision à Sam.
+`StudentExitPermission`) ? Le javadoc renvoie explicitement la décision à Sammy.
 
 ---
 
@@ -654,7 +654,7 @@ Résumé (le détail est dans le chapitre des écrans et dans
   fermeture automatique** (l'infirmerie, dont la sortie est manuelle).
 - ⚠️ **Ne remplace pas l'appel.** L'écran le dit au-dessus du nombre. Cache
   hors-ligne en `localStorage`, avec l'heure du cliché en évidence.
-- Pas d'export CSV de masse : décision de Sam — la loi demande du papier pour la
+- Pas d'export CSV de masse : décision de Sammy — la loi demande du papier pour la
   cellule de crise, et un CSV avec le nom de tous les enfants vit pour toujours sur
   le portable de quelqu'un.
 
@@ -682,7 +682,7 @@ Configuration en production (`application-prod.properties`, lignes 120-127) :
 
 ### ✅ L'heure de 15:00 est confirmée — mais la sortie reste synthétique
 
-*(Répondu par Sam le 31/08/2026.)*
+*(Répondu par Sammy le 31/08/2026.)*
 
 Le fichier porte la mention « ⚠️ CONFÉRER L'HEURE AVEC LA CANTINE avant le
 jour 1 ». **La confirmation a été faite : 15:00 correspond au service réel.**
@@ -768,7 +768,7 @@ Trois principes lisibles dans les javadocs :
 
 1. **Une permission, pas une aire**, quand la donnée traverse l'école (`PPMS_READ`,
    `PARCOURS_READ`) ou nomme un enfant sous sanction (`CDI_EXCLUSION_WRITE`).
-   « Restreindre, pas fermer » — décision de Sam, 14/08/2026.
+   « Restreindre, pas fermer » — décision de Sammy, 14/08/2026.
 2. **Lire ≠ écrire**, sauf pour `CONFIG_WRITE` et `CDI_EXCLUSION_WRITE`, où la
    lecture est déjà du matériel d'administration ou une donnée sensible.
 3. Sans permission granulaire, les champs sont **désactivés, pas cachés** : la
@@ -783,7 +783,7 @@ qui n'existe pas encore.
 ## 3.15 Vérifications à faire sur la VM
 
 Rien de ce qui suit n'est vérifiable depuis le dépôt. Les états de production
-ci-dessous ont été **affirmés par Sam le 28/08/2026**.
+ci-dessous ont été **affirmés par Sammy le 28/08/2026**.
 
 **[À VÉRIFIER]** Les migrations **V001 → V027** sont appliquées (état au
 03/09/2026). Les tables créées par les six dernières :
@@ -843,7 +843,7 @@ grep MAGBO_REGIME_HABILITADO deploy/.env      # sur la VM, .env n'est pas versio
 docker exec magbo-backend env | grep MAGBO_REGIME
 ```
 
-**[À VÉRIFIER]** Les six terminaux en service (affirmé par Sam le 28/08 : portail
+**[À VÉRIFIER]** Les six terminaux en service (affirmé par Sammy le 28/08 : portail
 .166 SORTIE et .167 ENTRÉE, CDI .15 et .16, cantine .10/.12/.13/.14) correspondent
 bien aux `door_mappings` — ⚠️ les IP bougent en DHCP et la panne est **silencieuse** :
 
@@ -866,7 +866,7 @@ Les deux sont des décisions réelles et acceptées ; c'est la **numérotation**
 en double. Renuméroter casserait les liens existants dans le code et la
 documentation, donc le fait est **signalé, pas corrigé**.
 
-**[À COMPLÉTER PAR SAM]** Lequel des deux garde le numéro 005, et le second devient
+**[À COMPLÉTER PAR SAMMY]** Lequel des deux garde le numéro 005, et le second devient
 lequel ? (Une redirection depuis l'ancien nom serait préférable à un renommage sec.)
 
 ---

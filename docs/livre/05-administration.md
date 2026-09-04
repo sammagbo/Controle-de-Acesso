@@ -69,11 +69,11 @@ n'est pas vérifiable depuis le dépôt (voir la fin de cette section).
 | `EXIT_PERMISSION_WRITE` | Créer et révoquer une autorisation de sortie **ponctuelle** | `ExitPermissionController:75, 91` | Vie Scolaire uniquement — c'est elle qui reçoit le mot des familles |
 | `ATTEMPTS_READ` | Consulter les tentatives refusées et leurs agrégats (`/api/access/attempts`, `/stats`) | `AccessAttemptController:29, 44` | Vie Scolaire, direction, et l'opérateur qui doit comprendre un refus au moment où il arrive |
 | `REGIME_WRITE` | Écrire le **régime de sortie annuel** d'un élève (V014) | `StudentRegimeController:130-170` | Vie Scolaire **et elle seule** : c'est elle qui tient le carnet signé par la famille. Le javadoc de `Permissions.java:13-22` le dit explicitement — l'ADMIN n'est pas le bon profil |
-| `PPMS_READ` | Lire la liste **nominative** de qui est à l'intérieur (évacuation) | `PpmsController:51` | Vie Scolaire, direction, infirmerie. Décision de Sam du 14/08 : **restreindre, pas fermer** — un nom est ce qui permet de retrouver un enfant |
+| `PPMS_READ` | Lire la liste **nominative** de qui est à l'intérieur (évacuation) | `PpmsController:51` | Vie Scolaire, direction, infirmerie. Décision de Sammy du 14/08 : **restreindre, pas fermer** — un nom est ce qui permet de retrouver un enfant |
 | `CANTINE_REMOVAL_WRITE` | Retirer une ligne du Moniteur Cantine (et la remettre) | `CantineRemovalController:62, 77` | L'opérateur de la cantine. ⚠️ voir l'avertissement ci-dessous |
 | `MEAL_SLOT_WRITE` | Modifier le planning cantine : créneaux, classes, exceptions par élève | `MealSlotController` (`ESCRITA`, l. 47) | Vie Scolaire — c'est elle qui tient l'affiche au mur |
 | `PARCOURS_READ` | Le parcours du jour d'une personne, tous points confondus | `ParcoursController` (`GATE`, l. 50) | Vie Scolaire et direction. Traverse toute l'école : plus que ce qu'aucun secteur ne donne |
-| `CONFIG_WRITE` | **Lire et écrire** les réglages du système ; capacité et état du CDI ; classes dispensées de badge | `SettingsController` (`GATE`, l. 36), `CdiController:173`, `MealSlotController:172` | Sam, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système |
+| `CONFIG_WRITE` | **Lire et écrire** les réglages du système ; capacité et état du CDI ; classes dispensées de badge | `SettingsController` (`GATE`, l. 36), `CdiController:173`, `MealSlotController:172` | Sammy, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système |
 | `CDI_EXCLUSION_WRITE` | **Lire et gérer** les exclusions du CDI (qui, pourquoi, jusqu'à quand, qui a décidé) | `CdiController` (`GATE_EXCLUSOES`, l. 51-52) | Vie Scolaire et responsable du CDI. Une exclusion nomme un enfant et raconte une sanction |
 
 Quelques règles qui ne se devinent pas :
@@ -119,11 +119,11 @@ Le nom d'une permission existe à **trois** endroits qui doivent bouger ensemble
 
 ### 5.2.4 Ce que le dépôt ne peut pas dire
 
-`[A COMPLETER PAR SAM]` Quels comptes opérateurs existent réellement sur la VM de production,
+`[A COMPLETER PAR SAMMY]` Quels comptes opérateurs existent réellement sur la VM de production,
 avec quel rôle, quels secteurs et quelles permissions ? En particulier : **qui détient
 `CONFIG_WRITE`** aujourd'hui, et **qui détient `REGIME_WRITE`** à la Vie Scolaire ?
 
-`[A COMPLETER PAR SAM]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
+`[A COMPLETER PAR SAMMY]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
 sur la VM (les défauts `admin1234` / `1234` doivent avoir été changés — voir
 `.claude/rules/deploy-seguranca.md`). Où sont-ils consignés ?
 
@@ -243,7 +243,7 @@ Le cycle complet — MAGBO génère le CSV → l'informatique l'importe → *App
 > └──────────────────────────────────────────────────────────────────────────┘
 > ```
 
-**Origine de cette consigne : Sam, le 28/08/2026.** Elle n'est **pas** vérifiable dans le dépôt —
+**Origine de cette consigne : Sammy, le 28/08/2026.** Elle n'est **pas** vérifiable dans le dépôt —
 aucun fichier du projet ne mentionne cette case, qui appartient à l'interface du HikCentral et non
 à MAGBO.
 
@@ -252,7 +252,7 @@ localiser la case exacte ainsi que l'écran où elle apparaît (export des rense
 photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la
 recopier ici.
 
-`[A COMPLETER PAR SAM]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
+`[A COMPLETER PAR SAMMY]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
 Device*), ou uniquement pour les deux exports ?
 
 ### 5.3.6 Import du personnel
@@ -596,7 +596,7 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 `student_exit_permissions`, `user_photos`, `student_regimes`, `cantine_removals`, `meal_slots`,
 `system_settings`, `cdi_exclusions`, `cdi_alert_events`.)
 
-`[A VERIFIER — état affirmé par Sam le 28/08/2026]` Six terminaux en service : portail `.166`
+`[A VERIFIER — état affirmé par Sammy le 28/08/2026]` Six terminaux en service : portail `.166`
 (SORTIE) et `.167` (ENTRÉE), CDI `.15` et `.16`, cantine `.10`, `.12`, `.13`, `.14` — soit **huit**
 adresses pour six terminaux ; l'écart n'est pas expliqué par le dépôt. À confirmer par :
 
@@ -611,7 +611,7 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 > Avant toute séance matériel : IP du serveur, IP au écran du terminal, URL de l'Écoute HTTP,
 > `door_mappings` (`.claude/rules/hikvision.md`).
 
-`[A COMPLETER PAR SAM]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
+`[A COMPLETER PAR SAMMY]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
 exécutées ? Si oui, quelles adresses sont fixes (terminaux + VM) ? *(pendência 6 de
 `docs/operacional/procedimento-hikcentral.md`)*
 

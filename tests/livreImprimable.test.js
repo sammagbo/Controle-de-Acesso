@@ -75,7 +75,7 @@ describe('les pages liminaires', () => {
             expect(html).toMatch(/class="couv-titre">MAGBO<br>Access&nbsp;Control/);
             expect(html).toContain('Le livre du système');
             expect(html).toContain('Lycée Molière · Rio de Janeiro');
-            expect(html).toContain('Sammy K. Magbo');
+            expect(html).toContain('Sammy Kabagambe Magbo');
             expect(html).toMatch(/class="couv-annee">20\d\d</);
       });
 
@@ -88,7 +88,7 @@ describe('les pages liminaires', () => {
 
       it('l’emplacement de la dédicace est SIGNALÉ, pour que Sam le trouve', () => {
             if (!existe) return;
-            expect(html).toMatch(/DÉDICACE — À COMPOSER PAR SAM/);
+            expect(html).toMatch(/DÉDICACE — À COMPOSER PAR SAMMY/);
             expect(html).toContain('class="dedicace-texte"');
       });
 

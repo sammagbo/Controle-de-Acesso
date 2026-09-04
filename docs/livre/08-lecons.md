@@ -352,7 +352,7 @@ webhook absent.
 **Règle.** *Une configuration manquante doit faire échouer bruyamment. Un repli
 silencieux vers « une autre base » est le pire des comportements.*
 
-## 16. Deux verrous d'outillage, rapportés par Sam
+## 16. Deux verrous d'outillage, rapportés par Sammy
 
 > ⚠️ Ces deux-là ne sont pas reproductibles depuis le dépôt. Ils sont écrits
 > parce qu'ils feront perdre une heure à la personne suivante.
@@ -366,7 +366,7 @@ libèrent. **Seul un redémarrage du poste débloque.**
 Le merge **local** passe sans conflit ; la plateforme, elle, calcule des bases
 multiples et refuse. *(Symptôme rapporté ; la manœuvre exacte de contournement
 n'est pas notée.)*
-**[À COMPLÉTER PAR SAM] : quelle manœuvre a débloqué ce cas ?**
+**[À COMPLÉTER PAR SAMMY] : quelle manœuvre a débloqué ce cas ?**
 
 ---
 

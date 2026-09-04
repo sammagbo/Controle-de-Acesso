@@ -3,7 +3,7 @@
 **Lycée Molière, Rio de Janeiro.** Écrit le 29/08/2026, contre l'état du dépôt
 au commit `7c4d54e`.
 
-Ce livre existe parce que Sam — le propriétaire et unique développeur du
+Ce livre existe parce que Sammy — le propriétaire et unique développeur du
 système — est parti. Il s'adresse à quelqu'un qui n'a jamais vu MAGBO tourner et
 qui ne peut poser de question à personne.
 
@@ -18,7 +18,7 @@ limites :
 | Marqueur | Ce qu'il veut dire |
 |---|---|
 | `[À VÉRIFIER]` | je n'ai pas pu le confirmer depuis le dépôt — suivi de **la commande ou la requête qui le tranche** |
-| `[À COMPLÉTER PAR SAM]` | seul Sam le savait — suivi de **la question précise** |
+| `[À COMPLÉTER PAR SAMMY]` | seul Sammy le savait — suivi de **la question précise** |
 | `[CAPTURE: …]` | une capture d'écran manque à cet endroit |
 
 > **Une documentation fausse est pire qu'absente, parce qu'on lui fait

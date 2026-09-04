@@ -717,7 +717,7 @@ function construire() {
   </div>
   <div class="couv-bas">
     <p class="couv-lieu">Lycée Molière · Rio de Janeiro</p>
-    <p class="couv-auteur">Sammy K. Magbo</p>
+    <p class="couv-auteur">Sammy Kabagambe Magbo</p>
     <p class="couv-annee">${aujourdhui.getFullYear()}</p>
   </div>
 </section>
@@ -728,7 +728,7 @@ function construire() {
   <p class="pt-titre">MAGBO Access Control</p>
   <p class="pt-sstitre">Le livre du système</p>
   <div class="pt-filet"></div>
-  <p class="pt-auteur">Sammy K. Magbo</p>
+  <p class="pt-auteur">Sammy Kabagambe Magbo</p>
   <p class="pt-etab">Lycée Molière · Rio de Janeiro</p>
   <p class="pt-annee">${aujourdhui.getFullYear()}</p>
 </section>
@@ -737,7 +737,7 @@ function construire() {
 <section class="page-blanche"></section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ▼▼▼  DÉDICACE — À COMPOSER PAR SAM  ▼▼▼
+     ▼▼▼  DÉDICACE — À COMPOSER PAR SAMMY  ▼▼▼
      Remplacer le texte entre <div class="dedicace-texte"> et </div> dans
      scripts/build-livre.js (c'est lui qui produit cette page), puis
      régénérer. Deux ou trois lignes, pas davantage : rien d'autre sur la
@@ -745,7 +745,7 @@ function construire() {
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="page-dedicace">
   <div class="dedicace-texte">
-    À composer par Sam.
+    À composer par Sammy.
   </div>
 </section>
 <!-- ▲▲▲  FIN DE L'EMPLACEMENT DE LA DÉDICACE  ▲▲▲ -->
@@ -758,7 +758,7 @@ function construire() {
   <p>Chaque affirmation technique est vérifiable dans le dépôt&nbsp;: quand un
   fichier est cité, c'est qu'il dit ce qui est écrit. Ce qui n'a pas pu être
   vérifié porte <code>[À VÉRIFIER]</code> avec la commande ou la requête qui le
-  confirmerait. Ce que seul Sam sait porte <code>[À COMPLÉTER PAR SAM]</code>
+  confirmerait. Ce que seul Sammy sait porte <code>[À COMPLÉTER PAR SAMMY]</code>
   avec la question précise.</p>
   <p><strong>Une documentation fausse est pire qu'absente</strong>, parce qu'on
   lui fait confiance. Si vous trouvez une affirmation que le dépôt contredit,
@@ -790,7 +790,7 @@ ${corps}
     <dt>Dernier commit</dt><dd><code>${esc(commit.court)}</code> — branche <code>${esc(commit.branche)}</code></dd>
     <dt>Contenu</dt><dd>${numerotes.length} chapitre${numerotes.length > 1 ? 's' : ''}${liminaires.length ? ', plus le sommaire' : ''}</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
-    <dt>Auteur</dt><dd>Sammy K. Magbo</dd>
+    <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>
   </dl>
   <div class="colo-filet"></div>
   <p class="colo-note">Composé en Cambria pour le texte, Segoe UI pour les

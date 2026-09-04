@@ -8,7 +8,7 @@ Les chapitres suivants entrent dans le détail ; celui-ci donne la carte.
 
 > Convention du livre : `[A VERIFIER]` marque une affirmation que je n'ai pas
 > pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la
-> tranche. `[A COMPLETER PAR SAM]` marque ce que seul Sam savait.
+> tranche. `[A COMPLETER PAR SAMMY]` marque ce que seul Sammy savait.
 
 ---
 
@@ -338,7 +338,7 @@ explique pourquoi mieux que n'importe quel résumé.
 
 ### Les appareils physiques
 
-**Source : Sam, le 28/08/2026. Non vérifiable dans le dépôt** — la table
+**Source : Sammy, le 28/08/2026. Non vérifiable dans le dépôt** — la table
 `door_mappings` vit dans la base de production, pas dans le code.
 
 | Appareil | Rôle annoncé |
@@ -350,7 +350,7 @@ explique pourquoi mieux que n'importe quel résumé.
 
 ⚠️ **Trois réserves, toutes importantes :**
 
-1. Sam annonce « six terminaux » et énumère **huit** adresses. La lecture la plus
+1. Sammy annonce « six terminaux » et énumère **huit** adresses. La lecture la plus
    probable est six terminaux MinMoe (CDI + cantine) **plus** deux caméras au
    portail, mais je ne l'ai pas vérifiée.
 2. Les adresses sont données en dernier octet seul. Le serveur est en
@@ -387,11 +387,11 @@ C'est arrivé le 16/07/2026 (terminal `.12` → `.10`,
 `docs/operacional/procedimento-hikcentral.md`). La checklist complète est dans
 `.claude/rules/hikvision.md`.
 
-`[A COMPLETER PAR SAM]` Quel est le préfixe réseau des appareils Hikvision —
+`[A COMPLETER PAR SAMMY]` Quel est le préfixe réseau des appareils Hikvision —
 `192.168.1.x` comme le serveur, ou un autre VLAN ? Et la réservation DHCP
 demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
 
-`[A COMPLETER PAR SAM]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
+`[A COMPLETER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
 et qui est censé la réparer ?
 
 [CAPTURE: la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
@@ -424,7 +424,7 @@ Deux remarques qui évitent des malentendus :
   traverse tous les rôles : il est délibérément **non caché** dans la liste des
   points, parce que chercher son chemin au milieu d'une évacuation équivaut à ne
   pas avoir l'écran. Il est en revanche restreint par la permission `PPMS_READ` :
-  la liste est **nominative**, et Sam a tranché le 14/08 « restreindre, pas
+  la liste est **nominative**, et Sammy a tranché le 14/08 « restreindre, pas
   fermer » (javadoc de `Permissions.PPMS_READ`). ⚠️ **Cet écran ne remplace pas
   l'appel** — il le dit lui-même, au-dessus du nombre.
 
@@ -486,7 +486,7 @@ que fera la production.
   d'abord la règle aux élèves, puisque l'entité s'appelle
   `StudentExitPermission`.
 
-`[A COMPLETER PAR SAM]` Le régime de sortie : les régimes des élèves existent-ils
+`[A COMPLETER PAR SAMMY]` Le régime de sortie : les régimes des élèves existent-ils
 quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun
 sens ; avec eux, il faut savoir où ils sont pour les charger.
 
@@ -498,7 +498,7 @@ Mesurés le **03/09/2026**, sur `main` augmentée des trois chantiers de cette
 date (`fix/adresse-du-login`, `feat/livre-imprimable`, `docs/verifications-finales`).
 Comment : les comptes de fichiers par `find`, les suites **à froid**
 (`cd backend && rm -rf target && mvn -o test`, puis `npm test`). ⚠️ **L'ancre est
-une date, pas un SHA** — ces chantiers seront fusionnés par Sam et les SHA
+une date, pas un SHA** — ces chantiers seront fusionnés par Sammy et les SHA
 changeront ; l'état d'**avant** eux était `fc4359c`.
 
 | Quoi | Combien |
@@ -575,7 +575,7 @@ l'envoie jamais), **ADR-003** (observationnel), **ADR-004** (cantine assistée),
    `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` (14/08 — TOTVS). **Le
    numéro a été attribué deux fois.** Je le signale sans le corriger :
    renuméroter casserait les renvois existants ; c'est une décision, pas une
-   retouche. `[A COMPLETER PAR SAM]` Lequel des deux garde le numéro 005 ?
+   retouche. `[A COMPLETER PAR SAMMY]` Lequel des deux garde le numéro 005 ?
 2. ⚠️ **`docs/operacional/handoff.md` ne s'arrête plus au 05/08/2026.** Il a été
    repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge
    couvert `5632d0a` (PR #87 — la licence) : vérifié le 03/09/2026 à

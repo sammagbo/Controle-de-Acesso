@@ -199,7 +199,7 @@ est vrai.
 ## 4.2 Six classes de collège du mercredi 13h à confirmer
 
 **1E1, 1E2, 2E1, 2E2, 3E1, 3E2.**
-**[À COMPLÉTER PAR SAM / Vie Scolaire] : ces six classes sont-elles bien au
+**[À COMPLÉTER PAR SAMMY / Vie Scolaire] : ces six classes sont-elles bien au
 second service du mercredi ?**
 
 ## 4.3 `5E3` et `3E3` : sur l'affiche, aucun élève en base
@@ -216,7 +216,7 @@ et sous quel code ?
 
 ## 4.4 La liste DAF — ✅ la demande n'a jamais été lancée
 
-*(Répondu par Sam le 31/08/2026.)* Elle n'a été formalisée auprès de personne.
+*(Répondu par Sammy le 31/08/2026.)* Elle n'a été formalisée auprès de personne.
 **Ce n'est donc pas une relance, c'est une démarche à initier.**
 
 ⚠️ **Ce que cela laisse en place, et pourquoi l'ordre compte :** en attendant,
@@ -228,19 +228,19 @@ qui y ont droit pour punir ceux qui n'y ont pas droit. Requête de contrôle au
 
 ## 4.5 Le terminal `.10` non enregistré au HikCentral — ✅ un ticket existe
 
-Erreur `SYS[904]`, numéro de série en conflit. *(Répondu par Sam le 31/08.)*
+Erreur `SYS[904]`, numéro de série en conflit. *(Répondu par Sammy le 31/08.)*
 **Un ticket est ouvert chez le fournisseur** — le revendeur qui a livré les
 terminaux.
 
 **[À COMPLÉTER — la référence du ticket et le nom du contact n'ont pas pu être
-retrouvés.]** **Où chercher :** la messagerie de Sam, ou le service informatique
+retrouvés.]** **Où chercher :** la messagerie de Sammy, ou le service informatique
 de l'établissement, qui a traité la commande. ⚠️ **Sans la référence, rouvrir une
 demande revient au même :** l'erreur `SYS[904]` et le numéro de série suffisent à
 décrire le cas.
 
 ## 4.6 Le terminal `.14` en Wi-Fi — ✅ définitif, ce n'est pas une action ouverte
 
-*(Répondu par Sam le 31/08.)* **L'emplacement ne permet pas de tirer un câble.**
+*(Répondu par Sammy le 31/08.)* **L'emplacement ne permet pas de tirer un câble.**
 C'est une **contrainte permanente**, pas une tâche en attente : ne la comptez
 plus comme du travail à faire.
 
@@ -263,14 +263,14 @@ réseau tombe.** Ce n'est pas un détail dans une école.
 
 ## 4.8 L'e-mail à Fabiano et le PDF du guide — ✅ les deux sont partis
 
-*(Répondu par Sam le 31/08.)* L'e-mail au service informatique a été envoyé et le
+*(Répondu par Sammy le 31/08.)* L'e-mail au service informatique a été envoyé et le
 PDF du guide d'installation a été remis. **Rien à relancer.** La source reste
 `docs/operacional/guide-installation-postes.md` : c'est elle qu'il faut mettre à
 jour puis réexporter si la procédure change.
 
-⚠️ **Ce qui reste ouvert, c'est le contact lui-même.** Sam ne se souvient ni du
+⚠️ **Ce qui reste ouvert, c'est le contact lui-même.** Sammy ne se souvient ni du
 nom complet de Fabiano, ni de son e-mail, ni de l'état des réservations DHCP.
-**[À COMPLÉTER — Sam n'a plus l'information.]**
+**[À COMPLÉTER — Sammy n'a plus l'information.]**
 **À qui demander :** le secrétariat ou la direction connaissent le service
 informatique. **Ce qu'il faut lui demander :** « les adresses IP des six
 terminaux et de la VM `192.168.1.253` sont-elles réservées en DHCP, ou
@@ -306,4 +306,4 @@ ferait échouer une suite qui protège un choix.
 | Le balayage : corrigé vs listé | `docs/operacional/nuit-27-28-08-rapport.md` §6 |
 | Les classes de l'affiche contre la base | `docs/operacional/controle-affiche-cantine.md` |
 | Les demandes au service informatique | `docs/testing/pedidos-fabiano-si.md` |
-| Les questions pour Sam, toutes ensemble | `docs/operacional/handoff.md` §11 |
+| Les questions pour Sammy, toutes ensemble | `docs/operacional/handoff.md` §11 |

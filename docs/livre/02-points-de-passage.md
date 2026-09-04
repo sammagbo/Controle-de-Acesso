@@ -7,7 +7,7 @@ servent.
 
 > Convention du livre : `[À VÉRIFIER]` marque une affirmation que je n'ai pas pu
 > confirmer dans le dépôt, suivie de la commande qui la tranche.
-> `[À COMPLÉTER PAR SAM]` marque ce que seul Sam savait.
+> `[À COMPLÉTER PAR SAMMY]` marque ce que seul Sammy savait.
 
 ---
 
@@ -42,7 +42,7 @@ est dans cette phrase.
 
 Firmware relevé : **V5.9.10** (`.claude/rules/hikvision.md`).
 
-> ⚠️ Ces IP viennent de Sam (28/08) et ne sont pas dans le dépôt. La source de
+> ⚠️ Ces IP viennent de Sammy (28/08) et ne sont pas dans le dépôt. La source de
 > vérité en production est `door_mappings`.
 > **[À VÉRIFIER]**
 > ```bash
@@ -212,7 +212,7 @@ le contrôleur répond 200, le log dit « ignoré », et le portail devient invi
 > **[À VÉRIFIER]** Quel terminal sert quel point : la réponse est dans
 > `door_mappings` (requête au §2.1). Le dépôt ne l'écrit nulle part.
 
-**Deux problèmes matériels connus** (déclarés par Sam, non vérifiables ici) :
+**Deux problèmes matériels connus** (déclarés par Sammy, non vérifiables ici) :
 
 - Le **`.10` n'est pas enregistré au HikCentral** : erreur `SYS[904]`, numéro de
   série en conflit.
@@ -243,7 +243,7 @@ Tout le détail est au chapitre 3.
 > y en a un. Le rapport de nuit du 14/08 mentionne l'enfermaria comme un point
 > « sans fermeture automatique, dont l'enregistrement est manuel » — ce qui
 > suggère une saisie à la main plutôt qu'un terminal.
-> **[À COMPLÉTER PAR SAM] : l'infirmerie a-t-elle un terminal, ou les visites
+> **[À COMPLÉTER PAR SAMMY] : l'infirmerie a-t-elle un terminal, ou les visites
 > sont-elles saisies à la main ?**
 
 **Ce qui est propre à l'infirmerie :**
@@ -299,7 +299,7 @@ simplement d'arriver. C'est arrivé le 16/07 (terminal `.12`→`.10`, serveur
    **actuelle** du terminal ?
 
 **Une réservation DHCP a été demandée au service informatique** pour les
-terminaux et la VM. **[À COMPLÉTER — Sam ne se souvient plus de l'état de cette
+terminaux et la VM. **[À COMPLÉTER — Sammy ne se souvient plus de l'état de cette
 demande (répondu le 31/08), et n'a pas retrouvé le contact.]**
 **À qui demander :** le secrétariat ou la direction connaissent le service
 informatique.

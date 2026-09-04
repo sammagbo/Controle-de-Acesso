@@ -513,7 +513,7 @@ li { margin: .3rem 0; }
 <hr>
 <h2 id="comment-lire-ce-livre">⚠ Comment lire ce livre</h2>
 <p><strong>Chaque affirmation technique est vérifiable dans le dépôt.</strong> Quand un fichier est cité, c'est qu'il dit ce qui est écrit. Trois marqueurs signalent les limites :</p>
-<table><thead><tr><th>Marqueur</th><th>Ce qu'il veut dire</th></tr></thead><tbody><tr><td><code>[À VÉRIFIER]</code></td><td>je n'ai pas pu le confirmer depuis le dépôt — suivi de <strong>la commande ou la requête qui le tranche</strong></td></tr><tr><td><code>[À COMPLÉTER PAR SAMMY]</code></td><td>seul Sammy le savait — suivi de <strong>la question précise</strong></td></tr><tr><td><code>[CAPTURE: …]</code></td><td>une capture d'écran manque à cet endroit — la case <strong>nomme le fichier attendu</strong> ; le mode d'emploi est dans <code>docs/livre/captures/LISEZ-MOI.md</code></td></tr></tbody></table>
+<table><thead><tr><th>Marqueur</th><th>Ce qu'il veut dire</th></tr></thead><tbody><tr><td><code>[À VÉRIFIER]</code></td><td>je n'ai pas pu le confirmer depuis le dépôt — suivi de <strong>la commande ou la requête qui le tranche</strong></td></tr><tr><td><code>[À COMPLÉTER PAR …]</code></td><td>ce que le dépôt ne peut pas dire. Le marqueur <strong>nomme qui peut répondre</strong> — le plus souvent Sammy, parfois la Vie Scolaire — et il est suivi de <strong>la question précise</strong></td></tr><tr><td><code>[CAPTURE: …]</code></td><td>une capture d'écran manque à cet endroit — la case <strong>nomme le fichier attendu</strong> ; le mode d'emploi est dans <code>docs/livre/captures/LISEZ-MOI.md</code></td></tr></tbody></table>
 <blockquote><p><strong>Une documentation fausse est pire qu'absente, parce qu'on lui fait confiance.</strong> Si vous trouvez une affirmation que le dépôt contredit, corrigez-la dans <code>docs/livre/</code> et régénérez le HTML.</p></blockquote>
 <hr>
 <h2 id="par-ou-commencer">Par où commencer</h2>
@@ -2008,7 +2008,10 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <p>⚠ <strong>Aucun horaire n'a été semé pour ces classes, et c'est délibéré.</strong> Inventer un créneau aurait produit de fausses alertes dès le premier jour. Elles tombent donc dans <code>MEAL_SLOT_NOT_CONFIGURED</code> — le système dit « je ne sais pas », ce qui est vrai.</p>
 <p><strong>Il faut la décision de la Vie Scolaire</strong>, pas une mesure supplémentaire.</p>
 <h2 id="4-2-six-classes-de-college-du-mercredi-13h-a-confirmer">4.2 Six classes de collège du mercredi 13h à confirmer</h2>
-<p><strong>1E1, 1E2, 2E1, 2E2, 3E1, 3E2.</strong> <strong>[À COMPLÉTER PAR SAMMY / Vie Scolaire] : ces six classes sont-elles bien au second service du mercredi ?</strong></p>
+<p><strong>1E1, 1E2, 2E1, 2E2, 3E1, 3E2.</strong></p>
+<p><strong>Ce n'est plus une question de fait : la mesure a tranché.</strong> 89 passages sur ces six classes, et ceux de <code>3E1</code> et <code>3E2</code> concentrés entre 13h08 et 13h32. Vingt passages en vingt-quatre minutes, c'est une classe qui vient à son heure ; un débordement d'un autre service arriverait dispersé. Le tableau complet est en tête de <code>docs/operacional/handoff.md</code>. <strong>L'affiche est incomplète, pas les élèves en faute.</strong></p>
+<p><code>[À COMPLÉTER PAR LA VIE SCOLAIRE]</code> Valider que ces six classes sont bien au second service du mercredi, pour que le <code>Planning Cantine</code> les nomme et que l'affiche du mur les annonce.</p>
+<p>⚠ <strong>Cette question n'est plus adressée à Sammy, et c'est le changement.</strong> Il ne peut pas y répondre seul : fixer l'heure de service d'une classe est un acte de Vie Scolaire, pas une lecture de la base. État au 04/09/2026 : non validée. Tant qu'elle ne l'est pas, l'affiche que lisent <strong>les familles</strong> n'annonce pas l'heure à laquelle ces six classes mangent — soit elles viennent à une heure que l'école ne publie pas, soit l'école en publie une où elles ne vont pas.</p>
 <h2 id="4-3-5e3-et-3e3-sur-l-affiche-aucun-eleve-en-base">4.3 <code>5E3</code> et <code>3E3</code> : sur l'affiche, aucun élève en base</h2>
 <p>Elles figurent au mur et sont chargées dans le planning ; <strong>aucun élève ne leur est rattaché</strong>. <code>5E3</code> est même absente de <code>class_schedules</code>.</p>
 <p>Elles ne changent le verdict de personne. Elles signalent soit un code de classe qui a changé, soit une classe qui n'existe plus. Le détail est dans <code>docs/operacional/controle-affiche-cantine.md</code>, section A.</p>
@@ -2052,7 +2055,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>edcf9b3</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>d40693a</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

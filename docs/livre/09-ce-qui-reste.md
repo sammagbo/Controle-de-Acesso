@@ -199,8 +199,24 @@ est vrai.
 ## 4.2 Six classes de collège du mercredi 13h à confirmer
 
 **1E1, 1E2, 2E1, 2E2, 3E1, 3E2.**
-**[À COMPLÉTER PAR SAMMY / Vie Scolaire] : ces six classes sont-elles bien au
-second service du mercredi ?**
+
+**Ce n'est plus une question de fait : la mesure a tranché.** 89 passages sur ces
+six classes, et ceux de `3E1` et `3E2` concentrés entre 13h08 et 13h32. Vingt
+passages en vingt-quatre minutes, c'est une classe qui vient à son heure ; un
+débordement d'un autre service arriverait dispersé. Le tableau complet est en
+tête de `docs/operacional/handoff.md`. **L'affiche est incomplète, pas les élèves
+en faute.**
+
+`[À COMPLÉTER PAR LA VIE SCOLAIRE]` Valider que ces six classes sont bien au
+second service du mercredi, pour que le `Planning Cantine` les nomme et que
+l'affiche du mur les annonce.
+
+⚠️ **Cette question n'est plus adressée à Sammy, et c'est le changement.** Il ne
+peut pas y répondre seul : fixer l'heure de service d'une classe est un acte de
+Vie Scolaire, pas une lecture de la base. État au 04/09/2026 : non validée.
+Tant qu'elle ne l'est pas, l'affiche que lisent **les familles** n'annonce pas
+l'heure à laquelle ces six classes mangent — soit elles viennent à une heure que
+l'école ne publie pas, soit l'école en publie une où elles ne vont pas.
 
 ## 4.3 `5E3` et `3E3` : sur l'affiche, aucun élève en base
 

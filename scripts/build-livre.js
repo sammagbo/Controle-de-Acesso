@@ -470,11 +470,77 @@ li { margin: .3rem 0; }
   p, li, blockquote, td, th { orphans: 3; widows: 3; }
   p { margin: 0 0 3.2mm; }
 
-  /* ⚠️ Le fer à gauche est un CHOIX MESURÉ, pas un oubli : Chrome n'a pas
-     la césure française (hyphens: auto sans effet, mesuré), et un texte
-     justifié sans césure creuse des rivières blanches dans une colonne de
-     164 mm. Mieux vaut une marge droite irrégulière qu'un texte troué. */
-  .chapitre p, .page-avertissement p { text-align: left; }
+  /* ⚠️ LE TEXTE COURANT EST JUSTIFIÉ — ET LA CÉSURE, ELLE, NE MARCHE PAS.
+     « hyphens: auto » est posé ci-dessous et « lang=fr » est sur le <html>
+     depuis toujours : ce n'est donc PAS un oubli de langue. Mesuré le
+     04/09/2026 dans le Chrome qui imprime ce livre :
+     « anticonstitutionnellement » dans une colonne de 24 mm tient sur UNE
+     ligne, et un paragraphe français rend 14 lignes avec ET sans césure.
+     Chrome livre ses dictionnaires de coupure par le composant updater ;
+     celui du français n'est pas là.
+     On pose la déclaration quand même : le jour où le dictionnaire arrive,
+     le livre s'améliore sans que personne ait à re-décider. */
+  .chapitre p, .chapitre li, .page-avertissement p {
+    text-align: justify;
+    hyphens: auto; -webkit-hyphens: auto;
+
+    /* ⚠⚠ NE PAS SUPPRIMER CES 0,1 px. Ils ne sont pas un reste de mise au
+       point : ils sont ce qui empêche Chrome de réduire tout le livre.
+       La colonne imprimable vaut 164 mm = 619,84 px — pas un compte rond.
+       Justifier pose le dernier glyphe EXACTEMENT sur la marge, et l'arrondi
+       sous-pixel le fait déborder d'un cheveu : mesuré le 04/09/2026,
+       échelle 0,749962 au lieu de 0,750000, sur les 109 pages, et
+       paginer-livre.js refuse alors de finir — à juste titre, c'est le même
+       mécanisme silencieux qui sortait le livre à 80,7 %.
+       Mesuré aussi : 0,1 px suffit et garde 109 pages ; 0,5 px et 1 px
+       rétablissent l'échelle mais font passer le livre à 110 pages.
+       0,1 px vaut 0,026 mm : aucune presse ne l'imprime. */
+    padding-right: 0.1px; }
+
+  /* ⚠⚠ ON NE JUSTIFIE PAS AUTOUR D'UN CHEMIN DE FICHIER — et c'est la
+     règle qui décide si ce livre est imprimable.
+     Un paragraphe qui cite du code dans le fil du texte
+     (backend/src/main/java/com/magbo/access/controllers/…) porte des jetons
+     insécables de 200 px. Ils ne tiennent pas sur la fin d'une ligne, passent
+     entièrement à la suivante, et la justification étire alors la poignée de
+     mots restée derrière jusqu'à la marge. Au fer à gauche le défaut ne se
+     voyait pas : une ligne courte restait courte.
+     MESURÉ le 04/09/2026 sur les 1320 lignes justifiables du livre, en
+     comparant l'espace réellement rendu à l'espace naturel (3,09 px) :
+        tout justifié        — 21,1 % des lignes à ≥ 2x, 8,7 % à ≥ 3x
+        avec cette exception —  4,9 % à ≥ 2x, 2,2 % à ≥ 3x
+        témoin au fer à gauche — 3,3 % à ≥ 2x, 2,0 % à ≥ 3x
+     Autrement dit : le texte de prose se justifie proprement, les paragraphes
+     truffés de code ne le peuvent pas, et l'exception les ramène au niveau du
+     témoin. 109 pages et échelle 0,750000 dans les trois cas.
+     ⚠️ MESURÉ AUSSI, ET ÇA NE MARCHE PAS : rendre le code coupable partout
+     (overflow-wrap: anywhere sur le code en ligne) ne change RIEN — chiffres
+     identiques à la virgule près. La coupure ne se déclenche que si le jeton
+     ne tient pas SEUL sur une ligne ; ici il tient. Ne pas réessayer. */
+  .chapitre p:has(code), .chapitre li:has(code) {
+    text-align: left; }
+
+  /* Assurance, et rien de plus : un jeton plus large que la colonne ferait
+     réduire TOUT le document par Chrome (voir table-layout: fixed plus bas).
+     ⚠️ Cette ligne ne corrige AUCUN trou de justification — c'est mesuré
+     ci-dessus. Ne pas lui prêter ce rôle.
+     « break-word » et NON « anywhere » : « anywhere » change la largeur
+     minimale de l'élément, ce qui est exactement le mécanisme du rétrécissement
+     à 80,7 %. */
+  .chapitre p code, .chapitre li code { overflow-wrap: break-word; }
+
+  /* ⚠️ RESTENT AU FER À GAUCHE, SANS EXCEPTION — ce n'est pas du texte
+     courant. Un chemin de fichier ne se coupe pas, et justifier autour de lui
+     ouvre des trous ; un tableau, un titre, une légende ou un encadré court
+     n'a pas assez de lignes pour qu'une marge droite régulière ait un sens.
+     Plusieurs de ces règles sont redéclarées alors qu'elles seraient déjà
+     vraies par héritage : c'est voulu, pour qu'un futur « text-align » posé plus
+     haut ne les emporte pas en silence. */
+  pre, pre.code, code, table, th, td,
+  h1, h2, h3, h4, figcaption,
+  .capture, .capture-etiq, .avert, .avert p,
+  .chapitre blockquote, .chapitre blockquote p {
+    text-align: left; hyphens: none; -webkit-hyphens: none; }
 
   h1, h2, h3, h4 { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     break-after: avoid; page-break-after: avoid; }

@@ -611,9 +611,14 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 > Avant toute séance matériel : IP du serveur, IP au écran du terminal, URL de l'Écoute HTTP,
 > `door_mappings` (`.claude/rules/hikvision.md`).
 
-`[À COMPLÉTER PAR SAMMY]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
-exécutées ? Si oui, quelles adresses sont fixes (terminaux + VM) ? *(pendência 6 de
-`docs/operacional/procedimento-hikcentral.md`)*
+**Pour la VM : oui.** `192.168.1.253` est réservée, confirmé auprès du service
+informatique (Sammy, 04/09/2026).
+
+`[À COMPLÉTER PAR SAMMY]` **Pour les terminaux : on ne sait pas.** La demande de
+Fabiano les couvrait, la réponse obtenue ne porte que sur la VM. C'est ce qui
+reste de la *pendência 6* de `docs/operacional/procedimento-hikcentral.md` — et
+c'est la moitié qui coûte le plus cher, puisqu'un terminal qui change d'adresse
+cesse d'émettre sans que rien ne le dise.
 
 ---
 

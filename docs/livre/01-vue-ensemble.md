@@ -387,9 +387,26 @@ C'est arrivé le 16/07/2026 (terminal `.12` → `.10`,
 `docs/operacional/procedimento-hikcentral.md`). La checklist complète est dans
 `.claude/rules/hikvision.md`.
 
-`[À COMPLÉTER PAR SAMMY]` Quel est le préfixe réseau des appareils Hikvision —
-`192.168.1.x` comme le serveur, ou un autre VLAN ? Et la réservation DHCP
-demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
+**Il n'y a pas UN préfixe, il y en a deux, et le dépôt le montre :**
+
+| Appareil | Plage observée | Source |
+|---|---|---|
+| Caméras du portail (DeepinView) | `192.168.1.167` / `.166` | `DoorMappingBootstrap:44-46`, correspondances réelles |
+| Terminaux MinMoe | `172.20.40.x` | charge utile réelle, `ESPECIFICACAO-TECNICA-v1.md:687` ; smoke test du 16/07/2026 |
+| VM du serveur | `192.168.1.253` | modèle du lanceur, défaut du poste, `ssh` des sauvegardes |
+| HikCentral | `192.168.1.90` | `procedimento-hikcentral.md` |
+
+Autrement dit : les caméras du portail partagent la plage du serveur, les
+terminaux MinMoe étaient sur une autre. ⚠️ La ligne des MinMoe date du 16/07/2026
+et n'a pas été revérifiée depuis — c'est un relevé, pas une garantie.
+
+**L'adresse du serveur, elle, est FIXE** : réservation confirmée auprès du service
+informatique (Sammy, 04/09/2026).
+
+`[À COMPLÉTER PAR SAMMY]` **Et les TERMINAUX, sont-ils réservés eux aussi ?** La
+réponse ci-dessus ne porte que sur la VM. Tant que les terminaux sont en DHCP, un
+redémarrage suffit pour qu'ils cessent d'émettre : ni erreur, ni alerte, les
+événements s'arrêtent simplement d'arriver (c'est arrivé le 16/07, `.12` → `.10`).
 
 `[À COMPLÉTER PAR SAMMY]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
 et qui est censé la réparer ?

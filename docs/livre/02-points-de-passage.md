@@ -7,7 +7,8 @@ servent.
 
 > Convention du livre : `[À VÉRIFIER]` marque une affirmation que je n'ai pas pu
 > confirmer dans le dépôt, suivie de la commande qui la tranche.
-> `[À COMPLÉTER PAR SAMMY]` marque ce que seul Sammy savait.
+> `[À COMPLÉTER PAR …]` marque ce que le dépôt ne peut pas dire, et **nomme qui
+> peut répondre** — Sammy, la Vie Scolaire ou la direction selon le cas.
 
 ---
 

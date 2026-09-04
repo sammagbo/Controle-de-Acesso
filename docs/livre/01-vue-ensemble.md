@@ -8,7 +8,8 @@ Les chapitres suivants entrent dans le détail ; celui-ci donne la carte.
 
 > Convention du livre : `[A VERIFIER]` marque une affirmation que je n'ai pas
 > pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la
-> tranche. `[À COMPLÉTER PAR SAMMY]` marque ce que seul Sammy savait.
+> tranche. `[À COMPLÉTER PAR …]` marque ce que le dépôt ne peut pas dire, et **nomme qui
+peut répondre** — Sammy, la Vie Scolaire ou la direction selon le cas.
 
 ---
 

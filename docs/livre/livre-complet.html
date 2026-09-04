@@ -1965,7 +1965,15 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <h2 id="16-deux-verrous-d-outillage-rapportes-par-sammy">16. Deux verrous d'outillage, rapportés par Sammy</h2>
 <blockquote><p>⚠ Ces deux-là ne sont pas reproductibles depuis le dépôt. Ils sont écrits parce qu'ils feront perdre une heure à la personne suivante.</p></blockquote>
 <p><strong>a) <code>build:portable</code> bloqué par un handle sur <code>app.asar</code>.</strong> La construction échoue en disant que le fichier est utilisé, <strong>alors qu'aucun processus n'est visible</strong>. Ni le gestionnaire de tâches ni la fermeture de l'application ne le libèrent. <strong>Seul un redémarrage du poste débloque.</strong></p>
-<p><strong>b) GitHub refuse une branche rebasée quand <code>main</code> porte les commits de merge.</strong> Le merge <strong>local</strong> passe sans conflit ; la plateforme, elle, calcule des bases multiples et refuse. <em>(Symptôme rapporté ; la manœuvre exacte de contournement n'est pas notée.)</em> <strong>[À COMPLÉTER PAR SAMMY] : quelle manœuvre a débloqué ce cas ?</strong></p>
+<p><strong>b) GitHub refuse une branche rebasée quand <code>main</code> porte les commits de merge.</strong> Le merge <strong>local</strong> passe sans conflit ; la plateforme, elle, calcule des bases multiples et refuse.</p>
+<p><strong>La manœuvre n'était notée nulle part — mais l'historique la porte</strong>, pour le seul cas de ce type que le dépôt contienne, la nuit du 27 au 28/08 :</p>
+<ul>
+<li><strong>Une répétition à blanc, d'abord.</strong> Une branche jetable <code>ensaio-merge</code> — elle existe encore en local — porte cinq commits de fusion, un par branche de la nuit, fusionnées une à une : <code>88d684d</code>, <code>78f1094</code>, <code>1dd7cbe</code>, <code>6d5445e</code>, <code>d94a850</code>. La séquence a été jouée avant d'être jouée pour de vrai.</li>
+<li><strong>Puis un merge LOCAL, poussé directement.</strong> La septième branche — <code>fix/balayage-28-08</code>, celle qui avait été rebasée sur les six autres — est entrée par <code>7c4d54e</code>, « Merge fix/balayage-28-08 - 33 corrections sur 17 ecrans », signé Sammy MAGBO le 28/08. ⚠ Son sujet ne commence pas par « Merge pull request » : c'est la <strong>seule des sept</strong> à n'être pas passée par GitHub. Ses six sœurs sont les PR #79 à #85.</li>
+<li><strong>Et la forme du défaut se vérifie encore aujourd'hui.</strong> Les deux parents de <code>7c4d54e</code> ont pour base de fusion <code>61fbe32</code> — le sommet de <code>fix/cdi-alerte-ferme</code> <strong>avant</strong> son propre merge, et non la <code>main</code> fusionnée. C'est exactement la « base multiple » que la plateforme refuse.</li>
+</ul>
+<p><strong>Donc : répéter la séquence en local sur une branche jetable, puis fusionner et pousser sans passer par la pull request.</strong> C'est ce qui a été fait ; cela a marché ; et cela laisse une trace différente de celle de ses sœurs, ce qui est le prix.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> Ce que l'historique ne peut pas dire : GitHub a-t-il été essayé pour ce merge-là avant d'y renoncer, et quelque chose d'autre a-t-il été tenté d'abord — un nouveau rebase sur la <code>main</code> déjà fusionnée, une recréation de la branche ? La réponse tient en une phrase, et elle décide si ce contournement est <strong>le seul chemin</strong> ou seulement le plus court.</p>
 <hr>
 <h2 id="17-ce-que-ces-lecons-ont-en-commun">17. Ce que ces leçons ont en commun</h2>
 <p>En les relisant, trois familles se dégagent — et elles suffisent à prédire le prochain défaut :</p>
@@ -2097,7 +2105,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
     <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>9ba15ae</code> — branche <code>docs/livre-finition</code></dd>
+    <dt>Dernier commit</dt><dd><code>db48783</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
     <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>

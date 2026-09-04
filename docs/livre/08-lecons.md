@@ -364,9 +364,36 @@ libèrent. **Seul un redémarrage du poste débloque.**
 
 **b) GitHub refuse une branche rebasée quand `main` porte les commits de merge.**
 Le merge **local** passe sans conflit ; la plateforme, elle, calcule des bases
-multiples et refuse. *(Symptôme rapporté ; la manœuvre exacte de contournement
-n'est pas notée.)*
-**[À COMPLÉTER PAR SAMMY] : quelle manœuvre a débloqué ce cas ?**
+multiples et refuse.
+
+**La manœuvre n'était notée nulle part — mais l'historique la porte**, pour le
+seul cas de ce type que le dépôt contienne, la nuit du 27 au 28/08 :
+
+- **Une répétition à blanc, d'abord.** Une branche jetable `ensaio-merge` — elle
+  existe encore en local — porte cinq commits de fusion, un par branche de la
+  nuit, fusionnées une à une : `88d684d`, `78f1094`, `1dd7cbe`, `6d5445e`,
+  `d94a850`. La séquence a été jouée avant d'être jouée pour de vrai.
+- **Puis un merge LOCAL, poussé directement.** La septième branche —
+  `fix/balayage-28-08`, celle qui avait été rebasée sur les six autres — est
+  entrée par `7c4d54e`, « Merge fix/balayage-28-08 - 33 corrections sur 17
+  ecrans », signé Sammy MAGBO le 28/08. ⚠️ Son sujet ne commence pas par
+  « Merge pull request » : c'est la **seule des sept** à n'être pas passée par
+  GitHub. Ses six sœurs sont les PR #79 à #85.
+- **Et la forme du défaut se vérifie encore aujourd'hui.** Les deux parents de
+  `7c4d54e` ont pour base de fusion `61fbe32` — le sommet de
+  `fix/cdi-alerte-ferme` **avant** son propre merge, et non la `main` fusionnée.
+  C'est exactement la « base multiple » que la plateforme refuse.
+
+**Donc : répéter la séquence en local sur une branche jetable, puis fusionner et
+pousser sans passer par la pull request.** C'est ce qui a été fait ; cela a
+marché ; et cela laisse une trace différente de celle de ses sœurs, ce qui est
+le prix.
+
+`[À COMPLÉTER PAR SAMMY]` Ce que l'historique ne peut pas dire : GitHub
+a-t-il été essayé pour ce merge-là avant d'y renoncer, et quelque chose d'autre
+a-t-il été tenté d'abord — un nouveau rebase sur la `main` déjà fusionnée, une
+recréation de la branche ? La réponse tient en une phrase, et elle décide si ce
+contournement est **le seul chemin** ou seulement le plus court.
 
 ---
 

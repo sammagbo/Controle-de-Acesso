@@ -413,10 +413,17 @@ signale.
 **L'adresse du serveur, elle, est FIXE** : réservation confirmée auprès du service
 informatique (Sammy, 04/09/2026).
 
-`[À COMPLÉTER PAR SAMMY]` **Et les TERMINAUX, sont-ils réservés eux aussi ?** La
-réponse ci-dessus ne porte que sur la VM. Tant que les terminaux sont en DHCP, un
-redémarrage suffit pour qu'ils cessent d'émettre : ni erreur, ni alerte, les
-événements s'arrêtent simplement d'arriver (c'est arrivé le 16/07, `.12` → `.10`).
+**Les terminaux sont réservés eux aussi** — confirmé par Sammy le 04/09/2026. La
+*pendência 6* de `docs/operacional/procedimento-hikcentral.md` est donc close des
+deux côtés : la VM et les appareils.
+
+⚠️ **Réservé n'est pas connu, et la nuance porte.** Une réservation fige ce que le
+service informatique attribue ; elle n'écrit rien dans ce dépôt. Le préfixe des
+MinMoe reste non établi (réserve 2 ci-dessus), et la vérification d'avant-séance
+garde tout son sens : **une réservation mal saisie se voit exactement comme un
+DHCP** — les événements cessent d'arriver, sans erreur et sans alerte, comme le
+16/07 (`.12` → `.10`). Ce qui vient d'être retiré, c'est la cause la plus
+fréquente du silence ; pas la manière de s'en apercevoir.
 
 `[À COMPLÉTER PAR SAMMY]` **Quand un appareil tombe en panne, qui est prévenu et
 qui répare ?** Le cas de la `.166` est clos — elle fonctionne, voir la réserve 3

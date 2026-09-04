@@ -690,11 +690,16 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 **Pour la VM : oui.** `192.168.1.253` est réservée, confirmé auprès du service
 informatique (Sammy, 04/09/2026).
 
-`[À COMPLÉTER PAR SAMMY]` **Pour les terminaux : on ne sait pas.** La demande de
-Fabiano les couvrait, la réponse obtenue ne porte que sur la VM. C'est ce qui
-reste de la *pendência 6* de `docs/operacional/procedimento-hikcentral.md` — et
-c'est la moitié qui coûte le plus cher, puisqu'un terminal qui change d'adresse
-cesse d'émettre sans que rien ne le dise.
+**Pour les terminaux aussi : oui.** Confirmé par Sammy le 04/09/2026 — la
+demande de Fabiano au service informatique a été exécutée pour les appareils
+comme pour la VM. La *pendência 6* de
+`docs/operacional/procedimento-hikcentral.md` est close.
+
+⚠️ **Cela ne dispense pas de la liste d'avant-séance** (IP du serveur, IP à
+l'écran du terminal, URL de l'*Écoute HTTP*, `door_mappings`). Elle reste la
+seule chose qui distingue « rien ne passe » de « rien ne s'est passé » — et une
+réservation mal saisie produit exactement le même silence qu'un bail DHCP
+expiré.
 
 ---
 

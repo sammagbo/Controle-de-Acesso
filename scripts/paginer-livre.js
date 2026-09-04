@@ -85,6 +85,31 @@ function trouverChrome() {
  */
 function imprimer(chrome, fichierHtml, fichierPdf) {
       const profil = fs.mkdtempSync(path.join(travail, 'profil-'));
+
+      // ⚠⚠ ON EFFACE LA CIBLE AVANT D'IMPRIMER, ET C'EST UNE GARDE, PAS UN
+      // MÉNAGE. La vérification d'après ne demande que « le fichier existe et
+      // n'est pas vide » — ce qui est VRAI du PDF de la veille.
+      // Mesuré le 04/09/2026 : livre-complet.pdf était ouvert dans un lecteur,
+      // Chrome n'a donc pas pu l'écrire, execFileSync n'a pas levé (le fichier
+      // était là, non vide), et ce script a certifié « 109 pages, échelle
+      // 0.750000 » en mesurant le PDF de la VEILLE — y compris le contrôle de
+      // réduction, qui est sa raison d'être. Un script qui atteste un document
+      // qu'il n'a pas produit est pire que celui qui échoue : il transforme une
+      // panne en preuve.
+      // ⚠️ Le message ne contient aucune barre oblique inversée, et les guillemets
+      // sont doubles : ce fichier a déjà perdu un antislash en étant écrit
+      // (voir 4146dd5). D'où le join sur String.fromCharCode(10).
+      try { fs.rmSync(fichierPdf, { force: true }); }
+      catch (e) {
+            throw new Error([
+                  "impossible de remplacer " + path.basename(fichierPdf)
+                        + " (" + e.code + ") — le fichier est ouvert ailleurs.",
+                  "  Fermez l'onglet ou le lecteur qui affiche ce PDF, puis relancez.",
+                  "  Sans cette garde, Chrome échoue en silence et TOUTES les mesures",
+                  "  qui suivent portent sur le PDF précédent.",
+            ].join(String.fromCharCode(10)));
+      }
+
       execFileSync(chrome, [
             '--headless=new', '--disable-gpu', '--no-pdf-header-footer',
             '--no-first-run', '--no-default-browser-check',

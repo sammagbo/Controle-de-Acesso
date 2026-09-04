@@ -166,15 +166,20 @@ qu'elle n'est plus lue par la cantine et par qui elle l'est encore.
 | `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` | TOTVS : la traçabilité reste chez le propriétaire de la donnée | **14/08/2026** | 14/08 (`b388275`) |
 | `ADR-005-creneaux-cantine.md` | Le planning de cantine devient une configuration | **26/08/2026** | 25/08 (`7567a75`) |
 
-**Proposition — je ne renumérote pas moi-même :**
+**Tranché le 04/09/2026 : on ne renumérote rien.** La règle est de citer le nom
+de fichier complet, jamais le seul numéro — ce que le chapitre 5 pratiquait déjà.
 
-> **TOTVS garde `ADR-005`** (décision du 14/08, entrée dans le dépôt le
-> 14/08 — c'est elle qui a pris le numéro en premier).
-> **Les créneaux deviennent `ADR-006`** (décision du 26/08).
+⚠️ **La proposition qui figurait ici était périmée, et il faut savoir pourquoi**,
+parce que c'est une leçon sur les propositions écrites et jamais relues. Elle
+suggérait de faire des créneaux l'`ADR-006`. Elle a été écrite le 31/08 à 10h42
+(`0060f0b`) ; l'`ADR-006` — la licence — a été créé **le même jour à 19h58**
+(`473f45c`), puis mis en production le 01/09. L'`ADR-007` a pris le suivant le
+02/09. Neuf heures et seize minutes séparaient une proposition de sa péremption,
+et personne ne l'a relue en huit jours : l'appliquer aurait recréé exactement la
+collision qu'elle réparait.
 
-C'est le sens de lecture d'un journal de décisions : le numéro suit l'ordre
-chronologique, et renuméroter la plus ancienne casserait les références déjà
-écrites ailleurs.
+Le détail du coût — vingt-neuf renvois par nom, six par numéro nu dont un dans
+la base — est au chapitre 3.
 
 **Ce qu'il faut faire :** renommer le fichier des créneaux, corriger son titre
 et son en-tête, et vérifier les renvois — `grep -rn "ADR-005" docs/ .claude/ CLAUDE.md`
@@ -199,8 +204,24 @@ est vrai.
 ## 4.2 Six classes de collège du mercredi 13h à confirmer
 
 **1E1, 1E2, 2E1, 2E2, 3E1, 3E2.**
-**[À COMPLÉTER PAR SAM / Vie Scolaire] : ces six classes sont-elles bien au
-second service du mercredi ?**
+
+**Ce n'est plus une question de fait : la mesure a tranché.** 89 passages sur ces
+six classes, et ceux de `3E1` et `3E2` concentrés entre 13h08 et 13h32. Vingt
+passages en vingt-quatre minutes, c'est une classe qui vient à son heure ; un
+débordement d'un autre service arriverait dispersé. Le tableau complet est en
+tête de `docs/operacional/handoff.md`. **L'affiche est incomplète, pas les élèves
+en faute.**
+
+`[À COMPLÉTER PAR LA VIE SCOLAIRE]` Valider que ces six classes sont bien au
+second service du mercredi, pour que le `Planning Cantine` les nomme et que
+l'affiche du mur les annonce.
+
+⚠️ **Cette question n'est plus adressée à Sammy, et c'est le changement.** Il ne
+peut pas y répondre seul : fixer l'heure de service d'une classe est un acte de
+Vie Scolaire, pas une lecture de la base. État au 04/09/2026 : non validée.
+Tant qu'elle ne l'est pas, l'affiche que lisent **les familles** n'annonce pas
+l'heure à laquelle ces six classes mangent — soit elles viennent à une heure que
+l'école ne publie pas, soit l'école en publie une où elles ne vont pas.
 
 ## 4.3 `5E3` et `3E3` : sur l'affiche, aucun élève en base
 
@@ -216,7 +237,7 @@ et sous quel code ?
 
 ## 4.4 La liste DAF — ✅ la demande n'a jamais été lancée
 
-*(Répondu par Sam le 31/08/2026.)* Elle n'a été formalisée auprès de personne.
+*(Répondu par Sammy le 31/08/2026.)* Elle n'a été formalisée auprès de personne.
 **Ce n'est donc pas une relance, c'est une démarche à initier.**
 
 ⚠️ **Ce que cela laisse en place, et pourquoi l'ordre compte :** en attendant,
@@ -228,19 +249,19 @@ qui y ont droit pour punir ceux qui n'y ont pas droit. Requête de contrôle au
 
 ## 4.5 Le terminal `.10` non enregistré au HikCentral — ✅ un ticket existe
 
-Erreur `SYS[904]`, numéro de série en conflit. *(Répondu par Sam le 31/08.)*
+Erreur `SYS[904]`, numéro de série en conflit. *(Répondu par Sammy le 31/08.)*
 **Un ticket est ouvert chez le fournisseur** — le revendeur qui a livré les
 terminaux.
 
 **[À COMPLÉTER — la référence du ticket et le nom du contact n'ont pas pu être
-retrouvés.]** **Où chercher :** la messagerie de Sam, ou le service informatique
+retrouvés.]** **Où chercher :** la messagerie de Sammy, ou le service informatique
 de l'établissement, qui a traité la commande. ⚠️ **Sans la référence, rouvrir une
 demande revient au même :** l'erreur `SYS[904]` et le numéro de série suffisent à
 décrire le cas.
 
 ## 4.6 Le terminal `.14` en Wi-Fi — ✅ définitif, ce n'est pas une action ouverte
 
-*(Répondu par Sam le 31/08.)* **L'emplacement ne permet pas de tirer un câble.**
+*(Répondu par Sammy le 31/08.)* **L'emplacement ne permet pas de tirer un câble.**
 C'est une **contrainte permanente**, pas une tâche en attente : ne la comptez
 plus comme du travail à faire.
 
@@ -263,14 +284,14 @@ réseau tombe.** Ce n'est pas un détail dans une école.
 
 ## 4.8 L'e-mail à Fabiano et le PDF du guide — ✅ les deux sont partis
 
-*(Répondu par Sam le 31/08.)* L'e-mail au service informatique a été envoyé et le
+*(Répondu par Sammy le 31/08.)* L'e-mail au service informatique a été envoyé et le
 PDF du guide d'installation a été remis. **Rien à relancer.** La source reste
 `docs/operacional/guide-installation-postes.md` : c'est elle qu'il faut mettre à
 jour puis réexporter si la procédure change.
 
-⚠️ **Ce qui reste ouvert, c'est le contact lui-même.** Sam ne se souvient ni du
+⚠️ **Ce qui reste ouvert, c'est le contact lui-même.** Sammy ne se souvient ni du
 nom complet de Fabiano, ni de son e-mail, ni de l'état des réservations DHCP.
-**[À COMPLÉTER — Sam n'a plus l'information.]**
+**[À COMPLÉTER — Sammy n'a plus l'information.]**
 **À qui demander :** le secrétariat ou la direction connaissent le service
 informatique. **Ce qu'il faut lui demander :** « les adresses IP des six
 terminaux et de la VM `192.168.1.253` sont-elles réservées en DHCP, ou
@@ -306,4 +327,4 @@ ferait échouer une suite qui protège un choix.
 | Le balayage : corrigé vs listé | `docs/operacional/nuit-27-28-08-rapport.md` §6 |
 | Les classes de l'affiche contre la base | `docs/operacional/controle-affiche-cantine.md` |
 | Les demandes au service informatique | `docs/testing/pedidos-fabiano-si.md` |
-| Les questions pour Sam, toutes ensemble | `docs/operacional/handoff.md` §11 |
+| Les questions pour Sammy, toutes ensemble | `docs/operacional/handoff.md` §11 |

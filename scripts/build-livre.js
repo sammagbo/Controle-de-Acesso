@@ -46,6 +46,24 @@ function esc(s) {
 }
 
 /**
+ * Comme esc(), plus le guillemet double — POUR LES ATTRIBUTS SEULEMENT.
+ *
+ * ⚠️ DEUX FONCTIONS ET NON UNE, ET LA DIFFÉRENCE COMPTE DANS LES DEUX SENS.
+ * Un attribut non échappé se referme sur le premier guillemet de la légende :
+ * `alt="l'écran « Droits Repas »"` passe, mais `alt="le bouton "Enregistrer""`
+ * produit du HTML mal formé, en silence, puisque rien ne valide le HTML ici.
+ * Aucune des sept légendes actuelles n'en contient : le défaut était dormant.
+ * ⚠️ Et dans l'autre sens : échapper le guillemet PARTOUT, y compris dans le
+ * texte, a été essayé et rejeté — le livre cite des commandes shell en ligne
+ * (une commande grep dont le motif est entre guillemets), et le source HTML
+ * doit y rester lisible — un test du dépôt le garde depuis toujours. Le rendu
+ * imprimé aurait été identique ; la source, non.
+ */
+function escAttr(s) {
+    return esc(s).replace(/"/g, '&quot;');
+}
+
+/**
  * Mise en forme DANS une ligne : code, gras, italique, liens.
  *
  * ⚠️ Le code inline est traité EN PREMIER et mis de côté : sans ça, un
@@ -84,6 +102,99 @@ function inline(s) {
 /** Une ligne de tableau `| a | b |` → les cellules, sans les barres vides. */
 function cellules(ligne) {
     return ligne.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+}
+
+/**
+ * Le type d'une image, lu sur ses OCTETS.
+ *
+ * ⚠️ Pas sur l'extension : c'est la règle que le dépôt applique déjà aux
+ * photos d'identité (PhotoZipReader), et pour la même raison — quelqu'un
+ * renommera un JPEG en .png, et un livre qui annonce image/png sur des octets
+ * JPEG produit une case vide chez l'imprimeur, sans message.
+ */
+function typeImage(b) {
+    if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+    if (b.length > 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+    return null;
+}
+
+/**
+ * Une capture d'écran : l'image si elle existe, la case si elle manque.
+ *
+ * Le marqueur s'écrit  [CAPTURE: nom-du-fichier.png — la légende]  et le nom de
+ * fichier est FACULTATIF : sans lui, la case s'affiche comme avant.
+ *
+ * ⚠️ LE NOM DE FICHIER EST DANS LE MARQUEUR, ET PAS DÉDUIT DE L'ORDRE.
+ * Numéroter les captures dans l'ordre d'apparition était plus simple à écrire
+ * et faux au premier ajout : insérer une capture au chapitre 5 aurait décalé
+ * toutes les suivantes, et des photos déjà prises se seraient affichées sous
+ * la mauvaise légende — en silence, ce qui est la seule chose que ce livre
+ * ne s'autorise pas.
+ *
+ * ⚠️ L'IMAGE EST INCORPORÉE EN data: ET NON LIÉE. Le livre doit s'ouvrir
+ * depuis une clé USB sur un poste hors ligne : un src="captures/x.png" ferait
+ * du livre un dossier au lieu d'un fichier, et la première personne qui
+ * enverrait le seul .html par courriel enverrait un livre sans images.
+ * tests/buildLivre.test.js garde la règle : aucune balise qui charge quoi que
+ * ce soit, sauf une image déjà contenue dans le fichier.
+ *
+ * ⚠️ Aucune barre oblique inversée ici, donc aucune expression régulière :
+ * ce dépôt en a déjà perdu une en écrivant un fichier (4146dd5).
+ */
+function capture(contenu) {
+    let fichier = null;
+    let legende = contenu;
+    // ⚠⚠ TROIS TIRETS ACCEPTÉS, ET UN REFUS BRUYANT SI AUCUN NE VIENT.
+    // Ce marqueur s'écrit à la main dans un chapitre. N'accepter que le tiret
+    // cadratin entouré d'espaces, c'était garantir qu'un jour quelqu'un tape un
+    // trait d'union : la capture prise, nommée et déposée au bon endroit serait
+    // restée invisible, et la seule trace aurait été une case redemandant un
+    // fichier déjà livré. Silencieux, donc interdit ici.
+    const SEPARATEURS = [' — ', ' – ', ' - '];
+    const ressembleAUnFichier = (t) => {
+        const b = t.toLowerCase();
+        return (b.endsWith('.png') || b.endsWith('.jpg') || b.endsWith('.jpeg'))
+              && t.indexOf(' ') < 0;
+    };
+    let sep = -1;
+    let taille = 0;
+    for (const marque of SEPARATEURS) {
+        const k = contenu.indexOf(marque);
+        if (k > 0 && (sep < 0 || k < sep)) { sep = k; taille = marque.length; }
+    }
+    if (sep > 0 && ressembleAUnFichier(contenu.slice(0, sep).trim())) {
+        fichier = contenu.slice(0, sep).trim();
+        legende = contenu.slice(sep + taille).trim();
+    } else if (ressembleAUnFichier(contenu.split(' ')[0])) {
+        // La tête EST un nom de fichier, mais aucun séparateur reconnu ne suit :
+        // échouer maintenant vaut mieux qu'imprimer le nom du fichier dans la
+        // légende et attendre que quelqu'un s'en aperçoive sur épreuve.
+        throw new Error("marqueur [CAPTURE: ...] mal formé : « " + contenu.slice(0, 60)
+              + " ». Le nom de fichier doit être suivi d'un tiret ENTOURÉ D'ESPACES"
+              + " (cadratin, demi-cadratin ou trait d'union), puis de la légende.");
+    }
+
+    if (fichier) {
+        const chemin = path.join(DOSSIER, 'captures', fichier);
+        let octets = null;
+        try { octets = fs.readFileSync(chemin); } catch (e) { octets = null; }
+        if (octets && octets.length) {
+            const type = typeImage(octets);
+            if (!type) {
+                throw new Error('captures/' + fichier + " n'est ni un PNG ni un JPEG"
+                      + " (lu sur les octets, pas sur l'extension).");
+            }
+            return '<figure class="capture-image" data-capture="' + escAttr(fichier) + '">'
+                  + '<img src="data:' + type + ';base64,' + octets.toString('base64') + '"'
+                  + ' alt="' + escAttr(legende) + '">'
+                  + '<figcaption>' + inline(legende) + '</figcaption></figure>';
+        }
+    }
+
+    return '<div class="capture" data-capture="' + escAttr(fichier || '') + '">'
+          + '<span class="capture-etiq">Capture d' + "'" + 'écran attendue'
+          + (fichier ? ' — <code>captures/' + esc(fichier) + '</code>' : '')
+          + '</span>' + inline(legende) + '</div>';
 }
 
 const EST_SEPARATEUR = l => /^\s*\|?[\s:-]*-[-\s:|]*\|?\s*$/.test(l) && l.includes('-');
@@ -142,7 +253,7 @@ function versHtml(md) {
         const cap = l.match(/^\s*`?\[CAPTURE\s*:\s*(.+?)\]`?\s*$/i);
         if (cap) {
             fermerListe(listes);
-            out.push(`<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>${inline(cap[1])}</div>`);
+            out.push(capture(cap[1]));
             i++;
             continue;
         }
@@ -363,6 +474,10 @@ li { margin: .3rem 0; }
 .capture { margin: 1rem 0; padding: .9rem 1rem; border: 2px dashed var(--gris);
   border-radius: 6px; background: var(--fond-doux); color: var(--gris);
   font-style: italic; font-size: .92em; }
+.capture-image { margin: 1.5rem 0; }
+.capture-image img { max-width: 100%; height: auto; display: block;
+  border: 1px solid var(--gris); }
+.capture-image figcaption { font-size: .85rem; color: #556677; margin-top: .4rem; }
 .capture-etiq { display: block; font-style: normal; font-weight: 700;
   font-size: .75em; letter-spacing: .08em; text-transform: uppercase;
   color: var(--navy-clair); margin-bottom: .25rem; }
@@ -470,11 +585,101 @@ li { margin: .3rem 0; }
   p, li, blockquote, td, th { orphans: 3; widows: 3; }
   p { margin: 0 0 3.2mm; }
 
-  /* ⚠️ Le fer à gauche est un CHOIX MESURÉ, pas un oubli : Chrome n'a pas
-     la césure française (hyphens: auto sans effet, mesuré), et un texte
-     justifié sans césure creuse des rivières blanches dans une colonne de
-     164 mm. Mieux vaut une marge droite irrégulière qu'un texte troué. */
-  .chapitre p, .page-avertissement p { text-align: left; }
+  /* ⚠️ LE TEXTE COURANT EST JUSTIFIÉ — ET LA CÉSURE, ELLE, NE MARCHE PAS.
+     « hyphens: auto » est posé ci-dessous et « lang=fr » est sur le <html>
+     depuis toujours : ce n'est donc PAS un oubli de langue. Mesuré le
+     04/09/2026 dans le Chrome qui imprime ce livre :
+     « anticonstitutionnellement » dans une colonne de 24 mm tient sur UNE
+     ligne, et un paragraphe français rend 14 lignes avec ET sans césure.
+     Chrome livre ses dictionnaires de coupure par le composant updater ;
+     celui du français n'est pas là.
+     ⚠️ La contre-épreuve se refait en deux minutes, et HORS du gabarit du
+     livre : une page à part, lang=fr, Cambria 10,5 pt, une colonne FORCÉE à
+     24 mm, le mot « anticonstitutionnellement » seul. Avec la césure active il
+     se coupe sur trois lignes ; ici il déborde sur UNE. Voir
+     scripts/mesurer-justification.js, qui refait aussi le comptage ci-dessous.
+     On pose la déclaration quand même : le jour où le dictionnaire arrive,
+     le livre s'améliore sans que personne ait à re-décider. */
+  .chapitre p, .chapitre li, .page-avertissement p {
+    text-align: justify;
+    hyphens: auto; -webkit-hyphens: auto;
+
+    /* ⚠⚠ NE PAS SUPPRIMER CES 0,1 px. Ils ne sont pas un reste de mise au
+       point : ils sont ce qui empêche Chrome de réduire tout le livre.
+       La colonne imprimable vaut 164 mm = 619,84 px — pas un compte rond.
+       Justifier pose le dernier glyphe EXACTEMENT sur la marge, et l'arrondi
+       sous-pixel le fait déborder d'un cheveu : mesuré le 04/09/2026,
+       échelle 0,749962 au lieu de 0,750000, sur les 109 pages, et
+       paginer-livre.js refuse alors de finir — à juste titre, c'est le même
+       mécanisme silencieux qui sortait le livre à 80,7 %.
+       Mesuré aussi : 0,1 px suffit et garde 109 pages ; 0,5 px et 1 px
+       rétablissent l'échelle mais font passer le livre à 110 pages.
+       0,1 px vaut 0,026 mm : aucune presse ne l'imprime. */
+    padding-right: 0.1px; }
+
+  /* ⚠⚠ ON NE JUSTIFIE PAS AUTOUR D'UN CHEMIN DE FICHIER — et c'est la
+     règle qui décide si ce livre est imprimable.
+     Un paragraphe qui cite du code dans le fil du texte
+     (backend/src/main/java/com/magbo/access/controllers/…) porte des jetons
+     insécables de 200 px. Ils ne tiennent pas sur la fin d'une ligne, passent
+     entièrement à la suivante, et la justification étire alors la poignée de
+     mots restée derrière jusqu'à la marge. Au fer à gauche le défaut ne se
+     voyait pas : une ligne courte restait courte.
+     MESURÉ sur les 1320 lignes justifiables du livre, en comparant l'espace
+     réellement rendue à l'espace naturelle (3,09 px). ⚠️ CES CHIFFRES SE
+     REFONT — c'est tout leur intérêt :
+        node scripts/build-livre.js && node scripts/mesurer-justification.js
+        état      médiane    ≥ 2x     ≥ 3x
+        tout        1,47x     22,9 %    9,2 %   (l'exception annulée)
+        publié      1,00x      4,8 %    2,1 %   (le livre tel qu'il sort)
+        témoin      1,00x      3,3 %    2,0 %   (tout au fer à gauche)
+     Le témoin n'est pas à zéro et ne peut pas l'être : il mesure le bruit de la
+     méthode. C'est à LUI qu'il faut comparer « publié », pas à 1,00 — et
+     publié est à 1,5 point de lui, quand tout-justifié en est à vingt.
+     Autrement dit : la prose se justifie proprement, les paragraphes truffés
+     de code ne le peuvent pas, et l'exception les ramène au plancher.
+     109 pages et échelle 0,750000 dans les trois cas.
+     ⚠️ MESURÉ AUSSI, ET ÇA NE MARCHE PAS : rendre le code coupable partout
+     (overflow-wrap: anywhere sur le code en ligne) ne change RIEN — chiffres
+     identiques à la virgule près. La coupure ne se déclenche que si le jeton
+     ne tient pas SEUL sur une ligne ; ici il tient. Ne pas réessayer. */
+  .chapitre p:has(code), .chapitre li:has(code),
+  .page-avertissement p:has(code) {
+    text-align: left; }
+
+  /* ⚠⚠ SI :has() N'EXISTE PAS, ON NE JUSTIFIE PLUS RIEN DU TOUT.
+     L'exception ci-dessus est la clef de voûte du compromis : sans elle, la
+     mesure dit 21,1 % des lignes à deux espaces ou plus. Un moteur qui ne
+     connaît pas :has() ignore la règle EN SILENCE et rend exactement le livre
+     troué qu'on vient de mesurer — personne ne le verrait avant la presse.
+     Le repli choisit le fer à gauche : moins beau, jamais abîmé.
+     Chrome connaît :has() depuis la version 105 ; ce bloc sert le jour où
+     quelqu'un imprime ce livre avec autre chose. */
+  @supports not selector(:has(*)) {
+    .chapitre p, .chapitre li, .page-avertissement p { text-align: left; }
+  }
+
+  /* Assurance, et rien de plus : un jeton plus large que la colonne ferait
+     réduire TOUT le document par Chrome (voir table-layout: fixed plus bas).
+     ⚠️ Cette ligne ne corrige AUCUN trou de justification — c'est mesuré
+     ci-dessus. Ne pas lui prêter ce rôle.
+     « break-word » et NON « anywhere » : « anywhere » change la largeur
+     minimale de l'élément, ce qui est exactement le mécanisme du rétrécissement
+     à 80,7 %. */
+  .chapitre p code, .chapitre li code { overflow-wrap: break-word; }
+
+  /* ⚠️ RESTENT AU FER À GAUCHE, SANS EXCEPTION — ce n'est pas du texte
+     courant. Un chemin de fichier ne se coupe pas, et justifier autour de lui
+     ouvre des trous ; un tableau, un titre, une légende ou un encadré court
+     n'a pas assez de lignes pour qu'une marge droite régulière ait un sens.
+     Plusieurs de ces règles sont redéclarées alors qu'elles seraient déjà
+     vraies par héritage : c'est voulu, pour qu'un futur « text-align » posé plus
+     haut ne les emporte pas en silence. */
+  pre, pre.code, code, table, th, td,
+  h1, h2, h3, h4, h5, h6, figcaption,
+  .capture, .capture-etiq, .avert, .avert p, .avert li,
+  .chapitre blockquote, .chapitre blockquote p, .chapitre blockquote li {
+    text-align: left; hyphens: none; -webkit-hyphens: none; }
 
   h1, h2, h3, h4 { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     break-after: avoid; page-break-after: avoid; }
@@ -525,11 +730,29 @@ li { margin: .3rem 0; }
     line-height: 1.38; padding: 2.5mm 3mm; margin: 3.5mm 0; border-radius: 0;
     border-width: .5pt; border-left-width: 2.4pt; }
 
-  blockquote, .capture, .avert { break-inside: avoid; page-break-inside: avoid;
+  blockquote, .capture, .capture-image, .avert { break-inside: avoid; page-break-inside: avoid;
     border-radius: 0; }
   blockquote { margin: 3.5mm 0; padding: 2mm 3mm; border-left-width: 2.4pt; }
   .avert { margin: 4mm 0; padding: 2.5mm 3mm; border-width: .8pt; }
   .capture { margin: 3.5mm 0; padding: 3mm; border-width: .8pt; font-size: 9pt; }
+
+  /* ⚠️ LES DEUX LIMITES SONT DES GARDES, PAS DE LA MISE EN PAGE.
+     max-width : une image plus large que les 164 mm imprimables ne serait pas
+     rognée par Chrome — il réduirait TOUT le document, en silence, exactement
+     comme les 51 tableaux qui le sortaient à 80,7 % (voir table-layout plus
+     haut). paginer-livre.js refusera de finir si cela arrive : c'est la
+     vérification à relire après avoir ajouté une capture.
+     max-height : la hauteur imprimable vaut 255 mm, donc une figure de 170 mm
+     tient largement — ce n'est pas une limite de débordement. C'est une limite
+     de VOISINAGE : au-delà, la figure et sa légende occupent tant de la page
+     que break-inside: avoid les repousse seules sur la suivante dès qu'un
+     paragraphe les précède, en laissant derrière un demi-feuillet blanc.
+     170 mm laisse un tiers de page au texte qui accompagne l'image. */
+  .capture-image { margin: 4.5mm 0; text-align: center; }
+  .capture-image img { max-width: 100%; max-height: 170mm; height: auto;
+    border: .4pt solid var(--gris); }
+  .capture-image figcaption { font-size: 8.5pt; color: #556677; margin-top: 1.4mm;
+    text-align: left; }
   ul, ol { margin: 0 0 3.2mm; padding-left: 6mm; }
   li { margin: 0 0 1mm; }
 
@@ -717,7 +940,7 @@ function construire() {
   </div>
   <div class="couv-bas">
     <p class="couv-lieu">Lycée Molière · Rio de Janeiro</p>
-    <p class="couv-auteur">Sammy K. Magbo</p>
+    <p class="couv-auteur">Sammy Kabagambe Magbo</p>
     <p class="couv-annee">${aujourdhui.getFullYear()}</p>
   </div>
 </section>
@@ -728,7 +951,7 @@ function construire() {
   <p class="pt-titre">MAGBO Access Control</p>
   <p class="pt-sstitre">Le livre du système</p>
   <div class="pt-filet"></div>
-  <p class="pt-auteur">Sammy K. Magbo</p>
+  <p class="pt-auteur">Sammy Kabagambe Magbo</p>
   <p class="pt-etab">Lycée Molière · Rio de Janeiro</p>
   <p class="pt-annee">${aujourdhui.getFullYear()}</p>
 </section>
@@ -737,18 +960,35 @@ function construire() {
 <section class="page-blanche"></section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ▼▼▼  DÉDICACE — À COMPOSER PAR SAM  ▼▼▼
-     Remplacer le texte entre <div class="dedicace-texte"> et </div> dans
-     scripts/build-livre.js (c'est lui qui produit cette page), puis
-     régénérer. Deux ou trois lignes, pas davantage : rien d'autre sur la
-     page, ni titre, ni filet, ni numéro.
+     ▼▼▼  DÉDICACE  ▼▼▼
+     Écrite par Sammy K. MAGBO le 04/09/2026, et composée mot pour mot.
+
+     ⚠️ LES DEUX <br> SONT LE TEXTE, PAS DE LA MISE EN PAGE. Les trois lignes
+     et l'endroit où elles se coupent sont de l'auteur. Sans les <br>, le
+     texte se replierait tout seul dans les 84 mm de la colonne et la coupure
+     tomberait ailleurs qu'où elle a été pensée — au premier changement de
+     police, de corps ou de largeur, elle bougerait encore. Ne pas les
+     remplacer par du texte au fil.
+
+     ⚠️ Cette page ne porte RIEN D'AUTRE : ni titre, ni filet, ni numéro. Une
+     dédicace s'ouvre sur un recto et rien ne lui fait face ; les deux pages
+     blanches qui l'encadrent sont là pour cela, et un test les garde.
+
+     Avant le 04/09/2026 cette page portait encore sa phrase d'attente : le
+     livre serait parti chez l'imprimeur en se donnant une consigne à
+     lui-même, sur la seule page qui n'existe que pour dire une chose
+     personnelle. ⚠️ La phrase n'est pas recopiée ici, et c'est voulu : un
+     test cherche sa disparition, et ce dépôt a déjà vu une garde rester
+     verte parce qu'un commentaire citait ce qu'elle traquait (4146dd5).
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="page-dedicace">
   <div class="dedicace-texte">
-    À composer par Sam.
+    À celle ou celui qui reprendra ce système :<br>
+    ce livre existe pour que vous n'ayez pas<br>
+    à le redécouvrir seul.
   </div>
 </section>
-<!-- ▲▲▲  FIN DE L'EMPLACEMENT DE LA DÉDICACE  ▲▲▲ -->
+<!-- ▲▲▲  FIN DE LA DÉDICACE  ▲▲▲ -->
 
 <!-- Rien ne fait face à une dédicace. -->
 <section class="page-blanche"></section>
@@ -758,7 +998,7 @@ function construire() {
   <p>Chaque affirmation technique est vérifiable dans le dépôt&nbsp;: quand un
   fichier est cité, c'est qu'il dit ce qui est écrit. Ce qui n'a pas pu être
   vérifié porte <code>[À VÉRIFIER]</code> avec la commande ou la requête qui le
-  confirmerait. Ce que seul Sam sait porte <code>[À COMPLÉTER PAR SAM]</code>
+  confirmerait. Ce que seul Sammy sait porte <code>[À COMPLÉTER PAR SAMMY]</code>
   avec la question précise.</p>
   <p><strong>Une documentation fausse est pire qu'absente</strong>, parce qu'on
   lui fait confiance. Si vous trouvez une affirmation que le dépôt contredit,
@@ -790,7 +1030,7 @@ ${corps}
     <dt>Dernier commit</dt><dd><code>${esc(commit.court)}</code> — branche <code>${esc(commit.branche)}</code></dd>
     <dt>Contenu</dt><dd>${numerotes.length} chapitre${numerotes.length > 1 ? 's' : ''}${liminaires.length ? ', plus le sommaire' : ''}</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
-    <dt>Auteur</dt><dd>Sammy K. Magbo</dd>
+    <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>
   </dl>
   <div class="colo-filet"></div>
   <p class="colo-note">Composé en Cambria pour le texte, Segoe UI pour les

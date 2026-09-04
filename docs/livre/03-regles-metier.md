@@ -121,7 +121,7 @@ production**.
 | `missing-door-mapping` | `FALLBACK` | `FALLBACK` |
 
 ⚠️ **`meal-pending=DENY` en production a un prérequis opérationnel** (décision D5
-de Sam, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée
+de Sammy, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée
 **en masse avant le jour 1**. Sans cet import, tout élève est `PENDING`, donc
 refusé, et **aucun repas n'est enregistré**. C'est écrit dans le fichier de
 properties lui-même (lignes 60-63).
@@ -229,7 +229,7 @@ cantine — mais **la passage reste enregistrée**. ⚠️ La conséquence PPMS 
 
 ### 🔴 N'activez PAS la dispense en l'état — la raison est le PPMS
 
-*(Question posée à Sam le 31/08/2026. Réponse : **la conséquence PPMS n'avait pas
+*(Question posée à Sammy le 31/08/2026. Réponse : **la conséquence PPMS n'avait pas
 été mesurée.**)*
 
 Le code permet la dispense ; la décision n'a jamais été prise, et **elle n'était
@@ -597,9 +597,31 @@ défaut même que le mécanisme existe pour empêcher.
 régimes soient chargés. Le passer à `DENY` avant transformerait l'école entière en
 rouge — l'erreur déjà documentée pour `meal-pending` (D5/ADR-004).
 
-**[À COMPLÉTER PAR SAM]** À quelle condition précise le régime doit-il être activé
-en production (nombre d'élèves saisis ? date ? accord de la Vie Scolaire ?), et qui
-décide de passer `desconhecido` à `DENY` ?
+**Répondu le 04/09/2026 — en deux parties, parce que ce sont deux choses.**
+
+**La condition n'est pas un seuil, c'est un ORDRE**, et il était déjà écrit : ici
+même, au chapitre 1, et dans `docs/frontend-smoke-checklist.md`.
+
+1. appliquer **V014 et V015** (et V017) sur la VM — sans elles l'INSERT échoue
+   **uniquement là-bas**, à l'intérieur de la transaction de la passage ;
+2. accorder `REGIME_WRITE` à qui saisit ;
+3. **charger les régimes** — ils n'existent que sur papier, voir le chapitre 1 ;
+4. et **seulement alors** `magbo.regime.habilitado=true`, qui naît à `false`.
+
+Aucun de ces quatre pas n'est un nombre d'élèves ni une date : c'est une
+séquence, et elle se lit dans cet ordre.
+
+**Le second interrupteur a désormais un propriétaire : la DIRECTION décide, sur
+proposition de la VIE SCOLAIRE.** Faire passer `magbo.regime.desconhecido` de
+`OBSERVATION` à `DENY` n'est pas un réglage technique : c'est décider qu'un élève
+dont le régime n'a pas été saisi se voit refuser la sortie. Celui qui tient les
+carnets propose ; celui qui répond des élèves signe.
+
+⚠️ **Et l'ordre entre les deux ne se négocie pas.** Tant que les régimes ne sont
+pas chargés, `desconhecido` reste `OBSERVATION` — au premier jour, 923 élèves
+sont sans régime, et basculer avant les peindrait tous en rouge. C'est l'erreur
+de `meal-pending` (D5 / ADR-004) refaite à l'identique, sur un objet plus lourd :
+là-bas il s'agissait d'un repas, ici d'une sortie d'école.
 
 ---
 
@@ -629,9 +651,41 @@ permission active et ne regarde pas le type d'utilisateur, donc l'activer ferait
 **chaque sortie d'agent à 17h** un `EXIT_NOT_AUTHORIZED` — des centaines par jour,
 sans que personne l'ait décidé.
 
-**[À COMPLÉTER PAR SAM]** Faut-il brancher l'évaluation de sortie sur les caméras du
-portail, et faut-il d'abord restreindre la règle aux `ALUNO` (l'entité s'appelle
-`StudentExitPermission`) ? Le javadoc renvoie explicitement la décision à Sam.
+**Trois précisions avant la question, parce que le marqueur en portait trop.**
+
+**1. L'évaluation EST déjà branchée sur les caméras.** Le bloc tourne sur les
+`SAIDA` du portail « pour les DEUX branches — terminal et caméra », et il appelle
+déjà `exitPermissionService.evaluate()`. Ce qui n'est pas branché, c'est le
+**refus**, pas le regard. La question n'a jamais été de câbler quelque chose :
+elle est de décider ce qu'on fait de ce qu'on voit déjà.
+
+**2. La restriction aux `ALUNO` existe — du côté de l'ÉCRITURE, et à deux
+serrures.** Seul un élève peut recevoir une permission : `StudentSearchService`
+filtre sur `UserType.ALUNO`, et `apenasAlunos()` est explicitement « la seconde
+serrure » côté écran.
+
+**3. ⚠️ Mais du côté de l'ÉVALUATION, les deux garde-fous manquent.**
+`ExitPermissionService` ne filtre **pas** le type — zéro occurrence de
+`UserType` dans le fichier — et n'a **pas** de fin de journée. Le
+`RegimeSortieService`, juste à côté, a les deux : « pas un ALUNO →
+`NON_APPLICABLE` » et un palier de fin de journée. Le patron est écrit, testé et
+en production ; il n'a simplement pas été appliqué ici.
+
+⚠️ **C'est ce qui rend l'ordre non négociable.** Sans ces deux paliers, allumer
+le refus produirait des centaines de lignes par jour contre des agents qui
+sortent à l'heure normale — ordre de grandeur : ~950 passages quotidiens au
+portail. Et l'état actuel n'est pas qu'un commentaire : il est **gelé par un
+test**, `PortariaCameraIT#sentidoVemDoIp`, qui fait sortir un FUNCIONARIO sans
+permission devant la caméra et exige un `access_log`. Ce test devra changer le
+jour où la politique changera — c'est lui qui rendra le changement visible.
+
+`[À COMPLÉTER PAR LA DIRECTION]` **Faut-il passer de l'observation au refus au
+portail ?** Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Refuser
+la sortie d'un élève est un acte scolaire, pas un réglage — comme le passage de
+`magbo.regime.desconhecido` à `DENY` (§ 3.9), la direction décide, sur
+proposition de la Vie Scolaire. Les deux paliers du point 3 sont une
+**pré-condition technique**, pas une réponse : ils rendent le refus possible
+sans le rendre souhaitable.
 
 ---
 
@@ -654,7 +708,7 @@ Résumé (le détail est dans le chapitre des écrans et dans
   fermeture automatique** (l'infirmerie, dont la sortie est manuelle).
 - ⚠️ **Ne remplace pas l'appel.** L'écran le dit au-dessus du nombre. Cache
   hors-ligne en `localStorage`, avec l'heure du cliché en évidence.
-- Pas d'export CSV de masse : décision de Sam — la loi demande du papier pour la
+- Pas d'export CSV de masse : décision de Sammy — la loi demande du papier pour la
   cellule de crise, et un CSV avec le nom de tous les enfants vit pour toujours sur
   le portable de quelqu'un.
 
@@ -682,7 +736,7 @@ Configuration en production (`application-prod.properties`, lignes 120-127) :
 
 ### ✅ L'heure de 15:00 est confirmée — mais la sortie reste synthétique
 
-*(Répondu par Sam le 31/08/2026.)*
+*(Répondu par Sammy le 31/08/2026.)*
 
 Le fichier porte la mention « ⚠️ CONFÉRER L'HEURE AVEC LA CANTINE avant le
 jour 1 ». **La confirmation a été faite : 15:00 correspond au service réel.**
@@ -768,7 +822,7 @@ Trois principes lisibles dans les javadocs :
 
 1. **Une permission, pas une aire**, quand la donnée traverse l'école (`PPMS_READ`,
    `PARCOURS_READ`) ou nomme un enfant sous sanction (`CDI_EXCLUSION_WRITE`).
-   « Restreindre, pas fermer » — décision de Sam, 14/08/2026.
+   « Restreindre, pas fermer » — décision de Sammy, 14/08/2026.
 2. **Lire ≠ écrire**, sauf pour `CONFIG_WRITE` et `CDI_EXCLUSION_WRITE`, où la
    lecture est déjà du matériel d'administration ou une donnée sensible.
 3. Sans permission granulaire, les champs sont **désactivés, pas cachés** : la
@@ -783,7 +837,7 @@ qui n'existe pas encore.
 ## 3.15 Vérifications à faire sur la VM
 
 Rien de ce qui suit n'est vérifiable depuis le dépôt. Les états de production
-ci-dessous ont été **affirmés par Sam le 28/08/2026**.
+ci-dessous ont été **affirmés par Sammy le 28/08/2026**.
 
 **[À VÉRIFIER]** Les migrations **V001 → V027** sont appliquées (état au
 03/09/2026). Les tables créées par les six dernières :
@@ -843,7 +897,7 @@ grep MAGBO_REGIME_HABILITADO deploy/.env      # sur la VM, .env n'est pas versio
 docker exec magbo-backend env | grep MAGBO_REGIME
 ```
 
-**[À VÉRIFIER]** Les six terminaux en service (affirmé par Sam le 28/08 : portail
+**[À VÉRIFIER]** Les six terminaux en service (affirmé par Sammy le 28/08 : portail
 .166 SORTIE et .167 ENTRÉE, CDI .15 et .16, cantine .10/.12/.13/.14) correspondent
 bien aux `door_mappings` — ⚠️ les IP bougent en DHCP et la panne est **silencieuse** :
 
@@ -863,11 +917,48 @@ ADR-005** :
 - `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md`.
 
 Les deux sont des décisions réelles et acceptées ; c'est la **numérotation** qui est
-en double. Renuméroter casserait les liens existants dans le code et la
-documentation, donc le fait est **signalé, pas corrigé**.
+en double.
 
-**[À COMPLÉTER PAR SAM]** Lequel des deux garde le numéro 005, et le second devient
-lequel ? (Une redirection depuis l'ancien nom serait préférable à un renommage sec.)
+**Ce que le dépôt établit déjà.** TOTVS a pris le numéro le 14/08/2026
+(`b388275`), les créneaux le 26/08 (`7567a75`) : onze jours d'écart. Le chapitre 9
+(§ 3.6) en tire l'argument — **TOTVS garde le 005**, parce qu'un journal de
+décisions se numérote dans l'ordre où elles sont prises. Rien dans le dépôt ne le
+contredit. Mais c'est une **proposition**, pas une décision : aucun renommage,
+aucune redirection, aucun `git mv` n'existe dans `docs/architecture/decisoes/`.
+
+⚠️⚠️ **ET LA SECONDE MOITIÉ DE CETTE PROPOSITION EST PÉRIMÉE — ne l'appliquez
+pas telle quelle.** Le chapitre 9 propose de faire des créneaux l'`ADR-006`. Il a
+été écrit le 31/08 à 10h42 ; l'`ADR-006` — la licence — a été créé **le même jour
+à 19h58**, puis mis en production le 01/09 (`5632d0a`, PR #87, migration V027).
+L'`ADR-007` (configuration du poste) a pris le suivant le 02/09. Renuméroter les
+créneaux en 006 recréerait exactement la collision qu'on répare. **Le premier
+numéro libre est `ADR-008`** — vérifié : aucune occurrence dans le dépôt.
+
+⚠️ **Et le travail n'est pas le renommage.** Vingt-neuf renvois nomment l'un des
+deux fichiers en entier : ceux-là se corrigent mécaniquement. Le risque est
+ailleurs — **six références citent le numéro NU, dans le code et le SQL**, et
+elles deviendraient silencieusement fausses au lieu de simplement ambiguës :
+
+| Où | Vers quoi il pointe |
+|---|---|
+| `TotvsLinkController.java:26` | TOTVS |
+| `MealSlot.java:13` | les créneaux |
+| `AccessDecisionService.java:751` | les créneaux |
+| `MealSlotService.java:28` | les créneaux |
+| `deploy/migrations/V021__meal_slots.sql:11` | les créneaux |
+| `deploy/migrations/V021__meal_slots.sql:144` | les créneaux — ⚠️ dans un `COMMENT ON`, **stocké dans la base de production** : celui-là ne se corrige pas en éditant le dépôt |
+
+**Décision du 04/09/2026 : on ne renumérote pas.** La parade devient la règle —
+*citer le nom de fichier complet, jamais le seul numéro*. Coût nul, risque nul,
+et les six citations du numéro nu dans le code et le SQL restent exactes, y
+compris celle qui vit dans un `COMMENT ON` de la base de production.
+
+⚠️ **Exactes, mais ambiguës — et c'est ce qui reste.** Qui tombe sur « ADR-005 »
+dans `MealSlot.java` ne peut pas savoir lequel des deux est visé sans ouvrir les
+deux fichiers. L'amélioration la moins chère n'est donc pas un renommage : c'est
+d'écrire le nom du fichier **à côté** du numéro, aux six endroits du tableau
+ci-dessus. Un mot par ligne, aucune migration, et le `COMMENT ON` cesse d'être un
+obstacle puisqu'aucun numéro ne change.
 
 ---
 

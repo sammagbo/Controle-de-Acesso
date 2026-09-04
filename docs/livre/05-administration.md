@@ -55,7 +55,7 @@ La garde côté serveur s'écrit toujours de la même façon :
 Où l'on crée et modifie un compte : **Panneau Administratif → Gestion des opérateurs**
 (`js/components/AdminDashboard.js:455-490`, écran `js/components/UserManagement.js`).
 
-[CAPTURE: le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous]
+[CAPTURE: 05-formulaire-operateur.png — le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous]
 
 ### 5.2.2 La liste complète des permissions
 
@@ -69,11 +69,11 @@ n'est pas vérifiable depuis le dépôt (voir la fin de cette section).
 | `EXIT_PERMISSION_WRITE` | Créer et révoquer une autorisation de sortie **ponctuelle** | `ExitPermissionController:75, 91` | Vie Scolaire uniquement — c'est elle qui reçoit le mot des familles |
 | `ATTEMPTS_READ` | Consulter les tentatives refusées et leurs agrégats (`/api/access/attempts`, `/stats`) | `AccessAttemptController:29, 44` | Vie Scolaire, direction, et l'opérateur qui doit comprendre un refus au moment où il arrive |
 | `REGIME_WRITE` | Écrire le **régime de sortie annuel** d'un élève (V014) | `StudentRegimeController:130-170` | Vie Scolaire **et elle seule** : c'est elle qui tient le carnet signé par la famille. Le javadoc de `Permissions.java:13-22` le dit explicitement — l'ADMIN n'est pas le bon profil |
-| `PPMS_READ` | Lire la liste **nominative** de qui est à l'intérieur (évacuation) | `PpmsController:51` | Vie Scolaire, direction, infirmerie. Décision de Sam du 14/08 : **restreindre, pas fermer** — un nom est ce qui permet de retrouver un enfant |
+| `PPMS_READ` | Lire la liste **nominative** de qui est à l'intérieur (évacuation) | `PpmsController:51` | Vie Scolaire, direction, infirmerie. Décision de Sammy du 14/08 : **restreindre, pas fermer** — un nom est ce qui permet de retrouver un enfant |
 | `CANTINE_REMOVAL_WRITE` | Retirer une ligne du Moniteur Cantine (et la remettre) | `CantineRemovalController:62, 77` | L'opérateur de la cantine. ⚠️ voir l'avertissement ci-dessous |
 | `MEAL_SLOT_WRITE` | Modifier le planning cantine : créneaux, classes, exceptions par élève | `MealSlotController` (`ESCRITA`, l. 47) | Vie Scolaire — c'est elle qui tient l'affiche au mur |
 | `PARCOURS_READ` | Le parcours du jour d'une personne, tous points confondus | `ParcoursController` (`GATE`, l. 50) | Vie Scolaire et direction. Traverse toute l'école : plus que ce qu'aucun secteur ne donne |
-| `CONFIG_WRITE` | **Lire et écrire** les réglages du système ; capacité et état du CDI ; classes dispensées de badge | `SettingsController` (`GATE`, l. 36), `CdiController:173`, `MealSlotController:172` | Sam, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système |
+| `CONFIG_WRITE` | **Lire et écrire** les réglages du système ; capacité et état du CDI ; classes dispensées de badge | `SettingsController` (`GATE`, l. 36), `CdiController:173`, `MealSlotController:172` | Sammy, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système |
 | `CDI_EXCLUSION_WRITE` | **Lire et gérer** les exclusions du CDI (qui, pourquoi, jusqu'à quand, qui a décidé) | `CdiController` (`GATE_EXCLUSOES`, l. 51-52) | Vie Scolaire et responsable du CDI. Une exclusion nomme un enfant et raconte une sanction |
 
 Quelques règles qui ne se devinent pas :
@@ -119,13 +119,68 @@ Le nom d'une permission existe à **trois** endroits qui doivent bouger ensemble
 
 ### 5.2.4 Ce que le dépôt ne peut pas dire
 
-`[A COMPLETER PAR SAM]` Quels comptes opérateurs existent réellement sur la VM de production,
-avec quel rôle, quels secteurs et quelles permissions ? En particulier : **qui détient
-`CONFIG_WRITE`** aujourd'hui, et **qui détient `REGIME_WRITE`** à la Vie Scolaire ?
+**Le relevé existe, daté du 03/09/2026** (`docs/operacional/handoff.md`, § 8.2.10)
+— mais il ne porte qu'une seule colonne, le rôle :
 
-`[A COMPLETER PAR SAM]` Le mot de passe du compte applicatif `admin` et la valeur de `ADMIN_PIN`
-sur la VM (les défauts `admin1234` / `1234` doivent avoir été changés — voir
-`.claude/rules/deploy-seguranca.md`). Où sont-ils consignés ?
+| Rôle | Comptes |
+|---|---|
+| **ADMIN** | `TI`, `VS`, `admin`, `alexandre`, `ccc`, `luciana`, `proviseur`, `rosantos`, `vs` — **neuf** |
+| **OPERATOR** | un seul, celui de la cantine |
+
+🔴 **Neuf ADMIN sur dix comptes — et le rôle ADMIN possède les dix permissions
+particulières.** La grille fine décrite au § 5.2 ne protège donc rien
+aujourd'hui : elle décrit un mécanisme réel, appliqué à une population où
+presque tout le monde a déjà tout. Et la liste **nominative** du PPMS — celle
+que la décision du 14/08 voulait « restreindre, pas fermer » — est lisible par
+neuf personnes.
+
+**[À COMPLÉTER PAR LA DIRECTION]** Neuf ADMIN pour un OPERATOR : est-ce
+l'organisation voulue ? Réponse de Sammy le 04/09/2026 : ce n'est pas sa
+décision. Attribuer un rôle d'administration est un acte d'organisation, pas un
+réglage technique.
+
+`[A VERIFIER]` Ce que le relevé ne dit pas — les **secteurs** et les
+**permissions granulaires** de chaque compte, donc qui détient réellement
+`CONFIG_WRITE` et `REGIME_WRITE` — se lit en une requête sur la VM :
+
+```bash
+docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT username, role, setores_permitidos, permissoes, ativo
+     FROM system_users ORDER BY role, username"
+```
+
+⚠️ **Une identité manque avant les permissions.** Le handoff demande lui-même
+« qui est derrière chaque login » et signale `VS` / `vs` et `TI` / `ccc` comme
+doublons apparents. Retirer des droits à des comptes dont on ne sait pas encore
+qui les tient reviendrait à couper au hasard.
+
+**Où ils sont consignés : répondu** (Sammy, 31/08/2026 —
+`docs/operacional/handoff.md`, § « LE RISQUE Nº 1 DE LA REPRISE »). Les cinq
+secrets de déploiement vivent dans le `.env` de la VM et se récupèrent par SSH ;
+le compte applicatif `admin` et l'accès web des appareils ne vivent nulle part
+ailleurs que chez Sammy.
+
+**Décision du 04/09/2026 : les accès vont dans un coffre tenu par la direction.**
+Ce livre écrit qu'il existe et qui l'ouvre — jamais les valeurs, jamais
+l'emplacement exact. ⚠️ Il n'y a rien à publier ici : le livre s'imprime, et le
+dépôt est public.
+
+⚠️ **Le coffre doit contenir le SSH de la VM**, pas seulement les mots de passe
+applicatifs — sans lui il ne couvre que la moitié de la panne. La raison est au
+chapitre 6, § 2.1.
+
+⚠️ **Vérifier que les défauts ont été changés ne demande de publier RIEN.** Une
+ligne, refaisable par n'importe qui :
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://192.168.1.253:8080/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin1234"}'
+```
+
+**401 = le défaut a bien été changé.** 200 = il ne l'a pas été, et cela se
+corrige le jour même. Les valeurs par défaut sont déjà écrites en clair dans
+`.claude/rules/deploy-seguranca.md` : cette commande ne révèle rien de neuf, elle
+mesure seulement.
 
 `[A VERIFIER]` La liste vivante des comptes se lit avec un jeton ADMIN :
 `curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/system-users`
@@ -243,17 +298,38 @@ Le cycle complet — MAGBO génère le CSV → l'informatique l'importe → *App
 > └──────────────────────────────────────────────────────────────────────────┘
 > ```
 
-**Origine de cette consigne : Sam, le 28/08/2026.** Elle n'est **pas** vérifiable dans le dépôt —
-aucun fichier du projet ne mentionne cette case, qui appartient à l'interface du HikCentral et non
-à MAGBO.
+**Origine de cette consigne : Sammy, le 28/08/2026**, précisée par lui le 31/08 —
+et sa portée est **plus large que les deux exports** :
+
+> « Lors de **toute opération HikCentral**, "Restaurer les paramètres par défaut"
+> doit rester **DÉCOCHÉ**. Coché, il réinitialise des réglages de l'appareil —
+> dont potentiellement le seuil de similarité et l'*Écoute HTTP*. »
+> — `docs/operacional/handoff.md:143-147`
+
+⚠️ **Elle casse de deux façons distinctes, et la seconde ne peut pas venir d'un
+export.** Côté export, la case remet la sélection de champs du HCP à son état
+d'usine : le fichier qui en sort n'a plus l'en-tête à la ligne 9 ni les colonnes
+attendues par leur nom, et l'import de MAGBO ne reconnaît plus rien. Côté
+**appareil** — c'est-à-dire sur le chemin *Apply to Device* — elle réinitialise
+des réglages du terminal ou de la caméra. Un export ne touche aucun appareil :
+ce second mécanisme désigne l'import, et lui seul.
+
+⚠️ **Dette de documentation.** Cette consigne ne figure PAS dans
+`docs/operacional/procedimento-hikcentral.md`, que ce chapitre et le handoff
+désignent tous deux comme « la procédure complète » (vérifié : zéro occurrence).
+Elle vit dans le handoff, qui est un document de reprise, pas un mode d'emploi.
+Elle devrait descendre dans la procédure.
 
 `[A VERIFIER]` Ouvrir le HikCentral (`192.168.1.90`) → module Personnes → **Exporter**, et
 localiser la case exacte ainsi que l'écran où elle apparaît (export des renseignements, export des
 photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la
 recopier ici.
 
-`[A COMPLETER PAR SAM]` La consigne vaut-elle aussi pour l'**import** dans le HCP (*Apply to
-Device*), ou uniquement pour les deux exports ?
+`[A VERIFIER]` Sur **quels écrans exactement** la case apparaît, et sous quel
+libellé : le même intitulé existe-t-il littéralement à l'import, ou « toute
+opération » couvre-t-il plusieurs cases distinctes ? Cela demande d'ouvrir le
+HCP, pas de lire le dépôt — et c'est la seule part de cette consigne qui reste
+non vérifiée.
 
 ### 5.3.6 Import du personnel
 
@@ -387,8 +463,8 @@ carte du créneau ; l'endpoint l'acceptait déjà (`MealSlotManagement.js:289-30
 `MealSlotController:184`). Le défaut et sa correction sont racontés dans
 `docs/operacional/nuit-27-28-08-rapport.md` (Chantier 3).
 
-[CAPTURE: la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes]
-[CAPTURE: l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage]
+[CAPTURE: 05-carte-creneau.png — la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes]
+[CAPTURE: 05-affiche-cantine.png — l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage]
 
 ### 5.4.4 Le contrôle à faire à chaque rentrée
 
@@ -463,7 +539,7 @@ en-tête et l. 224-240).
   l'environnement (`.env` de la VM, `setx` du PC). Un écran qui les afficherait les mettrait sur
   une capture d'écran le jour même.
 
-[CAPTURE: l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir]
+[CAPTURE: 05-configuration-systeme.png — l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir]
 
 ### Ce qui n'est PAS dans cet écran
 
@@ -596,7 +672,7 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 `student_exit_permissions`, `user_photos`, `student_regimes`, `cantine_removals`, `meal_slots`,
 `system_settings`, `cdi_exclusions`, `cdi_alert_events`.)
 
-`[A VERIFIER — état affirmé par Sam le 28/08/2026]` Six terminaux en service : portail `.166`
+`[A VERIFIER — état affirmé par Sammy le 28/08/2026]` Six terminaux en service : portail `.166`
 (SORTIE) et `.167` (ENTRÉE), CDI `.15` et `.16`, cantine `.10`, `.12`, `.13`, `.14` — soit **huit**
 adresses pour six terminaux ; l'écart n'est pas expliqué par le dépôt. À confirmer par :
 
@@ -611,9 +687,19 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 > Avant toute séance matériel : IP du serveur, IP au écran du terminal, URL de l'Écoute HTTP,
 > `door_mappings` (`.claude/rules/hikvision.md`).
 
-`[A COMPLETER PAR SAM]` Les réservations d'IP demandées au SI par Fabiano ont-elles été
-exécutées ? Si oui, quelles adresses sont fixes (terminaux + VM) ? *(pendência 6 de
-`docs/operacional/procedimento-hikcentral.md`)*
+**Pour la VM : oui.** `192.168.1.253` est réservée, confirmé auprès du service
+informatique (Sammy, 04/09/2026).
+
+**Pour les terminaux aussi : oui.** Confirmé par Sammy le 04/09/2026 — la
+demande de Fabiano au service informatique a été exécutée pour les appareils
+comme pour la VM. La *pendência 6* de
+`docs/operacional/procedimento-hikcentral.md` est close.
+
+⚠️ **Cela ne dispense pas de la liste d'avant-séance** (IP du serveur, IP à
+l'écran du terminal, URL de l'*Écoute HTTP*, `door_mappings`). Elle reste la
+seule chose qui distingue « rien ne passe » de « rien ne s'est passé » — et une
+réservation mal saisie produit exactement le même silence qu'un bail DHCP
+expiré.
 
 ---
 

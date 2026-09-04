@@ -87,6 +87,10 @@ li { margin: .3rem 0; }
 .capture { margin: 1rem 0; padding: .9rem 1rem; border: 2px dashed var(--gris);
   border-radius: 6px; background: var(--fond-doux); color: var(--gris);
   font-style: italic; font-size: .92em; }
+.capture-image { margin: 1.5rem 0; }
+.capture-image img { max-width: 100%; height: auto; display: block;
+  border: 1px solid var(--gris); }
+.capture-image figcaption { font-size: .85rem; color: #556677; margin-top: .4rem; }
 .capture-etiq { display: block; font-style: normal; font-weight: 700;
   font-size: .75em; letter-spacing: .08em; text-transform: uppercase;
   color: var(--navy-clair); margin-bottom: .25rem; }
@@ -194,11 +198,101 @@ li { margin: .3rem 0; }
   p, li, blockquote, td, th { orphans: 3; widows: 3; }
   p { margin: 0 0 3.2mm; }
 
-  /* ⚠️ Le fer à gauche est un CHOIX MESURÉ, pas un oubli : Chrome n'a pas
-     la césure française (hyphens: auto sans effet, mesuré), et un texte
-     justifié sans césure creuse des rivières blanches dans une colonne de
-     164 mm. Mieux vaut une marge droite irrégulière qu'un texte troué. */
-  .chapitre p, .page-avertissement p { text-align: left; }
+  /* ⚠️ LE TEXTE COURANT EST JUSTIFIÉ — ET LA CÉSURE, ELLE, NE MARCHE PAS.
+     « hyphens: auto » est posé ci-dessous et « lang=fr » est sur le <html>
+     depuis toujours : ce n'est donc PAS un oubli de langue. Mesuré le
+     04/09/2026 dans le Chrome qui imprime ce livre :
+     « anticonstitutionnellement » dans une colonne de 24 mm tient sur UNE
+     ligne, et un paragraphe français rend 14 lignes avec ET sans césure.
+     Chrome livre ses dictionnaires de coupure par le composant updater ;
+     celui du français n'est pas là.
+     ⚠️ La contre-épreuve se refait en deux minutes, et HORS du gabarit du
+     livre : une page à part, lang=fr, Cambria 10,5 pt, une colonne FORCÉE à
+     24 mm, le mot « anticonstitutionnellement » seul. Avec la césure active il
+     se coupe sur trois lignes ; ici il déborde sur UNE. Voir
+     scripts/mesurer-justification.js, qui refait aussi le comptage ci-dessous.
+     On pose la déclaration quand même : le jour où le dictionnaire arrive,
+     le livre s'améliore sans que personne ait à re-décider. */
+  .chapitre p, .chapitre li, .page-avertissement p {
+    text-align: justify;
+    hyphens: auto; -webkit-hyphens: auto;
+
+    /* ⚠⚠ NE PAS SUPPRIMER CES 0,1 px. Ils ne sont pas un reste de mise au
+       point : ils sont ce qui empêche Chrome de réduire tout le livre.
+       La colonne imprimable vaut 164 mm = 619,84 px — pas un compte rond.
+       Justifier pose le dernier glyphe EXACTEMENT sur la marge, et l'arrondi
+       sous-pixel le fait déborder d'un cheveu : mesuré le 04/09/2026,
+       échelle 0,749962 au lieu de 0,750000, sur les 109 pages, et
+       paginer-livre.js refuse alors de finir — à juste titre, c'est le même
+       mécanisme silencieux qui sortait le livre à 80,7 %.
+       Mesuré aussi : 0,1 px suffit et garde 109 pages ; 0,5 px et 1 px
+       rétablissent l'échelle mais font passer le livre à 110 pages.
+       0,1 px vaut 0,026 mm : aucune presse ne l'imprime. */
+    padding-right: 0.1px; }
+
+  /* ⚠⚠ ON NE JUSTIFIE PAS AUTOUR D'UN CHEMIN DE FICHIER — et c'est la
+     règle qui décide si ce livre est imprimable.
+     Un paragraphe qui cite du code dans le fil du texte
+     (backend/src/main/java/com/magbo/access/controllers/…) porte des jetons
+     insécables de 200 px. Ils ne tiennent pas sur la fin d'une ligne, passent
+     entièrement à la suivante, et la justification étire alors la poignée de
+     mots restée derrière jusqu'à la marge. Au fer à gauche le défaut ne se
+     voyait pas : une ligne courte restait courte.
+     MESURÉ sur les 1320 lignes justifiables du livre, en comparant l'espace
+     réellement rendue à l'espace naturelle (3,09 px). ⚠️ CES CHIFFRES SE
+     REFONT — c'est tout leur intérêt :
+        node scripts/build-livre.js && node scripts/mesurer-justification.js
+        état      médiane    ≥ 2x     ≥ 3x
+        tout        1,47x     22,9 %    9,2 %   (l'exception annulée)
+        publié      1,00x      4,8 %    2,1 %   (le livre tel qu'il sort)
+        témoin      1,00x      3,3 %    2,0 %   (tout au fer à gauche)
+     Le témoin n'est pas à zéro et ne peut pas l'être : il mesure le bruit de la
+     méthode. C'est à LUI qu'il faut comparer « publié », pas à 1,00 — et
+     publié est à 1,5 point de lui, quand tout-justifié en est à vingt.
+     Autrement dit : la prose se justifie proprement, les paragraphes truffés
+     de code ne le peuvent pas, et l'exception les ramène au plancher.
+     109 pages et échelle 0,750000 dans les trois cas.
+     ⚠️ MESURÉ AUSSI, ET ÇA NE MARCHE PAS : rendre le code coupable partout
+     (overflow-wrap: anywhere sur le code en ligne) ne change RIEN — chiffres
+     identiques à la virgule près. La coupure ne se déclenche que si le jeton
+     ne tient pas SEUL sur une ligne ; ici il tient. Ne pas réessayer. */
+  .chapitre p:has(code), .chapitre li:has(code),
+  .page-avertissement p:has(code) {
+    text-align: left; }
+
+  /* ⚠⚠ SI :has() N'EXISTE PAS, ON NE JUSTIFIE PLUS RIEN DU TOUT.
+     L'exception ci-dessus est la clef de voûte du compromis : sans elle, la
+     mesure dit 21,1 % des lignes à deux espaces ou plus. Un moteur qui ne
+     connaît pas :has() ignore la règle EN SILENCE et rend exactement le livre
+     troué qu'on vient de mesurer — personne ne le verrait avant la presse.
+     Le repli choisit le fer à gauche : moins beau, jamais abîmé.
+     Chrome connaît :has() depuis la version 105 ; ce bloc sert le jour où
+     quelqu'un imprime ce livre avec autre chose. */
+  @supports not selector(:has(*)) {
+    .chapitre p, .chapitre li, .page-avertissement p { text-align: left; }
+  }
+
+  /* Assurance, et rien de plus : un jeton plus large que la colonne ferait
+     réduire TOUT le document par Chrome (voir table-layout: fixed plus bas).
+     ⚠️ Cette ligne ne corrige AUCUN trou de justification — c'est mesuré
+     ci-dessus. Ne pas lui prêter ce rôle.
+     « break-word » et NON « anywhere » : « anywhere » change la largeur
+     minimale de l'élément, ce qui est exactement le mécanisme du rétrécissement
+     à 80,7 %. */
+  .chapitre p code, .chapitre li code { overflow-wrap: break-word; }
+
+  /* ⚠️ RESTENT AU FER À GAUCHE, SANS EXCEPTION — ce n'est pas du texte
+     courant. Un chemin de fichier ne se coupe pas, et justifier autour de lui
+     ouvre des trous ; un tableau, un titre, une légende ou un encadré court
+     n'a pas assez de lignes pour qu'une marge droite régulière ait un sens.
+     Plusieurs de ces règles sont redéclarées alors qu'elles seraient déjà
+     vraies par héritage : c'est voulu, pour qu'un futur « text-align » posé plus
+     haut ne les emporte pas en silence. */
+  pre, pre.code, code, table, th, td,
+  h1, h2, h3, h4, h5, h6, figcaption,
+  .capture, .capture-etiq, .avert, .avert p, .avert li,
+  .chapitre blockquote, .chapitre blockquote p, .chapitre blockquote li {
+    text-align: left; hyphens: none; -webkit-hyphens: none; }
 
   h1, h2, h3, h4 { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     break-after: avoid; page-break-after: avoid; }
@@ -249,11 +343,29 @@ li { margin: .3rem 0; }
     line-height: 1.38; padding: 2.5mm 3mm; margin: 3.5mm 0; border-radius: 0;
     border-width: .5pt; border-left-width: 2.4pt; }
 
-  blockquote, .capture, .avert { break-inside: avoid; page-break-inside: avoid;
+  blockquote, .capture, .capture-image, .avert { break-inside: avoid; page-break-inside: avoid;
     border-radius: 0; }
   blockquote { margin: 3.5mm 0; padding: 2mm 3mm; border-left-width: 2.4pt; }
   .avert { margin: 4mm 0; padding: 2.5mm 3mm; border-width: .8pt; }
   .capture { margin: 3.5mm 0; padding: 3mm; border-width: .8pt; font-size: 9pt; }
+
+  /* ⚠️ LES DEUX LIMITES SONT DES GARDES, PAS DE LA MISE EN PAGE.
+     max-width : une image plus large que les 164 mm imprimables ne serait pas
+     rognée par Chrome — il réduirait TOUT le document, en silence, exactement
+     comme les 51 tableaux qui le sortaient à 80,7 % (voir table-layout plus
+     haut). paginer-livre.js refusera de finir si cela arrive : c'est la
+     vérification à relire après avoir ajouté une capture.
+     max-height : la hauteur imprimable vaut 255 mm, donc une figure de 170 mm
+     tient largement — ce n'est pas une limite de débordement. C'est une limite
+     de VOISINAGE : au-delà, la figure et sa légende occupent tant de la page
+     que break-inside: avoid les repousse seules sur la suivante dès qu'un
+     paragraphe les précède, en laissant derrière un demi-feuillet blanc.
+     170 mm laisse un tiers de page au texte qui accompagne l'image. */
+  .capture-image { margin: 4.5mm 0; text-align: center; }
+  .capture-image img { max-width: 100%; max-height: 170mm; height: auto;
+    border: .4pt solid var(--gris); }
+  .capture-image figcaption { font-size: 8.5pt; color: #556677; margin-top: 1.4mm;
+    text-align: left; }
   ul, ol { margin: 0 0 3.2mm; padding-left: 6mm; }
   li { margin: 0 0 1mm; }
 
@@ -310,7 +422,7 @@ li { margin: .3rem 0; }
   </div>
   <div class="couv-bas">
     <p class="couv-lieu">Lycée Molière · Rio de Janeiro</p>
-    <p class="couv-auteur">Sammy K. Magbo</p>
+    <p class="couv-auteur">Sammy Kabagambe Magbo</p>
     <p class="couv-annee">2026</p>
   </div>
 </section>
@@ -321,7 +433,7 @@ li { margin: .3rem 0; }
   <p class="pt-titre">MAGBO Access Control</p>
   <p class="pt-sstitre">Le livre du système</p>
   <div class="pt-filet"></div>
-  <p class="pt-auteur">Sammy K. Magbo</p>
+  <p class="pt-auteur">Sammy Kabagambe Magbo</p>
   <p class="pt-etab">Lycée Molière · Rio de Janeiro</p>
   <p class="pt-annee">2026</p>
 </section>
@@ -330,18 +442,35 @@ li { margin: .3rem 0; }
 <section class="page-blanche"></section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
-     ▼▼▼  DÉDICACE — À COMPOSER PAR SAM  ▼▼▼
-     Remplacer le texte entre <div class="dedicace-texte"> et </div> dans
-     scripts/build-livre.js (c'est lui qui produit cette page), puis
-     régénérer. Deux ou trois lignes, pas davantage : rien d'autre sur la
-     page, ni titre, ni filet, ni numéro.
+     ▼▼▼  DÉDICACE  ▼▼▼
+     Écrite par Sammy K. MAGBO le 04/09/2026, et composée mot pour mot.
+
+     ⚠️ LES DEUX <br> SONT LE TEXTE, PAS DE LA MISE EN PAGE. Les trois lignes
+     et l'endroit où elles se coupent sont de l'auteur. Sans les <br>, le
+     texte se replierait tout seul dans les 84 mm de la colonne et la coupure
+     tomberait ailleurs qu'où elle a été pensée — au premier changement de
+     police, de corps ou de largeur, elle bougerait encore. Ne pas les
+     remplacer par du texte au fil.
+
+     ⚠️ Cette page ne porte RIEN D'AUTRE : ni titre, ni filet, ni numéro. Une
+     dédicace s'ouvre sur un recto et rien ne lui fait face ; les deux pages
+     blanches qui l'encadrent sont là pour cela, et un test les garde.
+
+     Avant le 04/09/2026 cette page portait encore sa phrase d'attente : le
+     livre serait parti chez l'imprimeur en se donnant une consigne à
+     lui-même, sur la seule page qui n'existe que pour dire une chose
+     personnelle. ⚠️ La phrase n'est pas recopiée ici, et c'est voulu : un
+     test cherche sa disparition, et ce dépôt a déjà vu une garde rester
+     verte parce qu'un commentaire citait ce qu'elle traquait (4146dd5).
      ═══════════════════════════════════════════════════════════════════ -->
 <section class="page-dedicace">
   <div class="dedicace-texte">
-    À composer par Sam.
+    À celle ou celui qui reprendra ce système :<br>
+    ce livre existe pour que vous n'ayez pas<br>
+    à le redécouvrir seul.
   </div>
 </section>
-<!-- ▲▲▲  FIN DE L'EMPLACEMENT DE LA DÉDICACE  ▲▲▲ -->
+<!-- ▲▲▲  FIN DE LA DÉDICACE  ▲▲▲ -->
 
 <!-- Rien ne fait face à une dédicace. -->
 <section class="page-blanche"></section>
@@ -351,7 +480,7 @@ li { margin: .3rem 0; }
   <p>Chaque affirmation technique est vérifiable dans le dépôt&nbsp;: quand un
   fichier est cité, c'est qu'il dit ce qui est écrit. Ce qui n'a pas pu être
   vérifié porte <code>[À VÉRIFIER]</code> avec la commande ou la requête qui le
-  confirmerait. Ce que seul Sam sait porte <code>[À COMPLÉTER PAR SAM]</code>
+  confirmerait. Ce que seul Sammy sait porte <code>[À COMPLÉTER PAR SAMMY]</code>
   avec la question précise.</p>
   <p><strong>Une documentation fausse est pire qu'absente</strong>, parce qu'on
   lui fait confiance. Si vous trouvez une affirmation que le dépôt contredit,
@@ -366,25 +495,25 @@ li { margin: .3rem 0; }
   <h2 class="lim-titre">Table des matières</h2>
   <ol class="somm">
       <li><a href="#chapitre-1-vue-d-ensemble"><span class="somm-titre">Chapitre 1 — Vue d'ensemble</span><span class="somm-points"></span><span class="somm-page">1</span></a></li>
-      <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">13</span></a></li>
-      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">20</span></a></li>
-      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">38</span></a></li>
-      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">44</span></a></li>
-      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">60</span></a></li>
-      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">76</span></a></li>
-      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">83</span></a></li>
-      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">91</span></a></li>
+      <li><a href="#chapitre-2-les-points-de-passage"><span class="somm-titre">Chapitre 2 — Les points de passage</span><span class="somm-points"></span><span class="somm-page">14</span></a></li>
+      <li><a href="#chapitre-3-les-regles-metier"><span class="somm-titre">Chapitre 3 — Les règles métier</span><span class="somm-points"></span><span class="somm-page">22</span></a></li>
+      <li><a href="#chapitre-4-guide-de-l-operateur"><span class="somm-titre">Chapitre 4 — Guide de l'opérateur</span><span class="somm-points"></span><span class="somm-page">42</span></a></li>
+      <li><a href="#chapitre-5-administration"><span class="somm-titre">Chapitre 5 — Administration</span><span class="somm-points"></span><span class="somm-page">48</span></a></li>
+      <li><a href="#chapitre-6-exploitation"><span class="somm-titre">Chapitre 6 — Exploitation</span><span class="somm-points"></span><span class="somm-page">65</span></a></li>
+      <li><a href="#chapitre-7-architecture-technique"><span class="somm-titre">Chapitre 7 — Architecture technique</span><span class="somm-points"></span><span class="somm-page">83</span></a></li>
+      <li><a href="#chapitre-8-les-lecons-du-projet"><span class="somm-titre">Chapitre 8 — Les leçons du projet</span><span class="somm-points"></span><span class="somm-page">90</span></a></li>
+      <li><a href="#chapitre-9-ce-qui-reste"><span class="somm-titre">Chapitre 9 — Ce qui reste</span><span class="somm-points"></span><span class="somm-page">98</span></a></li>
   </ol>
 </section>
 
 <section class="chapitre" data-fichier="00-sommaire.md" data-page="liminaire">
 <h1 id="le-livre-du-systeme-magbo-access-control">Le livre du système — MAGBO Access Control</h1>
 <p><strong>Lycée Molière, Rio de Janeiro.</strong> Écrit le 29/08/2026, contre l'état du dépôt au commit <code>7c4d54e</code>.</p>
-<p>Ce livre existe parce que Sam — le propriétaire et unique développeur du système — est parti. Il s'adresse à quelqu'un qui n'a jamais vu MAGBO tourner et qui ne peut poser de question à personne.</p>
+<p>Ce livre existe parce que Sammy — le propriétaire et unique développeur du système — est parti. Il s'adresse à quelqu'un qui n'a jamais vu MAGBO tourner et qui ne peut poser de question à personne.</p>
 <hr>
 <h2 id="comment-lire-ce-livre">⚠ Comment lire ce livre</h2>
-<p><strong>Chaque affirmation technique est vérifiable dans le dépôt.</strong> Quand un fichier est cité, c'est qu'il dit ce qui est écrit. Deux marqueurs signalent les limites :</p>
-<table><thead><tr><th>Marqueur</th><th>Ce qu'il veut dire</th></tr></thead><tbody><tr><td><code>[À VÉRIFIER]</code></td><td>je n'ai pas pu le confirmer depuis le dépôt — suivi de <strong>la commande ou la requête qui le tranche</strong></td></tr><tr><td><code>[À COMPLÉTER PAR SAM]</code></td><td>seul Sam le savait — suivi de <strong>la question précise</strong></td></tr><tr><td><code>[CAPTURE: …]</code></td><td>une capture d'écran manque à cet endroit</td></tr></tbody></table>
+<p><strong>Chaque affirmation technique est vérifiable dans le dépôt.</strong> Quand un fichier est cité, c'est qu'il dit ce qui est écrit. Trois marqueurs signalent les limites :</p>
+<table><thead><tr><th>Marqueur</th><th>Ce qu'il veut dire</th></tr></thead><tbody><tr><td><code>[À VÉRIFIER]</code></td><td>je n'ai pas pu le confirmer depuis le dépôt — suivi de <strong>la commande ou la requête qui le tranche</strong></td></tr><tr><td><code>[À COMPLÉTER PAR …]</code></td><td>ce que le dépôt ne peut pas dire. Le marqueur <strong>nomme qui peut répondre</strong> — le plus souvent Sammy, parfois la Vie Scolaire — et il est suivi de <strong>la question précise</strong></td></tr><tr><td><code>[CAPTURE: …]</code></td><td>une capture d'écran manque à cet endroit — la case <strong>nomme le fichier attendu</strong> ; le mode d'emploi est dans <code>docs/livre/captures/LISEZ-MOI.md</code></td></tr></tbody></table>
 <blockquote><p><strong>Une documentation fausse est pire qu'absente, parce qu'on lui fait confiance.</strong> Si vous trouvez une affirmation que le dépôt contredit, corrigez-la dans <code>docs/livre/</code> et régénérez le HTML.</p></blockquote>
 <hr>
 <h2 id="par-ou-commencer">Par où commencer</h2>
@@ -432,7 +561,8 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <section class="chapitre" data-fichier="01-vue-ensemble.md" data-page="chapitre-01">
 <h1 id="chapitre-1-vue-d-ensemble">Chapitre 1 — Vue d'ensemble</h1>
 <p>Ce chapitre s'adresse à la personne qui reprend MAGBO sans avoir jamais vu le système tourner et sans pouvoir poser de question à personne. Il répond à trois questions, dans cet ordre : <strong>ce que le système n'est pas</strong>, <strong>ce qu'il fait</strong>, et <strong>par où passe un passage</strong> — de la porte jusqu'à l'écran de l'opérateur. Les chapitres suivants entrent dans le détail ; celui-ci donne la carte.</p>
-<blockquote><p>Convention du livre : <code>[A VERIFIER]</code> marque une affirmation que je n'ai pas pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la tranche. <code>[A COMPLETER PAR SAM]</code> marque ce que seul Sam savait.</p></blockquote>
+<blockquote><p>Convention du livre : <code>[A VERIFIER]</code> marque une affirmation que je n'ai pas pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la tranche. <code>[À COMPLÉTER PAR …]</code> marque ce que le dépôt ne peut pas dire, et **nomme qui</p></blockquote>
+<p>peut répondre** — Sammy, la Vie Scolaire ou la direction selon le cas.</p>
 <hr>
 <h2 id="1-avant-tout-ce-que-magbo-n-est-pas">1. ⚠ Avant tout : ce que MAGBO n'est PAS</h2>
 <p><strong>MAGBO n'ouvre aucune porte. MAGBO ne ferme aucune porte.</strong></p>
@@ -552,13 +682,13 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <p>S'y ajoutent des <strong>points virtuels</strong> qui ne sont pas des portes mais des écrans : <code>CANTINA_MONITOR</code>, <code>CANTINA_REPORT</code>, <code>INFIRMARY_REPORT</code>, <code>GENERAL_REPORT</code>, <code>PPMS</code>, et les écrans de gestion (<code>MEAL_ENTITLEMENT_MANAGEMENT</code>, <code>EXIT_PERMISSION_MANAGEMENT</code>, <code>REGIME_MANAGEMENT</code>, <code>MEAL_SLOT_MANAGEMENT</code>, <code>CDI_EXCLUSION_MANAGEMENT</code>).</p>
 <p>⚠ Une distinction que le code fait et qu'il faut connaître : <code>AreaMapping.temPresencaConfiavel()</code> répond <code>false</code> pour le <strong>portail</strong> et <code>true</code> partout ailleurs. Au portail, « la personne est encore dedans » n'est pas une affirmation fiable : on sort par ailleurs, hors du champ de la caméra, ou collé à quelqu'un d'autre. Deux règles en dépendent, et le javadoc de cette méthode explique pourquoi mieux que n'importe quel résumé.</p>
 <h3 id="les-appareils-physiques">Les appareils physiques</h3>
-<p><strong>Source : Sam, le 28/08/2026. Non vérifiable dans le dépôt</strong> — la table <code>door_mappings</code> vit dans la base de production, pas dans le code.</p>
+<p><strong>Source : Sammy, le 28/08/2026. Non vérifiable dans le dépôt</strong> — la table <code>door_mappings</code> vit dans la base de production, pas dans le code.</p>
 <table><thead><tr><th>Appareil</th><th>Rôle annoncé</th></tr></thead><tbody><tr><td><code>.167</code></td><td>portail — <strong>ENTRÉE</strong> (caméra DeepinView)</td></tr><tr><td><code>.166</code></td><td>portail — <strong>SORTIE</strong> (caméra DeepinView)</td></tr><tr><td><code>.15</code>, <code>.16</code></td><td>CDI</td></tr><tr><td><code>.10</code>, <code>.12</code>, <code>.13</code>, <code>.14</code></td><td>cantine</td></tr></tbody></table>
 <p>⚠ <strong>Trois réserves, toutes importantes :</strong></p>
 <ol>
-<li>Sam annonce « six terminaux » et énumère <strong>huit</strong> adresses. La lecture la plus probable est six terminaux MinMoe (CDI + cantine) <strong>plus</strong> deux caméras au portail, mais je ne l'ai pas vérifiée.</li>
-<li>Les adresses sont données en dernier octet seul. Le serveur est en <code>192.168.1.253</code> (<code>docs/operacional/guide-installation-postes.md</code>, §Avant de commencer), l'ancien banc d'essai était en <code>172.20.40.x</code> : <strong>le préfixe réel des appareils n'est écrit nulle part dans le dépôt.</strong></li>
-<li>La caméra <code>.166</code> (SORTIE) est en <strong>panne physique connue</strong> depuis au moins le 27/08 — c'est écrit noir sur blanc dans <code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>, §1 et §3. Toute lecture des chiffres du portail doit <strong>isoler ce point</strong>, sinon la panne masque tout le reste : une chute qui ne touche que les <code>SAIDA</code>, c'est elle, et rien d'autre à chercher.</li>
+<li>Sammy annonce « six terminaux » et énumère <strong>huit</strong> adresses. La lecture la plus probable est six terminaux MinMoe (CDI + cantine) <strong>plus</strong> deux caméras au portail, mais je ne l'ai pas vérifiée.</li>
+<li>Les adresses sont données en dernier octet seul, et le préfixe n'est établi que pour deux d'entre elles. Les caméras du portail portent leur adresse complète dans le code — <code>192.168.1.167</code> et <code>192.168.1.166</code> (<code>DoorMappingBootstrap:44-46</code>). Pour les six autres, rien : le serveur est en <code>192.168.1.253</code> (<code>docs/operacional/guide-installation-postes.md</code>, §Avant de commencer) et l'ancien banc d'essai était en <code>172.20.40.x</code>, mais <strong>le préfixe réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.</strong></li>
+<li>La caméra <code>.166</code> (SORTIE) <strong>fonctionne</strong> — réparée ou remplacée, confirmé par Sammy le 04/09/2026. Elle a bien été en panne physique, et c'est écrit noir sur blanc dans <code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>, §1 et §3. ⚠ La mise en garde reste donc entière <strong>pour les chiffres antérieurs</strong> : toute lecture du portail qui traverse cette période doit <strong>isoler ce point</strong>, sinon la panne masque tout le reste — une chute qui ne touche que les <code>SAIDA</code>, c'est elle, et rien d'autre à chercher. ⚠ <strong>La date de la remise en service n'est consignée nulle part.</strong> La dernière trace écrite de la panne est le diagnostic du 27/08.</li>
 </ol>
 <p><code>[A VERIFIER]</code> L'inventaire réel des points actifs, avec le sens de chaque appareil, se lit en une requête sur la VM :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
@@ -569,9 +699,14 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
   "SELECT point_id, action, count(*) FROM access_logs
     WHERE timestamp &gt;= current_date - 21 GROUP BY 1,2 ORDER BY 1,2;"</code></pre>
 <p>⚠ <strong>Avant toute session matériel :</strong> une IP qui change par DHCP casse à la fois l'« Écoute HTTP » de l'appareil et son <code>door_mappings</code>, <strong>sans aucune erreur</strong>. C'est arrivé le 16/07/2026 (terminal <code>.12</code> → <code>.10</code>, <code>docs/operacional/procedimento-hikcentral.md</code>). La checklist complète est dans <code>.claude/rules/hikvision.md</code>.</p>
-<p><code>[A COMPLETER PAR SAM]</code> Quel est le préfixe réseau des appareils Hikvision — <code>192.168.1.x</code> comme le serveur, ou un autre VLAN ? Et la réservation DHCP demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?</p>
-<p><code>[A COMPLETER PAR SAM]</code> La caméra <code>.166</code> : la panne a-t-elle été signalée, à qui, et qui est censé la réparer ?</p>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver</div>
+<p><strong>Le préfixe est établi pour une partie des appareils seulement</strong>, et la distinction est celle qui compte :</p>
+<table><thead><tr><th>Appareil</th><th>Adresse</th><th>D'où elle vient</th></tr></thead><tbody><tr><td>Caméras du portail (DeepinView)</td><td><code>192.168.1.167</code> et <code>192.168.1.166</code> — <strong>complètes</strong></td><td><code>DoorMappingBootstrap:44-46</code>, correspondances réelles dans le code</td></tr><tr><td>VM du serveur</td><td><code>192.168.1.253</code> — <strong>réservée</strong></td><td>modèle du lanceur, défaut du poste, <code>ssh</code> des sauvegardes</td></tr><tr><td>HikCentral</td><td><code>192.168.1.90</code></td><td><code>docs/operacional/procedimento-hikcentral.md</code></td></tr><tr><td>Terminaux MinMoe</td><td>⚠ <strong>préfixe inconnu</strong></td><td>voir la réserve 2 ci-dessus</td></tr></tbody></table>
+<p>⚠ <strong><code>172.20.40.x</code> n'est PAS une réponse.</strong> C'est ce que portait le banc d'essai — la charge utile réelle de <code>ESPECIFICACAO-TECNICA-v1.md:687</code> et le smoke test du 16/07/2026 — et rien n'établit que les terminaux de production y soient. Les prendre pour le préfixe de production serait exactement l'erreur que la réserve 2 signale.</p>
+<p><strong>L'adresse du serveur, elle, est FIXE</strong> : réservation confirmée auprès du service informatique (Sammy, 04/09/2026).</p>
+<p><strong>Les terminaux sont réservés eux aussi</strong> — confirmé par Sammy le 04/09/2026. La <em>pendência 6</em> de <code>docs/operacional/procedimento-hikcentral.md</code> est donc close des deux côtés : la VM et les appareils.</p>
+<p>⚠ <strong>Réservé n'est pas connu, et la nuance porte.</strong> Une réservation fige ce que le service informatique attribue ; elle n'écrit rien dans ce dépôt. Le préfixe des MinMoe reste non établi (réserve 2 ci-dessus), et la vérification d'avant-séance garde tout son sens : <strong>une réservation mal saisie se voit exactement comme un DHCP</strong> — les événements cessent d'arriver, sans erreur et sans alerte, comme le 16/07 (<code>.12</code> → <code>.10</code>). Ce qui vient d'être retiré, c'est la cause la plus fréquente du silence ; pas la manière de s'en apercevoir.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> <strong>Quand un appareil tombe en panne, qui est prévenu et qui répare ?</strong> Le cas de la <code>.166</code> est clos — elle fonctionne, voir la réserve 3 ci-dessus. Mais rien dans le dépôt ne dit par quel chemin une panne matérielle est signalée, ni à qui. ⚠ <strong>La remise en service de cette caméra en est la preuve par l'absence</strong> : elle a bien eu lieu, et sa date n'est consignée nulle part. Une panne qui se répare sans laisser de trace se répétera sans qu'on sache si c'est la même.</p>
+<div class="capture" data-capture="01-ecoute-http-terminal.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/01-ecoute-http-terminal.png</code></span>la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver</div>
 <hr>
 <h2 id="6-qui-utilise-le-systeme">6. Qui utilise le système</h2>
 <p>Six métiers, six usages. Le manuel est organisé exactement ainsi : il contient une section « Par où commencer selon votre rôle » — c'est la porte d'entrée à donner à un utilisateur (<code>docs/manual-utilisateur.md</code>, lignes 100-155).</p>
@@ -579,7 +714,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <p>Deux remarques qui évitent des malentendus :</p>
 <ul>
 <li><strong>La « portaria » n'a pas d'écran à elle.</strong> C'est le lieu, servi par les deux caméras et par le poste de la Vie Scolaire. Le mot survit dans le code comme <em>catégorie</em> d'affichage (<code>category: 'portaria'</code> dans <code>js/data/constants.js</code>) et comme <em>département</em> d'une personne — le département <strong>suggère</strong> un poste fixe dans l'écran Personnels, il ne le décide jamais (<code>.claude/rules/frontend.md</code>).</li>
-<li><strong>Le PPMS</strong> (<code>js/components/PpmsView.js</code>, l'écran « Qui est à l'intérieur ») traverse tous les rôles : il est délibérément <strong>non caché</strong> dans la liste des points, parce que chercher son chemin au milieu d'une évacuation équivaut à ne pas avoir l'écran. Il est en revanche restreint par la permission <code>PPMS_READ</code> : la liste est <strong>nominative</strong>, et Sam a tranché le 14/08 « restreindre, pas fermer » (javadoc de <code>Permissions.PPMS_READ</code>). ⚠ <strong>Cet écran ne remplace pas l'appel</strong> — il le dit lui-même, au-dessus du nombre.</li>
+<li><strong>Le PPMS</strong> (<code>js/components/PpmsView.js</code>, l'écran « Qui est à l'intérieur ») traverse tous les rôles : il est délibérément <strong>non caché</strong> dans la liste des points, parce que chercher son chemin au milieu d'une évacuation équivaut à ne pas avoir l'écran. Il est en revanche restreint par la permission <code>PPMS_READ</code> : la liste est <strong>nominative</strong>, et Sammy a tranché le 14/08 « restreindre, pas fermer » (javadoc de <code>Permissions.PPMS_READ</code>). ⚠ <strong>Cet écran ne remplace pas l'appel</strong> — il le dit lui-même, au-dessus du nombre.</li>
 </ul>
 <hr>
 <h2 id="7-ce-qui-tourne-et-ce-qui-dort">7. Ce qui tourne, et ce qui dort</h2>
@@ -592,10 +727,17 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <li>⚠ <strong>Avant d'allumer <code>magbo.regime.habilitado</code> sur la VM, appliquer V015</strong> : elle élargit le <code>CHECK</code> de <code>access_attempts.denial_reason</code> (<code>REGIME_NOT_ALLOWED</code>, <code>REGIME_UNKNOWN</code>). Sans elle, l'<code>INSERT</code> échoue <strong>uniquement en production</strong> — le PC et les tests ne reproduisent pas la panne.</li>
 <li><strong>La règle de permission de sortie ne tourne PAS sur les caméras du portail.</strong> Le champ <code>Passagem.aplicarPermissaoDeSaida</code> vaut <code>true</code> sur les terminaux et <code>false</code> sur les caméras, avec une justification de quinze lignes dans <code>AccessDecisionService</code> : <code>ExitPermissionService.evaluate()</code> refuse toute personne sans permission active et ne regarde pas le type d'utilisateur ; l'allumer ferait de <strong>chaque sortie de personnel</strong> un <code>EXIT_NOT_AUTHORIZED</code>, des centaines par jour, sans que personne ne l'ait décidé. C'est une décision de politique laissée en suspens — et elle exige probablement de restreindre d'abord la règle aux élèves, puisque l'entité s'appelle <code>StudentExitPermission</code>.</li>
 </ul>
-<p><code>[A COMPLETER PAR SAM]</code> Le régime de sortie : les régimes des élèves existent-ils quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun sens ; avec eux, il faut savoir où ils sont pour les charger.</p>
+<p><strong>Répondu par Sammy le 04/09/2026 : les régimes n'existent que sur PAPIER</strong>, dans les carnets que tient la Vie Scolaire, classe par classe. Ce que cela implique n'est pas une formalité :</p>
+<ul>
+<li>⚠ <strong>Pronote ne les porte pas, et le chemin court a été cherché.</strong> Le CSV du <code>PronoteSyncService</code> a huit colonnes obligatoires — matricule, nom, type, classe, responsable et son contact — et <strong>aucune</strong> de régime général ni de régime de sortie ; l'import Excel des élèves non plus. C'est écrit et vérifié dans <code>js/utils/regimeSheet.js:8-14</code>. Il n'y a pas d'export à brancher.</li>
+<li><strong>L'outil de chargement, lui, existe déjà</strong> et attend une feuille de calcul : Matricule · Régime général · Régime de sortie · Valable du · Valable au · Autorisé par · Document · Signé le (<code>js/utils/regimeSheet.js:31-41</code>).</li>
+<li><strong>Ce qui manque est donc une saisie</strong>, ligne par ligne, pour les 923 élèves : le carnet d'un côté, la feuille de l'autre. Ce n'est pas un développement, c'est du temps de Vie Scolaire.</li>
+</ul>
+<p>🔴 <strong>Personne n'est nommé pour la faire, et aucune date ne l'est non plus.</strong> Tant qu'elle n'a pas eu lieu, <code>magbo.regime.desconhecido</code> doit rester <code>OBSERVATION</code> (voir § 3.9) : au premier jour, 923 élèves sont sans régime, et passer à <code>DENY</code> peindrait l'école entière en rouge.</p>
+<p><code>[À COMPLÉTER PAR SAMMY / Vie Scolaire]</code> Qui saisit les carnets, et pour quelle date ? C'est la seule chose qui sépare le régime de sortie d'une règle écrite, testée, déployée — et éteinte.</p>
 <hr>
 <h2 id="8-reperes-chiffres-du-depot">8. Repères chiffrés du dépôt</h2>
-<p>Mesurés le <strong>03/09/2026</strong>, sur <code>main</code> augmentée des trois chantiers de cette date (<code>fix/adresse-du-login</code>, <code>feat/livre-imprimable</code>, <code>docs/verifications-finales</code>). Comment : les comptes de fichiers par <code>find</code>, les suites <strong>à froid</strong> (<code>cd backend &amp;&amp; rm -rf target &amp;&amp; mvn -o test</code>, puis <code>npm test</code>). ⚠ <strong>L'ancre est une date, pas un SHA</strong> — ces chantiers seront fusionnés par Sam et les SHA changeront ; l'état d'<strong>avant</strong> eux était <code>fc4359c</code>.</p>
+<p>Mesurés le <strong>03/09/2026</strong>, sur <code>main</code> augmentée des trois chantiers de cette date (<code>fix/adresse-du-login</code>, <code>feat/livre-imprimable</code>, <code>docs/verifications-finales</code>). Comment : les comptes de fichiers par <code>find</code>, les suites <strong>à froid</strong> (<code>cd backend &amp;&amp; rm -rf target &amp;&amp; mvn -o test</code>, puis <code>npm test</code>). ⚠ <strong>L'ancre est une date, pas un SHA</strong> — ces chantiers seront fusionnés par Sammy et les SHA changeront ; l'état d'<strong>avant</strong> eux était <code>fc4359c</code>.</p>
 <table><thead><tr><th>Quoi</th><th>Combien</th></tr></thead><tbody><tr><td>Contrôleurs / services / modèles / repositories / DTO</td><td>28 / 47 / 36 / 22 / 37</td></tr><tr><td>Fichiers de test Java / JS</td><td>93 / 42</td></tr><tr><td>Suites</td><td><code>mvn test</code> <strong>1055</strong>, <code>npm test</code> <strong>889</strong></td></tr><tr><td>Migrations SQL</td><td><strong>V001 → V027</strong> (<code>deploy/migrations/</code>)</td></tr><tr><td>Permissions granulaires</td><td><strong>10</strong> (<code>security/Permissions.java</code>, liste <code>TODAS</code>)</td></tr></tbody></table>
 <p>⚠ <strong>Le critère de la suite n'est pas un total, c'est : 0 échec et exactement 2 <code>@Disabled</code>.</strong> Le total monte à chaque livraison ; un total <strong>inférieur</strong> à la référence signifie que quelqu'un a supprimé un test, et <code>Skipped ≠ 2</code> signifie que quelqu'un a désactivé une des deux requêtes natives PostgreSQL. Ces deux-là sont désactivées parce que H2 ne les exécute pas — elles exigent une <strong>vérification manuelle</strong>, section <strong>6-bis</strong> de <code>docs/frontend-smoke-checklist.md</code>. ⚠ Mesurer <strong>à froid</strong> (<code>cd backend &amp;&amp; rm -rf target &amp;&amp; mvn -o test</code>) : la compilation incrémentale a déjà produit un <code>BUILD SUCCESS</code> mensonger.</p>
 <p><strong>Rollbacks :</strong> chaque migration a le sien dans <code>deploy/migrations/rollback/</code>, <strong>sauf V006, V008, V009 et V023</strong> — V023 est une <em>seed</em>, ses lignes partent avec <code>R021</code>. C'est documenté dans <code>deploy/migrations/README.md</code>.</p>
@@ -609,7 +751,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <hr>
 <h2 id="10-trois-pieges-du-depot-lui-meme">10. Trois pièges du dépôt lui-même</h2>
 <ol>
-<li>⚠ <strong>Il y a DEUX fichiers ADR-005</strong>, et ils ne parlent pas de la même chose : <code>ADR-005-creneaux-cantine.md</code> (26/08 — le planning de cantine devient une configuration, migrations V021-V023) et <code>ADR-005-totvs-rastreabilidade-no-dono-do-dado.md</code> (14/08 — TOTVS). <strong>Le numéro a été attribué deux fois.</strong> Je le signale sans le corriger : renuméroter casserait les renvois existants ; c'est une décision, pas une retouche. <code>[A COMPLETER PAR SAM]</code> Lequel des deux garde le numéro 005 ?</li>
+<li>⚠ <strong>Il y a DEUX fichiers ADR-005</strong>, et ils ne parlent pas de la même chose : <code>ADR-005-creneaux-cantine.md</code> (26/08 — le planning de cantine devient une configuration, migrations V021-V023) et <code>ADR-005-totvs-rastreabilidade-no-dono-do-dado.md</code> (14/08 — TOTVS). <strong>Le numéro a été attribué deux fois.</strong> Le chapitre 9 (§ 3.6) porte le tableau chronologique et l'argument : <strong>TOTVS garde le 005</strong>, parce qu'elle a pris le numéro onze jours plus tôt et qu'un journal de décisions se numérote dans l'ordre. ⚠ <strong>Mais la décision du 04/09/2026 est de NE PAS renuméroter</strong> : on cite le nom de fichier complet, jamais le seul numéro. Le détail — et pourquoi le numéro de remplacement autrefois proposé était périmé — est dans <code>03-regles-metier.md</code>.</li>
 <li>⚠ <strong><code>docs/operacional/handoff.md</code> ne s'arrête plus au 05/08/2026.</strong> Il a été repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge couvert <code>5632d0a</code> (PR #87 — la licence) : vérifié le 03/09/2026 à <code>handoff.md:6</code>. Ce qui lui manque désormais, ce sont les deux PR postérieures, <strong>#89</strong> (premier lancement) et <strong>#90</strong> (poste administratif, ADR-007). Là où il diverge du code, <strong>le code gagne</strong>.</li>
 <li>⚠ <strong>Sept endpoints ne sont pas gardés</strong> (<code>/api/users</code>, <code>/api/access/logs/*</code>, <code>registerAccess</code>). C'est une dette <strong>documentée et assertée en test</strong> — <code>ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA</code>, 7 entrées, taille vérifiée par le test lui-même. Les fermer cassera des écrans : c'est un chantier avec ses propres preuves, pas une correction rapide.</li>
 </ol>
@@ -618,7 +760,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <section class="chapitre" data-fichier="02-points-de-passage.md" data-page="chapitre-02">
 <h1 id="chapitre-2-les-points-de-passage">Chapitre 2 — Les points de passage</h1>
 <p>Ce chapitre décrit les quatre endroits où le système regarde passer des gens : le <strong>portail</strong>, le <strong>CDI</strong>, la <strong>cantine</strong> et l'<strong>infirmerie</strong>. Pour chacun : le matériel, ce qu'il envoie, les règles qui lui sont propres, et les écrans qui le servent.</p>
-<blockquote><p>Convention du livre : <code>[À VÉRIFIER]</code> marque une affirmation que je n'ai pas pu confirmer dans le dépôt, suivie de la commande qui la tranche. <code>[À COMPLÉTER PAR SAM]</code> marque ce que seul Sam savait.</p></blockquote>
+<blockquote><p>Convention du livre : <code>[À VÉRIFIER]</code> marque une affirmation que je n'ai pas pu confirmer dans le dépôt, suivie de la commande qui la tranche. <code>[À COMPLÉTER PAR …]</code> marque ce que le dépôt ne peut pas dire, et <strong>nomme qui peut répondre</strong> — Sammy, la Vie Scolaire ou la direction selon le cas.</p></blockquote>
 <hr>
 <h2 id="1-deux-familles-de-materiel-et-elles-ne-se-ressemblent-pas">1. Deux familles de matériel, et elles ne se ressemblent pas</h2>
 <p>C'est la première chose à comprendre, parce que presque tous les pièges du portail viennent de là.</p>
@@ -629,7 +771,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <h3 id="2-1-le-materiel">2.1 Le matériel</h3>
 <table><thead><tr><th>IP</th><th>Rôle</th><th>Nom de canal observé</th></tr></thead><tbody><tr><td><code>.167</code></td><td><strong>ENTRÉE</strong></td><td><code>ENTRADA-INTERNA-01</code></td></tr><tr><td><code>.166</code></td><td><strong>SORTIE</strong></td><td>—</td></tr></tbody></table>
 <p>Firmware relevé : <strong>V5.9.10</strong> (<code>.claude/rules/hikvision.md</code>).</p>
-<blockquote><p>⚠ Ces IP viennent de Sam (28/08) et ne sont pas dans le dépôt. La source de vérité en production est <code>door_mappings</code>. <strong>[À VÉRIFIER]</strong></p>
+<blockquote><p>⚠ Ces IP viennent de Sammy (28/08) et ne sont pas dans le dépôt. La source de vérité en production est <code>door_mappings</code>. <strong>[À VÉRIFIER]</strong></p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT terminal_ip, point_id, action, label, ativo FROM door_mappings ORDER BY terminal_ip;"</code></pre></blockquote>
 <h3 id="2-2-le-defaut-ouvert-le-portail-ne-reconnait-presque-plus-personne">2.2 ⚠ Le défaut ouvert : le portail ne reconnaît presque plus personne</h3>
@@ -643,7 +785,8 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <li><code>docs/operacional/handoff.md</code> — en tête, c'est le document à ouvrir en premier</li>
 <li><code>docs/operacional/diagnostic-portaria-2026-08-27.md</code> — le détail de ce qui a été écarté et de ce qui reste à mesurer</li>
 </ul>
-<blockquote><p>⚠ <strong>Avant de comparer avec « avant », lisez la note historique.</strong> La caméra <code>.166</code> (SORTIE) était en panne jusqu'au 24/08 : le portail produisait ~950 ENTRÉES et zéro SORTIE par jour. <strong>Ces 950 n'étaient pas 950 personnes</strong> — c'était la même population recomptée à chaque retour, faute de lecture de sortie. Le seul nombre comparable est celui des personnes <strong>distinctes</strong>.</p></blockquote>
+<blockquote><p>⚠ <strong>Avant de comparer avec « avant », lisez la note historique.</strong> La caméra <code>.166</code> (SORTIE) était en panne jusqu'au 24/08 : le portail produisait ~950 ENTRÉES et zéro SORTIE par jour. <strong>Ces 950 n'étaient pas 950 personnes</strong> — c'était la même population recomptée à chaque retour, faute de lecture de sortie. Le seul nombre comparable est celui des personnes <strong>distinctes</strong>.</p>
+<p>⚠ <strong>« jusqu'au 24/08 » date les CHIFFRES, pas la réparation.</strong> Le diagnostic du 27/08 décrit encore la caméra comme physiquement en panne, et la date de la remise en service n'est consignée nulle part. Elle fonctionne aujourd'hui (Sammy, 04/09/2026) : ne pas lire cette note comme « réparée le 24 ».</p></blockquote>
 <h3 id="2-3-comment-le-magbo-met-un-nom-sur-un-visage">2.3 Comment le MAGBO met un nom sur un visage</h3>
 <p><code>CameraIdentityService</code> essaie quatre choses, <strong>dans cet ordre</strong>, et l'ordre est la décision :</p>
 <ol>
@@ -683,7 +826,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <h2 id="4-la-cantine">4. La cantine</h2>
 <p><strong>Terminaux <code>.10</code>, <code>.12</code>, <code>.13</code>, <code>.14</code></strong> (MinMoe), points <code>REFEI*</code> / <code>CANTINA*</code>.</p>
 <blockquote><p><strong>[À VÉRIFIER]</strong> Quel terminal sert quel point : la réponse est dans <code>door_mappings</code> (requête au §2.1). Le dépôt ne l'écrit nulle part.</p></blockquote>
-<p><strong>Deux problèmes matériels connus</strong> (déclarés par Sam, non vérifiables ici) :</p>
+<p><strong>Deux problèmes matériels connus</strong> (déclarés par Sammy, non vérifiables ici) :</p>
 <ul>
 <li>Le <strong><code>.10</code> n'est pas enregistré au HikCentral</strong> : erreur <code>SYS[904]</code>, numéro de série en conflit.</li>
 <li>Le <strong><code>.14</code> est en Wi-Fi</strong> — c'est celui qui perdra des paquets et videra une file d'un coup. Voir la leçon sur l'heure de l'événement (chapitre 8).</li>
@@ -699,13 +842,22 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <hr>
 <h2 id="5-l-infirmerie">5. L'infirmerie</h2>
 <p><strong>Point <code>ENFERM</code>.</strong></p>
-<blockquote><p><strong>[À VÉRIFIER]</strong> Le dépôt ne dit pas quel matériel sert l'infirmerie, ni s'il y en a un. Le rapport de nuit du 14/08 mentionne l'enfermaria comme un point « sans fermeture automatique, dont l'enregistrement est manuel » — ce qui suggère une saisie à la main plutôt qu'un terminal. <strong>[À COMPLÉTER PAR SAM] : l'infirmerie a-t-elle un terminal, ou les visites sont-elles saisies à la main ?</strong></p></blockquote>
-<p><strong>Ce qui est propre à l'infirmerie :</strong></p>
+<p>🔴 <strong>Répondu par Sammy le 04/09/2026 : l'infirmerie n'a pas de terminal, et les visites n'y sont pas enregistrées du tout.</strong> Ni lecture faciale, ni saisie à la main. Le point existe dans le système, et il ne reçoit rien.</p>
+<p>⚠ <strong>Ce qui suit décrit donc une mécanique qui tourne à vide.</strong> Elle est écrite, elle fonctionne, et elle attend des lignes qui n'arrivent pas :</p>
 <ul>
-<li>Les visites longues sont comptées à part (<code>countLongInfirmaryStays</code>).</li>
-<li><strong>Pas de fermeture automatique</strong> : quelqu'un peut donc rester « dedans » à la fin de la journée, et c'est visible dans le rapport comme « sortie non enregistrée ». C'est voulu — une visite à l'infirmerie qui ne se ferme pas est une information, pas une nuisance.</li>
+<li>les visites longues sont comptées à part (<code>countLongInfirmaryStays</code>) — sur zéro ligne ;</li>
+<li>il n'y a <strong>pas de fermeture automatique</strong>, ce qui serait une information utile si des visites entraient : une visite qui ne se ferme pas se voit dans le rapport comme « sortie non enregistrée ». En l'état il n'y a rien à fermer ;</li>
+<li>l'écran du rapport infirmerie (<code>InfirmaryReport</code>) s'ouvre et n'a rien à montrer.</li>
 </ul>
-<p><strong>Écran :</strong> le rapport infirmerie (<code>InfirmaryReport</code>).</p>
+<p>⚠ <strong>Un mapping n'est pas un appareil.</strong> <code>DoorMappingBootstrap</code> sème bien <code>ENFERM</code> en porte 5, lecteurs 1 et 2 (entrée et sortie) — mais ce sont des correspondances <strong>génériques, sans adresse IP</strong>, exactement comme celles du CDI et de la cantine. Elles attendent un terminal qui n'existe pas. Quiconque lit la table <code>door_mappings</code> en conclura que l'infirmerie est équipée ; elle ne l'est pas.</p>
+<h3 id="la-consequence-le-ppms-ne-peut-pas-savoir-qu-un-enfant-est-a-l-infirmerie">🔴 La conséquence : le PPMS ne peut pas savoir qu'un enfant est à l'infirmerie</h3>
+<p>La liste nominative de « qui est à l'intérieur » se construit sur les passages <strong>enregistrés</strong>. Une visite qui n'entre jamais dans <code>access_logs</code> n'y figure pas. Un enfant allongé à l'infirmerie pendant une évacuation est, pour l'écran, quelqu'un qui a quitté l'établissement — ou qui n'est jamais entré.</p>
+<p>C'est le même raisonnement que la condition bloquante du § 3.5 sur la dispense de badge, à une différence près, et elle est de taille : <strong>personne n'a choisi celle-ci</strong>. Là-bas, activer une dispense aurait retiré des enfants du décompte ; ici, c'est l'absence de matériel qui les en retire, sans qu'aucune décision ne l'ait déclenché et sans que rien ne le signale.</p>
+<p>⚠ <strong>Et le code croit encore autre chose.</strong> <code>PpmsService</code> (l. 74-79) prévoit un troisième avertissement pour les points sans fermeture automatique — « aujourd'hui l'infirmerie, dont l'enregistrement est manuel et dont la sortie n'est presque jamais lancée » — né d'une objection de l'infirmière au panel du 14/08. Cet avertissement protège contre une présence qui <strong>reste collée</strong> : quelqu'un affiché à l'infirmerie depuis 9 h alors qu'il est reparti. Or le risque réel est l'inverse : personne n'y est jamais affiché. La garde a été dessinée pour le mauvais mode de panne, et elle ne se déclenchera jamais pour <code>ENFERM</code> puisque le point est toujours vide. Cela ne change aucun comportement — mais cela oriente vers le mauvais raccommodage : ce n'est pas la saisie qui est imparfaite, c'est le point qui n'existe que sur le papier.</p>
+<p><strong>Décision du 04/09/2026 : l'infirmerie sera équipée.</strong> Sammy tranche pour le terminal ; la seconde branche — assumer qu'elle reste dehors — est écartée.</p>
+<p><strong>Ce qui existe déjà côté logiciel, et ce n'est pas rien.</strong> Le point <code>ENFERM</code>, ses deux correspondances entrée/sortie semées par <code>DoorMappingBootstrap</code>, l'écran du rapport infirmerie, le comptage des visites longues, et le mécanisme de fermeture automatique — qui a simplement une heure pour <code>BIBLIO</code> (17:00) et <code>REFEI1</code> (15:00), et aucune pour ce point. <strong>Il manque l'appareil, et une ligne <code>door_mappings</code> portant son IP réelle.</strong></p>
+<p>⚠ <strong>Décider n'est pas fermer.</strong> Tant que le terminal n'est pas posé, tout ce qui est écrit plus haut reste vrai, mot pour mot : le PPMS ne peut pas savoir qu'un enfant est à l'infirmerie. Une décision prise et non exécutée protège exactement autant qu'une décision non prise — c'est le même piège que le coffre du chapitre 6, qui ne protège personne tant que rien n'y est déposé.</p>
+<p>⚠ <strong>Et le jour où l'appareil sera posé, le commentaire de <code>PpmsService</code> (l. 74-79) devra être relu.</strong> Il décrit l'infirmerie comme « un point dont l'enregistrement est manuel et dont la sortie n'est presque jamais lancée ». Cela ne décrit ni l'état d'aujourd'hui — rien n'y est enregistré — ni celui de demain, où un terminal enregistrera les deux sens. Il décrit un troisième état, qui n'a jamais existé.</p>
 <hr>
 <h2 id="6-comment-un-terminal-sait-ou-envoyer-ses-evenements">6. ⚠ Comment un terminal sait où envoyer ses événements</h2>
 <p>C'est le réglage qui casse en silence, et le menu n'est pas là où on le cherche.</p>
@@ -724,7 +876,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <li>l'URL de l'<em>Écoute HTTP</em> — pointe-t-elle vers l'IP <strong>actuelle</strong> du serveur ?</li>
 <li>la colonne <code>terminal_ip</code> de <code>door_mappings</code> — correspond-elle à l'IP <strong>actuelle</strong> du terminal ?</li>
 </ol>
-<p><strong>Une réservation DHCP a été demandée au service informatique</strong> pour les terminaux et la VM. <strong>[À COMPLÉTER — Sam ne se souvient plus de l'état de cette demande (répondu le 31/08), et n'a pas retrouvé le contact.]</strong> <strong>À qui demander :</strong> le secrétariat ou la direction connaissent le service informatique. ⚠ <strong>N'attendez pas la réponse pour vous protéger</strong> : les quatre vérifications ci-dessus donnent le risque réel en quelques minutes, sans contact.</p>
+<p><strong>Une réservation DHCP a été demandée au service informatique</strong> pour les terminaux et la VM. <strong>[À COMPLÉTER — Sammy ne se souvient plus de l'état de cette demande (répondu le 31/08), et n'a pas retrouvé le contact.]</strong> <strong>À qui demander :</strong> le secrétariat ou la direction connaissent le service informatique. ⚠ <strong>N'attendez pas la réponse pour vous protéger</strong> : les quatre vérifications ci-dessus donnent le risque réel en quelques minutes, sans contact.</p>
 <p>⚠ <strong>Fuseau d'usine.</strong> Les terminaux sortent en <strong>GMT+8</strong>. Il faut corriger en GMT−3 et remettre l'heure à l'installation — sinon ils émettent des événements « d'authentification expirée ».</p>
 <hr>
 <h2 id="7-ce-que-le-terminal-envoie-et-ce-que-le-magbo-en-fait">7. Ce que le terminal envoie, et ce que le MAGBO en fait</h2>
@@ -772,7 +924,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <p>Toute modification écrit une ligne dans <code>meal_entitlement_events</code> <strong>dans la même transaction</strong> (qui, quand, de → vers, <code>source</code> = <code>UI</code> | <code>BULK</code> | <code>API</code>). ⚠ Le CHECK sur <code>source</code> est <strong>manuel</strong> (V003) : il n'existe que sur la VM, pas sur le PC ni dans les tests. Une valeur nouvelle casse <strong>uniquement en production</strong>.</p>
 <h3 id="les-politiques-config-policyproperties-java">Les politiques (<code>config/PolicyProperties.java</code>)</h3>
 <table><thead><tr><th>Politique</th><th>Défaut du code</th><th><code>application-prod.properties</code></th></tr></thead><tbody><tr><td><code>meal-not-entitled</code></td><td><code>DENY</code></td><td><code>DENY</code></td></tr><tr><td><code>meal-pending</code></td><td><code>OBSERVATION</code></td><td>⚠ <strong><code>DENY</code></strong> (ligne 72)</td></tr><tr><td><code>outside-meal-time</code></td><td><code>OBSERVATION</code></td><td><code>OBSERVATION</code></td></tr><tr><td><code>meal-slot-not-configured</code></td><td><code>OBSERVATION</code></td><td><em>absent des properties</em> → le défaut Java s'applique</td></tr><tr><td><code>duplicate-meal</code></td><td><code>OBSERVATION</code></td><td><code>OBSERVATION</code></td></tr><tr><td><code>exit-not-authorized</code></td><td><code>DENY</code></td><td><code>DENY</code></td></tr><tr><td><code>user-inactive</code></td><td><code>DENY</code></td><td><code>DENY</code></td></tr><tr><td><code>missing-door-mapping</code></td><td><code>FALLBACK</code></td><td><code>FALLBACK</code></td></tr></tbody></table>
-<p>⚠ <strong><code>meal-pending=DENY</code> en production a un prérequis opérationnel</strong> (décision D5 de Sam, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée <strong>en masse avant le jour 1</strong>. Sans cet import, tout élève est <code>PENDING</code>, donc refusé, et <strong>aucun repas n'est enregistré</strong>. C'est écrit dans le fichier de properties lui-même (lignes 60-63).</p>
+<p>⚠ <strong><code>meal-pending=DENY</code> en production a un prérequis opérationnel</strong> (décision D5 de Sammy, 16/07/2026, ADR-004) : la liste des élèves autorisés doit être importée <strong>en masse avant le jour 1</strong>. Sans cet import, tout élève est <code>PENDING</code>, donc refusé, et <strong>aucun repas n'est enregistré</strong>. C'est écrit dans le fichier de properties lui-même (lignes 60-63).</p>
 <p>L'ordre des règles du réfectoire est <strong>obligatoire</strong> et la première qui dit <code>DENY</code> arrête tout : <strong>dédup → droit (entitlement) → créneau horaire</strong>. Seule <code>action=ENTRADA</code> sur <code>REFEI*</code>/<code>CANTINA*</code> y passe ; la <code>SAIDA</code> suit la logique de durée (§3.5).</p>
 <p>Écrans : <em>Droits repas</em> (<code>js/components/MealEntitlementManagement.js</code>), permission <code>MEAL_ENTITLEMENT_WRITE</code>. ⚠ À l'import xlsx, les matricules Pronote ont des <strong>zéros en tête</strong> : traiter la colonne comme <strong>texte</strong>, jamais comme nombre.</p>
 <hr>
@@ -803,7 +955,7 @@ node scripts/paginer-livre.js    # les vrais numéros de page + le PDF</code></p
 <h3 id="turmas-dispensees-de-badge">Turmas dispensées de badge</h3>
 <p>Clé de réglage <code>magbo.cantine.turmas-dispensees</code> (CSV, <strong>vide par défaut</strong>, donc personne n'est dispensé). Une turma dispensée ne produit <strong>ni drapeau ni refus</strong> de cantine — mais <strong>la passage reste enregistrée</strong>. ⚠ La conséquence PPMS est écrite à l'écran, à côté du réglage (<code>js/components/MealSlotManagement.js</code>).</p>
 <h3 id="n-activez-pas-la-dispense-en-l-etat-la-raison-est-le-ppms">🔴 N'activez PAS la dispense en l'état — la raison est le PPMS</h3>
-<p><em>(Question posée à Sam le 31/08/2026. Réponse : <strong>la conséquence PPMS n'avait pas été mesurée.</strong>)</em></p>
+<p><em>(Question posée à Sammy le 31/08/2026. Réponse : <strong>la conséquence PPMS n'avait pas été mesurée.</strong>)</em></p>
 <p>Le code permet la dispense ; la décision n'a jamais été prise, et <strong>elle n'était pas comprise comme une décision de sécurité</strong>. Elle en est une :</p>
 <p>⚠ <strong>Une classe dispensée de badge ne badge plus — donc elle n'apparaît plus dans le décompte d'évacuation du PPMS</strong>, et l'écran PPMS <strong>ne le signale pas</strong>. Le jour d'une évacuation réelle, l'équipe de crise compterait des enfants en moins sans qu'aucun écran ne dise pourquoi. C'est exactement le défaut que le chapitre sur les leçons appelle « je n'ai pas vu » lu comme « il n'était pas là », avec des enfants dans un bâtiment.</p>
 <p><strong>Condition bloquante :</strong> ne pas activer tant que <strong>le PPMS ne nomme pas explicitement les classes dispensées</strong> et ne dit pas comment elles sont comptées autrement (appel papier de l'enseignant, par exemple).</p>
@@ -927,7 +1079,17 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <p>⚠ <code>magbo.regime.habilitado</code> = <strong><code>false</code></strong>, dans <code>application.properties</code> (ligne 248) <strong>et</strong> dans le champ Java, et <code>MAGBO_REGIME_HABILITADO=false</code> dans <code>deploy/.env.example</code>. Régime désactivé → <code>NON_APPLICABLE</code> pour tout le monde.</p>
 <p>⚠ <strong>Appliquer V015 (et V017) AVANT de l'activer</strong> : sans elles, le CHECK de <code>access_attempts.denial_reason</code> ne connaît pas <code>REGIME_NOT_ALLOWED</code> et l'INSERT échoue <strong>uniquement sur la VM</strong>, à l'intérieur de la transaction de la passage.</p>
 <p>⚠ <code>magbo.regime.desconhecido</code> doit <strong>rester <code>OBSERVATION</code></strong> jusqu'à ce que les régimes soient chargés. Le passer à <code>DENY</code> avant transformerait l'école entière en rouge — l'erreur déjà documentée pour <code>meal-pending</code> (D5/ADR-004).</p>
-<p><strong>[À COMPLÉTER PAR SAM]</strong> À quelle condition précise le régime doit-il être activé en production (nombre d'élèves saisis ? date ? accord de la Vie Scolaire ?), et qui décide de passer <code>desconhecido</code> à <code>DENY</code> ?</p>
+<p><strong>Répondu le 04/09/2026 — en deux parties, parce que ce sont deux choses.</strong></p>
+<p><strong>La condition n'est pas un seuil, c'est un ORDRE</strong>, et il était déjà écrit : ici même, au chapitre 1, et dans <code>docs/frontend-smoke-checklist.md</code>.</p>
+<ol>
+<li>appliquer <strong>V014 et V015</strong> (et V017) sur la VM — sans elles l'INSERT échoue <strong>uniquement là-bas</strong>, à l'intérieur de la transaction de la passage ;</li>
+<li>accorder <code>REGIME_WRITE</code> à qui saisit ;</li>
+<li><strong>charger les régimes</strong> — ils n'existent que sur papier, voir le chapitre 1 ;</li>
+<li>et <strong>seulement alors</strong> <code>magbo.regime.habilitado=true</code>, qui naît à <code>false</code>.</li>
+</ol>
+<p>Aucun de ces quatre pas n'est un nombre d'élèves ni une date : c'est une séquence, et elle se lit dans cet ordre.</p>
+<p><strong>Le second interrupteur a désormais un propriétaire : la DIRECTION décide, sur proposition de la VIE SCOLAIRE.</strong> Faire passer <code>magbo.regime.desconhecido</code> de <code>OBSERVATION</code> à <code>DENY</code> n'est pas un réglage technique : c'est décider qu'un élève dont le régime n'a pas été saisi se voit refuser la sortie. Celui qui tient les carnets propose ; celui qui répond des élèves signe.</p>
+<p>⚠ <strong>Et l'ordre entre les deux ne se négocie pas.</strong> Tant que les régimes ne sont pas chargés, <code>desconhecido</code> reste <code>OBSERVATION</code> — au premier jour, 923 élèves sont sans régime, et basculer avant les peindrait tous en rouge. C'est l'erreur de <code>meal-pending</code> (D5 / ADR-004) refaite à l'identique, sur un objet plus lourd : là-bas il s'agissait d'un repas, ici d'une sortie d'école.</p>
 <hr>
 <h2 id="3-10-autorisations-de-sortie-ponctuelles-student-exit-permissions-v004-v012">3.10 Autorisations de sortie ponctuelles — <code>student_exit_permissions</code> (V004, V012)</h2>
 <p><code>services/ExitPermissionService.java</code></p>
@@ -940,7 +1102,12 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <li>Écran : <em>Sorties</em>, permission <code>EXIT_PERMISSION_WRITE</code>. « Autorisé par » vient du <strong>cadastre</strong> (<code>responsavel_id</code>), pas d'un champ libre : le champ est une preuve.</li>
 </ul>
 <p>⚠ <strong>La règle de sortie est DÉSACTIVÉE sur les caméras du portail</strong>, et c'est délibéré. Le champ <code>Passagem#aplicarPermissaoDeSaida</code> vaut <code>true</code> pour les terminaux et <strong><code>false</code></strong> pour les caméras : <code>evaluate()</code> refuse <strong>toute</strong> personne sans permission active et ne regarde pas le type d'utilisateur, donc l'activer ferait de <strong>chaque sortie d'agent à 17h</strong> un <code>EXIT_NOT_AUTHORIZED</code> — des centaines par jour, sans que personne l'ait décidé.</p>
-<p><strong>[À COMPLÉTER PAR SAM]</strong> Faut-il brancher l'évaluation de sortie sur les caméras du portail, et faut-il d'abord restreindre la règle aux <code>ALUNO</code> (l'entité s'appelle <code>StudentExitPermission</code>) ? Le javadoc renvoie explicitement la décision à Sam.</p>
+<p><strong>Trois précisions avant la question, parce que le marqueur en portait trop.</strong></p>
+<p><strong>1. L'évaluation EST déjà branchée sur les caméras.</strong> Le bloc tourne sur les <code>SAIDA</code> du portail « pour les DEUX branches — terminal et caméra », et il appelle déjà <code>exitPermissionService.evaluate()</code>. Ce qui n'est pas branché, c'est le <strong>refus</strong>, pas le regard. La question n'a jamais été de câbler quelque chose : elle est de décider ce qu'on fait de ce qu'on voit déjà.</p>
+<p><strong>2. La restriction aux <code>ALUNO</code> existe — du côté de l'ÉCRITURE, et à deux serrures.</strong> Seul un élève peut recevoir une permission : <code>StudentSearchService</code> filtre sur <code>UserType.ALUNO</code>, et <code>apenasAlunos()</code> est explicitement « la seconde serrure » côté écran.</p>
+<p><strong>3. ⚠ Mais du côté de l'ÉVALUATION, les deux garde-fous manquent.</strong> <code>ExitPermissionService</code> ne filtre <strong>pas</strong> le type — zéro occurrence de <code>UserType</code> dans le fichier — et n'a <strong>pas</strong> de fin de journée. Le <code>RegimeSortieService</code>, juste à côté, a les deux : « pas un ALUNO → <code>NON_APPLICABLE</code> » et un palier de fin de journée. Le patron est écrit, testé et en production ; il n'a simplement pas été appliqué ici.</p>
+<p>⚠ <strong>C'est ce qui rend l'ordre non négociable.</strong> Sans ces deux paliers, allumer le refus produirait des centaines de lignes par jour contre des agents qui sortent à l'heure normale — ordre de grandeur : ~950 passages quotidiens au portail. Et l'état actuel n'est pas qu'un commentaire : il est <strong>gelé par un test</strong>, <code>PortariaCameraIT#sentidoVemDoIp</code>, qui fait sortir un FUNCIONARIO sans permission devant la caméra et exige un <code>access_log</code>. Ce test devra changer le jour où la politique changera — c'est lui qui rendra le changement visible.</p>
+<p><code>[À COMPLÉTER PAR LA DIRECTION]</code> <strong>Faut-il passer de l'observation au refus au portail ?</strong> Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Refuser la sortie d'un élève est un acte scolaire, pas un réglage — comme le passage de <code>magbo.regime.desconhecido</code> à <code>DENY</code> (§ 3.9), la direction décide, sur proposition de la Vie Scolaire. Les deux paliers du point 3 sont une <strong>pré-condition technique</strong>, pas une réponse : ils rendent le refus possible sans le rendre souhaitable.</p>
 <hr>
 <h2 id="3-11-ppms-qui-est-encore-a-l-interieur">3.11 PPMS — qui est encore à l'intérieur</h2>
 <p><code>services/PpmsService.java</code> · <code>GET /api/ppms/inside</code> · permission <strong><code>PPMS_READ</code></strong></p>
@@ -951,7 +1118,7 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <li>Zone <code>EM_TRANSITO</code> pour qui a quitté un point mais reste dans l'école : dire « CDI » enverrait l'équipe chercher dans une salle vide.</li>
 <li>Avertissement supplémentaire quand quelqu'un se trouve dans un point <strong>sans fermeture automatique</strong> (l'infirmerie, dont la sortie est manuelle).</li>
 <li>⚠ <strong>Ne remplace pas l'appel.</strong> L'écran le dit au-dessus du nombre. Cache hors-ligne en <code>localStorage</code>, avec l'heure du cliché en évidence.</li>
-<li>Pas d'export CSV de masse : décision de Sam — la loi demande du papier pour la cellule de crise, et un CSV avec le nom de tous les enfants vit pour toujours sur le portable de quelqu'un.</li>
+<li>Pas d'export CSV de masse : décision de Sammy — la loi demande du papier pour la cellule de crise, et un CSV avec le nom de tous les enfants vit pour toujours sur le portable de quelqu'un.</li>
 </ul>
 <hr>
 <h2 id="3-12-fermetures-automatiques-de-presence">3.12 Fermetures automatiques de présence</h2>
@@ -965,7 +1132,7 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 </ul>
 <p>Configuration en production (<code>application-prod.properties</code>, lignes 120-127) : <code>BIBLIO=17:00</code> et <code>REFEI1=15:00</code>.</p>
 <h3 id="l-heure-de-15-00-est-confirmee-mais-la-sortie-reste-synthetique">✅ L'heure de 15:00 est confirmée — mais la sortie reste synthétique</h3>
-<p><em>(Répondu par Sam le 31/08/2026.)</em></p>
+<p><em>(Répondu par Sammy le 31/08/2026.)</em></p>
 <p>Le fichier porte la mention « ⚠ CONFÉRER L'HEURE AVEC LA CANTINE avant le jour 1 ». <strong>La confirmation a été faite : 15:00 correspond au service réel.</strong> Personne n'est fermé au milieu de son repas.</p>
 <p>⚠ <strong>Ce que cela ne dit pas, et qu'il faut lire lentement :</strong> 15:00 est un <strong>plafond juste</strong> — à cette heure-là le service est fini, donc la fermeture ne ment pas sur la <em>présence</em>. Ce n'est pas une heure de sortie <em>individuelle</em>. Mesuré en production le 25/08 : <strong>72 sorties écrites à 15:00 pile, dans la même minute.</strong> Ce ne sont pas 72 personnes parties à 15:00 — ce sont 72 personnes dont la sortie n'a <strong>jamais été lue</strong>.</p>
 <p><strong>Conséquence : pour ces lignes, la durée de repas est un MAXIMUM, pas une mesure.</strong> Un déjeuner de vingt minutes peut apparaître à trois heures. Toute moyenne qui les inclut est fausse vers le haut. Elles sont reconnaissables (<code>flag=FECHAMENTO_AUTO</code>, <code>created_by_user=system</code>) et donc excluables — le handoff, § 2.4, donne la requête et le piège du <code>flag IS NULL OR</code> qu'elle contient.</p>
@@ -987,14 +1154,14 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <table><thead><tr><th>Permission</th><th>Gouverne</th></tr></thead><tbody><tr><td><code>MEAL_ENTITLEMENT_WRITE</code></td><td>modifier les droits repas</td></tr><tr><td><code>EXIT_PERMISSION_WRITE</code></td><td>créer/révoquer les autorisations de sortie</td></tr><tr><td><code>ATTEMPTS_READ</code></td><td>lire les tentatives refusées</td></tr><tr><td><code>REGIME_WRITE</code></td><td>saisir le régime de sortie d'un élève</td></tr><tr><td><code>PPMS_READ</code></td><td>lire la liste <strong>nominative</strong> de qui est dans l'école</td></tr><tr><td><code>CANTINE_REMOVAL_WRITE</code></td><td>retirer une ligne du Moniteur (<strong>+</strong> <code>can(#pointId)</code>)</td></tr><tr><td><code>MEAL_SLOT_WRITE</code></td><td>modifier le planning de cantine (lecture : par aire)</td></tr><tr><td><code>PARCOURS_READ</code></td><td>lire le parcours du jour d'une personne, tous points confondus</td></tr><tr><td><code>CONFIG_WRITE</code></td><td>lire <strong>et</strong> écrire les réglages <code>system_settings</code></td></tr><tr><td><code>CDI_EXCLUSION_WRITE</code></td><td>lire <strong>et</strong> gérer les exclusions du CDI + le registre d'alertes</td></tr></tbody></table>
 <p>Trois principes lisibles dans les javadocs :</p>
 <ol>
-<li><strong>Une permission, pas une aire</strong>, quand la donnée traverse l'école (<code>PPMS_READ</code>, <code>PARCOURS_READ</code>) ou nomme un enfant sous sanction (<code>CDI_EXCLUSION_WRITE</code>). « Restreindre, pas fermer » — décision de Sam, 14/08/2026.</li>
+<li><strong>Une permission, pas une aire</strong>, quand la donnée traverse l'école (<code>PPMS_READ</code>, <code>PARCOURS_READ</code>) ou nomme un enfant sous sanction (<code>CDI_EXCLUSION_WRITE</code>). « Restreindre, pas fermer » — décision de Sammy, 14/08/2026.</li>
 <li><strong>Lire ≠ écrire</strong>, sauf pour <code>CONFIG_WRITE</code> et <code>CDI_EXCLUSION_WRITE</code>, où la lecture est déjà du matériel d'administration ou une donnée sensible.</li>
 <li>Sans permission granulaire, les champs sont <strong>désactivés, pas cachés</strong> : la lecture reste ouverte par aire.</li>
 </ol>
 <p>⚠ <code>"*"</code> est accepté par <code>SystemUser.hasPermission</code> (compatibilité, et seulement comme chaîne entière) mais <strong>n'est pas proposé à l'écran</strong> : il accorderait aussi ce qui n'existe pas encore.</p>
 <hr>
 <h2 id="3-15-verifications-a-faire-sur-la-vm">3.15 Vérifications à faire sur la VM</h2>
-<p>Rien de ce qui suit n'est vérifiable depuis le dépôt. Les états de production ci-dessous ont été <strong>affirmés par Sam le 28/08/2026</strong>.</p>
+<p>Rien de ce qui suit n'est vérifiable depuis le dépôt. Les états de production ci-dessous ont été <strong>affirmés par Sammy le 28/08/2026</strong>.</p>
 <p><strong>[À VÉRIFIER]</strong> Les migrations <strong>V001 → V027</strong> sont appliquées (état au 03/09/2026). Les tables créées par les six dernières :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT tablename FROM pg_tables WHERE tablename IN
@@ -1020,7 +1187,7 @@ Duration teto = Duration.ofMinutes(settingsService.efetivoInt(
 <p><strong>[À VÉRIFIER]</strong> Le régime est-il activé sur la VM ? La valeur vient de l'environnement, pas du dépôt :</p>
 <pre class="code" data-lang="bash"><code>grep MAGBO_REGIME_HABILITADO deploy/.env      # sur la VM, .env n'est pas versionné
 docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
-<p><strong>[À VÉRIFIER]</strong> Les six terminaux en service (affirmé par Sam le 28/08 : portail .166 SORTIE et .167 ENTRÉE, CDI .15 et .16, cantine .10/.12/.13/.14) correspondent bien aux <code>door_mappings</code> — ⚠ les IP bougent en DHCP et la panne est <strong>silencieuse</strong> :</p>
+<p><strong>[À VÉRIFIER]</strong> Les six terminaux en service (affirmé par Sammy le 28/08 : portail .166 SORTIE et .167 ENTRÉE, CDI .15 et .16, cantine .10/.12/.13/.14) correspondent bien aux <code>door_mappings</code> — ⚠ les IP bougent en DHCP et la panne est <strong>silencieuse</strong> :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT terminal_ip, point_id, action, label FROM door_mappings WHERE ativo ORDER BY terminal_ip;"</code></pre>
 <hr>
@@ -1030,8 +1197,13 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li><code>ADR-005-creneaux-cantine.md</code> (26/08/2026 — celui que ce chapitre cite) ;</li>
 <li><code>ADR-005-totvs-rastreabilidade-no-dono-do-dado.md</code>.</li>
 </ul>
-<p>Les deux sont des décisions réelles et acceptées ; c'est la <strong>numérotation</strong> qui est en double. Renuméroter casserait les liens existants dans le code et la documentation, donc le fait est <strong>signalé, pas corrigé</strong>.</p>
-<p><strong>[À COMPLÉTER PAR SAM]</strong> Lequel des deux garde le numéro 005, et le second devient lequel ? (Une redirection depuis l'ancien nom serait préférable à un renommage sec.)</p>
+<p>Les deux sont des décisions réelles et acceptées ; c'est la <strong>numérotation</strong> qui est en double.</p>
+<p><strong>Ce que le dépôt établit déjà.</strong> TOTVS a pris le numéro le 14/08/2026 (<code>b388275</code>), les créneaux le 26/08 (<code>7567a75</code>) : onze jours d'écart. Le chapitre 9 (§ 3.6) en tire l'argument — <strong>TOTVS garde le 005</strong>, parce qu'un journal de décisions se numérote dans l'ordre où elles sont prises. Rien dans le dépôt ne le contredit. Mais c'est une <strong>proposition</strong>, pas une décision : aucun renommage, aucune redirection, aucun <code>git mv</code> n'existe dans <code>docs/architecture/decisoes/</code>.</p>
+<p>⚠⚠ <strong>ET LA SECONDE MOITIÉ DE CETTE PROPOSITION EST PÉRIMÉE — ne l'appliquez pas telle quelle.</strong> Le chapitre 9 propose de faire des créneaux l'<code>ADR-006</code>. Il a été écrit le 31/08 à 10h42 ; l'<code>ADR-006</code> — la licence — a été créé <strong>le même jour à 19h58</strong>, puis mis en production le 01/09 (<code>5632d0a</code>, PR #87, migration V027). L'<code>ADR-007</code> (configuration du poste) a pris le suivant le 02/09. Renuméroter les créneaux en 006 recréerait exactement la collision qu'on répare. <strong>Le premier numéro libre est <code>ADR-008</code></strong> — vérifié : aucune occurrence dans le dépôt.</p>
+<p>⚠ <strong>Et le travail n'est pas le renommage.</strong> Vingt-neuf renvois nomment l'un des deux fichiers en entier : ceux-là se corrigent mécaniquement. Le risque est ailleurs — <strong>six références citent le numéro NU, dans le code et le SQL</strong>, et elles deviendraient silencieusement fausses au lieu de simplement ambiguës :</p>
+<table><thead><tr><th>Où</th><th>Vers quoi il pointe</th></tr></thead><tbody><tr><td><code>TotvsLinkController.java:26</code></td><td>TOTVS</td></tr><tr><td><code>MealSlot.java:13</code></td><td>les créneaux</td></tr><tr><td><code>AccessDecisionService.java:751</code></td><td>les créneaux</td></tr><tr><td><code>MealSlotService.java:28</code></td><td>les créneaux</td></tr><tr><td><code>deploy/migrations/V021__meal_slots.sql:11</code></td><td>les créneaux</td></tr><tr><td><code>deploy/migrations/V021__meal_slots.sql:144</code></td><td>les créneaux — ⚠ dans un <code>COMMENT ON</code>, <strong>stocké dans la base de production</strong> : celui-là ne se corrige pas en éditant le dépôt</td></tr></tbody></table>
+<p><strong>Décision du 04/09/2026 : on ne renumérote pas.</strong> La parade devient la règle — <em>citer le nom de fichier complet, jamais le seul numéro</em>. Coût nul, risque nul, et les six citations du numéro nu dans le code et le SQL restent exactes, y compris celle qui vit dans un <code>COMMENT ON</code> de la base de production.</p>
+<p>⚠ <strong>Exactes, mais ambiguës — et c'est ce qui reste.</strong> Qui tombe sur « ADR-005 » dans <code>MealSlot.java</code> ne peut pas savoir lequel des deux est visé sans ouvrir les deux fichiers. L'amélioration la moins chère n'est donc pas un renommage : c'est d'écrire le nom du fichier <strong>à côté</strong> du numéro, aux six endroits du tableau ci-dessus. Un mot par ligne, aucune migration, et le <code>COMMENT ON</code> cesse d'être un obstacle puisqu'aucun numéro ne change.</p>
 <hr>
 <h2 id="pour-aller-plus-loin">Pour aller plus loin</h2>
 <table><thead><tr><th>Sujet</th><th>Document</th></tr></thead><tbody><tr><td>Ce que chaque écran affiche, écran par écran</td><td><code>docs/manual-utilisateur.md</code></td></tr><tr><td>L'état opérationnel du jour</td><td><code>docs/operacional/handoff.md</code></td></tr><tr><td>Reconstruire / restaurer, commandes exactes</td><td><code>docs/operacional/reconstruir-do-zero.md</code></td></tr><tr><td>Ce qui est réglable et ce qui ne l'est pas</td><td><code>docs/operacional/inventaire-configurabilite.md</code></td></tr><tr><td>Contrôler le planning contre l'affiche</td><td><code>docs/operacional/controle-affiche-cantine.md</code> (+ <code>.sql</code>)</td></tr><tr><td>Appliquer les migrations, dans l'ordre, avec les gardes</td><td><code>deploy/migrations/README.md</code></td></tr><tr><td>Revue des V021-V023</td><td><code>docs/operacional/revue-migrations-v021-v023.md</code></td></tr><tr><td>Les décisions et leur pourquoi</td><td><code>docs/architecture/decisoes/ADR-001</code> à <code>ADR-005</code></td></tr><tr><td>Règles de code par domaine</td><td><code>.claude/rules/backend.md</code>, <code>database.md</code>, <code>frontend.md</code></td></tr></tbody></table>
@@ -1124,10 +1296,10 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 </ol>
 <p>La garde côté serveur s'écrit toujours de la même façon : <code>@PreAuthorize("hasRole('ADMIN') or @areaSecurity.hasPermission('X')")</code> (<code>backend/.../security/AreaSecurity.java:41-58</code>).</p>
 <p>Où l'on crée et modifie un compte : <strong>Panneau Administratif → Gestion des opérateurs</strong> (<code>js/components/AdminDashboard.js:455-490</code>, écran <code>js/components/UserManagement.js</code>).</p>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous</div>
+<div class="capture" data-capture="05-formulaire-operateur.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/05-formulaire-operateur.png</code></span>le formulaire d'un opérateur — le rôle, les cases de secteurs, et la grille des permissions particulières juste en dessous</div>
 <h3 id="5-2-2-la-liste-complete-des-permissions">5.2.2 La liste complète des permissions</h3>
 <p>La colonne « Qui devrait l'avoir » est une <strong>proposition</strong>, pas une configuration existante : elle n'est écrite nulle part dans le code, et la répartition réelle des comptes de production n'est pas vérifiable depuis le dépôt (voir la fin de cette section).</p>
-<table><thead><tr><th>Permission</th><th>Ce qu'elle ouvre</th><th>Où c'est gardé</th><th>Qui devrait l'avoir <em>(proposition)</em></th></tr></thead><tbody><tr><td><code>MEAL_ENTITLEMENT_WRITE</code></td><td>Modifier un droit repas (activer, retirer, dater), l'import en masse, l'historique</td><td><code>MealEntitlementController</code> (4 routes, l. 62-128)</td><td>L'opérateur de la cantine et la Vie Scolaire. <strong>La Direction décide, l'opérateur exécute</strong> (ADR-004)</td></tr><tr><td><code>EXIT_PERMISSION_WRITE</code></td><td>Créer et révoquer une autorisation de sortie <strong>ponctuelle</strong></td><td><code>ExitPermissionController:75, 91</code></td><td>Vie Scolaire uniquement — c'est elle qui reçoit le mot des familles</td></tr><tr><td><code>ATTEMPTS_READ</code></td><td>Consulter les tentatives refusées et leurs agrégats (<code>/api/access/attempts</code>, <code>/stats</code>)</td><td><code>AccessAttemptController:29, 44</code></td><td>Vie Scolaire, direction, et l'opérateur qui doit comprendre un refus au moment où il arrive</td></tr><tr><td><code>REGIME_WRITE</code></td><td>Écrire le <strong>régime de sortie annuel</strong> d'un élève (V014)</td><td><code>StudentRegimeController:130-170</code></td><td>Vie Scolaire <strong>et elle seule</strong> : c'est elle qui tient le carnet signé par la famille. Le javadoc de <code>Permissions.java:13-22</code> le dit explicitement — l'ADMIN n'est pas le bon profil</td></tr><tr><td><code>PPMS_READ</code></td><td>Lire la liste <strong>nominative</strong> de qui est à l'intérieur (évacuation)</td><td><code>PpmsController:51</code></td><td>Vie Scolaire, direction, infirmerie. Décision de Sam du 14/08 : <strong>restreindre, pas fermer</strong> — un nom est ce qui permet de retrouver un enfant</td></tr><tr><td><code>CANTINE_REMOVAL_WRITE</code></td><td>Retirer une ligne du Moniteur Cantine (et la remettre)</td><td><code>CantineRemovalController:62, 77</code></td><td>L'opérateur de la cantine. ⚠ voir l'avertissement ci-dessous</td></tr><tr><td><code>MEAL_SLOT_WRITE</code></td><td>Modifier le planning cantine : créneaux, classes, exceptions par élève</td><td><code>MealSlotController</code> (<code>ESCRITA</code>, l. 47)</td><td>Vie Scolaire — c'est elle qui tient l'affiche au mur</td></tr><tr><td><code>PARCOURS_READ</code></td><td>Le parcours du jour d'une personne, tous points confondus</td><td><code>ParcoursController</code> (<code>GATE</code>, l. 50)</td><td>Vie Scolaire et direction. Traverse toute l'école : plus que ce qu'aucun secteur ne donne</td></tr><tr><td><code>CONFIG_WRITE</code></td><td><strong>Lire et écrire</strong> les réglages du système ; capacité et état du CDI ; classes dispensées de badge</td><td><code>SettingsController</code> (<code>GATE</code>, l. 36), <code>CdiController:173</code>, <code>MealSlotController:172</code></td><td>Sam, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système</td></tr><tr><td><code>CDI_EXCLUSION_WRITE</code></td><td><strong>Lire et gérer</strong> les exclusions du CDI (qui, pourquoi, jusqu'à quand, qui a décidé)</td><td><code>CdiController</code> (<code>GATE_EXCLUSOES</code>, l. 51-52)</td><td>Vie Scolaire et responsable du CDI. Une exclusion nomme un enfant et raconte une sanction</td></tr></tbody></table>
+<table><thead><tr><th>Permission</th><th>Ce qu'elle ouvre</th><th>Où c'est gardé</th><th>Qui devrait l'avoir <em>(proposition)</em></th></tr></thead><tbody><tr><td><code>MEAL_ENTITLEMENT_WRITE</code></td><td>Modifier un droit repas (activer, retirer, dater), l'import en masse, l'historique</td><td><code>MealEntitlementController</code> (4 routes, l. 62-128)</td><td>L'opérateur de la cantine et la Vie Scolaire. <strong>La Direction décide, l'opérateur exécute</strong> (ADR-004)</td></tr><tr><td><code>EXIT_PERMISSION_WRITE</code></td><td>Créer et révoquer une autorisation de sortie <strong>ponctuelle</strong></td><td><code>ExitPermissionController:75, 91</code></td><td>Vie Scolaire uniquement — c'est elle qui reçoit le mot des familles</td></tr><tr><td><code>ATTEMPTS_READ</code></td><td>Consulter les tentatives refusées et leurs agrégats (<code>/api/access/attempts</code>, <code>/stats</code>)</td><td><code>AccessAttemptController:29, 44</code></td><td>Vie Scolaire, direction, et l'opérateur qui doit comprendre un refus au moment où il arrive</td></tr><tr><td><code>REGIME_WRITE</code></td><td>Écrire le <strong>régime de sortie annuel</strong> d'un élève (V014)</td><td><code>StudentRegimeController:130-170</code></td><td>Vie Scolaire <strong>et elle seule</strong> : c'est elle qui tient le carnet signé par la famille. Le javadoc de <code>Permissions.java:13-22</code> le dit explicitement — l'ADMIN n'est pas le bon profil</td></tr><tr><td><code>PPMS_READ</code></td><td>Lire la liste <strong>nominative</strong> de qui est à l'intérieur (évacuation)</td><td><code>PpmsController:51</code></td><td>Vie Scolaire, direction, infirmerie. Décision de Sammy du 14/08 : <strong>restreindre, pas fermer</strong> — un nom est ce qui permet de retrouver un enfant</td></tr><tr><td><code>CANTINE_REMOVAL_WRITE</code></td><td>Retirer une ligne du Moniteur Cantine (et la remettre)</td><td><code>CantineRemovalController:62, 77</code></td><td>L'opérateur de la cantine. ⚠ voir l'avertissement ci-dessous</td></tr><tr><td><code>MEAL_SLOT_WRITE</code></td><td>Modifier le planning cantine : créneaux, classes, exceptions par élève</td><td><code>MealSlotController</code> (<code>ESCRITA</code>, l. 47)</td><td>Vie Scolaire — c'est elle qui tient l'affiche au mur</td></tr><tr><td><code>PARCOURS_READ</code></td><td>Le parcours du jour d'une personne, tous points confondus</td><td><code>ParcoursController</code> (<code>GATE</code>, l. 50)</td><td>Vie Scolaire et direction. Traverse toute l'école : plus que ce qu'aucun secteur ne donne</td></tr><tr><td><code>CONFIG_WRITE</code></td><td><strong>Lire et écrire</strong> les réglages du système ; capacité et état du CDI ; classes dispensées de badge</td><td><code>SettingsController</code> (<code>GATE</code>, l. 36), <code>CdiController:173</code>, <code>MealSlotController:172</code></td><td>Sammy, la direction, et éventuellement la Vie Scolaire. C'est la carte complète du comportement du système</td></tr><tr><td><code>CDI_EXCLUSION_WRITE</code></td><td><strong>Lire et gérer</strong> les exclusions du CDI (qui, pourquoi, jusqu'à quand, qui a décidé)</td><td><code>CdiController</code> (<code>GATE_EXCLUSOES</code>, l. 51-52)</td><td>Vie Scolaire et responsable du CDI. Une exclusion nomme un enfant et raconte une sanction</td></tr></tbody></table>
 <p>Quelques règles qui ne se devinent pas :</p>
 <ul>
 <li><strong>Lecture par secteur, écriture par permission.</strong> L'opérateur de la cantine ouvre le Moniteur parce qu'il a le secteur <code>cantine</code> ; il en <em>retire</em> une ligne parce qu'il a <code>CANTINE_REMOVAL_WRITE</code>. Deux choses différentes, et c'est voulu.</li>
@@ -1145,8 +1317,22 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 </ol>
 <blockquote><p>⚠ Oublier <code>TODAS</code> est le piège historique : la permission existe alors <em>uniquement</em> comme littéral dans un <code>@PreAuthorize</code>. L'admin ne peut pas l'accorder (« Permission invalide ») et l'écran concerné devient accessible au seul ADMIN — c'est-à-dire justement au profil qui ne devrait pas l'utiliser. C'est arrivé à <code>REGIME_WRITE</code>, rattrapé le 14/08/2026 (<code>Permissions.java:13-22</code> et <code>:99-113</code>).</p></blockquote>
 <h3 id="5-2-4-ce-que-le-depot-ne-peut-pas-dire">5.2.4 Ce que le dépôt ne peut pas dire</h3>
-<p><code>[A COMPLETER PAR SAM]</code> Quels comptes opérateurs existent réellement sur la VM de production, avec quel rôle, quels secteurs et quelles permissions ? En particulier : <strong>qui détient <code>CONFIG_WRITE</code></strong> aujourd'hui, et <strong>qui détient <code>REGIME_WRITE</code></strong> à la Vie Scolaire ?</p>
-<p><code>[A COMPLETER PAR SAM]</code> Le mot de passe du compte applicatif <code>admin</code> et la valeur de <code>ADMIN_PIN</code> sur la VM (les défauts <code>admin1234</code> / <code>1234</code> doivent avoir été changés — voir <code>.claude/rules/deploy-seguranca.md</code>). Où sont-ils consignés ?</p>
+<p><strong>Le relevé existe, daté du 03/09/2026</strong> (<code>docs/operacional/handoff.md</code>, § 8.2.10) — mais il ne porte qu'une seule colonne, le rôle :</p>
+<table><thead><tr><th>Rôle</th><th>Comptes</th></tr></thead><tbody><tr><td><strong>ADMIN</strong></td><td><code>TI</code>, <code>VS</code>, <code>admin</code>, <code>alexandre</code>, <code>ccc</code>, <code>luciana</code>, <code>proviseur</code>, <code>rosantos</code>, <code>vs</code> — <strong>neuf</strong></td></tr><tr><td><strong>OPERATOR</strong></td><td>un seul, celui de la cantine</td></tr></tbody></table>
+<p>🔴 <strong>Neuf ADMIN sur dix comptes — et le rôle ADMIN possède les dix permissions particulières.</strong> La grille fine décrite au § 5.2 ne protège donc rien aujourd'hui : elle décrit un mécanisme réel, appliqué à une population où presque tout le monde a déjà tout. Et la liste <strong>nominative</strong> du PPMS — celle que la décision du 14/08 voulait « restreindre, pas fermer » — est lisible par neuf personnes.</p>
+<p><strong>[À COMPLÉTER PAR LA DIRECTION]</strong> Neuf ADMIN pour un OPERATOR : est-ce l'organisation voulue ? Réponse de Sammy le 04/09/2026 : ce n'est pas sa décision. Attribuer un rôle d'administration est un acte d'organisation, pas un réglage technique.</p>
+<p><code>[A VERIFIER]</code> Ce que le relevé ne dit pas — les <strong>secteurs</strong> et les <strong>permissions granulaires</strong> de chaque compte, donc qui détient réellement <code>CONFIG_WRITE</code> et <code>REGIME_WRITE</code> — se lit en une requête sur la VM :</p>
+<pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
+  "SELECT username, role, setores_permitidos, permissoes, ativo
+     FROM system_users ORDER BY role, username"</code></pre>
+<p>⚠ <strong>Une identité manque avant les permissions.</strong> Le handoff demande lui-même « qui est derrière chaque login » et signale <code>VS</code> / <code>vs</code> et <code>TI</code> / <code>ccc</code> comme doublons apparents. Retirer des droits à des comptes dont on ne sait pas encore qui les tient reviendrait à couper au hasard.</p>
+<p><strong>Où ils sont consignés : répondu</strong> (Sammy, 31/08/2026 — <code>docs/operacional/handoff.md</code>, § « LE RISQUE Nº 1 DE LA REPRISE »). Les cinq secrets de déploiement vivent dans le <code>.env</code> de la VM et se récupèrent par SSH ; le compte applicatif <code>admin</code> et l'accès web des appareils ne vivent nulle part ailleurs que chez Sammy.</p>
+<p><strong>Décision du 04/09/2026 : les accès vont dans un coffre tenu par la direction.</strong> Ce livre écrit qu'il existe et qui l'ouvre — jamais les valeurs, jamais l'emplacement exact. ⚠ Il n'y a rien à publier ici : le livre s'imprime, et le dépôt est public.</p>
+<p>⚠ <strong>Le coffre doit contenir le SSH de la VM</strong>, pas seulement les mots de passe applicatifs — sans lui il ne couvre que la moitié de la panne. La raison est au chapitre 6, § 2.1.</p>
+<p>⚠ <strong>Vérifier que les défauts ont été changés ne demande de publier RIEN.</strong> Une ligne, refaisable par n'importe qui :</p>
+<pre class="code" data-lang="bash"><code>curl -s -o /dev/null -w '%{http_code}\n' -X POST http://192.168.1.253:8080/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin1234"}'</code></pre>
+<p><strong>401 = le défaut a bien été changé.</strong> 200 = il ne l'a pas été, et cela se corrige le jour même. Les valeurs par défaut sont déjà écrites en clair dans <code>.claude/rules/deploy-seguranca.md</code> : cette commande ne révèle rien de neuf, elle mesure seulement.</p>
 <p><code>[A VERIFIER]</code> La liste vivante des comptes se lit avec un jeton ADMIN : <code>curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/system-users</code> (route <code>GET /api/system-users</code>, <code>SystemUserController:26</code>).</p>
 <hr>
 <h2 id="5-3-les-imports-et-leurs-pieges">5.3 Les imports, et leurs pièges</h2>
@@ -1198,9 +1384,12 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 │  « Feuille non reconnue » et, dans le meilleur des cas, on perd une      │
 │  demi-heure ; dans le pire, on croit que l'export est vide.              │
 └──────────────────────────────────────────────────────────────────────────┘</code></pre></blockquote>
-<p><strong>Origine de cette consigne : Sam, le 28/08/2026.</strong> Elle n'est <strong>pas</strong> vérifiable dans le dépôt — aucun fichier du projet ne mentionne cette case, qui appartient à l'interface du HikCentral et non à MAGBO.</p>
+<p><strong>Origine de cette consigne : Sammy, le 28/08/2026</strong>, précisée par lui le 31/08 — et sa portée est <strong>plus large que les deux exports</strong> :</p>
+<blockquote><p>« Lors de <strong>toute opération HikCentral</strong>, "Restaurer les paramètres par défaut" doit rester <strong>DÉCOCHÉ</strong>. Coché, il réinitialise des réglages de l'appareil — dont potentiellement le seuil de similarité et l'<em>Écoute HTTP</em>. » — <code>docs/operacional/handoff.md:143-147</code></p></blockquote>
+<p>⚠ <strong>Elle casse de deux façons distinctes, et la seconde ne peut pas venir d'un export.</strong> Côté export, la case remet la sélection de champs du HCP à son état d'usine : le fichier qui en sort n'a plus l'en-tête à la ligne 9 ni les colonnes attendues par leur nom, et l'import de MAGBO ne reconnaît plus rien. Côté <strong>appareil</strong> — c'est-à-dire sur le chemin <em>Apply to Device</em> — elle réinitialise des réglages du terminal ou de la caméra. Un export ne touche aucun appareil : ce second mécanisme désigne l'import, et lui seul.</p>
+<p>⚠ <strong>Dette de documentation.</strong> Cette consigne ne figure PAS dans <code>docs/operacional/procedimento-hikcentral.md</code>, que ce chapitre et le handoff désignent tous deux comme « la procédure complète » (vérifié : zéro occurrence). Elle vit dans le handoff, qui est un document de reprise, pas un mode d'emploi. Elle devrait descendre dans la procédure.</p>
 <p><code>[A VERIFIER]</code> Ouvrir le HikCentral (<code>192.168.1.90</code>) → module Personnes → <strong>Exporter</strong>, et localiser la case exacte ainsi que l'écran où elle apparaît (export des renseignements, export des photos, ou les deux). Noter la formulation exacte dans la langue de l'installation, puis la recopier ici.</p>
-<p><code>[A COMPLETER PAR SAM]</code> La consigne vaut-elle aussi pour l'<strong>import</strong> dans le HCP (<em>Apply to Device</em>), ou uniquement pour les deux exports ?</p>
+<p><code>[A VERIFIER]</code> Sur <strong>quels écrans exactement</strong> la case apparaît, et sous quel libellé : le même intitulé existe-t-il littéralement à l'import, ou « toute opération » couvre-t-il plusieurs cases distinctes ? Cela demande d'ouvrir le HCP, pas de lire le dépôt — et c'est la seule part de cette consigne qui reste non vérifiée.</p>
 <h3 id="5-3-6-import-du-personnel">5.3.6 Import du personnel</h3>
 <p>Deux chemins, tous deux dans l'engrenage :</p>
 <ul>
@@ -1242,8 +1431,8 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li>Aucune bibliothèque PDF : c'est l'impression du navigateur.</li>
 </ul>
 <p><strong>Le rotulo est éditable depuis le 28/08/2026.</strong> Avant, la page 11h imprimait « REPRIS DE CLASS_SCHEDULES » — un nom de table interne — sur une page lue par les familles de 25 classes, et <strong>aucun champ de l'écran ne permettait de le corriger</strong>. Le champ est maintenant sur la carte du créneau ; l'endpoint l'acceptait déjà (<code>MealSlotManagement.js:289-302</code>, <code>MealSlotController:184</code>). Le défaut et sa correction sont racontés dans <code>docs/operacional/nuit-27-28-08-rapport.md</code> (Chantier 3).</p>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes</div>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage</div>
+<div class="capture" data-capture="05-carte-creneau.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/05-carte-creneau.png</code></span>la carte d'un créneau, avec le champ rotulo, les deux tolérances et les pastilles de classes</div>
+<div class="capture" data-capture="05-affiche-cantine.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/05-affiche-cantine.png</code></span>l'aperçu d'impression de l'affiche — bandeau bleu foncé, pastilles en couleur, une page par passage</div>
 <h3 id="5-4-4-le-controle-a-faire-a-chaque-rentree">5.4.4 Le contrôle à faire à chaque rentrée</h3>
 <p>Quatre requêtes SQL disent où le planning <strong>ne correspond pas</strong> à la réalité des élèves, sans rien corriger — parce que seule la Vie Scolaire peut trancher. Elles sont prêtes à l'emploi :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -f - &lt; docs/operacional/controle-affiche-cantine.sql</code></pre>
@@ -1270,7 +1459,7 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li><strong>Les orphelins</strong> — une clé gravée qui n'est plus déclarée — apparaissent en ambre, dans un domaine à part (<code>SettingsCatalog.java:187-196</code>). Ils n'ont pas de défaut : plus rien ne les déclare.</li>
 <li>⚠ <strong>Aucun secret ne passe par là.</strong> Jetons, mots de passe et clé JWT vivent dans l'environnement (<code>.env</code> de la VM, <code>setx</code> du PC). Un écran qui les afficherait les mettrait sur une capture d'écran le jour même.</li>
 </ul>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir</div>
+<div class="capture" data-capture="05-configuration-systeme.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/05-configuration-systeme.png</code></span>l'écran Configuration du système — une ligne avec sa valeur, son défaut écrit à côté, « modifié par … le … », et les deux boutons Enregistrer / Rétablir</div>
 <h3 id="ce-qui-n-est-pas-dans-cet-ecran">Ce qui n'est PAS dans cet écran</h3>
 <p>Les <strong>politiques</strong> <code>magbo.policy.*</code> se règlent par properties et non à l'écran. Défauts lus dans <code>backend/.../config/PolicyProperties.java:26-39</code> :</p>
 <table><thead><tr><th>Politique</th><th>Défaut du code</th><th>Effet</th></tr></thead><tbody><tr><td><code>meal-not-entitled</code></td><td><code>DENY</code></td><td>Refus enregistré, aucun <code>access_log</code></td></tr><tr><td><code>meal-pending</code></td><td><code>OBSERVATION</code></td><td>⚠ <strong>la production met <code>DENY</code></strong> — décision D5, ADR-004</td></tr><tr><td><code>outside-meal-time</code></td><td><code>OBSERVATION</code></td><td>Trace, sans refus</td></tr><tr><td><code>meal-slot-not-configured</code></td><td><code>OBSERVATION</code></td><td>Classe sans créneau : on laisse passer</td></tr><tr><td><code>duplicate-meal</code></td><td><code>OBSERVATION</code></td><td></td></tr><tr><td><code>exit-not-authorized</code></td><td><code>DENY</code></td><td></td></tr><tr><td><code>user-inactive</code></td><td><code>DENY</code></td><td></td></tr><tr><td><code>missing-door-mapping</code></td><td><code>FALLBACK</code></td><td></td></tr></tbody></table>
@@ -1310,12 +1499,14 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
   "SELECT table_name FROM information_schema.tables
     WHERE table_schema='public' ORDER BY 1;"</code></pre>
 <p>(on doit y trouver <code>access_attempts</code>, <code>meal_entitlements</code>, <code>meal_entitlement_events</code>, <code>student_exit_permissions</code>, <code>user_photos</code>, <code>student_regimes</code>, <code>cantine_removals</code>, <code>meal_slots</code>, <code>system_settings</code>, <code>cdi_exclusions</code>, <code>cdi_alert_events</code>.)</p>
-<p><code>[A VERIFIER — état affirmé par Sam le 28/08/2026]</code> Six terminaux en service : portail <code>.166</code> (SORTIE) et <code>.167</code> (ENTRÉE), CDI <code>.15</code> et <code>.16</code>, cantine <code>.10</code>, <code>.12</code>, <code>.13</code>, <code>.14</code> — soit <strong>huit</strong> adresses pour six terminaux ; l'écart n'est pas expliqué par le dépôt. À confirmer par :</p>
+<p><code>[A VERIFIER — état affirmé par Sammy le 28/08/2026]</code> Six terminaux en service : portail <code>.166</code> (SORTIE) et <code>.167</code> (ENTRÉE), CDI <code>.15</code> et <code>.16</code>, cantine <code>.10</code>, <code>.12</code>, <code>.13</code>, <code>.14</code> — soit <strong>huit</strong> adresses pour six terminaux ; l'écart n'est pas expliqué par le dépôt. À confirmer par :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT terminal_ip, door_no, reader_no, point_id, action, label
      FROM door_mappings WHERE ativo ORDER BY terminal_ip;"</code></pre>
 <blockquote><p>⚠ <strong>Les IP dansent en DHCP et cassent en silence</strong> la « Écoute HTTP » du terminal <strong>et</strong> les <code>door_mappings</code> : aucune erreur, les événements cessent simplement d'arriver ou de correspondre. Avant toute séance matériel : IP du serveur, IP au écran du terminal, URL de l'Écoute HTTP, <code>door_mappings</code> (<code>.claude/rules/hikvision.md</code>).</p></blockquote>
-<p><code>[A COMPLETER PAR SAM]</code> Les réservations d'IP demandées au SI par Fabiano ont-elles été exécutées ? Si oui, quelles adresses sont fixes (terminaux + VM) ? <em>(pendência 6 de <code>docs/operacional/procedimento-hikcentral.md</code>)</em></p>
+<p><strong>Pour la VM : oui.</strong> <code>192.168.1.253</code> est réservée, confirmé auprès du service informatique (Sammy, 04/09/2026).</p>
+<p><strong>Pour les terminaux aussi : oui.</strong> Confirmé par Sammy le 04/09/2026 — la demande de Fabiano au service informatique a été exécutée pour les appareils comme pour la VM. La <em>pendência 6</em> de <code>docs/operacional/procedimento-hikcentral.md</code> est close.</p>
+<p>⚠ <strong>Cela ne dispense pas de la liste d'avant-séance</strong> (IP du serveur, IP à l'écran du terminal, URL de l'<em>Écoute HTTP</em>, <code>door_mappings</code>). Elle reste la seule chose qui distingue « rien ne passe » de « rien ne s'est passé » — et une réservation mal saisie produit exactement le même silence qu'un bail DHCP expiré.</p>
 <hr>
 <h2 id="5-8-le-calendrier-de-l-administrateur">5.8 Le calendrier de l'administrateur</h2>
 <table><thead><tr><th>Quand</th><th>Quoi</th><th>Où c'est écrit</th></tr></thead><tbody><tr><td><strong>À chaque rentrée</strong>, avant le 1er service</td><td>Relancer les 4 requêtes de contrôle de l'affiche ; corriger les créneaux ; réimprimer l'affiche</td><td><code>docs/operacional/controle-affiche-cantine.md</code></td></tr><tr><td><strong>Avant le 1er service</strong></td><td>Charger la liste des autorisés repas en masse (sinon tout <code>PENDING</code> est refusé)</td><td>§5.3.7 ; <code>procedimento-hikcentral.md</code> §4</td></tr><tr><td><strong>Septembre</strong></td><td>Charger les régimes de sortie en masse</td><td>§5.3.8</td></tr><tr><td><strong>À chaque arrivée / départ</strong></td><td>HikCentral : provisionner, <em>Apply to Device</em>, vérifier <strong>0 échec</strong> ; puis import HikCentral dans MAGBO</td><td><code>procedimento-hikcentral.md</code> §1-2</td></tr><tr><td><strong>Après chaque import de photos</strong></td><td>Recharger l'application (cache des photos)</td><td>§5.6</td></tr><tr><td><strong>Avant toute séance matériel</strong></td><td>Contrôle des IP et des <code>door_mappings</code></td><td><code>.claude/rules/hikvision.md</code></td></tr><tr><td><strong>Avant toute mise à jour</strong></td><td>Sauvegarde de la base — <strong>c'est aussi la sauvegarde des photos</strong></td><td><code>docs/operacional/mise-a-jour-vm.md</code> §2</td></tr></tbody></table>
@@ -1335,7 +1526,7 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <section class="chapitre" data-fichier="06-exploitation.md" data-page="chapitre-06">
 <h1 id="chapitre-6-exploitation">Chapitre 6 — Exploitation</h1>
 <p>Ce chapitre s'adresse à la personne qui ouvre le livre en urgence : le système ne répond plus, il faut déployer une version, appliquer une migration, restaurer une sauvegarde ou remettre l'application sur un poste. Il est fait pour être <strong>exécuté</strong>, pas lu — chaque commande a été relevée dans le dépôt, et ce qui n'a pas pu être vérifié depuis le dépôt est marqué comme tel.</p>
-<p>Référence de cette rédaction : le <strong>03/09/2026</strong>, sur <code>main</code> augmentée des trois chantiers de cette date (<code>fix/adresse-du-login</code>, <code>feat/livre-imprimable</code>, <code>docs/verifications-finales</code>) ; l'état d'avant eux était <code>fc4359c</code>. Suites au vert sur cet état, mesurées à froid : backend <strong>1055</strong> (0 échec, exactement 2 <code>@Disabled</code>), npm <strong>889</strong>. ⚠ L'ancre est une <strong>date</strong>, pas un SHA : ces chantiers seront fusionnés par Sam et les SHA changeront.</p>
+<p>Référence de cette rédaction : le <strong>03/09/2026</strong>, sur <code>main</code> augmentée des trois chantiers de cette date (<code>fix/adresse-du-login</code>, <code>feat/livre-imprimable</code>, <code>docs/verifications-finales</code>) ; l'état d'avant eux était <code>fc4359c</code>. Suites au vert sur cet état, mesurées à froid : backend <strong>1055</strong> (0 échec, exactement 2 <code>@Disabled</code>), npm <strong>889</strong>. ⚠ L'ancre est une <strong>date</strong>, pas un SHA : ces chantiers seront fusionnés par Sammy et les SHA changeront.</p>
 <hr>
 <h2 id="1-ce-qui-tourne-sur-la-vm">1. Ce qui tourne sur la VM</h2>
 <p>Le déploiement canonique est <code>deploy/docker-compose.yml</code>. <strong>Deux conteneurs, pas plus</strong> :</p>
@@ -1347,7 +1538,14 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li><strong>La VM ne sert que le backend.</strong> Le tableau de bord est une application Electron installée poste par poste, mise à jour par un paquet séparé (§ 6). Un backend à jour avec des postes restés en arrière <strong>n'est pas une panne visible</strong> : l'écran affiche l'ancienne version sans le dire.</li>
 </ol>
 <p>Ce que le compose ne fait <strong>pas</strong>, et qu'il faut savoir : pas de HTTPS (HTTP simple, un reverse proxy reste à poser), CORS ouvert (<code>*</code>), et le port 8080 exposé sur toutes les interfaces. La liste complète est la « Security checklist before production » de <code>deploy/README.md</code>.</p>
-<blockquote><p>⚠ <strong><code>deploy/setup-server.sh</code> et <code>deploy/smoke-tests.md</code> décrivent un AUTRE déploiement</strong> — systemd, PostgreSQL installé par apt, un jar nommé <code>magbo-access-1.0.0.jar</code>. Ce nom n'a jamais existé : le <code>pom.xml</code> produit <code>access-control-1.0.0.jar</code> (<code>backend/pom.xml</code>, <code>artifactId</code> = <code>access-control</code>, version 1.0.0), et <code>DB_NAME</code> y vaut <code>magbo_db</code>, qui n'est aucune des deux bases réelles. Ces deux fichiers sont <strong>historiques</strong>. Le chemin canonique est <code>deploy/docker-compose.yml</code>. <code>[A COMPLETER PAR SAM]</code> Ces deux fichiers peuvent-ils être supprimés du dépôt, ou décrivent-ils encore une installation quelque part ?</p></blockquote>
+<blockquote><p>⚠ <strong>Un déploiement qui n'existe pas est décrit par TROIS fichiers, et ils n'ont pas le même statut</strong> — systemd, PostgreSQL installé par apt, un jar nommé <code>magbo-access-1.0.0.jar</code>. Ce nom n'a jamais existé : le <code>pom.xml</code> produit <code>access-control-1.0.0.jar</code>, et le <code>DB_NAME</code> de ces fichiers vaut <code>magbo_db</code>, qui n'est aucune des deux bases réelles. Le chemin canonique est <code>deploy/docker-compose.yml</code>.</p>
+<p><strong><code>deploy/setup-server.sh</code> et <code>DEPLOYMENT.md</code> sont des fossiles.</strong> Rien dans le dépôt ne les cite — <code>DEPLOYMENT.md</code> fait pourtant 39 Ko à la racine, et le marqueur d'origine ne le voyait même pas. <code>docs/operacional/</code> ne contient pas une seule occurrence de <code>systemctl</code>. ⚠ Et <code>setup-server.sh</code> est <strong>exécutable</strong> : il installerait un PostgreSQL sur le port 5432 que le conteneur occupe déjà. Un fichier mort qui casserait la production s'il était lancé n'est pas un fichier neutre.</p>
+<p><strong><code>deploy/smoke-tests.md</code>, lui, est VIVANT</strong> — et le marqueur le condamnait avec les autres. La procédure de déploiement VM le cite comme étape 5 (<code>.claude/skills/deploy-vm/SKILL.md:8</code>) et il a été révisé le 03/09/2026. Il n'est pas à supprimer : il est à finir. ⚠ Sa section S4 fait encore lire le journal dans <code>/var/log/magbo/</code> <strong>sur l'hôte</strong>, où personne n'écrit : sur la VM en conteneurs, le journal est celui de <code>docker logs</code>.</p>
+<p><strong>Décision du 04/09/2026 : un bandeau, pas une suppression.</strong> Les deux fossiles restent où ils sont et reçoivent en tête « ARCHIVE — NE PAS EXÉCUTER ».</p>
+<p>⚠ <strong>C'est le choix le moins coûteux, et il faut savoir ce qu'il ne couvre pas.</strong> Un bandeau protège qui <strong>lit</strong>. Il ne protège pas qui lance <code>bash deploy/setup-server.sh</code> sans lire — et c'est précisément ce que fait quelqu'un qui cherche à réparer vite. Le fichier reste exécutable et ses chemins mordent toujours l'installation réelle : PostgreSQL sur le 5432 que le conteneur occupe, écriture dans <code>/opt/magbo</code>. Le bandeau rend le piège lisible ; il ne le désamorce pas.</p>
+<p>⚠ <strong><code>DEPLOYMENT.md</code> est le plus trompeur des deux</strong>, parce qu'il est à la <strong>racine</strong> — là où l'on regarde en premier, et où un fichier de 39 Ko qui s'appelle « DEPLOYMENT » a l'air d'être la référence. Son bandeau est le plus urgent.</p>
+<p>⚠ <strong>Et il n'est pas encore posé.</strong> Ce chantier-ci est le livre ; poser les deux bandeaux est une tâche, pas un état acquis.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> La seule chose que le dépôt ne peut pas savoir : cette installation systemd a-t-elle jamais tourné sur une machine hors de vue, avant la VM Docker actuelle ? Si oui, ces fichiers en sont la seule description, et cela change ce qu'on écrit sur le bandeau.</p></blockquote>
 <hr>
 <h2 id="2-le-env-variable-par-variable">2. Le <code>.env</code> — variable par variable</h2>
 <p>Le fichier vit dans <code>deploy/</code> (il est dans le <code>.gitignore</code> : <code>git pull</code> ne l'écrase pas et ne le recrée pas non plus). Modèle : <code>deploy/.env.example</code>.</p>
@@ -1360,7 +1558,9 @@ docker exec magbo-backend env | grep MAGBO_REGIME</code></pre>
 <li><code>MAGBO_ADMIN_PASSWORD=""</code> → pire, et <strong>seulement sur une base neuve</strong> : <code>config/AdminBootstrap.java</code> lit <code>${magbo.admin.password:admin1234}</code>, et le défaut du <code>@Value</code> ne s'applique que si la propriété est <strong>absente</strong>, pas si elle est présente et vide. Une VM reconstruite de zéro — exactement le scénario que ce fichier protège — voit naître <strong>un administrateur sans mot de passe</strong>.</li>
 </ul>
 <blockquote><p>⚠ <strong><code>MAGBO_ADMIN_PASSWORD</code> n'a d'effet que sur une base SANS utilisateur <code>admin</code>.</strong> <code>AdminBootstrap</code> sort à sa première ligne si le compte existe déjà (il journalise <code>Admin 'admin' já existe, pulando bootstrap.</code>). Changer le mot de passe d'un admin déjà créé se fait à l'écran Opérateurs. Modifier cette variable et recréer le conteneur <strong>ne change rien</strong> — et croire que ça a changé quelque chose est la pire des deux situations.</p></blockquote>
-<p><code>[A COMPLETER PAR SAM]</code> Où est conservée la copie de <code>ADMIN_PIN</code> et du mot de passe <code>admin</code> de production, et qui d'autre y a accès ? Le <code>.env</code> de la VM est le seul exemplaire connu depuis le dépôt.</p>
+<p><strong>Répondu, puis décidé.</strong> Le <code>.env</code> de la VM reste le seul exemplaire connu depuis le dépôt, et le handoff dit qui l'atteint (§ « LE RISQUE Nº 1 DE LA REPRISE », répondu par Sammy le 31/08/2026) : quiconque possède le SSH — et le SSH n'est détenu que par Sammy. <strong>Décision du 04/09/2026 : les accès vont dans un coffre tenu par la direction.</strong></p>
+<p>🔴 <strong>Ce que ce coffre doit contenir, et ce n'est pas évident.</strong> Y déposer le mot de passe <code>admin</code> et l'<code>ADMIN_PIN</code> ne suffit pas. <code>AdminBootstrap</code> sort à sa première ligne dès que le compte <code>admin</code> existe, <strong>quel que soit son état</strong> : il ne répare rien. Un dernier ADMIN désactivé — ou dont plus personne n'a le mot de passe — ferme la gestion définitivement, et la seule issue est un <code>UPDATE system_users</code> à la main, c'est-à-dire <strong>par le SSH</strong>. Un coffre sans le SSH laisse donc intacte exactement la panne qu'il est censé couvrir.</p>
+<p>⚠ <strong>Tant que le dépôt dans le coffre n'a pas eu lieu, la décision ne protège personne.</strong> C'est une tâche, avec un propriétaire, pas un état acquis.</p>
 <h3 id="2-2-tz-america-sao-paulo-sur-les-deux-conteneurs">2.2 <code>TZ: America/Sao_Paulo</code> sur <strong>les deux</strong> conteneurs</h3>
 <p>C'est l'avertissement le plus long du compose, et il le mérite.</p>
 <p>Les images <code>eclipse-temurin:17-jre-alpine</code> et <code>postgres:16-alpine</code> <strong>démarrent en UTC</strong>. La JVM adopte le fuseau du conteneur, donc <strong>tout <code>LocalDateTime.now()</code> du backend rend une heure UTC</strong> — pendant que <code>access_logs.timestamp</code> est écrit en <code>America/Sao_Paulo</code> par <code>EventTimeResolver</code>, à partir du <code>dateTime</code> que les appareils envoient. Les deux horloges cohabitent dans la <strong>même</strong> base, dans des colonnes <code>timestamp without time zone</code>, et <strong>rien dans le schéma n'accuse la différence</strong>.</p>
@@ -1419,7 +1619,7 @@ docker exec magbo-backend date                # et le fuseau, tant qu'on y est</
 docker exec magbo-postgres psql -U magbo -d magbodb -c \
   "SELECT username, role, permissoes FROM system_users WHERE ativo = true;"</code></pre>
 <p>Les dix permissions existantes (<code>backend/.../security/Permissions.java</code>) : <code>MEAL_ENTITLEMENT_WRITE</code>, <code>EXIT_PERMISSION_WRITE</code>, <code>ATTEMPTS_READ</code>, <code>REGIME_WRITE</code>, <code>PPMS_READ</code>, <code>CANTINE_REMOVAL_WRITE</code>, <code>MEAL_SLOT_WRITE</code>, <code>PARCOURS_READ</code>, <code>CONFIG_WRITE</code>, <code>CDI_EXCLUSION_WRITE</code>. Le rôle ADMIN les possède toutes. <strong>Une permission absente ne ressemble pas à une panne : le bouton n'est simplement pas là.</strong> Elles s'accordent à l'écran Opérateurs, dans « Permissions particulières » — un écran qui n'existe que depuis le 14/08/2026 : avant, elles n'étaient accordables que par API, ce que seul l'auteur savait faire.</p>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>l'écran Opérateurs, un opérateur ouvert en modification, le bloc « Permissions particulières » et ses dix cases — grisées pour un ADMIN</div>
+<div class="capture" data-capture="06-permissions-particulieres.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/06-permissions-particulieres.png</code></span>l'écran Opérateurs, un opérateur ouvert en modification, le bloc « Permissions particulières » et ses dix cases — grisées pour un ADMIN</div>
 <p><strong>7-bis. Mettre à jour les postes</strong> (§ 6) — c'est une étape, pas une note de bas de page. Les écrans du § 7 vivent dans l'application Electron, pas sur la VM.</p>
 <p><strong>8. Smoke avec des CLICS, pas seulement des <code>curl</code>.</strong> C'est la leçon la plus chère du projet : le 17/07, trois espèces de bug de câblage d'interface ont traversé toute la batterie de <code>curl</code> et ne sont apparues qu'en parcourant les écrans. Le parcours est dans <a href="../frontend-smoke-checklist.md"><code>docs/frontend-smoke-checklist.md</code></a> — dont la <strong>section 6-bis</strong> est obligatoire, parce qu'elle couvre à la main les deux requêtes natives PostgreSQL que la suite ne peut pas exécuter (H2).</p>
 <hr>
@@ -1480,9 +1680,15 @@ docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
 <p><strong>Pour vérifier, à tout moment :</strong></p>
 <pre class="code" data-lang="bash"><code>ssh magbo@192.168.1.253
 crontab -l | grep -i backup           # le cron est-il actif ?
-ls -lht ~/backups/ | head -5          # le plus récent doit dater d'hier 19:00</code></pre>
+ls -lht ~/backups/ | head -5          # le plus récent doit dater d'hier 19:00
+tail -20 ~/backups/backup.log         # ce que la dernière exécution a dit</code></pre>
 <p>Si le dossier est vide : <strong>faites un dump manuel aujourd'hui</strong>, puis corrigez le script (<code>DB_NAME=magbodb</code> et envelopper dans <code>docker exec</code>).</p>
-<p><code>[A COMPLETER PAR SAM]</code> Le cron de sauvegarde est-il actif sur la VM, sous quel utilisateur, et existe-t-il une copie hors-machine (<code>MAGBO_BACKUP_REMOTE</code>) ? La règle 3-2-1 est écrite dans l'en-tête du script, mais la destination distante n'est nulle part dans le dépôt.</p>
+<p><strong>Vérifié en production le 31/08/2026 :</strong> le cron tourne — y compris le samedi et le dimanche —, chaque fichier pèse environ 109 Mo, ce sont des dumps PostgreSQL 16.14 valides (l'en-tête <code>PostgreSQL database dump</code> a été lu), et la rétention appliquée est bien de quatorze jours.</p>
+<p>⚠ <strong>La règle 3-2-1 est écrite dans l'en-tête du script, et elle n'est pas appliquée.</strong> Ce n'est pas une question ouverte : la copie hors machine n'existe pas, c'est dit en rouge quelques lignes plus haut, et le dépôt ne porte aucune valeur pour <code>MAGBO_BACKUP_REMOTE</code>. Une intention dans un en-tête n'est pas un état.</p>
+<p><code>[À VÉRIFIER]</code> <strong>Sous quel compte</strong> ce cron s'exécute n'est pas établi — c'est la seule chose que cette section ne sache pas dire. Deux lignes la tranchent :</p>
+<pre class="code" data-lang="bash"><code>ssh magbo@192.168.1.253 'crontab -l | grep -i backup'        # le cron de magbo
+ssh magbo@192.168.1.253 'sudo crontab -l | grep -i backup'   # celui de root</code></pre>
+<p>⚠ Ce n'est pas une curiosité d'inventaire. Si les sauvegardes tiennent au crontab de <code>magbo</code>, elles s'arrêtent le jour où ce compte change de shell, expire ou est désactivé — sans erreur, sans alerte, et personne ne s'en apercevrait avant d'en avoir besoin. C'est exactement la forme de panne contre laquelle ce chapitre existe.</p>
 <h3 id="5-2-retour-arriere-quatre-niveaux-du-plus-leger-au-plus-lourd">5.2 Retour arrière — quatre niveaux, du plus léger au plus lourd</h3>
 <ol>
 <li><strong>Comportement</strong> : éteindre la fonctionnalité par configuration (par ex. <code>MAGBO_REGIME_HABILITADO=false</code>) et recréer le conteneur. Les tables restent inertes, rien n'est effacé. <strong>Première option, toujours.</strong></li>
@@ -1524,8 +1730,10 @@ grep -cE 'src="https?://|cdn\.|unpkg|jsdelivr' index.html    # doit rendre 0</co
 <li><strong>Vérifier à l'écran, pas la fenêtre</strong> : des chiffres au tableau de bord, des lignes avec des noms dans le Journal, le nom de l'opérateur en haut à droite.</li>
 <li><strong>Hors horaire de service</strong> : pendant que l'app est fermée, l'opérateur ne voit plus les tentatives refusées. Le backend, lui, continue d'enregistrer — le webhook ne dépend pas de l'application. Ce qui se perd, c'est la surveillance en direct.</li>
 </ul>
-<div class="capture"><span class="capture-etiq">Capture d'écran attendue</span>le premier lancement sur un poste — l'avertissement bleu « Windows a protégé votre ordinateur », avec le lien « Informations complémentaires » à cliquer</div>
-<p><code>[A COMPLETER PAR SAM]</code> Quelle version tourne sur quel poste aujourd'hui, et quelle est l'adresse réelle du serveur ? Le modèle versionné porte <code>http://192.168.1.253:8080</code>, et la réservation d'IP auprès du SI n'était pas confirmée dans le dépôt. La fiche de suivi vide est à la fin du guide d'installation.</p>
+<div class="capture" data-capture="06-premier-lancement.png"><span class="capture-etiq">Capture d'écran attendue — <code>captures/06-premier-lancement.png</code></span>le premier lancement sur un poste — l'avertissement bleu « Windows a protégé votre ordinateur », avec le lien « Informations complémentaires » à cliquer</div>
+<p><strong>L'adresse du serveur est <code>192.168.1.253:8080</code>, et elle est FIXE</strong> — réservation confirmée auprès du service informatique (Sammy, 04/09/2026). C'est bien celle que porte le modèle <code>Abrir-MAGBO.bat</code>, celle du défaut de <code>magbo-poste.json</code>, et celle du <code>ssh</code> de la section sauvegardes : le dépôt était cohérent, il ne savait simplement pas s'il avait raison.</p>
+<p>⚠ Ce que cela retire est une panne entière, et elle serait passée pour autre chose : une adresse qui change au reboot coupe <strong>tous les postes en même temps</strong>, sans message qui le dise — l'écran de connexion échoue, et c'est le mot de passe qu'on soupçonne. C'est la nuit du 3 au 4 septembre vue de l'autre côté, celle-là côté serveur.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> <strong>Quelle version tourne sur quel poste aujourd'hui ?</strong> C'est la seule moitié qui reste ouverte. La fiche de suivi vide est à la fin du guide d'installation ; tant qu'elle n'est pas remplie, une mise à jour partielle ne se voit pas — deux postes sur une version différente se comportent différemment, et rien à l'écran ne l'annonce.</p>
 <hr>
 <h2 id="7-ce-qui-se-regle-sans-redeployer">7. Ce qui se règle SANS redéployer</h2>
 <p>Trois niveaux, du moins cher au plus cher. Savoir lequel s'applique évite un déploiement inutile — ou une modification qui ne prend jamais effet.</p>
@@ -1552,14 +1760,15 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <li>⚠ <strong>Doublon réel à signaler, pas à corriger</strong> : <code>docs/architecture/decisoes/</code> contient <strong>deux fichiers ADR-005</strong> — <code>ADR-005-creneaux-cantine.md</code> et <code>ADR-005-totvs-rastreabilidade-no-dono-do-dado.md</code>. Deux décisions distinctes portent le même numéro. Renuméroter demande de reprendre les renvois ; c'est une décision, pas une retouche.</li>
 <li><strong>Sept endpoints non gardés</strong> (<code>/api/users</code>, <code>/api/access/logs/*</code>, <code>registerAccess</code>), dette documentée et <strong>de taille assertée</strong> dans <code>ControllerAuthorizationGuardTest.DIVIDA_CONHECIDA</code>. Les garder cassera des écrans : c'est un chantier avec ses propres preuves.</li>
 <li><strong>Les règles sont évaluées à l'heure de la DÉCISION</strong>, pas à celle de l'événement (seul le timestamp écrit a changé le 03/08). Une file hors-ligne rejouée hors du créneau peut produire un <code>FORA_HORARIO</code> sur un passage parfaitement légal. Dette ouverte, décrite au § 5.1 du handoff. <strong>Une seule exception assumée</strong> : le régime de sortie, qui juge sur l'heure du <strong>passage</strong>, avec un test qui capture l'argument.</li>
-<li>✅ <strong>La cantine A une fermeture automatique, et son heure est confirmée</strong> (<code>magbo.presence.auto-close.times[REFEI1]=15:00</code> ; heure validée par Sam le 31/08 contre le service réel). ⚠ <strong>Ce qui reste n'est pas le réglage mais le taux :</strong> environ <strong>72 sorties par jour ne sont jamais lues</strong> et sont fermées par le système à 15:00. Ces lignes portent <code>FECHAMENTO_AUTO</code> — leur durée de repas est un <strong>maximum</strong>, pas une mesure, et il faut les exclure de toute moyenne. Détail au § 3.12 et dans le handoff, § 2.4.</li>
+<li>✅ <strong>La cantine A une fermeture automatique, et son heure est confirmée</strong> (<code>magbo.presence.auto-close.times[REFEI1]=15:00</code> ; heure validée par Sammy le 31/08 contre le service réel). ⚠ <strong>Ce qui reste n'est pas le réglage mais le taux :</strong> environ <strong>72 sorties par jour ne sont jamais lues</strong> et sont fermées par le système à 15:00. Ces lignes portent <code>FECHAMENTO_AUTO</code> — leur durée de repas est un <strong>maximum</strong>, pas une mesure, et il faut les exclure de toute moyenne. Détail au § 3.12 et dans le handoff, § 2.4.</li>
 </ul>
-<p><code>[Affirmé par Sam le 28/08/2026, non vérifiable depuis le dépôt]</code> <strong>Six terminaux en service</strong> : portail <code>.166</code> (SORTIE) et <code>.167</code> (ENTRÉE), CDI <code>.15</code> et <code>.16</code>, cantine <code>.10</code> / <code>.12</code> / <code>.13</code> / <code>.14</code>. <code>[A VERIFIER]</code> L'énumération donne huit adresses pour « six terminaux » — deux d'entre elles sont les <strong>caméras</strong> DeepinView du portail (<code>bootstrap/DoorMappingBootstrap.java</code> les mappe par IP seule, <code>.167</code>→ENTRADA, <code>.166</code>→SAIDA), qui ne sont pas des terminaux MinMoe. Trancher avec :</p>
+<p><code>[Affirmé par Sammy le 28/08/2026, non vérifiable depuis le dépôt]</code> <strong>Six terminaux en service</strong> : portail <code>.166</code> (SORTIE) et <code>.167</code> (ENTRÉE), CDI <code>.15</code> et <code>.16</code>, cantine <code>.10</code> / <code>.12</code> / <code>.13</code> / <code>.14</code>. <code>[A VERIFIER]</code> L'énumération donne huit adresses pour « six terminaux » — deux d'entre elles sont les <strong>caméras</strong> DeepinView du portail (<code>bootstrap/DoorMappingBootstrap.java</code> les mappe par IP seule, <code>.167</code>→ENTRADA, <code>.166</code>→SAIDA), qui ne sont pas des terminaux MinMoe. Trancher avec :</p>
 <pre class="code" data-lang="bash"><code>docker exec magbo-postgres psql -U magbo -d magbodb -tAc \
   "SELECT terminal_ip, door_no, reader_no, point_id, action, label
      FROM door_mappings WHERE ativo ORDER BY terminal_ip NULLS LAST, point_id;"</code></pre>
 <p>Les IP de cantine <code>.10</code> / <code>.12</code> (ENTRADA) et <code>.13</code> / <code>.14</code> (SORTIE) sont cohérentes avec le relevé de production du 24/08 cité dans <code>services/MultipartTolerante.java</code>.</p>
-<p><code>[A COMPLETER PAR SAM]</code> La caméra <code>.166</code> (SORTIE du portail) était donnée <strong>en panne physique</strong> au 27/08 (<code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>). A-t-elle été remplacée ? Tant qu'elle est morte, toute analyse des sorties du portail est faussée, et il vaut mieux la retirer des <code>door_mappings</code> pour que son absence soit explicite plutôt qu'un trou.</p>
+<p><strong>Répondu par Sammy le 04/09/2026 : la caméra <code>.166</code> (SORTIE du portail) fonctionne</strong>, réparée ou remplacée. Il n'y a donc rien à retirer des <code>door_mappings</code>, et l'analyse des sorties du portail redevient lisible.</p>
+<p>⚠ <strong>Pour les chiffres d'AVANT, la mise en garde reste entière.</strong> La dernière trace écrite de la panne est le diagnostic du 27/08 (<code>docs/operacional/diagnostic-portaria-2026-08-27.md</code>), et la date de la remise en service n'est consignée nulle part. Pendant la panne, le portail enregistrait des entrées et <strong>zéro sortie</strong> : toute comparaison qui traverse cette période doit isoler le point, sinon elle attribue à autre chose ce que la caméra morte explique à elle seule.</p>
 <hr>
 <h3 id="ou-aller-ensuite">Où aller ensuite</h3>
 <table><thead><tr><th>Besoin</th><th>Document</th></tr></thead><tbody><tr><td>Reconstruire de zéro, restaurer une sauvegarde</td><td><code>docs/operacional/reconstruir-do-zero.md</code></td></tr><tr><td>Mettre à jour une VM qui sert l'école</td><td><code>docs/operacional/mise-a-jour-vm.md</code></td></tr><tr><td>Installer l'app sur un poste (imprimable, FR)</td><td><code>docs/operacional/guide-installation-postes.md</code></td></tr><tr><td>Publier une release du portable</td><td><code>docs/operacional/release-portable.md</code></td></tr><tr><td>Migrations : la liste et le pourquoi de chacune</td><td><code>deploy/migrations/README.md</code></td></tr><tr><td>Smoke après déploiement (avec des clics)</td><td><code>docs/frontend-smoke-checklist.md</code></td></tr><tr><td>Ce que l'opérateur voit, écran par écran</td><td><code>docs/manual-utilisateur.md</code></td></tr><tr><td>Terminaux, caméras, bibliothèques faciales</td><td><code>docs/operacional/procedimento-hikcentral.md</code>, <code>.claude/rules/hikvision.md</code></td></tr></tbody></table>
@@ -1763,10 +1972,18 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <p><strong>Cause.</strong> Les valeurs de repli du profil <code>prod</code> pointent ailleurs. Une variable absente n'est pas une erreur : c'est un repli silencieux.</p>
 <p><strong>Correction.</strong> Les variables qui ne peuvent pas avoir de repli utilisent la syntaxe de variable <strong>obligatoire</strong> (<code>${VAR:?message}</code>) : le compose refuse de démarrer et dit laquelle manque. <code>ProdSecurityStartupCheck</code> avertit au démarrage pour le mot de passe de développement, le JWT de développement et le jeton de webhook absent.</p>
 <p><strong>Règle.</strong> <em>Une configuration manquante doit faire échouer bruyamment. Un repli silencieux vers « une autre base » est le pire des comportements.</em></p>
-<h2 id="16-deux-verrous-d-outillage-rapportes-par-sam">16. Deux verrous d'outillage, rapportés par Sam</h2>
+<h2 id="16-deux-verrous-d-outillage-rapportes-par-sammy">16. Deux verrous d'outillage, rapportés par Sammy</h2>
 <blockquote><p>⚠ Ces deux-là ne sont pas reproductibles depuis le dépôt. Ils sont écrits parce qu'ils feront perdre une heure à la personne suivante.</p></blockquote>
 <p><strong>a) <code>build:portable</code> bloqué par un handle sur <code>app.asar</code>.</strong> La construction échoue en disant que le fichier est utilisé, <strong>alors qu'aucun processus n'est visible</strong>. Ni le gestionnaire de tâches ni la fermeture de l'application ne le libèrent. <strong>Seul un redémarrage du poste débloque.</strong></p>
-<p><strong>b) GitHub refuse une branche rebasée quand <code>main</code> porte les commits de merge.</strong> Le merge <strong>local</strong> passe sans conflit ; la plateforme, elle, calcule des bases multiples et refuse. <em>(Symptôme rapporté ; la manœuvre exacte de contournement n'est pas notée.)</em> <strong>[À COMPLÉTER PAR SAM] : quelle manœuvre a débloqué ce cas ?</strong></p>
+<p><strong>b) GitHub refuse une branche rebasée quand <code>main</code> porte les commits de merge.</strong> Le merge <strong>local</strong> passe sans conflit ; la plateforme, elle, calcule des bases multiples et refuse.</p>
+<p><strong>La manœuvre n'était notée nulle part — mais l'historique la porte</strong>, pour le seul cas de ce type que le dépôt contienne, la nuit du 27 au 28/08 :</p>
+<ul>
+<li><strong>Une répétition à blanc, d'abord.</strong> Une branche jetable <code>ensaio-merge</code> — elle existe encore en local — porte cinq commits de fusion, un par branche de la nuit, fusionnées une à une : <code>88d684d</code>, <code>78f1094</code>, <code>1dd7cbe</code>, <code>6d5445e</code>, <code>d94a850</code>. La séquence a été jouée avant d'être jouée pour de vrai.</li>
+<li><strong>Puis un merge LOCAL, poussé directement.</strong> La septième branche — <code>fix/balayage-28-08</code>, celle qui avait été rebasée sur les six autres — est entrée par <code>7c4d54e</code>, « Merge fix/balayage-28-08 - 33 corrections sur 17 ecrans », signé Sammy MAGBO le 28/08. ⚠ Son sujet ne commence pas par « Merge pull request » : c'est la <strong>seule des sept</strong> à n'être pas passée par GitHub. Ses six sœurs sont les PR #79 à #85.</li>
+<li><strong>Et la forme du défaut se vérifie encore aujourd'hui.</strong> Les deux parents de <code>7c4d54e</code> ont pour base de fusion <code>61fbe32</code> — le sommet de <code>fix/cdi-alerte-ferme</code> <strong>avant</strong> son propre merge, et non la <code>main</code> fusionnée. C'est exactement la « base multiple » que la plateforme refuse.</li>
+</ul>
+<p><strong>Donc : répéter la séquence en local sur une branche jetable, puis fusionner et pousser sans passer par la pull request.</strong> C'est ce qui a été fait ; cela a marché ; et cela laisse une trace différente de celle de ses sœurs, ce qui est le prix.</p>
+<p><code>[À COMPLÉTER PAR SAMMY]</code> Ce que l'historique ne peut pas dire : GitHub a-t-il été essayé pour ce merge-là avant d'y renoncer, et quelque chose d'autre a-t-il été tenté d'abord — un nouveau rebase sur la <code>main</code> déjà fusionnée, une recréation de la branche ? La réponse tient en une phrase, et elle décide si ce contournement est <strong>le seul chemin</strong> ou seulement le plus court.</p>
 <hr>
 <h2 id="17-ce-que-ces-lecons-ont-en-commun">17. Ce que ces leçons ont en commun</h2>
 <p>En les relisant, trois familles se dégagent — et elles suffisent à prédire le prochain défaut :</p>
@@ -1840,9 +2057,9 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <h2 id="3-6-deux-fichiers-portent-le-numero-adr-005">3.6 ⚠ Deux fichiers portent le numéro ADR-005</h2>
 <p><strong>C'est un fait, pas une hypothèse :</strong></p>
 <table><thead><tr><th>Fichier</th><th>Décision</th><th>Date</th><th>Ajouté au dépôt</th></tr></thead><tbody><tr><td><code>ADR-005-totvs-rastreabilidade-no-dono-do-dado.md</code></td><td>TOTVS : la traçabilité reste chez le propriétaire de la donnée</td><td><strong>14/08/2026</strong></td><td>14/08 (<code>b388275</code>)</td></tr><tr><td><code>ADR-005-creneaux-cantine.md</code></td><td>Le planning de cantine devient une configuration</td><td><strong>26/08/2026</strong></td><td>25/08 (<code>7567a75</code>)</td></tr></tbody></table>
-<p><strong>Proposition — je ne renumérote pas moi-même :</strong></p>
-<blockquote><p><strong>TOTVS garde <code>ADR-005</code></strong> (décision du 14/08, entrée dans le dépôt le 14/08 — c'est elle qui a pris le numéro en premier). <strong>Les créneaux deviennent <code>ADR-006</code></strong> (décision du 26/08).</p></blockquote>
-<p>C'est le sens de lecture d'un journal de décisions : le numéro suit l'ordre chronologique, et renuméroter la plus ancienne casserait les références déjà écrites ailleurs.</p>
+<p><strong>Tranché le 04/09/2026 : on ne renumérote rien.</strong> La règle est de citer le nom de fichier complet, jamais le seul numéro — ce que le chapitre 5 pratiquait déjà.</p>
+<p>⚠ <strong>La proposition qui figurait ici était périmée, et il faut savoir pourquoi</strong>, parce que c'est une leçon sur les propositions écrites et jamais relues. Elle suggérait de faire des créneaux l'<code>ADR-006</code>. Elle a été écrite le 31/08 à 10h42 (<code>0060f0b</code>) ; l'<code>ADR-006</code> — la licence — a été créé <strong>le même jour à 19h58</strong> (<code>473f45c</code>), puis mis en production le 01/09. L'<code>ADR-007</code> a pris le suivant le 02/09. Neuf heures et seize minutes séparaient une proposition de sa péremption, et personne ne l'a relue en huit jours : l'appliquer aurait recréé exactement la collision qu'elle réparait.</p>
+<p>Le détail du coût — vingt-neuf renvois par nom, six par numéro nu dont un dans la base — est au chapitre 3.</p>
 <p><strong>Ce qu'il faut faire :</strong> renommer le fichier des créneaux, corriger son titre et son en-tête, et vérifier les renvois — <code>grep -rn "ADR-005" docs/ .claude/ CLAUDE.md</code> avant et après.</p>
 <hr>
 <h1 id="priorite-4-en-attente-d-une-decision-ou-d-un-tiers">PRIORITÉ 4 — en attente d'une décision ou d'un tiers</h1>
@@ -1851,27 +2068,30 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <p>⚠ <strong>Aucun horaire n'a été semé pour ces classes, et c'est délibéré.</strong> Inventer un créneau aurait produit de fausses alertes dès le premier jour. Elles tombent donc dans <code>MEAL_SLOT_NOT_CONFIGURED</code> — le système dit « je ne sais pas », ce qui est vrai.</p>
 <p><strong>Il faut la décision de la Vie Scolaire</strong>, pas une mesure supplémentaire.</p>
 <h2 id="4-2-six-classes-de-college-du-mercredi-13h-a-confirmer">4.2 Six classes de collège du mercredi 13h à confirmer</h2>
-<p><strong>1E1, 1E2, 2E1, 2E2, 3E1, 3E2.</strong> <strong>[À COMPLÉTER PAR SAM / Vie Scolaire] : ces six classes sont-elles bien au second service du mercredi ?</strong></p>
+<p><strong>1E1, 1E2, 2E1, 2E2, 3E1, 3E2.</strong></p>
+<p><strong>Ce n'est plus une question de fait : la mesure a tranché.</strong> 89 passages sur ces six classes, et ceux de <code>3E1</code> et <code>3E2</code> concentrés entre 13h08 et 13h32. Vingt passages en vingt-quatre minutes, c'est une classe qui vient à son heure ; un débordement d'un autre service arriverait dispersé. Le tableau complet est en tête de <code>docs/operacional/handoff.md</code>. <strong>L'affiche est incomplète, pas les élèves en faute.</strong></p>
+<p><code>[À COMPLÉTER PAR LA VIE SCOLAIRE]</code> Valider que ces six classes sont bien au second service du mercredi, pour que le <code>Planning Cantine</code> les nomme et que l'affiche du mur les annonce.</p>
+<p>⚠ <strong>Cette question n'est plus adressée à Sammy, et c'est le changement.</strong> Il ne peut pas y répondre seul : fixer l'heure de service d'une classe est un acte de Vie Scolaire, pas une lecture de la base. État au 04/09/2026 : non validée. Tant qu'elle ne l'est pas, l'affiche que lisent <strong>les familles</strong> n'annonce pas l'heure à laquelle ces six classes mangent — soit elles viennent à une heure que l'école ne publie pas, soit l'école en publie une où elles ne vont pas.</p>
 <h2 id="4-3-5e3-et-3e3-sur-l-affiche-aucun-eleve-en-base">4.3 <code>5E3</code> et <code>3E3</code> : sur l'affiche, aucun élève en base</h2>
 <p>Elles figurent au mur et sont chargées dans le planning ; <strong>aucun élève ne leur est rattaché</strong>. <code>5E3</code> est même absente de <code>class_schedules</code>.</p>
 <p>Elles ne changent le verdict de personne. Elles signalent soit un code de classe qui a changé, soit une classe qui n'existe plus. Le détail est dans <code>docs/operacional/controle-affiche-cantine.md</code>, section A.</p>
 <p><strong>Il faut une réponse de la Vie Scolaire</strong> : ces classes existent-elles encore, et sous quel code ?</p>
 <h2 id="4-4-la-liste-daf-la-demande-n-a-jamais-ete-lancee">4.4 La liste DAF — ✅ la demande n'a jamais été lancée</h2>
-<p><em>(Répondu par Sam le 31/08/2026.)</em> Elle n'a été formalisée auprès de personne. <strong>Ce n'est donc pas une relance, c'est une démarche à initier.</strong></p>
+<p><em>(Répondu par Sammy le 31/08/2026.)</em> Elle n'a été formalisée auprès de personne. <strong>Ce n'est donc pas une relance, c'est une démarche à initier.</strong></p>
 <p>⚠ <strong>Ce que cela laisse en place, et pourquoi l'ordre compte :</strong> en attendant, <strong>995 personnes</strong> (874 élèves + 121 personnels) ont un droit au repas accordé <strong>en bloc</strong>, « temporairement », sans échéance ni processus de sortie. <strong>Ne retirez pas ce droit avant d'avoir la liste</strong> — l'inverse affamerait ceux qui y ont droit pour punir ceux qui n'y ont pas droit. Requête de contrôle au § 8.2.8 du handoff.</p>
 <h2 id="4-5-le-terminal-10-non-enregistre-au-hikcentral-un-ticket-existe">4.5 Le terminal <code>.10</code> non enregistré au HikCentral — ✅ un ticket existe</h2>
-<p>Erreur <code>SYS[904]</code>, numéro de série en conflit. <em>(Répondu par Sam le 31/08.)</em> <strong>Un ticket est ouvert chez le fournisseur</strong> — le revendeur qui a livré les terminaux.</p>
-<p><strong>[À COMPLÉTER — la référence du ticket et le nom du contact n'ont pas pu être retrouvés.]</strong> <strong>Où chercher :</strong> la messagerie de Sam, ou le service informatique de l'établissement, qui a traité la commande. ⚠ <strong>Sans la référence, rouvrir une demande revient au même :</strong> l'erreur <code>SYS[904]</code> et le numéro de série suffisent à décrire le cas.</p>
+<p>Erreur <code>SYS[904]</code>, numéro de série en conflit. <em>(Répondu par Sammy le 31/08.)</em> <strong>Un ticket est ouvert chez le fournisseur</strong> — le revendeur qui a livré les terminaux.</p>
+<p><strong>[À COMPLÉTER — la référence du ticket et le nom du contact n'ont pas pu être retrouvés.]</strong> <strong>Où chercher :</strong> la messagerie de Sammy, ou le service informatique de l'établissement, qui a traité la commande. ⚠ <strong>Sans la référence, rouvrir une demande revient au même :</strong> l'erreur <code>SYS[904]</code> et le numéro de série suffisent à décrire le cas.</p>
 <h2 id="4-6-le-terminal-14-en-wi-fi-definitif-ce-n-est-pas-une-action-ouverte">4.6 Le terminal <code>.14</code> en Wi-Fi — ✅ définitif, ce n'est pas une action ouverte</h2>
-<p><em>(Répondu par Sam le 31/08.)</em> <strong>L'emplacement ne permet pas de tirer un câble.</strong> C'est une <strong>contrainte permanente</strong>, pas une tâche en attente : ne la comptez plus comme du travail à faire.</p>
+<p><em>(Répondu par Sammy le 31/08.)</em> <strong>L'emplacement ne permet pas de tirer un câble.</strong> C'est une <strong>contrainte permanente</strong>, pas une tâche en attente : ne la comptez plus comme du travail à faire.</p>
 <p>C'est donc lui qui perdra des paquets et videra une file d'un coup — exactement le scénario de la première leçon d'horloge (chapitre 8). Le système sait déjà absorber une file rejouée (<code>EventTimeResolver</code> écrit l'heure de l'<strong>événement</strong>). Ce qui reste est la dette « les règles sont jugées à l'heure de la décision ».</p>
 <h2 id="4-7-l-interface-servie-par-la-vm-la-mise-a-jour-automatique">4.7 L'interface servie par la VM / la mise à jour automatique</h2>
 <p><strong>La conception est faite, la décision est reportée.</strong> Aujourd'hui chaque poste porte sa propre copie du frontend, et une mise à jour se distribue <strong>à pied</strong>.</p>
 <p><strong>Décision à prendre :</strong> servir l'interface depuis la VM (une seule version, mise à jour instantanée, mais dépendance au réseau), ou garder le portable (autonome hors ligne, mais distribution manuelle).</p>
 <p>⚠ Le portable a une propriété que la VM n'aurait pas : <strong>il fonctionne quand le réseau tombe.</strong> Ce n'est pas un détail dans une école.</p>
 <h2 id="4-8-l-e-mail-a-fabiano-et-le-pdf-du-guide-les-deux-sont-partis">4.8 L'e-mail à Fabiano et le PDF du guide — ✅ les deux sont partis</h2>
-<p><em>(Répondu par Sam le 31/08.)</em> L'e-mail au service informatique a été envoyé et le PDF du guide d'installation a été remis. <strong>Rien à relancer.</strong> La source reste <code>docs/operacional/guide-installation-postes.md</code> : c'est elle qu'il faut mettre à jour puis réexporter si la procédure change.</p>
-<p>⚠ <strong>Ce qui reste ouvert, c'est le contact lui-même.</strong> Sam ne se souvient ni du nom complet de Fabiano, ni de son e-mail, ni de l'état des réservations DHCP. <strong>[À COMPLÉTER — Sam n'a plus l'information.]</strong> <strong>À qui demander :</strong> le secrétariat ou la direction connaissent le service informatique. <strong>Ce qu'il faut lui demander :</strong> « les adresses IP des six terminaux et de la VM <code>192.168.1.253</code> sont-elles réservées en DHCP, ou peuvent-elles encore changer ? » <strong>N'attendez pas la réponse pour vous protéger :</strong> la méthode empirique du handoff (§ 2.1) donne le risque réel en une requête, sans contact.</p>
+<p><em>(Répondu par Sammy le 31/08.)</em> L'e-mail au service informatique a été envoyé et le PDF du guide d'installation a été remis. <strong>Rien à relancer.</strong> La source reste <code>docs/operacional/guide-installation-postes.md</code> : c'est elle qu'il faut mettre à jour puis réexporter si la procédure change.</p>
+<p>⚠ <strong>Ce qui reste ouvert, c'est le contact lui-même.</strong> Sammy ne se souvient ni du nom complet de Fabiano, ni de son e-mail, ni de l'état des réservations DHCP. <strong>[À COMPLÉTER — Sammy n'a plus l'information.]</strong> <strong>À qui demander :</strong> le secrétariat ou la direction connaissent le service informatique. <strong>Ce qu'il faut lui demander :</strong> « les adresses IP des six terminaux et de la VM <code>192.168.1.253</code> sont-elles réservées en DHCP, ou peuvent-elles encore changer ? » <strong>N'attendez pas la réponse pour vous protéger :</strong> la méthode empirique du handoff (§ 2.1) donne le risque réel en une requête, sans contact.</p>
 <hr>
 <h2 id="5-ce-qui-n-est-pas-sur-cette-liste-et-pourquoi">5. Ce qui n'est PAS sur cette liste, et pourquoi</h2>
 <p>Trois choses reviennent régulièrement et <strong>ne doivent pas être « corrigées »</strong> :</p>
@@ -1883,7 +2103,7 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
 <p>Chacune est gelée par un test ou par un ADR. Les « corriger » sans décision ferait échouer une suite qui protège un choix.</p>
 <hr>
 <h2 id="6-ou-regarder-ensuite">6. Où regarder ensuite</h2>
-<table><thead><tr><th>Question</th><th>Document</th></tr></thead><tbody><tr><td>Le défaut du portail, avec ses chiffres</td><td><code>docs/operacional/handoff.md</code> (en tête)</td></tr><tr><td>Ce qui a été écarté, ce qui reste à mesurer</td><td><code>docs/operacional/diagnostic-portaria-2026-08-27.md</code></td></tr><tr><td>Les 14 réserves, en détail</td><td><code>docs/operacional/nuit-26-27-08-rapport.md</code> §5</td></tr><tr><td>Le balayage : corrigé vs listé</td><td><code>docs/operacional/nuit-27-28-08-rapport.md</code> §6</td></tr><tr><td>Les classes de l'affiche contre la base</td><td><code>docs/operacional/controle-affiche-cantine.md</code></td></tr><tr><td>Les demandes au service informatique</td><td><code>docs/testing/pedidos-fabiano-si.md</code></td></tr><tr><td>Les questions pour Sam, toutes ensemble</td><td><code>docs/operacional/handoff.md</code> §11</td></tr></tbody></table>
+<table><thead><tr><th>Question</th><th>Document</th></tr></thead><tbody><tr><td>Le défaut du portail, avec ses chiffres</td><td><code>docs/operacional/handoff.md</code> (en tête)</td></tr><tr><td>Ce qui a été écarté, ce qui reste à mesurer</td><td><code>docs/operacional/diagnostic-portaria-2026-08-27.md</code></td></tr><tr><td>Les 14 réserves, en détail</td><td><code>docs/operacional/nuit-26-27-08-rapport.md</code> §5</td></tr><tr><td>Le balayage : corrigé vs listé</td><td><code>docs/operacional/nuit-27-28-08-rapport.md</code> §6</td></tr><tr><td>Les classes de l'affiche contre la base</td><td><code>docs/operacional/controle-affiche-cantine.md</code></td></tr><tr><td>Les demandes au service informatique</td><td><code>docs/testing/pedidos-fabiano-si.md</code></td></tr><tr><td>Les questions pour Sammy, toutes ensemble</td><td><code>docs/operacional/handoff.md</code> §11</td></tr></tbody></table>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -1894,11 +2114,11 @@ magbo.policy.missing-door-mapping = FALLBACK</code></pre>
   <div class="colo-filet"></div>
   <dl class="colo-liste">
     <dt>Système</dt><dd>MAGBO Access Control, version 2.1.0</dd>
-    <dt>Livre arrêté le</dt><dd>03/09/2026</dd>
-    <dt>Dernier commit</dt><dd><code>5a7fca2</code> — branche <code>main</code></dd>
+    <dt>Livre arrêté le</dt><dd>04/09/2026</dd>
+    <dt>Dernier commit</dt><dd><code>ddf73f2</code> — branche <code>docs/livre-finition</code></dd>
     <dt>Contenu</dt><dd>9 chapitres, plus le sommaire</dd>
     <dt>Établissement</dt><dd>Lycée Molière, Rio de Janeiro</dd>
-    <dt>Auteur</dt><dd>Sammy K. Magbo</dd>
+    <dt>Auteur</dt><dd>Sammy K. MAGBO</dd>
   </dl>
   <div class="colo-filet"></div>
   <p class="colo-note">Composé en Cambria pour le texte, Segoe UI pour les

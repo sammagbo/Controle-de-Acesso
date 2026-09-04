@@ -8,7 +8,8 @@ Les chapitres suivants entrent dans le détail ; celui-ci donne la carte.
 
 > Convention du livre : `[A VERIFIER]` marque une affirmation que je n'ai pas
 > pu confirmer dans le dépôt, suivie de la commande ou de la requête qui la
-> tranche. `[A COMPLETER PAR SAM]` marque ce que seul Sam savait.
+> tranche. `[À COMPLÉTER PAR …]` marque ce que le dépôt ne peut pas dire, et **nomme qui
+peut répondre** — Sammy, la Vie Scolaire ou la direction selon le cas.
 
 ---
 
@@ -338,7 +339,7 @@ explique pourquoi mieux que n'importe quel résumé.
 
 ### Les appareils physiques
 
-**Source : Sam, le 28/08/2026. Non vérifiable dans le dépôt** — la table
+**Source : Sammy, le 28/08/2026. Non vérifiable dans le dépôt** — la table
 `door_mappings` vit dans la base de production, pas dans le code.
 
 | Appareil | Rôle annoncé |
@@ -350,19 +351,25 @@ explique pourquoi mieux que n'importe quel résumé.
 
 ⚠️ **Trois réserves, toutes importantes :**
 
-1. Sam annonce « six terminaux » et énumère **huit** adresses. La lecture la plus
+1. Sammy annonce « six terminaux » et énumère **huit** adresses. La lecture la plus
    probable est six terminaux MinMoe (CDI + cantine) **plus** deux caméras au
    portail, mais je ne l'ai pas vérifiée.
-2. Les adresses sont données en dernier octet seul. Le serveur est en
+2. Les adresses sont données en dernier octet seul, et le préfixe n'est établi
+   que pour deux d'entre elles. Les caméras du portail portent leur adresse
+   complète dans le code — `192.168.1.167` et `192.168.1.166`
+   (`DoorMappingBootstrap:44-46`). Pour les six autres, rien : le serveur est en
    `192.168.1.253` (`docs/operacional/guide-installation-postes.md`, §Avant de
-   commencer), l'ancien banc d'essai était en `172.20.40.x` : **le préfixe réel
-   des appareils n'est écrit nulle part dans le dépôt.**
-3. La caméra `.166` (SORTIE) est en **panne physique connue** depuis au moins le
-   27/08 — c'est écrit noir sur blanc dans
-   `docs/operacional/diagnostic-portaria-2026-08-27.md`, §1 et §3. Toute lecture
-   des chiffres du portail doit **isoler ce point**, sinon la panne masque tout
-   le reste : une chute qui ne touche que les `SAIDA`, c'est elle, et rien
-   d'autre à chercher.
+   commencer) et l'ancien banc d'essai était en `172.20.40.x`, mais **le préfixe
+   réel des terminaux MinMoe n'est écrit nulle part dans le dépôt.**
+3. La caméra `.166` (SORTIE) **fonctionne** — réparée ou remplacée, confirmé par
+   Sammy le 04/09/2026. Elle a bien été en panne physique, et c'est écrit noir
+   sur blanc dans `docs/operacional/diagnostic-portaria-2026-08-27.md`, §1 et §3.
+   ⚠️ La mise en garde reste donc entière **pour les chiffres antérieurs** :
+   toute lecture du portail qui traverse cette période doit **isoler ce point**,
+   sinon la panne masque tout le reste — une chute qui ne touche que les `SAIDA`,
+   c'est elle, et rien d'autre à chercher.
+   ⚠️ **La date de la remise en service n'est consignée nulle part.** La dernière
+   trace écrite de la panne est le diagnostic du 27/08.
 
 `[A VERIFIER]` L'inventaire réel des points actifs, avec le sens de chaque
 appareil, se lit en une requête sur la VM :
@@ -387,14 +394,46 @@ C'est arrivé le 16/07/2026 (terminal `.12` → `.10`,
 `docs/operacional/procedimento-hikcentral.md`). La checklist complète est dans
 `.claude/rules/hikvision.md`.
 
-`[A COMPLETER PAR SAM]` Quel est le préfixe réseau des appareils Hikvision —
-`192.168.1.x` comme le serveur, ou un autre VLAN ? Et la réservation DHCP
-demandée au SI par Fabiano a-t-elle été mise en place, oui ou non ?
+**Le préfixe est établi pour une partie des appareils seulement**, et la
+distinction est celle qui compte :
 
-`[A COMPLETER PAR SAM]` La caméra `.166` : la panne a-t-elle été signalée, à qui,
-et qui est censé la réparer ?
+| Appareil | Adresse | D'où elle vient |
+|---|---|---|
+| Caméras du portail (DeepinView) | `192.168.1.167` et `192.168.1.166` — **complètes** | `DoorMappingBootstrap:44-46`, correspondances réelles dans le code |
+| VM du serveur | `192.168.1.253` — **réservée** | modèle du lanceur, défaut du poste, `ssh` des sauvegardes |
+| HikCentral | `192.168.1.90` | `docs/operacional/procedimento-hikcentral.md` |
+| Terminaux MinMoe | ⚠️ **préfixe inconnu** | voir la réserve 2 ci-dessus |
 
-[CAPTURE: la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
+⚠️ **`172.20.40.x` n'est PAS une réponse.** C'est ce que portait le banc d'essai
+— la charge utile réelle de `ESPECIFICACAO-TECNICA-v1.md:687` et le smoke test
+du 16/07/2026 — et rien n'établit que les terminaux de production y soient. Les
+prendre pour le préfixe de production serait exactement l'erreur que la réserve 2
+signale.
+
+**L'adresse du serveur, elle, est FIXE** : réservation confirmée auprès du service
+informatique (Sammy, 04/09/2026).
+
+**Les terminaux sont réservés eux aussi** — confirmé par Sammy le 04/09/2026. La
+*pendência 6* de `docs/operacional/procedimento-hikcentral.md` est donc close des
+deux côtés : la VM et les appareils.
+
+⚠️ **Réservé n'est pas connu, et la nuance porte.** Une réservation fige ce que le
+service informatique attribue ; elle n'écrit rien dans ce dépôt. Le préfixe des
+MinMoe reste non établi (réserve 2 ci-dessus), et la vérification d'avant-séance
+garde tout son sens : **une réservation mal saisie se voit exactement comme un
+DHCP** — les événements cessent d'arriver, sans erreur et sans alerte, comme le
+16/07 (`.12` → `.10`). Ce qui vient d'être retiré, c'est la cause la plus
+fréquente du silence ; pas la manière de s'en apercevoir.
+
+`[À COMPLÉTER PAR SAMMY]` **Quand un appareil tombe en panne, qui est prévenu et
+qui répare ?** Le cas de la `.166` est clos — elle fonctionne, voir la réserve 3
+ci-dessus. Mais rien dans le dépôt ne dit par quel chemin une panne matérielle
+est signalée, ni à qui. ⚠️ **La remise en service de cette caméra en est la
+preuve par l'absence** : elle a bien eu lieu, et sa date n'est consignée nulle
+part. Une panne qui se répare sans laisser de trace se répétera sans qu'on
+sache si c'est la même.
+
+[CAPTURE: 01-ecoute-http-terminal.png — la page « Écoute HTTP » d'un terminal, montrant l'IP du serveur, le port 8080 et l'URL avec le token — c'est l'écran à comparer quand les événements cessent d'arriver]
 
 ---
 
@@ -424,7 +463,7 @@ Deux remarques qui évitent des malentendus :
   traverse tous les rôles : il est délibérément **non caché** dans la liste des
   points, parce que chercher son chemin au milieu d'une évacuation équivaut à ne
   pas avoir l'écran. Il est en revanche restreint par la permission `PPMS_READ` :
-  la liste est **nominative**, et Sam a tranché le 14/08 « restreindre, pas
+  la liste est **nominative**, et Sammy a tranché le 14/08 « restreindre, pas
   fermer » (javadoc de `Permissions.PPMS_READ`). ⚠️ **Cet écran ne remplace pas
   l'appel** — il le dit lui-même, au-dessus du nombre.
 
@@ -486,9 +525,30 @@ que fera la production.
   d'abord la règle aux élèves, puisque l'entité s'appelle
   `StudentExitPermission`.
 
-`[A COMPLETER PAR SAM]` Le régime de sortie : les régimes des élèves existent-ils
-quelque part (papier, tableur, Pronote) ? Sans eux, allumer la règle n'a aucun
-sens ; avec eux, il faut savoir où ils sont pour les charger.
+**Répondu par Sammy le 04/09/2026 : les régimes n'existent que sur PAPIER**, dans
+les carnets que tient la Vie Scolaire, classe par classe. Ce que cela implique
+n'est pas une formalité :
+
+- ⚠️ **Pronote ne les porte pas, et le chemin court a été cherché.** Le CSV du
+  `PronoteSyncService` a huit colonnes obligatoires — matricule, nom, type,
+  classe, responsable et son contact — et **aucune** de régime général ni de
+  régime de sortie ; l'import Excel des élèves non plus. C'est écrit et vérifié
+  dans `js/utils/regimeSheet.js:8-14`. Il n'y a pas d'export à brancher.
+- **L'outil de chargement, lui, existe déjà** et attend une feuille de calcul :
+  Matricule · Régime général · Régime de sortie · Valable du · Valable au ·
+  Autorisé par · Document · Signé le (`js/utils/regimeSheet.js:31-41`).
+- **Ce qui manque est donc une saisie**, ligne par ligne, pour les 923 élèves :
+  le carnet d'un côté, la feuille de l'autre. Ce n'est pas un développement,
+  c'est du temps de Vie Scolaire.
+
+🔴 **Personne n'est nommé pour la faire, et aucune date ne l'est non plus.** Tant
+qu'elle n'a pas eu lieu, `magbo.regime.desconhecido` doit rester `OBSERVATION`
+(voir § 3.9) : au premier jour, 923 élèves sont sans régime, et passer à `DENY`
+peindrait l'école entière en rouge.
+
+`[À COMPLÉTER PAR SAMMY / Vie Scolaire]` Qui saisit les carnets, et pour quelle
+date ? C'est la seule chose qui sépare le régime de sortie d'une règle écrite,
+testée, déployée — et éteinte.
 
 ---
 
@@ -498,7 +558,7 @@ Mesurés le **03/09/2026**, sur `main` augmentée des trois chantiers de cette
 date (`fix/adresse-du-login`, `feat/livre-imprimable`, `docs/verifications-finales`).
 Comment : les comptes de fichiers par `find`, les suites **à froid**
 (`cd backend && rm -rf target && mvn -o test`, puis `npm test`). ⚠️ **L'ancre est
-une date, pas un SHA** — ces chantiers seront fusionnés par Sam et les SHA
+une date, pas un SHA** — ces chantiers seront fusionnés par Sammy et les SHA
 changeront ; l'état d'**avant** eux était `fc4359c`.
 
 | Quoi | Combien |
@@ -573,9 +633,13 @@ l'envoie jamais), **ADR-003** (observationnel), **ADR-004** (cantine assistée),
    `ADR-005-creneaux-cantine.md` (26/08 — le planning de cantine devient une
    configuration, migrations V021-V023) et
    `ADR-005-totvs-rastreabilidade-no-dono-do-dado.md` (14/08 — TOTVS). **Le
-   numéro a été attribué deux fois.** Je le signale sans le corriger :
-   renuméroter casserait les renvois existants ; c'est une décision, pas une
-   retouche. `[A COMPLETER PAR SAM]` Lequel des deux garde le numéro 005 ?
+   numéro a été attribué deux fois.** Le chapitre 9 (§ 3.6) porte le tableau
+   chronologique et l'argument : **TOTVS garde le 005**, parce qu'elle a pris le
+   numéro onze jours plus tôt et qu'un journal de décisions se numérote dans
+   l'ordre. ⚠️ **Mais la décision du 04/09/2026 est de NE PAS renuméroter** : on
+   cite le nom de fichier complet, jamais le seul numéro. Le détail — et
+   pourquoi le numéro de remplacement autrefois proposé était périmé — est dans
+   `03-regles-metier.md`.
 2. ⚠️ **`docs/operacional/handoff.md` ne s'arrête plus au 05/08/2026.** Il a été
    repris le 29/08 et porte en tête « Date de coupe : 2026-09-01 », dernier merge
    couvert `5632d0a` (PR #87 — la licence) : vérifié le 03/09/2026 à

@@ -7,7 +7,8 @@ servent.
 
 > Convention du livre : `[À VÉRIFIER]` marque une affirmation que je n'ai pas pu
 > confirmer dans le dépôt, suivie de la commande qui la tranche.
-> `[À COMPLÉTER PAR SAM]` marque ce que seul Sam savait.
+> `[À COMPLÉTER PAR …]` marque ce que le dépôt ne peut pas dire, et **nomme qui
+> peut répondre** — Sammy, la Vie Scolaire ou la direction selon le cas.
 
 ---
 
@@ -42,7 +43,7 @@ est dans cette phrase.
 
 Firmware relevé : **V5.9.10** (`.claude/rules/hikvision.md`).
 
-> ⚠️ Ces IP viennent de Sam (28/08) et ne sont pas dans le dépôt. La source de
+> ⚠️ Ces IP viennent de Sammy (28/08) et ne sont pas dans le dépôt. La source de
 > vérité en production est `door_mappings`.
 > **[À VÉRIFIER]**
 > ```bash
@@ -88,6 +89,11 @@ HikCentral sont dans :
 > ENTRÉES et zéro SORTIE par jour. **Ces 950 n'étaient pas 950 personnes** —
 > c'était la même population recomptée à chaque retour, faute de lecture de
 > sortie. Le seul nombre comparable est celui des personnes **distinctes**.
+>
+> ⚠️ **« jusqu'au 24/08 » date les CHIFFRES, pas la réparation.** Le diagnostic
+> du 27/08 décrit encore la caméra comme physiquement en panne, et la date de la
+> remise en service n'est consignée nulle part. Elle fonctionne aujourd'hui
+> (Sammy, 04/09/2026) : ne pas lire cette note comme « réparée le 24 ».
 
 ### 2.3 Comment le MAGBO met un nom sur un visage
 
@@ -212,7 +218,7 @@ le contrôleur répond 200, le log dit « ignoré », et le portail devient invi
 > **[À VÉRIFIER]** Quel terminal sert quel point : la réponse est dans
 > `door_mappings` (requête au §2.1). Le dépôt ne l'écrit nulle part.
 
-**Deux problèmes matériels connus** (déclarés par Sam, non vérifiables ici) :
+**Deux problèmes matériels connus** (déclarés par Sammy, non vérifiables ici) :
 
 - Le **`.10` n'est pas enregistré au HikCentral** : erreur `SYS[904]`, numéro de
   série en conflit.
@@ -239,22 +245,75 @@ Tout le détail est au chapitre 3.
 
 **Point `ENFERM`.**
 
-> **[À VÉRIFIER]** Le dépôt ne dit pas quel matériel sert l'infirmerie, ni s'il
-> y en a un. Le rapport de nuit du 14/08 mentionne l'enfermaria comme un point
-> « sans fermeture automatique, dont l'enregistrement est manuel » — ce qui
-> suggère une saisie à la main plutôt qu'un terminal.
-> **[À COMPLÉTER PAR SAM] : l'infirmerie a-t-elle un terminal, ou les visites
-> sont-elles saisies à la main ?**
+🔴 **Répondu par Sammy le 04/09/2026 : l'infirmerie n'a pas de terminal, et les
+visites n'y sont pas enregistrées du tout.** Ni lecture faciale, ni saisie à la
+main. Le point existe dans le système, et il ne reçoit rien.
 
-**Ce qui est propre à l'infirmerie :**
+⚠️ **Ce qui suit décrit donc une mécanique qui tourne à vide.** Elle est écrite,
+elle fonctionne, et elle attend des lignes qui n'arrivent pas :
 
-- Les visites longues sont comptées à part (`countLongInfirmaryStays`).
-- **Pas de fermeture automatique** : quelqu'un peut donc rester « dedans » à la
-  fin de la journée, et c'est visible dans le rapport comme « sortie non
-  enregistrée ». C'est voulu — une visite à l'infirmerie qui ne se ferme pas est
-  une information, pas une nuisance.
+- les visites longues sont comptées à part (`countLongInfirmaryStays`) — sur
+  zéro ligne ;
+- il n'y a **pas de fermeture automatique**, ce qui serait une information utile
+  si des visites entraient : une visite qui ne se ferme pas se voit dans le
+  rapport comme « sortie non enregistrée ». En l'état il n'y a rien à fermer ;
+- l'écran du rapport infirmerie (`InfirmaryReport`) s'ouvre et n'a rien à
+  montrer.
 
-**Écran :** le rapport infirmerie (`InfirmaryReport`).
+⚠️ **Un mapping n'est pas un appareil.** `DoorMappingBootstrap` sème bien
+`ENFERM` en porte 5, lecteurs 1 et 2 (entrée et sortie) — mais ce sont des
+correspondances **génériques, sans adresse IP**, exactement comme celles du CDI
+et de la cantine. Elles attendent un terminal qui n'existe pas. Quiconque lit la
+table `door_mappings` en conclura que l'infirmerie est équipée ; elle ne l'est
+pas.
+
+### 🔴 La conséquence : le PPMS ne peut pas savoir qu'un enfant est à l'infirmerie
+
+La liste nominative de « qui est à l'intérieur » se construit sur les passages
+**enregistrés**. Une visite qui n'entre jamais dans `access_logs` n'y figure
+pas. Un enfant allongé à l'infirmerie pendant une évacuation est, pour l'écran,
+quelqu'un qui a quitté l'établissement — ou qui n'est jamais entré.
+
+C'est le même raisonnement que la condition bloquante du § 3.5 sur la dispense
+de badge, à une différence près, et elle est de taille : **personne n'a choisi
+celle-ci**. Là-bas, activer une dispense aurait retiré des enfants du décompte ;
+ici, c'est l'absence de matériel qui les en retire, sans qu'aucune décision ne
+l'ait déclenché et sans que rien ne le signale.
+
+⚠️ **Et le code croit encore autre chose.** `PpmsService` (l. 74-79) prévoit un
+troisième avertissement pour les points sans fermeture automatique — « aujourd'hui
+l'infirmerie, dont l'enregistrement est manuel et dont la sortie n'est presque
+jamais lancée » — né d'une objection de l'infirmière au panel du 14/08. Cet
+avertissement protège contre une présence qui **reste collée** : quelqu'un
+affiché à l'infirmerie depuis 9 h alors qu'il est reparti. Or le risque réel est
+l'inverse : personne n'y est jamais affiché. La garde a été dessinée pour le
+mauvais mode de panne, et elle ne se déclenchera jamais pour `ENFERM` puisque le
+point est toujours vide. Cela ne change aucun comportement — mais cela oriente
+vers le mauvais raccommodage : ce n'est pas la saisie qui est imparfaite, c'est
+le point qui n'existe que sur le papier.
+
+**Décision du 04/09/2026 : l'infirmerie sera équipée.** Sammy tranche pour le
+terminal ; la seconde branche — assumer qu'elle reste dehors — est écartée.
+
+**Ce qui existe déjà côté logiciel, et ce n'est pas rien.** Le point `ENFERM`,
+ses deux correspondances entrée/sortie semées par `DoorMappingBootstrap`,
+l'écran du rapport infirmerie, le comptage des visites longues, et le mécanisme
+de fermeture automatique — qui a simplement une heure pour `BIBLIO` (17:00) et
+`REFEI1` (15:00), et aucune pour ce point.
+**Il manque l'appareil, et une ligne `door_mappings` portant son IP réelle.**
+
+⚠️ **Décider n'est pas fermer.** Tant que le terminal n'est pas posé, tout ce qui
+est écrit plus haut reste vrai, mot pour mot : le PPMS ne peut pas savoir qu'un
+enfant est à l'infirmerie. Une décision prise et non exécutée protège exactement
+autant qu'une décision non prise — c'est le même piège que le coffre du
+chapitre 6, qui ne protège personne tant que rien n'y est déposé.
+
+⚠️ **Et le jour où l'appareil sera posé, le commentaire de `PpmsService`
+(l. 74-79) devra être relu.** Il décrit l'infirmerie comme « un point dont
+l'enregistrement est manuel et dont la sortie n'est presque jamais lancée ». Cela
+ne décrit ni l'état d'aujourd'hui — rien n'y est enregistré — ni celui de demain,
+où un terminal enregistrera les deux sens. Il décrit un troisième état, qui n'a
+jamais existé.
 
 ---
 
@@ -299,7 +358,7 @@ simplement d'arriver. C'est arrivé le 16/07 (terminal `.12`→`.10`, serveur
    **actuelle** du terminal ?
 
 **Une réservation DHCP a été demandée au service informatique** pour les
-terminaux et la VM. **[À COMPLÉTER — Sam ne se souvient plus de l'état de cette
+terminaux et la VM. **[À COMPLÉTER — Sammy ne se souvient plus de l'état de cette
 demande (répondu le 31/08), et n'a pas retrouvé le contact.]**
 **À qui demander :** le secrétariat ou la direction connaissent le service
 informatique.

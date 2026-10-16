@@ -870,14 +870,12 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 | R5 | `?token=` na URL fica em logs de proxy/servidor | Baixa (rede interna) | Aceito: o terminal não suporta header customizado. Documentado |
 | R6 | Descompasso de fuso Postgres × Java observado no PC (~1h) | Média | Invariante §10.2-5: timestamp sempre do Java. **Na VM: garantir mesmo fuso nos dois containers** |
 | R7 | Payload real das câmeras DeepinView **nunca capturado** (VLAN isola) | Média | `WebhookJsonCameraIT` cobre o ramo JSON por simulação; captura real depende da VM |
-| R8 | String com padrão de senha exposta como e-mail de autor no histórico git/`.mailmap` (repo público) | **Alta se for senha real** | **Decisão pendente do Sam**: confirmar e rotacionar |
 
 **Decisões que permanecem com o Sam (não implementar sem resposta):**
 1. `magbo.policy.meal-pending` em **produção**: OBSERVATION ou DENY? (recomendação: DENY)
 2. I1 — acesso manual (`POST /api/access`) deve aplicar regras de janela/entitlement, ou é isenção consciente do operador? (fora deste ciclo)
 3. Remoção do alias `blockedToday` (fase futura)
 4. Adoção do Flyway (fase futura)
-5. R8 acima
 
 ---
 

@@ -4,7 +4,6 @@
 ~~B1 [piloto] R1-CDNs: vendorizar libs antes de kiosk offline (ação interna).~~ ✅ **RESOLVIDO em `4e73147`** — libs e fontes em `libs/`, `index.html` sem URL externa.
 B2 [portaria] Payload real DeepinView: precisa backend na VLAN 192.168.1.x (VM/firewall) → PORT-04.
 B3 [cantina-prod] 4 terminais não comprados/instalados → CANT-12 e provisioning.
-B4 [segurança] R2 confirmar/rotacionar possível senha exposta no histórico git (.mailmap) — decisão do Sam.
 
 ## Pedir ao SI
 1. VM Ubuntu 24.04 (2vCPU/4GB/40GB), IP FIXO na VLAN 192.168.1.x, firewall: 8080 a partir das duas VLANs + SSH restrito (status do pedido enviado?).

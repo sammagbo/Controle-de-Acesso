@@ -1,0 +1,35 @@
+# Instância demo local para o vídeo do portfólio: só dados fictícios, nunca produção.
+# Sobreposta ao docker-compose.yml da raiz, que não é alterado:
+#   docker compose -p magbo-demo -f docker-compose.yml -f video/capture/docker-compose.demo.yml up -d --build
+#   docker compose -p magbo-demo -f docker-compose.yml -f video/capture/docker-compose.demo.yml down -v
+services:
+  db:
+    container_name: magbo-demo-db
+    # O banco da demo só é acessado pelo backend, na rede do compose.
+    ports: !reset []
+    restart: "no"
+
+  backend:
+    container_name: magbo-demo-backend
+    environment:
+      # O perfil padrão da aplicação (application.properties), não o prod. O perfil dev usaria um H2
+      # em memória; o datasource abaixo aponta para o Postgres da demo.
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/magbo_access
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      # data.sql é o seed de desenvolvimento (nomes com cara de reais): nunca roda na base da demo.
+      SPRING_SQL_INIT_MODE: never
+      # Uma licença de demonstração emitida pelo Sam, fora do repositório e montada só para leitura.
+      MAGBO_LICENCE_PATH: /licence/licence.magbo
+      MAGBO_WEBHOOK_TOKEN: ${MAGBO_DEMO_WEBHOOK_TOKEN:-demo-local-only}
+      TZ: America/Sao_Paulo
+    volumes:
+      - ${HOME}/magbo-demo-licence:/licence:ro
+    restart: "no"
+
+  frontend:
+    container_name: magbo-demo-frontend
+    restart: "no"

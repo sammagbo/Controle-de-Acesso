@@ -1,0 +1,13 @@
+{
+  "name": "magbo-video-capture",
+  "private": true,
+  "type": "module",
+  "description": "Cadastra alunos fictícios numa instância demo local e captura as telas reais para o vídeo do portfólio.",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "capture": "node capture.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

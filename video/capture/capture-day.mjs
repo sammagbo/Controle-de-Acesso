@@ -1,8 +1,12 @@
 // Captura o dia inteiro do MAGBO, do login ao fechamento do dia, nas telas reais da instância demo, para o vídeo
-// novo do portfólio. Duas sessões, cada uma numa instância já preparada por seed-day.mjs:
+// novo do portfólio. Três sessões, num dia útil, na mesma instância preparada por seed-day.mjs:
 //
-//   MAGBO_DEMO_WEBHOOK_TOKEN=… node capture-day.mjs --session midi    (começar entre 11:55 e 12:20, dia útil)
-//   MAGBO_DEMO_WEBHOOK_TOKEN=… node capture-day.mjs --session soir    (começar entre 16:15 e 16:40; espera até 17:05)
+//   MAGBO_DEMO_WEBHOOK_TOKEN=… node capture-day.mjs --session midi      (começar entre 11:55 e 12:20)
+//   MAGBO_DEMO_WEBHOOK_TOKEN=… node capture-day.mjs --session soir      (começar entre 16:15 e 16:40)
+//   MAGBO_DEMO_WEBHOOK_TOKEN=… node capture-day.mjs --session cloture   (entre 17:05 e 17:40 de São Paulo)
+//
+// O fechamento automático do servidor segue sempre America/Sao_Paulo (PresenceAutoCloseService): o CDI fecha às
+// 17:00 de lá, por isso o fim do dia tem a sua própria sessão, conferida no relógio de São Paulo.
 //
 // Com --ensaio, pula as conferências de horário e grava em video/public/portfolio-day-ensaio/; sem ele, em
 // video/public/portfolio-day/. Cada pasta tem um manifest.json com as caixas em que o vídeo dá zoom. O git
@@ -15,8 +19,8 @@ import { boxAround, boxOf, guard, union } from './screens.mjs';
 const args = process.argv.slice(2);
 const session = args[args.indexOf('--session') + 1];
 const ensaio = args.includes('--ensaio');
-if (!['midi', 'soir'].includes(session)) {
-      console.error('usage: node capture-day.mjs --session midi|soir [--ensaio]');
+if (!['midi', 'soir', 'cloture'].includes(session)) {
+      console.error('usage: node capture-day.mjs --session midi|soir|cloture [--ensaio]');
       process.exit(2);
 }
 
@@ -37,28 +41,32 @@ const GATE_BY_CARD = ['9000005', '9000012', '9000018', '9000021', '9000024', '90
 const CDI_MORNING = ['9000003', '9000006', '9000009', '9000011', '9000013', '9000017', '9000019', '9000025'];
 const CDI_LEAVE_1050 = ['9000011', '9000013', '9000017', '9000019', '9000025']; // Inès, Léo e Zoé ficam até o fechamento
 const INCOMPLETE_SUBTITLE = 'Qui, où et à quelle heure — pour pouvoir aller voir';
+const STAYED = CDI_MORNING.filter((id) => !CDI_LEAVE_1050.includes(id)); // fechados automaticamente às 17:00
+const SAO_PAULO = 'America/Sao_Paulo'; // o relógio do fechamento automático do servidor
 const CANTINE_FIRST = ['9000004', '9000007', '9000008', '9000011', '9000014', '9000015', '9000016', '9000020', '9000022', '9000023'];
 
 const token = await demo.login();
 await demo.assertLicenceValid(token);
 
-/** A hora do servidor, no fuso da demo. */
-async function serverParts() {
+/** A hora do servidor num fuso: o da demo, ou o de São Paulo para a sessão do fechamento. */
+async function serverParts(zone = demo.schoolZone) {
       const health = await (await fetch(`${demo.apiUrl}/api/health`)).json();
       const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-            timeZone: demo.schoolZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+            timeZone: zone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
       }).formatToParts(new Date(health.timestamp)).map((part) => [part.type, part.value]));
       return { weekday: parts.weekday, hhmm: `${parts.hour}:${parts.minute}` };
 }
 
-// As conferências de horário: dia útil, e a sessão começa na sua janela.
+// As conferências de horário: dia útil, e a sessão começa na sua janela. A do fechamento olha o relógio de São Paulo.
 if (!ensaio) {
-      const { weekday, hhmm } = await serverParts();
-      const window = session === 'midi' ? ['11:55', '12:20'] : ['16:15', '16:40'];
+      const zone = session === 'cloture' ? SAO_PAULO : demo.schoolZone;
+      const { weekday, hhmm } = await serverParts(zone);
+      const window = { midi: ['11:55', '12:20'], soir: ['16:15', '16:40'], cloture: ['17:05', '17:40'] }[session];
+      const where = session === 'cloture' ? `São Paulo ${hhmm}, Paris ${(await serverParts()).hhmm}` : `server ${hhmm}`;
       if (['Sat', 'Sun'].includes(weekday)) throw new Error(`today is ${weekday}: the sessions run on a weekday`);
-      if (hhmm < window[0] || hhmm > window[1]) throw new Error(`server time ${hhmm}: the ${session} session starts between ${window[0]} and ${window[1]}`);
-      log(`clock check: ${weekday} ${hhmm}, inside ${window.join('–')}`);
-} else if (demo.schoolNow().hour < '11:00') {
+      if (hhmm < window[0] || hhmm > window[1]) throw new Error(`${where}: the ${session} session starts between ${window[0]} and ${window[1]}${session === 'cloture' ? ' in São Paulo' : ''}`);
+      log(`clock check: ${weekday}, ${where}, inside ${window.join('–')}${session === 'cloture' ? ' in São Paulo' : ''}`);
+} else if (session === 'midi' && demo.schoolNow().hour < '11:00') {
       throw new Error('a rehearsal needs to run after 11:00: the morning passes go up to 10:50 and the backend refuses future ones');
 }
 
@@ -290,6 +298,7 @@ if (session === 'soir') {
       const [start, end] = await page.locator('input[type="datetime-local"]').all();
       await start.fill(`${today}T${hour}`);
       await end.fill(`${today}T${until}`);
+      await page.evaluate(() => document.activeElement?.blur()); // sem a borda de foco no último campo; Escape fecharia a janela
       await shot(page, 'sorties-1', { form: await boxAround(page, 'Nouvelle autorisation de sortie', { minWidth: 400, minHeight: 500 }) });
 
       await page.getByRole('button', { name: "Enregistrer l'autorisation" }).click();
@@ -316,7 +325,9 @@ if (session === 'soir') {
       }, name(NOAH), { timeout: 15000 });
       await shot(page, 'portail-sortie', { rows: await firstPassages(page, 3) });
 
-      // O parcours do dia da Emma.
+      // O parcours do dia da Emma, com a refeição inteira: ela sai da cantina às 12:40 (sem isso, às 16:35 ela estaria
+      // «dans la cantine» desde o meio-dia, porque a cantina só fecha sozinha às 15:00 de São Paulo).
+      await demo.passAt(EMMA, 'face', { point: 'REFEI1', action: 'SAIDA', at: demo.todayAt('12:40') });
       await toDashboard(page);
       const search = page.locator('input[placeholder^="Chercher une personne"]');
       await search.fill('Emma');
@@ -352,25 +363,29 @@ if (session === 'soir') {
       await page.evaluate(() => window.scrollTo(0, 0));
       // «Mouvements incomplets» também é o rótulo de um indicador: a lista é achada pelo subtítulo dela
       await shot(page, 'rapport-1', { list: await boxAround(page, INCOMPLETE_SUBTITLE, { minWidth: 600, minHeight: 100 }) }, { fullPage: true });
+}
 
-      // O fechamento das 17:00 no CDI.
-      if (!ensaio) {
-            for (;;) {
-                  const { hhmm } = await serverParts();
-                  if (hhmm >= '17:05') break;
-                  log(`waiting for 17:05 (server ${hhmm})`);
-                  await sleep(60_000);
-            }
-      }
-      await toDashboard(page);
+if (session === 'cloture') {
+      // ── O fechamento das 17:00 de São Paulo, num contexto novo; o login acontece fora da câmera ──
+      const { page } = await newPage();
+      await page.goto(demo.frontend, { waitUntil: 'load' });
+      await logIn(page);
       await openSector(page, /^CDI/, '/ 50');
       const indicator = page.locator('button[title^="Encore à l"]');
       await shot(page, 'fin-0', { indicator: await boxOf(indicator), crop: (await cdiBoxes(page)).crop });
       await indicator.click();
       await page.getByRole('button', { name: 'Masquer' }).waitFor();
       await sleep(800);
-      const closed = await page.getByText('Déjà clos aujourd’hui').first().isVisible().catch(() => false);
-      if (!closed) log('fin-1: the list does not say «Déjà clos aujourd’hui» yet');
+      // A janela precisa dizer que o dia já foi fechado, com Inès, Léo e Zoé.
+      const panel = await page.getByText('Encore à l’intérieur', { exact: true }).locator('xpath=ancestor::*[.//button[normalize-space()="Masquer"]][1]').innerText();
+      const closed = /déjà clos aujourd’hui/iu.test(panel) && STAYED.every((id) => panel.includes(name(id)))
+            && (panel.match(/Clos automatiquement à 17:00/g) ?? []).length === STAYED.length;
+      if (!closed) {
+            if (!ensaio) throw new Error(`fin-1: the window does not say the day was closed for ${STAYED.map(name).join(', ')}: stop without capturing`);
+            log('rehearsal: fin-1 does not say «Déjà clos aujourd’hui» yet (the closure runs at 17:00 in São Paulo)');
+      } else {
+            log(`fin-1: «Déjà clos aujourd’hui · ${STAYED.length}» with ${STAYED.map(name).join(', ')}, «Clos automatiquement à 17:00»`);
+      }
       await shot(page, 'fin-1', { window: await boxAround(page, 'Encore à l’intérieur', { minWidth: 400, minHeight: 150 }) });
 
       // Fim do dia.

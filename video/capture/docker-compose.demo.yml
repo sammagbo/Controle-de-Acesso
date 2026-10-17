@@ -25,7 +25,7 @@ services:
       # Uma licença de demonstração emitida pelo Sam, fora do repositório e montada só para leitura.
       MAGBO_LICENCE_PATH: /licence/licence.magbo
       MAGBO_WEBHOOK_TOKEN: ${MAGBO_DEMO_WEBHOOK_TOKEN:-demo-local-only}
-      TZ: America/Sao_Paulo
+      TZ: Europe/Paris
     volumes:
       - ${HOME}/magbo-demo-licence:/licence:ro
     restart: "no"

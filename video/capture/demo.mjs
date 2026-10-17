@@ -1,4 +1,4 @@
-// O que seed.mjs e capture.mjs compartilham: a instância demo, os alunos fictícios e a API.
+// O que os scripts de video/capture/ compartilham: a instância demo, os alunos fictícios e a API.
 import { readFileSync } from 'node:fs';
 
 const env = (name, fallback) => process.env[name] ?? fallback;
@@ -10,7 +10,29 @@ const students = csv.trim().split('\n').slice(1).map((line) => {
       return { id, name, turma };
 });
 
-const SCHOOL_ZONE = 'America/Sao_Paulo';
+// O fuso da demo, o mesmo do TZ do backend em docker-compose.demo.yml. Não aparece no vídeo.
+const SCHOOL_ZONE = 'Europe/Paris';
+
+// Os mapeamentos padrão que o sistema cria (DoorMappingBootstrap): leitor 1 = entrada, leitor 2 = saída.
+const DOORS = { PORT1: 1, BIBLIO: 4, REFEI1: 6 };
+const READERS = { ENTRADA: 1, SAIDA: 2 };
+
+/** As partes da data e da hora de `date` no fuso da demo. */
+const zoneParts = (date) => Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+      timeZone: SCHOOL_ZONE, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+}).formatToParts(date).map((part) => [part.type, part.value]));
+
+/** A hora local de `date` no fuso da demo, sem offset («2026-10-19T07:30:00»). O backend guarda uma hora sem
+ *  offset como ela vem e a compara com a hora de recepção, que segue o TZ do container; uma hora com offset
+ *  seria convertida para America/Sao_Paulo (EventTimeResolver.ZONA_ESCOLA) e ficaria 5 h antes. */
+const localStamp = (date) => {
+      const p = zoneParts(date);
+      return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+};
+
+// O backend descarta um serialNo repetido por 60 s: um contador por processo, a partir do relógio.
+let serial = Date.now();
 
 export const demo = {
       apiUrl: env('MAGBO_DEMO_API', 'http://localhost:8080'),
@@ -21,12 +43,14 @@ export const demo = {
       classes: [...new Set(students.map((student) => student.turma))],
       // recusados explicitamente (NOT_AUTHORIZED); os outros ficam AUTHORIZED
       refused: ['9000002', '9000010'],
-      // o terminal simulado da cantina; as portas 1 a 6 são os mapeamentos padrão da escola
+      // o terminal simulado da cantina do Lote 14; as portas 1 a 6 são os mapeamentos padrão da escola
       terminal: { doorNo: 9, readerNo: 1 },
       byId: (id) => students.find((student) => student.id === id),
 
       // o administrador padrão do perfil dev numa instância local nova
       admin: { username: env('MAGBO_DEMO_ADMIN', 'admin'), password: env('MAGBO_DEMO_ADMIN_PASSWORD', 'admin1234') },
+      // o nome que ele mostra no cabeçalho das telas (seed-day.mjs)
+      adminName: 'Administrateur Démo',
       // o PIN de administração do docker-compose.yml da raiz: digitado num campo mascarado, nunca capturado
       adminPin: env('MAGBO_DEMO_ADMIN_PIN', '1234'),
 
@@ -64,12 +88,21 @@ export const demo = {
 
       /** O dia (1 = segunda) e a hora da escola, arredondada para baixo em `roundMinutes`. */
       schoolNow(roundMinutes = 1) {
-            const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-                  timeZone: SCHOOL_ZONE, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-            }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+            const parts = zoneParts(new Date());
             const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(parts.weekday) + 1;
             const minute = Math.floor(Number(parts.minute) / roundMinutes) * roundMinutes;
             return { day, hour: `${parts.hour}:${String(minute).padStart(2, '0')}` };
+      },
+
+      /** Hoje, a esta hora («HH:MM»), no fuso da demo. */
+      todayAt(hhmm) {
+            const p = zoneParts(new Date());
+            const [h, m] = hhmm.split(':').map(Number);
+            // o instante cuja hora local no fuso da demo é a pedida: parte do UTC e corrige pelo offset do dia
+            const guess = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), h, m);
+            const seen = zoneParts(new Date(guess));
+            const offset = Date.UTC(Number(seen.year), Number(seen.month) - 1, Number(seen.day), Number(seen.hour), Number(seen.minute)) - guess;
+            return new Date(guess - offset);
       },
 
       /** Abre um créneau de refeição para as turmas da demo, hoje, na hora atual da escola. O créneau vai de 15 min
@@ -82,27 +115,46 @@ export const demo = {
             return `day ${day} at ${hour} for ${this.classes.join(', ')}`;
       },
 
-      /** Uma passagem no terminal simulado da cantina, no formato de um AccessControllerEvent da Hikvision.
-       *  subEventType 75 = rosto reconhecido, 1 = crachá reconhecido. */
-      async pass(id, method, { secondsAgo = 0 } = {}) {
+      /** Um AccessControllerEvent da Hikvision no webhook. subEventType 75 = rosto reconhecido, 1 = crachá. */
+      async webhook(id, method, doorNo, readerNo, at) {
             const token = process.env.MAGBO_DEMO_WEBHOOK_TOKEN;
             if (!token) throw new Error('set MAGBO_DEMO_WEBHOOK_TOKEN to the token given to the demo backend');
-            const when = new Date(Date.now() - secondsAgo * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
             const res = await fetch(`${this.apiUrl}/api/hikvision/webhook`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'X-MAGBO-WEBHOOK-TOKEN': token },
                   body: JSON.stringify({
-                        dateTime: when,
+                        dateTime: localStamp(at),
                         AccessControllerEvent: {
                               employeeNoString: id,
                               majorEventType: 5,
                               subEventType: method === 'face' ? 75 : 1,
-                              doorNo: this.terminal.doorNo,
-                              readerNo: this.terminal.readerNo,
-                              serialNo: Date.now(),
+                              doorNo,
+                              readerNo,
+                              serialNo: ++serial,
                         },
                   }),
             });
             if (!res.ok) throw new Error(`webhook ${id}: ${res.status}`);
       },
+
+      /** Uma passagem no terminal simulado da cantina (Lote 14). */
+      async pass(id, method, { secondsAgo = 0 } = {}) {
+            await this.webhook(id, method, this.terminal.doorNo, this.terminal.readerNo, new Date(Date.now() - secondsAgo * 1000));
+      },
+
+      /** Uma passagem em qualquer ponto (PORT1, BIBLIO, REFEI1), em qualquer hora passada: `at` vai em dateTime. O
+       *  backend aceita até 30 dias no passado e 5 min no futuro, e ignora a segunda passagem da mesma pessoa no
+       *  mesmo ponto e sentido em menos de 30 s. */
+      async passAt(id, method, { point, action = 'ENTRADA', at = new Date() }) {
+            if (!(point in DOORS)) throw new Error(`unknown point ${point}`);
+            if (!(action in READERS)) throw new Error(`unknown action ${action}`);
+            const key = `${id} ${point} ${action}`;
+            const previous = this.lastPass.get(key);
+            if (previous !== undefined && Math.abs(at.getTime() - previous) <= 30_000) {
+                  throw new Error(`${key}: two passes within 30 s, the second would be dropped`);
+            }
+            this.lastPass.set(key, at.getTime());
+            await this.webhook(id, method, DOORS[point], READERS[action], at);
+      },
+      lastPass: new Map(),
 };

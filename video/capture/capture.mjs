@@ -9,6 +9,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { demo } from './demo.mjs';
+import * as screens from './screens.mjs';
 
 const OUT = new URL('../public/portfolio/', import.meta.url);
 const VIEWPORT = { width: 1440, height: 900 }; // 16:10, como o vídeo
@@ -37,34 +38,9 @@ page.on('console', (message) => {
       if (message.type() === 'error' && !/status of 404/.test(message.text())) problems.push(message.text());
 });
 
-/** Para quando uma tela mostra o que o vídeo não pode mostrar: aviso de licença, endereço ou nome de máquina. */
-async function guard(name) {
-      const text = await page.locator('body').innerText();
-      const leak = text.match(/licen[cs]e|\b\d{1,3}(?:\.\d{1,3}){3}\b|localhost|adm\.local|\/opt\/|\/srv\//i);
-      if (leak) throw new Error(`${name}: the screen shows "${leak[0]}", stop`);
-      const unknown = [...text.matchAll(/\b(\p{Lu}\p{Ll}+) (Exemple|Démo|Fictif)\b/gu)].map((m) => m[0])
-            .filter((who) => !demo.students.some((student) => student.name === who));
-      if (unknown.length) throw new Error(`${name}: unexpected people on screen: ${unknown.join(', ')}`);
-}
-
-/** A caixa, em pixels CSS, do primeiro elemento em volta de `text` cujo tamanho cabe nos limites. */
-async function boxAround(text, { minWidth = 0, minHeight = 0, maxHeight = Infinity, side } = {}) {
-      return page.evaluate(({ text, minWidth, minHeight, maxHeight, side }) => {
-            const all = [...document.querySelectorAll('body *')].filter((el) =>
-                  el.children.length === 0 && el.textContent.trim().toLowerCase() === text.toLowerCase());
-            for (const leaf of all) {
-                  for (let el = leaf; el && el !== document.body; el = el.parentElement) {
-                        const r = el.getBoundingClientRect();
-                        if (r.width >= minWidth && r.height >= minHeight && r.height <= maxHeight) {
-                              if (side === 'left' && r.left > innerWidth / 2) break;
-                              if (side === 'right' && r.left < innerWidth / 2) break;
-                              return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
-                        }
-                  }
-            }
-            return null;
-      }, { text, minWidth, minHeight, maxHeight, side });
-}
+// A conferência e as caixas vêm de screens.mjs, as mesmas de capture-day.mjs.
+const guard = (name) => screens.guard(page, name);
+const boxAround = (text, options) => screens.boxAround(page, text, options);
 
 const manifest = { viewport: VIEWPORT, scale: SCALE, shots: {} };
 async function shot(name, boxes = {}) {

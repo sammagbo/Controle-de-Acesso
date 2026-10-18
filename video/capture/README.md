@@ -53,7 +53,22 @@ O fechamento automático do servidor segue sempre `America/Sao_Paulo` (`Presence
 «às 17:00» às 17:00 de São Paulo. Por isso a sessão `cloture` confere o relógio de São Paulo e para sem capturar se
 a janela «Encore à l'intérieur» não disser «Déjà clos aujourd'hui» com Inès Démo, Léo Fictif e Zoé Fictif.
 
+O `run-day.sh` faz o dia inteiro de uma vez, num relógio simulado, em uns 30 minutos: antes de cada sessão ele põe
+o relógio da demo na hora dela, e as conferências de horário passam. O relógio é um offset em segundos em
+`/tmp/magbo-demo-clock/faketime.rc`: o libfaketime o soma ao relógio do backend (`Dockerfile.demo-backend`), o
+`demo.mjs` o soma ao dos scripts, e o `capture-day.mjs` põe o navegador na mesma hora. O dia é o próximo dia útil
+depois de hoje, e o relógio só anda para a frente: a licença fecha a gestão quando a data volta dois dias ou mais.
+O script para no primeiro erro e grava a saída em `~/magbo-dia-AAAA-MM-DD.log`:
+
 ```bash
+~/Controle-de-Acesso/video/capture/run-day.sh --plan   # só o dia, os horários e a conferência do repositório
+~/Controle-de-Acesso/video/capture/run-day.sh          # o dia inteiro
+```
+
+As mesmas etapas, à mão, no relógio real:
+
+```bash
+mkdir -p /tmp/magbo-demo-clock   # antes do up: sem a pasta, o Docker a cria como root
 head -c 18 /dev/urandom | base64 | tr -d '/+=' > /tmp/magbo-demo-token   # o token fica num arquivo: cada comando roda num shell novo
 MAGBO_DEMO_WEBHOOK_TOKEN=$(cat /tmp/magbo-demo-token) docker compose -p magbo-demo -f docker-compose.yml -f video/capture/docker-compose.demo.yml up -d --build
 until curl -s http://localhost:8080/api/health | grep -q '"UP"'; do sleep 3; done

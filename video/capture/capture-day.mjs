@@ -8,6 +8,9 @@
 // O fechamento automático do servidor segue sempre America/Sao_Paulo (PresenceAutoCloseService): o CDI fecha às
 // 17:00 de lá, por isso o fim do dia tem a sua própria sessão, conferida no relógio de São Paulo.
 //
+// As horas são as do relógio da demo (demo.now()): o real, ou o simulado do run-day.sh, que põe a instância na
+// hora de cada sessão sem esperar a hora real.
+//
 // Com --ensaio, pula as conferências de horário e grava em video/public/portfolio-day-ensaio/; sem ele, em
 // video/public/portfolio-day/. Cada pasta tem um manifest.json com as caixas em que o vídeo dá zoom. O git
 // ignora as duas. As passagens entram cena a cena, logo antes da captura que as mostra.
@@ -29,7 +32,7 @@ const VIEWPORT = { width: 1440, height: 900 }; // 16:10, como o vídeo
 const SCALE = 2;
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const name = (id) => demo.byId(id).name;
-const log = (line) => console.log(`${new Intl.DateTimeFormat('fr-FR', { timeZone: demo.schoolZone, timeStyle: 'medium' }).format(new Date())}  ${line}`);
+const log = (line) => console.log(`${new Intl.DateTimeFormat('fr-FR', { timeZone: demo.schoolZone, timeStyle: 'medium' }).format(demo.now())}  ${line}`);
 
 // Os personagens e os grupos do roteiro.
 const HUGO = '9000001'; // autorizado: entra na cantina pelo rosto
@@ -76,14 +79,14 @@ if (!ensaio) {
 async function freshCloseCycle(label) {
       if (!ensaio) return;
       for (;;) {
-            const now = new Date();
+            const now = demo.now();
             if (now.getMinutes() % 5 === 0 && now.getSeconds() >= 5 && now.getSeconds() < 40) break;
             await sleep(1000);
       }
       log(`rehearsal: ${label} starts at the beginning of a 5-minute close cycle`);
 }
 
-// O manifest acumula as duas sessões na mesma pasta.
+// O manifest acumula as três sessões na mesma pasta.
 mkdirSync(OUT, { recursive: true });
 const manifestFile = new URL('manifest.json', OUT);
 const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : { viewport: VIEWPORT, scale: SCALE, shots: {} };
@@ -93,6 +96,8 @@ const problems = [];
 async function newPage() {
       const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: SCALE, timezoneId: demo.schoolZone, locale: 'fr-FR' });
       const page = await context.newPage();
+      // o navegador na hora do relógio da demo, andando; as cenas da manhã ainda fixam a hora de cada uma
+      await page.clock.install({ time: demo.now() });
       page.on('pageerror', (error) => problems.push(String(error)));
       page.on('console', (message) => {
             // os alunos não têm foto de propósito: as telas mostram as iniciais
@@ -214,13 +219,13 @@ if (session === 'midi') {
       log(`CDI: ${CDI_LEAVE_1050.length} exits at 10:50`);
       await context.close();
 
-      // ── A cantina, com o relógio real, num contexto novo; o login acontece fora da câmera ──
+      // ── A cantina, com o relógio da demo andando, num contexto novo; o login acontece fora da câmera ──
       if (ensaio) log(`rehearsal: extra meal slot ${await demo.openMealService(token)}`);
       ({ context, page } = await newPage());
       await page.goto(demo.frontend, { waitUntil: 'load' });
       await logIn(page);
       await freshCloseCycle('the cantine');
-      const now = Date.now(), first = now - 9 * 60_000, gap = (7 * 60_000) / (CANTINE_FIRST.length - 1);
+      const now = demo.now().getTime(), first = now - 9 * 60_000, gap = (7 * 60_000) / (CANTINE_FIRST.length - 1);
       for (const [i, id] of CANTINE_FIRST.entries()) await demo.passAt(id, 'face', { point: 'REFEI1', at: new Date(first + i * gap) });
       await openSector(page, /Surveillance Cantine/, 'Moniteur Cantine');
       const column = () => boxAround(page, 'Dans la cantine', { minWidth: 200, minHeight: 400, side: 'left' });
@@ -273,7 +278,7 @@ if (session === 'soir') {
       await logIn(page);
 
       // Noah tenta sair sem autorização.
-      const firstExit = new Date();
+      const firstExit = demo.now();
       await demo.passAt(NOAH, 'face', { point: 'PORT1', action: 'SAIDA', at: firstExit });
       await openAdministration(page);
       await page.getByRole('button', { name: /Gérer les sorties/ }).click();
@@ -288,7 +293,7 @@ if (session === 'soir') {
       await page.locator('input[placeholder="Membre de la Vie Scolaire"]').fill('Vie scolaire');
       await page.locator('select').filter({ hasText: 'Sortie unique' }).selectOption({ label: 'Sortie unique (date/heure précise)' });
       const { hour } = demo.schoolNow(5);
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: demo.schoolZone }).format(new Date());
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: demo.schoolZone }).format(demo.now());
       let until = '17:00';
       if (hour >= '16:55') {
             if (!ensaio) throw new Error(`it is ${hour}: an exit until 17:00 must start before 16:55`);
@@ -308,7 +313,7 @@ if (session === 'soir') {
       await shot(page, 'sorties-2', { row: await boxAround(page, name(NOAH), { minWidth: 400, minHeight: 50, maxHeight: 200 }) });
 
       // A mesma saída, agora autorizada, mais de 30 s depois da primeira.
-      const wait = firstExit.getTime() + 31_000 - Date.now();
+      const wait = firstExit.getTime() + 31_000 - demo.now().getTime();
       if (wait > 0) await sleep(wait);
       await demo.passAt(NOAH, 'face', { point: 'PORT1', action: 'SAIDA' });
       await toDashboard(page);

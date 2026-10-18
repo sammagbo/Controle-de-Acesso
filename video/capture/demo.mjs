@@ -17,6 +17,22 @@ const SCHOOL_ZONE = 'Europe/Paris';
 const DOORS = { PORT1: 1, BIBLIO: 4, REFEI1: 6 };
 const READERS = { ENTRADA: 1, SAIDA: 2 };
 
+// O relógio simulado do run-day.sh: o offset, em segundos, que o libfaketime soma ao relógio real do backend
+// («+86400» = um dia depois). Os scripts somam o mesmo offset, para ficarem na hora do backend. Sem o arquivo, o
+// relógio é o real.
+const CLOCK_FILE = env('MAGBO_DEMO_CLOCK', '/tmp/magbo-demo-clock/faketime.rc');
+const clockOffsetMs = () => {
+      let spec;
+      try {
+            spec = readFileSync(CLOCK_FILE, 'utf8').trim();
+      } catch (error) {
+            if (error.code === 'ENOENT') return 0;
+            throw error;
+      }
+      if (!/^[+-]\d+$/.test(spec)) throw new Error(`${CLOCK_FILE}: «${spec}» is not an offset in seconds`);
+      return Number(spec) * 1000;
+};
+
 /** As partes da data e da hora de `date` no fuso da demo. */
 const zoneParts = (date) => Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
       timeZone: SCHOOL_ZONE, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
@@ -86,17 +102,22 @@ export const demo = {
             }
       },
 
+      /** Agora, no relógio da demo: o real, ou o simulado do run-day.sh. */
+      now() {
+            return new Date(Date.now() + clockOffsetMs());
+      },
+
       /** O dia (1 = segunda) e a hora da escola, arredondada para baixo em `roundMinutes`. */
       schoolNow(roundMinutes = 1) {
-            const parts = zoneParts(new Date());
+            const parts = zoneParts(this.now());
             const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(parts.weekday) + 1;
             const minute = Math.floor(Number(parts.minute) / roundMinutes) * roundMinutes;
             return { day, hour: `${parts.hour}:${String(minute).padStart(2, '0')}` };
       },
 
-      /** Hoje, a esta hora («HH:MM»), no fuso da demo. */
+      /** Hoje no relógio da demo, a esta hora («HH:MM»), no fuso da demo. */
       todayAt(hhmm) {
-            const p = zoneParts(new Date());
+            const p = zoneParts(this.now());
             const [h, m] = hhmm.split(':').map(Number);
             // o instante cuja hora local no fuso da demo é a pedida: parte do UTC e corrige pelo offset do dia
             const guess = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), h, m);
@@ -139,13 +160,13 @@ export const demo = {
 
       /** Uma passagem no terminal simulado da cantina (Lote 14). */
       async pass(id, method, { secondsAgo = 0 } = {}) {
-            await this.webhook(id, method, this.terminal.doorNo, this.terminal.readerNo, new Date(Date.now() - secondsAgo * 1000));
+            await this.webhook(id, method, this.terminal.doorNo, this.terminal.readerNo, new Date(this.now().getTime() - secondsAgo * 1000));
       },
 
       /** Uma passagem em qualquer ponto (PORT1, BIBLIO, REFEI1), em qualquer hora passada: `at` vai em dateTime. O
        *  backend aceita até 30 dias no passado e 5 min no futuro, e ignora a segunda passagem da mesma pessoa no
        *  mesmo ponto e sentido em menos de 30 s. */
-      async passAt(id, method, { point, action = 'ENTRADA', at = new Date() }) {
+      async passAt(id, method, { point, action = 'ENTRADA', at = this.now() }) {
             if (!(point in DOORS)) throw new Error(`unknown point ${point}`);
             if (!(action in READERS)) throw new Error(`unknown action ${action}`);
             const key = `${id} ${point} ${action}`;

@@ -1,0 +1,16 @@
+# A imagem do backend só da instância demo do vídeo (docker-compose.demo.yml). O mesmo JAR do backend/Dockerfile,
+# numa base glibc com o libfaketime, que dá às capturas o relógio simulado do run-day.sh. A imagem de produção
+# (backend/Dockerfile, eclipse-temurin:17-jre-alpine) não muda.
+FROM maven:3.9.5-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+FROM eclipse-temurin:17-jre
+RUN apt-get update && apt-get install -y --no-install-recommends faketime && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/target/access-control-*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]

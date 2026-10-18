@@ -2,6 +2,7 @@
 # Sobreposta ao docker-compose.yml da raiz, que não é alterado:
 #   docker compose -p magbo-demo -f docker-compose.yml -f video/capture/docker-compose.demo.yml up -d --build
 #   docker compose -p magbo-demo -f docker-compose.yml -f video/capture/docker-compose.demo.yml down -v
+# Antes do up, a pasta do relógio precisa existir (mkdir -p /tmp/magbo-demo-clock): sem ela, o Docker a cria como root.
 services:
   db:
     container_name: magbo-demo-db
@@ -11,6 +12,9 @@ services:
 
   backend:
     container_name: magbo-demo-backend
+    # A imagem só da demo (Dockerfile.demo-backend): o mesmo JAR, numa base com o libfaketime.
+    build:
+      dockerfile: ../video/capture/Dockerfile.demo-backend
     environment:
       # O perfil padrão da aplicação (application.properties), não o prod. O perfil dev usaria um H2
       # em memória; o datasource abaixo aponta para o Postgres da demo.
@@ -26,8 +30,17 @@ services:
       MAGBO_LICENCE_PATH: /licence/licence.magbo
       MAGBO_WEBHOOK_TOKEN: ${MAGBO_DEMO_WEBHOOK_TOKEN:-demo-local-only}
       TZ: Europe/Paris
+      # O relógio simulado do run-day.sh: o libfaketime soma ao relógio real o offset em segundos de
+      # /clock/faketime.rc, relido a cada segundo. Sem o arquivo, o relógio é o real. O relógio monotônico da JVM
+      # continua o real, para os timers e o agendador não se perderem.
+      LD_PRELOAD: /usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1
+      FAKETIME_TIMESTAMP_FILE: /clock/faketime.rc
+      FAKETIME_CACHE_DURATION: "1"
+      FAKETIME_DONT_FAKE_MONOTONIC: "1"
     volumes:
       - ${HOME}/magbo-demo-licence:/licence:ro
+      # a pasta, e não o arquivo: o run-day.sh troca o arquivo de uma vez, e o container vê a troca
+      - /tmp/magbo-demo-clock:/clock:ro
     restart: "no"
 
   frontend:

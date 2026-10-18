@@ -1,5 +1,6 @@
 // Prepara a instância demo local para o vídeo do dia inteiro (capture-day.mjs), pela própria API do sistema.
-// Rodar uma vez, numa instância nova. Não cria nenhuma passagem: elas entram durante a captura, cena a cena.
+// Rodar uma vez, numa instância nova. Não cria nenhuma passagem: as das duas semanas antes vêm de seed-history.mjs,
+// e as do dia entram durante a captura, cena a cena.
 //
 //   node seed-day.mjs
 //
@@ -27,11 +28,13 @@ for (const student of demo.students) {
 }
 summary.push(`meal rights: ${demo.students.length - demo.refused.length} authorized, ${demo.refused.length} not authorized (${demo.refused.join(', ')})`);
 
-// 3. O créneau «Service midi», hoje às 12:00, para as três turmas.
-const { day } = demo.schoolNow();
-const slot = await demo.api(token, 'POST', '/api/admin/meal-slots', { diaSemana: day, hora: '12:00', rotulo: 'Service midi', ordem: 1 });
-for (const turma of demo.classes) await demo.api(token, 'POST', `/api/admin/meal-slots/${slot.id}/turmas/${turma}`);
-summary.push(`meal slot: «Service midi», day ${day} at 12:00 for ${demo.classes.join(', ')}`);
+// 3. O créneau «Service midi», às 12:00, de segunda a sexta, para as três turmas: o do dia de captura e o dos dias
+//    do histórico (seed-history.mjs). Sem créneau, cada refeição seria gravada também como «créneau non configuré».
+for (let day = 1; day <= 5; day++) {
+      const slot = await demo.api(token, 'POST', '/api/admin/meal-slots', { diaSemana: day, hora: '12:00', rotulo: 'Service midi', ordem: 1 });
+      for (const turma of demo.classes) await demo.api(token, 'POST', `/api/admin/meal-slots/${slot.id}/turmas/${turma}`);
+}
+summary.push(`meal slot: «Service midi», Monday to Friday at 12:00 for ${demo.classes.join(', ')}`);
 
 // 4. O nome que o administrador mostra no cabeçalho de todas as telas.
 const users = await demo.api(token, 'GET', '/api/system-users');

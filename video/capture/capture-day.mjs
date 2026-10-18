@@ -11,13 +11,18 @@
 // As horas são as do relógio da demo (demo.now()): o real, ou o simulado do run-day.sh, que põe a instância na
 // hora de cada sessão sem esperar a hora real.
 //
+// As telas de visão geral (overviews.mjs: o PPMS, o Panneau administratif, o Rapport Général da semana e as
+// estatísticas do CDI) são opcionais: se uma falhar, o log diz SKIPPED e a sessão segue sem ela. As da semana contam
+// também o histórico de seed-history.mjs.
+//
 // Com --ensaio, pula as conferências de horário e grava em video/public/portfolio-day-ensaio/; sem ele, em
 // video/public/portfolio-day/. Cada pasta tem um manifest.json com as caixas em que o vídeo dá zoom. O git
 // ignora as duas. As passagens entram cena a cena, logo antes da captura que as mostra.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { demo } from './demo.mjs';
-import { boxAround, boxOf, guard, union } from './screens.mjs';
+import { boxAround, boxOf, guard, hideBottomFixed, union } from './screens.mjs';
+import * as overviews from './overviews.mjs';
 
 const args = process.argv.slice(2);
 const session = args[args.indexOf('--session') + 1];
@@ -40,7 +45,7 @@ const LINA = '9000002'; // sem direito: recusada pelo crachá, depois autorizada
 const NOAH = '9000004'; // sai sem autorização à tarde, depois com ela
 const EMMA = '9000011'; // o parcours do dia
 const ABSENT = ['9000027', '9000028', '9000029', '9000030']; // não passam pelo portão de manhã
-const GATE_BY_CARD = ['9000005', '9000012', '9000018', '9000021', '9000024', '9000026'];
+const GATE_BY_CARD = demo.gateByCard;
 const CDI_MORNING = ['9000003', '9000006', '9000009', '9000011', '9000013', '9000017', '9000019', '9000025'];
 const CDI_LEAVE_1050 = ['9000011', '9000013', '9000017', '9000019', '9000025']; // Inès, Léo e Zoé ficam até o fechamento
 const INCOMPLETE_SUBTITLE = 'Qui, où et à quelle heure — pour pouvoir aller voir';
@@ -106,11 +111,32 @@ async function newPage() {
       return { context, page };
 }
 
+/** Uma cena opcional: se ela falhar, o log diz SKIPPED e a sessão segue; um erro da página durante ela vira WARNING.
+ *  As capturas do dia continuam parando a sessão no primeiro erro. */
+const skipped = [];
+async function optional(label, scene) {
+      const before = problems.length;
+      try {
+            await scene();
+      } catch (error) {
+            skipped.push(label);
+            log(`SKIPPED ${label}: ${String(error?.message ?? error).split('\n')[0]}`);
+      } finally {
+            const errors = problems.splice(before);
+            if (errors.length) log(`WARNING ${label}: the page logged errors during it: ${errors.join(' | ')}`);
+      }
+}
+
 /** Confere a tela, grava a captura e as caixas. `fullPage` para as telas que passam da janela: aí as caixas estão
  *  em coordenadas da página, medidas com a página no topo. */
 async function shot(page, file, boxes, { fullPage = false } = {}) {
       await guard(page, file);
-      await page.screenshot({ path: new URL(`${file}.png`, OUT).pathname, fullPage });
+      const restore = fullPage ? await hideBottomFixed(page) : null;
+      try {
+            await page.screenshot({ path: new URL(`${file}.png`, OUT).pathname, fullPage });
+      } finally {
+            if (restore) await restore();
+      }
       const entry = { ...boxes };
       if (fullPage) entry.page = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight }));
       manifest.shots[file] = entry;
@@ -119,6 +145,8 @@ async function shot(page, file, boxes, { fullPage = false } = {}) {
 }
 
 const loginPanel = (page) => boxAround(page, 'Bienvenue', { minWidth: 300, minHeight: 300 });
+// o que as telas de visão geral (overviews.mjs) usam daqui
+const scenes = { shot, sleep, toDashboard, cdiNames: STAYED.map(name) };
 async function logIn(page) {
       await page.locator('input[type=text]').fill(demo.admin.username);
       await page.locator('input[type=password]').fill(demo.admin.password);
@@ -269,6 +297,9 @@ if (session === 'midi') {
             card: await boxAround(page, name(LINA), { minWidth: 200, maxHeight: 120, side: 'left' }),
             feed: await feed(),
       });
+
+      // O PPMS ao meio-dia: quem está dentro e onde. No CDI, Inès, Léo e Zoé, os que o fechamento das 17:00 encontra.
+      await optional('ppms', () => overviews.ppms(page, scenes));
       await context.close();
 }
 
@@ -281,6 +312,8 @@ if (session === 'soir') {
       const firstExit = demo.now();
       await demo.passAt(NOAH, 'face', { point: 'PORT1', action: 'SAIDA', at: firstExit });
       await openAdministration(page);
+      // Os indicadores do dia no Panneau administratif, já com a recusa do Noah.
+      await optional('panneau', () => overviews.panneau(page, scenes));
       await page.getByRole('button', { name: /Gérer les sorties/ }).click();
       await page.getByText('Sortie non autorisée').first().waitFor({ timeout: 15000 });
       await sleep(9000); // o destaque da tentativa nova
@@ -368,6 +401,9 @@ if (session === 'soir') {
       await page.evaluate(() => window.scrollTo(0, 0));
       // «Mouvements incomplets» também é o rótulo de um indicador: a lista é achada pelo subtítulo dela
       await shot(page, 'rapport-1', { list: await boxAround(page, INCOMPLETE_SUBTITLE, { minWidth: 600, minHeight: 100 }) }, { fullPage: true });
+
+      // O mesmo relatório na semana: as zonas, as horas e a análise, com o histórico.
+      await optional('rapport-2', () => overviews.rapportSemaine(page, scenes));
 }
 
 if (session === 'cloture') {
@@ -393,8 +429,11 @@ if (session === 'cloture') {
       }
       await shot(page, 'fin-1', { window: await boxAround(page, 'Encore à l’intérieur', { minWidth: 400, minHeight: 150 }) });
 
-      // Fim do dia.
+      // As estatísticas da semana do CDI, com a janela do fechamento já fechada.
       await page.getByRole('button', { name: 'Masquer' }).click();
+      await optional('cdi-stats', () => overviews.statsCdi(page, scenes));
+
+      // Fim do dia.
       await page.getByRole('button', { name: /Tableau de bord/ }).first().click();
       await page.getByText('Choisissez le poste de travail').waitFor();
       await page.locator('button[title="Se déconnecter"]').click();
@@ -405,4 +444,4 @@ if (session === 'cloture') {
 
 await browser.close();
 if (problems.length) throw new Error(`the page logged errors:\n${problems.join('\n')}`);
-log(`${session}: captures written to ${OUT.pathname}`);
+log(`${session}: captures written to ${OUT.pathname}${skipped.length ? `; skipped: ${skipped.join(', ')}` : ''}`);

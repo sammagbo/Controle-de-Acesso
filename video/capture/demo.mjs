@@ -14,7 +14,7 @@ const students = csv.trim().split('\n').slice(1).map((line) => {
 const SCHOOL_ZONE = 'Europe/Paris';
 
 // Os mapeamentos padrão que o sistema cria (DoorMappingBootstrap): leitor 1 = entrada, leitor 2 = saída.
-const DOORS = { PORT1: 1, BIBLIO: 4, REFEI1: 6 };
+const DOORS = { PORT1: 1, BIBLIO: 4, ENFERM: 5, REFEI1: 6 };
 const READERS = { ENTRADA: 1, SAIDA: 2 };
 
 // O relógio simulado do run-day.sh: o offset, em segundos, que o libfaketime soma ao relógio real do backend
@@ -59,6 +59,8 @@ export const demo = {
       classes: [...new Set(students.map((student) => student.turma))],
       // recusados explicitamente (NOT_AUTHORIZED); os outros ficam AUTHORIZED
       refused: ['9000002', '9000010'],
+      // passam o crachá no portão, os outros o rosto: o mesmo no dia (capture-day.mjs) e no histórico (seed-history.mjs)
+      gateByCard: ['9000005', '9000012', '9000018', '9000021', '9000024', '9000026'],
       // o terminal simulado da cantina do Lote 14; as portas 1 a 6 são os mapeamentos padrão da escola
       terminal: { doorNo: 9, readerNo: 1 },
       byId: (id) => students.find((student) => student.id === id),
@@ -115,15 +117,26 @@ export const demo = {
             return { day, hour: `${parts.hour}:${String(minute).padStart(2, '0')}` };
       },
 
+      /** Hoje no relógio da demo, no fuso da demo («2026-10-19»). */
+      today() {
+            const p = zoneParts(this.now());
+            return `${p.year}-${p.month}-${p.day}`;
+      },
+
+      /** Um dia («2026-10-19») a uma hora («HH:MM» ou «HH:MM:SS»), no fuso da demo. */
+      at(day, time) {
+            const [year, month, date] = day.split('-').map(Number);
+            const [h, m, s = 0] = time.split(':').map(Number);
+            // o instante cuja hora local no fuso da demo é a pedida: parte do UTC e corrige pelo offset do dia
+            const guess = Date.UTC(year, month - 1, date, h, m, s);
+            const seen = zoneParts(new Date(guess));
+            const offset = Date.UTC(Number(seen.year), Number(seen.month) - 1, Number(seen.day), Number(seen.hour), Number(seen.minute), Number(seen.second)) - guess;
+            return new Date(guess - offset);
+      },
+
       /** Hoje no relógio da demo, a esta hora («HH:MM»), no fuso da demo. */
       todayAt(hhmm) {
-            const p = zoneParts(this.now());
-            const [h, m] = hhmm.split(':').map(Number);
-            // o instante cuja hora local no fuso da demo é a pedida: parte do UTC e corrige pelo offset do dia
-            const guess = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), h, m);
-            const seen = zoneParts(new Date(guess));
-            const offset = Date.UTC(Number(seen.year), Number(seen.month) - 1, Number(seen.day), Number(seen.hour), Number(seen.minute)) - guess;
-            return new Date(guess - offset);
+            return this.at(this.today(), hhmm);
       },
 
       /** Abre um créneau de refeição para as turmas da demo, hoje, na hora atual da escola. O créneau vai de 15 min
@@ -163,9 +176,9 @@ export const demo = {
             await this.webhook(id, method, this.terminal.doorNo, this.terminal.readerNo, new Date(this.now().getTime() - secondsAgo * 1000));
       },
 
-      /** Uma passagem em qualquer ponto (PORT1, BIBLIO, REFEI1), em qualquer hora passada: `at` vai em dateTime. O
-       *  backend aceita até 30 dias no passado e 5 min no futuro, e ignora a segunda passagem da mesma pessoa no
-       *  mesmo ponto e sentido em menos de 30 s. */
+      /** Uma passagem em qualquer ponto (PORT1, BIBLIO, ENFERM, REFEI1), em qualquer hora passada: `at` vai em
+       *  dateTime. O backend aceita até 30 dias no passado e 5 min no futuro, e ignora a segunda passagem da mesma
+       *  pessoa no mesmo ponto e sentido em menos de 30 s. */
       async passAt(id, method, { point, action = 'ENTRADA', at = this.now() }) {
             if (!(point in DOORS)) throw new Error(`unknown point ${point}`);
             if (!(action in READERS)) throw new Error(`unknown action ${action}`);

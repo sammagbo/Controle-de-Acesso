@@ -18,6 +18,26 @@ export async function guard(page, name) {
       if (unknown.length) throw new Error(`${name}: unexpected people on screen: ${unknown.join(', ')}`);
 }
 
+/** Esconde o que é fixo na metade de baixo da janela (o rodapé «MAGBO Access Control v1.0») e devolve a função que
+ *  o mostra de novo. Numa captura de página inteira ele sairia no meio da imagem, na altura em que está na tela. */
+export async function hideBottomFixed(page) {
+      await page.evaluate(() => {
+            for (const el of document.querySelectorAll('body *')) {
+                  const style = getComputedStyle(el);
+                  if (style.position === 'fixed' && style.visibility !== 'hidden' && el.getBoundingClientRect().top > innerHeight / 2) {
+                        el.dataset.shotVisibility = el.style.visibility;
+                        el.style.visibility = 'hidden';
+                  }
+            }
+      });
+      return () => page.evaluate(() => {
+            for (const el of document.querySelectorAll('[data-shot-visibility]')) {
+                  el.style.visibility = el.dataset.shotVisibility;
+                  delete el.dataset.shotVisibility;
+            }
+      });
+}
+
 /** A caixa, em pixels CSS, do primeiro elemento em volta de `text` cujo tamanho cabe nos limites. */
 export async function boxAround(page, text, { minWidth = 0, minHeight = 0, maxHeight = Infinity, side } = {}) {
       return page.evaluate(({ text, minWidth, minHeight, maxHeight, side }) => {

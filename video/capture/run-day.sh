@@ -2,7 +2,7 @@
 # O dia de captura inteiro num comando só, para o vídeo do portfólio, num relógio simulado: não espera a hora real.
 # Antes de cada etapa, o script põe o relógio da demo na hora da cena e roda a etapa na hora:
 #
-#   B.1  11:30 de Paris       instância nova e dados do dia (seed-day.mjs)
+#   B.1  11:30 de Paris       instância nova, dados do dia (seed-day.mjs) e as duas semanas antes (seed-history.mjs)
 #   B.2  11:56 de Paris       capture-day.mjs --session midi
 #   B.3  16:16 de Paris       capture-day.mjs --session soir
 #   B.4  17:01 de São Paulo   o fechamento automático das 17:00, depois capture-day.mjs --session cloture
@@ -10,14 +10,17 @@
 #
 # O relógio é um offset em segundos em /tmp/magbo-demo-clock/faketime.rc: o libfaketime o soma ao relógio real do
 # backend (Dockerfile.demo-backend), demo.mjs o soma ao dos scripts, e capture-day.mjs põe o navegador na mesma hora.
-# O dia é o próximo dia útil depois de hoje, e o relógio só anda para a frente: a licença fecha a gestão quando a
-# data volta dois dias ou mais (LicenceHorloge). Leva uns 30 minutos.
+# O dia é a próxima segunda-feira depois de hoje, e o relógio só anda para a frente: a licença fecha a gestão quando a
+# data volta dois dias ou mais (LicenceHorloge). Leva uns 35 minutos.
 #
 #   ~/Controle-de-Acesso/video/capture/run-day.sh            o dia inteiro; o computador não suspende enquanto ele roda
+#   ~/Controle-de-Acesso/video/capture/run-day.sh --detach   o mesmo, fora deste terminal e da sessão que o lançou
 #   ~/Controle-de-Acesso/video/capture/run-day.sh --plan     só mostra o dia e os horários e confere o repositório
 #
 # No primeiro erro ele para e deixa a instância como está, para a conferência. A saída vai também para
-# ~/magbo-dia-AAAA-MM-DD.log. Ctrl+C interrompe.
+# ~/magbo-dia-AAAA-MM-DD.log. Ctrl+C interrompe; um dia com --detach para com: pkill -f '[r]un-day.sh'
+# No fim, na pasta de downloads: magbo-dia.png, a folha de contato, e magbo-dia-capturas.tar.gz, a cópia das
+# capturas em WebP com o manifest.json, para mandar ao revisor.
 set -euo pipefail
 
 REPO="$HOME/Controle-de-Acesso"
@@ -26,10 +29,16 @@ OUT="$REPO/video/public/portfolio-day"
 TOKEN_FILE=/tmp/magbo-demo-token
 CLOCK_DIR=/tmp/magbo-demo-clock
 CLOCK_FILE="$CLOCK_DIR/faketime.rc"
+REVIEW_COPY=/tmp/magbo-dia-capturas
 PARIS=Europe/Paris
 SAO_PAULO=America/Sao_Paulo
 SECTION="the start checks"
 CLOCK_OFFSET=0
+
+# As 22 capturas do dia, que o vídeo precisa, e as 5 telas de visão geral, opcionais (overviews.mjs).
+REQUIRED="login-0 login-1 dashboard portail cdi cantine-0 cantine-1 cantine-2 cantine-3 droits-0 droits-1
+sorties-0 sorties-1 sorties-2 portail-sortie recherche-0 recherche-1 rapport-0 rapport-1 fin-0 fin-1 logout"
+OVERVIEWS="ppms-0 ppms-1 panneau rapport-2 cdi-stats"
 
 # O instante no relógio da demo: o real mais o offset que este script pôs por último.
 demo_now() { echo $(( $(date +%s) + CLOCK_OFFSET )); }
@@ -54,12 +63,14 @@ epoch_at() { TZ="$1" date -d "$2 $3" +%s; }
 # Um instante, em Paris e em São Paulo.
 both() { printf '%s Paris, %s São Paulo' "$(LC_ALL=C TZ=$PARIS date -d "@$1" '+%a %d/%m %H:%M')" "$(TZ=$SAO_PAULO date -d "@$1" +%H:%M)"; }
 
-# O dia de captura: o próximo dia útil depois de hoje.
+# O dia de captura: a próxima segunda-feira depois de hoje. O histórico (seed-history.mjs) são os 10 dias úteis antes
+# dela e termina na sexta, três dias antes: nenhuma passagem dele cai nas últimas 24 horas que as telas do Portail,
+# do CDI e da cantina leem.
 capture_day() {
     local day i
     day=$(date -u -d "$(TZ=$PARIS date -d "@$1" +%F) + 1 day" +%F)
     for i in 1 2 3 4 5 6 7; do
-        if (( $(date -u -d "$day" +%u) <= 5 )); then
+        if (( $(date -u -d "$day" +%u) == 1 )); then
             echo "$day"
             return 0
         fi
@@ -103,7 +114,7 @@ check_repo() {
 
 b1() {
     SECTION=B.1
-    log "B.1: new instance and the day's data"
+    log "B.1: new instance, the day's data and the two weeks before"
     check_repo
     mkdir -p "$CLOCK_DIR"
     [[ -w $CLOCK_DIR ]] || fail "$CLOCK_DIR is not writable; remove it with: sudo rm -rf $CLOCK_DIR"
@@ -123,7 +134,7 @@ b1() {
     stamp=$(grep -o '"timestamp":"[^"]*"' <<< "$health" | cut -d'"' -f4 || true)
     [[ -n $stamp && $(TZ=$PARIS date -d "$stamp" +%F) == "$DAY" ]] || fail "the backend clock says «$stamp», not $DAY: it is not on the simulated clock"
     log "backend UP, its clock at $(LC_ALL=C TZ=$PARIS date -d "$stamp" '+%a %d/%m %H:%M') Paris"
-    (cd "$CAPTURE" && npm ci && node seed-day.mjs)
+    (cd "$CAPTURE" && npm ci && node seed-day.mjs && node seed-history.mjs)
     rm -rf "$OUT"
 }
 
@@ -154,6 +165,12 @@ b4() {
     mkdir -p "$downloads"
     cp "$OUT/contact-sheet.png" "$downloads/magbo-dia.png"
     log "contact sheet copied to $downloads/magbo-dia.png"
+    # A cópia para o revisor: as capturas em WebP e o manifest, num arquivo que cabe num anexo. O render usa os PNG.
+    rm -rf "$REVIEW_COPY"
+    (cd "$CAPTURE" && node review-copy.mjs ../public/portfolio-day "$REVIEW_COPY")
+    tar czf "$downloads/magbo-dia-capturas.tar.gz" -C "$(dirname "$REVIEW_COPY")" "$(basename "$REVIEW_COPY")"
+    rm -rf "$REVIEW_COPY"
+    log "review copy: $downloads/magbo-dia-capturas.tar.gz, $(du -h "$downloads/magbo-dia-capturas.tar.gz" | cut -f1)"
 }
 
 b5() {
@@ -161,14 +178,21 @@ b5() {
     log "B.5: turn the instance off"
     compose down -v
     rm -f "$CLOCK_FILE"   # o log continua na hora da demo
-    local containers volumes images changed
+    local containers volumes changed name missing='' found=''
     containers=$(docker ps -a --filter name=magbo-demo --format '{{.Names}}' | wc -l)
     volumes=$(docker volume ls --filter name=magbo-demo --format '{{.Name}}' | wc -l)
-    images=$( (find "$OUT" -maxdepth 1 -name '*.png' 2>/dev/null || true) | wc -l)
     changed=$(git -C "$REPO" status --short --untracked-files=no)
-    log "left over: $containers containers, $volumes volumes; $images images in $OUT; files changed in git: ${changed:-none}"
+    for name in $REQUIRED; do
+        if [[ ! -f $OUT/$name.png ]]; then missing+=" $name"; fi
+    done
+    for name in $OVERVIEWS; do
+        if [[ -f $OUT/$name.png ]]; then found+=" $name"; fi
+    done
+    log "left over: $containers containers, $volumes volumes; files changed in git: ${changed:-none}"
+    log "captures: the 22 of the day${missing:+ except$missing}; overviews:${found:- none}"
     (( containers == 0 && volumes == 0 )) || fail "something of magbo-demo is left over"
-    (( images == 23 )) || fail "expected 23 images: the 22 captures and the contact sheet"
+    [[ -z $missing ]] || fail "captures missing:$missing"
+    [[ -f $OUT/contact-sheet.png ]] || fail "the contact sheet is missing"
     [[ -z $changed ]] || fail "files tracked by git changed"
 }
 
@@ -177,7 +201,7 @@ main() {
     case "${1:-}" in
         --plan) plan=true ;;
         '') ;;
-        *) echo 'usage: run-day.sh [--plan]' >&2; exit 2 ;;
+        *) echo 'usage: run-day.sh [--plan | --detach]' >&2; exit 2 ;;
     esac
 
     DAY=$(capture_day "$(date +%s)")
@@ -188,11 +212,11 @@ main() {
 
     # A saída vai também para o log, que não para com o Ctrl+C: assim a última linha diz onde o dia parou.
     $plan || exec > >(trap '' INT; tee -a "$HOME/magbo-dia-$DAY.log") 2>&1
-    log "capture day: $(LC_ALL=C date -u -d "$DAY" '+%a %d/%m/%Y'), on the simulated clock: it runs now, in about 30 minutes"
-    log "  B.1  $(both "$T1")  new instance and the day's data"
+    log "capture day: $(LC_ALL=C date -u -d "$DAY" '+%a %d/%m/%Y'), on the simulated clock: it runs now, in about 35 minutes"
+    log "  B.1  $(both "$T1")  new instance, the day's data and the two weeks before"
     log "  B.2  $(both "$T2")  session midi"
     log "  B.3  $(both "$T3")  session soir"
-    log "  B.4  $(both "$T4")  the automatic closure, then the session cloture and the contact sheet"
+    log "  B.4  $(both "$T4")  the automatic closure, then the session cloture, the contact sheet and the review copy"
     log "  B.5  right after B.4  down -v and the final checks"
     check_repo
     if $plan; then
@@ -207,10 +231,16 @@ main() {
     b4
     b5
     SECTION=end
-    log "done: the 22 captures and the contact sheet are in $OUT"
+    log "done: the captures and the contact sheet are in $OUT"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    # Com --detach, o dia roda numa sessão própria: fechar o terminal, ou o fim da sessão que o lançou, não o interrompe.
+    if [[ ${1:-} == --detach ]]; then
+        setsid nohup "$BASH" "$0" > /dev/null 2>&1 < /dev/null &
+        echo "run-day.sh runs on its own now; follow it with: tail -f $HOME/magbo-dia-$(capture_day "$(date +%s)").log"
+        exit 0
+    fi
     # O dia roda sob um bloqueio de suspensão, inclusive com a tampa fechada se o sistema deixar; o --plan não precisa.
     if [[ ${1:-} != --plan && -z ${MAGBO_DAY_INHIBITED:-} ]]; then
         export MAGBO_DAY_INHIBITED=1

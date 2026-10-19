@@ -12,7 +12,7 @@
     "render:outro": "remotion render Outro outro.mp4",
     "render:all": "npm run render:intro && npm run render:demo1 && npm run render:demo2 && npm run render:demo3 && npm run render:outro",
     "render:portfolio": "remotion render Portfolio out/magbo-access-control.mp4 --codec=h264 --crf=25 --pixel-format=yuv420p --x264-preset=veryslow --image-format=png --muted && remotion render Portfolio out/magbo-access-control.webm --codec=vp9 --crf=43 --image-format=png --muted && remotion still Portfolio out/magbo-access-control-poster.webp --frame=120 --image-format=webp",
-    "render:day": "remotion render PortfolioDay out/magbo-access-control-day.mp4 --codec=h264 --crf=22 --pixel-format=yuv420p --x264-preset=veryslow --image-format=png --muted && remotion render PortfolioDay out/magbo-access-control-day.webm --codec=vp9 --crf=36 --image-format=png --muted && remotion still PortfolioDay out/magbo-access-control-day-poster.webp --frame=3126 --image-format=webp"
+    "render:day": "remotion render PortfolioDay out/magbo-access-control-day.mp4 --codec=h264 --crf=22 --pixel-format=yuv420p --x264-preset=veryslow --image-format=png --muted && remotion render PortfolioDay out/magbo-access-control-day.webm --codec=vp9 --crf=36 --image-format=png --muted && remotion still PortfolioDay out/magbo-access-control-day-poster.webp --frame=2949 --image-format=webp"
   },
   "dependencies": {
     "@fontsource/funnel-display": "5.3.0",

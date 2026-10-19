@@ -74,13 +74,13 @@ const topOf = (view: View) => view.cy - (view.w * RATIO) / 2;
 const zoomOf = (view: View) => SCREEN.width / view.w;
 
 /**
- * A vista de largura `w` que põe `read` no meio: na horizontal (mais `dx`) e na parte do quadro acima da legenda, ou
- * com o alto em `top`.
+ * A vista de largura `w` que põe `read` no meio: na horizontal (mais `dx`, ou com a borda esquerda em `left`) e na parte
+ * do quadro acima da faixa, ou com o alto em `top`.
  */
-const around = (read: Box, w: number, {dx = 0, top}: {dx?: number; top?: number} = {}): View => {
+const around = (read: Box, w: number, {dx = 0, left, top}: {dx?: number; left?: number; top?: number} = {}): View => {
   const visible = (READ_HEIGHT * w) / SCREEN.width;
   const y = top ?? read.y + read.height / 2 - visible / 2;
-  return {cx: read.x + read.width / 2 + dx, cy: y + (w * RATIO) / 2, w};
+  return {cx: left === undefined ? read.x + read.width / 2 + dx : left + w / 2, cy: y + (w * RATIO) / 2, w};
 };
 
 /** A mesma vista, empurrada o mínimo para ficar inteira dentro de `bounds`. */
@@ -129,31 +129,33 @@ const gateMorning = (b: Boxes): Look => {
   const read = {x: list.x + 21, y: list.y + 12, width: 657, height: 268};
   return {view: around(read, 680, {top: list.y - 18}), read, px: 14, labelPx: 12};
 };
-// À tarde, só as linhas, do nome ao sentido da passagem: o alto do quadro fica abaixo do cabeçalho da lista, e os
-// avatares, à esquerda, ficam de fora.
+// À tarde, só as linhas, do nome ao sentido da passagem: o alto do quadro fica abaixo do cabeçalho da lista, a faixa no
+// vão entre a linha do Jules e a da Mia, e os avatares, à esquerda, ficam de fora.
 const gateEvening = (b: Boxes): Look => {
   const rows = b('portail-sortie', 'rows');
   const read = {x: rows.x + 80, y: rows.y, width: 597, height: rows.height};
-  return {view: around(read, 640, {dx: 11.5, top: rows.y - 7}), read, px: 12};
+  return {view: around(read, 606, {top: rows.y - 19}), read, px: 12};
 };
 
-// O CDI: o número de presentes e os três primeiros cartões, dentro de `body` (sem a barra SafeTrack nem o rodapé). As
-// telas fin-0 e fin-1 são a mesma tela do CDI e usam a mesma caixa.
-const cdiRead = (body: Box): Box => ({x: body.x + body.width / 2 + 20, y: body.y + 14, width: body.width / 2 - 40, height: 332});
+// O CDI: o número de presentes e os três primeiros cartões, dos avatares a «Inclure le personnel», dentro de `body`
+// (sem a barra SafeTrack nem o rodapé). A faixa passa no vão entre o cartão da Zoé e o da Emma. As telas fin-0 e fin-1
+// são a mesma tela do CDI e usam a mesma caixa.
 // `body` começa na linha de baixo da barra: a vista começa 2 px abaixo dela.
 const cdiBody = (b: Boxes): Box => {
   const body = b('cdi', 'body');
   return {...body, y: body.y + 2, height: body.height - 2};
 };
+const cdiRead = (body: Box): Box => ({x: body.x + body.width / 2 + 28, y: body.y + 18, width: 398, height: 316});
+const cdiView = (body: Box): View => within(around(cdiRead(body), 640, {top: body.y}), body);
 const cdiPresent = (b: Boxes): Look => {
   const body = cdiBody(b);
-  return {view: within(around(cdiRead(body), 720), body), read: cdiRead(body), px: 16, labelPx: 12, inside: body};
+  return {view: cdiView(body), read: cdiRead(body), px: 16, labelPx: 12, inside: body};
 };
 // Depois do fechamento: «0 / 50» e «Vide», no mesmo enquadramento.
 const cdiEmpty = (b: Boxes): Look => {
   const body = cdiBody(b);
-  const read = {x: body.x + (body.width * 3) / 4 - 24, y: body.y + 14, width: 48, height: 248};
-  return {view: within(around(cdiRead(body), 720), body), read, px: 16, inside: body};
+  const read = {x: body.x + (body.width * 3) / 4 - 24, y: body.y + 18, width: 48, height: 240};
+  return {view: cdiView(body), read, px: 16, inside: body};
 };
 
 // A coluna «Dans la cantine»: o título com o número e os dois primeiros cartões, com o alto do quadro abaixo das
@@ -164,12 +166,13 @@ const cantine = (b: Boxes, shot: string): Look => {
   return {view: within(around(read, 557, {top: column.y - 16}), b(shot, 'page')), read, px: 12};
 };
 
-// A recusa da Lina na lista das tentativas recusadas da cantina, com o título da lista, abaixo do cabeçalho do app.
+// A recusa da Lina na lista das tentativas recusadas da cantina, com o título da lista, abaixo do cabeçalho do app. A
+// borda esquerda fica no vão entre o monitor e a lista: nada da coluna ao lado entra.
 const mealRefusal = (b: Boxes): Look => {
   const feed = b('cantine-2', 'feed');
   const row = b('cantine-2', 'row');
   const read = {x: row.x, y: feed.y + 4, width: row.width, height: row.y + row.height - feed.y - 4};
-  return {view: around(read, 536, {top: feed.y - 22}), read, px: 11, labelPx: 10, mark: grow(row, 8)};
+  return {view: around(read, 500, {left: feed.x - 28, top: feed.y - 22}), read, px: 11, labelPx: 10, mark: grow(row, 8)};
 };
 
 // A linha da Lina na tela de direitos, do avatar ao status, com a busca «Exemple» e o cabeçalho da tabela. O aviso
@@ -206,7 +209,8 @@ const ppmsCdi = (b: Boxes): Look => {
 const panneauLeft = (b: Boxes): Look => {
   const header = b('panneau', 'header');
   const read = {x: header.x, y: header.y + 4, width: 633, height: 318};
-  return {view: around(read, 660), read, px: 24, labelPx: 10};
+  // a faixa passa logo abaixo dos números: a descrição de «Tentatives refusées» fica inteira embaixo dela
+  return {view: around(read, 660, {top: header.y - 26}), read, px: 24, labelPx: 10};
 };
 const panneauRight = (b: Boxes): Look => {
   const kpis = b('panneau', 'kpis');
@@ -236,7 +240,8 @@ const search = (b: Boxes): Look => {
 const parcours = (b: Boxes): Look => {
   const box = b('recherche-1', 'parcours');
   const read = {x: box.x + 16, y: box.y + 4, width: 260, height: 262};
-  return {view: around(read, 577, {dx: 132.5}), read, px: 12, labelPx: 10};
+  // o alto do quadro fica abaixo da frase de ajuda da busca
+  return {view: around(read, 577, {dx: 132.5, top: box.y - 12}), read, px: 12, labelPx: 10};
 };
 
 // O Rapport do dia: os cartões «Repas hors horaire» e «Sorties non enregistrées» de «Points d'attention», logo acima da
@@ -245,12 +250,14 @@ const parcours = (b: Boxes): Look => {
 const attention = (b: Boxes): Look => {
   const list = b('rapport-1', 'list');
   const read = {x: list.x + 395, y: list.y - 101, width: 519, height: 68};
-  return {view: around(read, 639), read, px: 12};
+  // a borda esquerda no vão entre o primeiro cartão e o segundo
+  return {view: around(read, 639, {left: list.x + 376}), read, px: 12};
 };
 const incomplete = (b: Boxes): Look => {
   const list = b('rapport-1', 'list');
   const read = {x: list.x + 17, y: list.y + 21, width: 282, height: 278};
-  return {view: around(read, 639, {dx: 157.5}), read, px: 12, labelPx: 11};
+  // a faixa no vão entre a linha do Arthur, inteira, e a do Gabriel
+  return {view: around(read, 639, {dx: 157.5, top: list.y + 5}), read, px: 12, labelPx: 11};
 };
 
 // A janela «Encore à l'intérieur» do CDI: o título, «Déjà clos aujourd'hui · 3» e as três linhas, com a borda esquerda
@@ -263,13 +270,14 @@ const closure = (b: Boxes): Look => {
   return {view: within(around(read, 619, {dx: 137.5, top: win.y}), body), read, px: 12, inside: body};
 };
 
-// A semana no Rapport Général: os períodos e os três primeiros indicadores; o gráfico por hora, num pan até o pico do
-// meio-dia e depois dele; o cartão da cantina.
+// A semana no Rapport Général: os períodos e os dois primeiros indicadores; o gráfico por hora, num pan até o pico do
+// meio-dia e depois dele; o cartão da cantina. Nos indicadores, as fichas das duas linhas e a linha de status cobrem a
+// largura sem vão: a vista para no vão antes do terceiro indicador, e a faixa, antes da linha de status.
 const weekKpis = (b: Boxes): Look => {
   const periods = b('rapport-2', 'periods');
   const indicators = b('rapport-2', 'indicators');
-  const read = {x: periods.x + 4, y: periods.y, width: 622, height: indicators.y + indicators.height - periods.y};
-  return {view: around(read, 660, {top: periods.y - 45}), read, px: 24, labelPx: 12};
+  const read = {x: periods.x + 4, y: periods.y, width: 456, height: indicators.y + 106 - periods.y};
+  return {view: around(read, 520, {left: periods.x - 37, top: periods.y - 12}), read, px: 24, labelPx: 12};
 };
 const weekHours = (b: Boxes): Look => {
   const hours = b('rapport-2', 'hours');
@@ -280,29 +288,27 @@ const weekHours = (b: Boxes): Look => {
 const weekCantine = (b: Boxes): Look => {
   const cards = b('rapport-2', 'cards');
   const read = {x: cards.x + 13, y: cards.y + 10, width: 548, height: 214};
-  return {view: around(read, 619), read, px: 24, labelPx: 12};
+  // o alto do quadro logo abaixo da última linha dos alertas, e a faixa antes do cartão do CDI
+  return {view: around(read, 619, {top: cards.y - 67}), read, px: 24, labelPx: 12};
 };
 
-// As estatísticas do CDI, sempre dentro de `panel` (o CDI escurecido em volta fica de fora): os números e a análise;
-// um gráfico por vez; as turmas, com os dois gráficos inteiros acima delas.
+// As estatísticas do CDI, sempre dentro de `panel` (o CDI escurecido em volta fica de fora): os períodos, os números e a
+// análise, com o título do painel fora e a faixa sobre as barras; depois os dois gráficos inteiros e as turmas, com o
+// alto do quadro no vão abaixo da análise e o botão «Générer Rapport» inteiro embaixo da faixa. Um gráfico por vez não
+// cabe: a borda de uma vista estreita cortaria os rótulos do outro gráfico.
 const statsTop = (b: Boxes): Look => {
   const panel = b('cdi-stats', 'panel');
   const kpis = b('cdi-stats', 'kpis');
   const analysis = b('cdi-stats', 'analysis');
-  const read = {x: kpis.x, y: panel.y + 10, width: kpis.width, height: analysis.y + analysis.height - panel.y - 10};
-  return {view: within(around(read, 763), panel), read, px: 24, labelPx: 12, inside: panel};
+  const read = {x: kpis.x, y: panel.y + 70, width: kpis.width, height: analysis.y + analysis.height - panel.y - 70};
+  return {view: within(around(read, 763, {top: panel.y + 58}), panel), read, px: 24, labelPx: 12, inside: panel};
 };
-const statsChart = (b: Boxes, half: 0 | 1): Look => {
+const statsCharts = (b: Boxes): Look => {
   const panel = b('cdi-stats', 'panel');
   const charts = b('cdi-stats', 'charts');
-  const read = {x: charts.x + 8 + half * (charts.width / 2 + 8), y: charts.y + 8, width: charts.width / 2 - 24, height: charts.height - 16};
-  return {view: within(around(read, 577), panel), read, px: 12, inside: panel};
-};
-const statsLevels = (b: Boxes): Look => {
-  const panel = b('cdi-stats', 'panel');
   const levels = b('cdi-stats', 'levels');
-  const read = {x: levels.x + 12, y: levels.y + 4, width: levels.width - 22, height: levels.height - 6};
-  return {view: within(around(read, 746), panel), read, px: 14, labelPx: 12, inside: panel};
+  const read = {x: charts.x + 12, y: charts.y + 16, width: charts.width - 22, height: levels.y + levels.height - charts.y - 16};
+  return {view: within(around(read, 746, {top: levels.y - 234}), panel), read, px: 14, labelPx: 12, inside: panel};
 };
 
 // O roteiro. A hora do chip é a do relógio do cabeçalho de cada captura; as telas de direitos não mostram o
@@ -385,9 +391,7 @@ const SCENES: Scene[] = [
     caption: 'CDI : la fréquentation de la semaine.',
     steps: [
       {shot: 'cdi-stats', enter: 18, hold: 84, chip: 'Cette semaine', look: statsTop},
-      {shot: 'cdi-stats', enter: 18, move: true, hold: 78, chip: 'Cette semaine', look: (b) => statsChart(b, 0)},
-      {shot: 'cdi-stats', enter: 18, move: true, hold: 78, chip: 'Cette semaine', look: (b) => statsChart(b, 1)},
-      {shot: 'cdi-stats', enter: 18, move: true, hold: 90, chip: 'Cette semaine', look: statsLevels},
+      {shot: 'cdi-stats', enter: 18, move: true, hold: 120, chip: 'Cette semaine', look: statsCharts},
     ],
   },
   // O fim do loop, sem legenda: a tela de login depois da saída volta ao primeiro quadro.

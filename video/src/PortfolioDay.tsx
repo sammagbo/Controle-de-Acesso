@@ -16,19 +16,21 @@ const FPS = 30;
 const BLACK = '#000000';
 const WHITE = '#F2F0EB';
 const RED = '#FF3D2E'; // só para marcar as recusas
+const LINE = '#34322F'; // o contorno do chip da hora, o mesmo dos chips do site
 
-// A tela do app ocupa o quadro inteiro, com as proporções das capturas (16:10): cada pixel de largura é zoom no texto.
+// A tela do app ocupa a largura inteira do quadro: cada pixel de largura é zoom no texto. As vistas têm as proporções
+// das capturas (16:10), e a faixa da legenda esconde o pé delas.
 const SCREEN = {width: 1600, height: 1000};
 const RATIO = SCREEN.height / SCREEN.width;
 
-// A legenda e o chip da hora dividem a faixa de baixo, a legenda à esquerda e o chip à direita. O que se lê fica acima
-// da legenda (READ_HEIGHT) e a 10 px ou mais das bordas do quadro (EDGE).
-const CAPTION = {size: 58, padY: 20, padX: 34, margin: 36, dot: 20, gap: 18};
-const CAPTION_HEIGHT = CAPTION.size * 1.1 + 2 * CAPTION.padY;
-const CHIP = {size: 42, padY: 14, padX: 26};
-const CHIP_HEIGHT = CHIP.size * 1.1 + 2 * CHIP.padY;
+// A faixa de baixo (BAND) é da legenda, à esquerda, e do chip da hora, à direita: a tela do app termina acima dela, e
+// nada do app passa por trás das letras. A faixa é preta como o fundo do sammagbo.com, e no tema escuro do site ela
+// some na página. O que se lê fica a 10 px ou mais das bordas da tela (EDGE): acima de READ_HEIGHT, a 10 px da faixa.
+const BAND = 140;
+const CAPTION = {size: 58, left: 56, dot: 20, gap: 18};
+const CHIP = {size: 42, padY: 12, padX: 26, border: 3, right: 56};
 const EDGE = 10;
-const READ_HEIGHT = SCREEN.height - CAPTION.margin - CAPTION_HEIGHT - EDGE;
+const READ_HEIGHT = SCREEN.height - BAND - EDGE;
 
 // As regras do lote, conferidas por dayPlan().
 const RULES = {mainPx: 30, labelPx: 24, minRead: 2.5 * FPS, maxPan: 60, enter: [15, 24], chars: 42, seconds: [90, 110]};
@@ -45,7 +47,7 @@ type Boxes = (shot: string, name: string) => Box;
 type Look = {
   view: View;
   to?: View; // o fim de um pan lento, na mesma largura
-  read: Box; // o texto lido, que precisa caber acima da legenda
+  read: Box; // o texto lido, que precisa caber acima da faixa da legenda
   readTo?: Box; // o texto lido no fim do pan
   px: number; // o corpo do texto de que a legenda fala
   labelPx?: number; // o corpo dos rótulos que o explicam
@@ -462,9 +464,9 @@ export const dayPlan = (manifest: Manifest, measure?: Measure): {looks: Look[]; 
       // uma vista de leitura
       if (scene.caption.length > RULES.chars) problems.push(`${name}: the caption has ${scene.caption.length} characters`);
       if (measure) {
-        const caption = measure(scene.caption, CAPTION.size) + 2 * CAPTION.padX + (scene.refused ? CAPTION.dot + CAPTION.gap : 0);
-        const chip = measure(step.chip, CHIP.size) + 2 * CHIP.padX;
-        if (CAPTION.margin + caption + 24 + chip + CAPTION.margin > SCREEN.width) problems.push(`${name}: the caption runs into the chip`);
+        const caption = measure(scene.caption, CAPTION.size) + (scene.refused ? CAPTION.dot + CAPTION.gap : 0);
+        const chip = measure(step.chip, CHIP.size) + 2 * (CHIP.padX + CHIP.border);
+        if (CAPTION.left + caption + 48 + chip + CHIP.right > SCREEN.width) problems.push(`${name}: the caption runs into the chip`);
       }
       if (look.px * zoom < RULES.mainPx) problems.push(`${name}: the text is ${(look.px * zoom).toFixed(1)} px`);
       if (look.labelPx && look.labelPx * zoom < RULES.labelPx) problems.push(`${name}: the labels are ${(look.labelPx * zoom).toFixed(1)} px`);
@@ -482,7 +484,7 @@ export const dayPlan = (manifest: Manifest, measure?: Measure): {looks: Look[]; 
         const top = topOf(view);
         const m = EDGE / zoom;
         if (read.x < left + m || read.x + read.width > left + view.w - m || read.y < top + m || read.y + read.height > top + READ_HEIGHT / zoom) {
-          problems.push(`${name}: the text read does not fit above the caption`);
+          problems.push(`${name}: the text read does not fit above the band`);
         }
       }
     }
@@ -583,32 +585,30 @@ const Screen: React.FC<Layer & {size: Size}> = ({shot, view, opacity, size, mark
   );
 };
 
-const pill = (size: number, padY: number, padX: number, opacity: number): React.CSSProperties => ({
+const lettering = (size: number): React.CSSProperties => ({
   position: 'absolute',
-  boxSizing: 'border-box',
-  display: 'flex',
-  alignItems: 'center',
-  padding: `${padY}px ${padX}px`,
-  borderRadius: 999,
-  background: 'rgba(0, 0, 0, 0.9)',
   color: WHITE,
   fontFamily: 'Funnel Display',
   fontWeight: 600,
   fontSize: size,
   lineHeight: 1.1,
   whiteSpace: 'nowrap',
-  opacity,
 });
 
+// A legenda, na faixa, à esquerda e no meio da altura dela: o texto direto no preto, sem pílula. Nas recusas, o ponto
+// vermelho vem antes do texto.
 const Caption: React.FC<{text: string; opacity: number; refused?: boolean}> = ({text, opacity, refused}) => (
   <div
     style={{
-      ...pill(CAPTION.size, CAPTION.padY, CAPTION.padX, opacity),
-      left: CAPTION.margin,
-      bottom: CAPTION.margin,
-      height: CAPTION_HEIGHT,
+      ...lettering(CAPTION.size),
+      left: CAPTION.left,
+      top: SCREEN.height - BAND,
+      height: BAND,
+      display: 'flex',
+      alignItems: 'center',
       gap: CAPTION.gap,
       letterSpacing: '-0.01em',
+      opacity,
       transform: `translateY(${(1 - opacity) * 14}px)`,
     }}
   >
@@ -617,14 +617,20 @@ const Caption: React.FC<{text: string; opacity: number; refused?: boolean}> = ({
   </div>
 );
 
-// O chip da hora, no canto de baixo à direita, na altura do meio da legenda.
+// O chip da hora, na faixa, à direita e no meio da altura dela: só o contorno, como os chips do site.
 const Chip: React.FC<{text: string; opacity: number}> = ({text, opacity}) => (
   <div
     style={{
-      ...pill(CHIP.size, CHIP.padY, CHIP.padX, opacity),
-      right: CAPTION.margin,
-      bottom: CAPTION.margin + (CAPTION_HEIGHT - CHIP_HEIGHT) / 2,
-      height: CHIP_HEIGHT,
+      ...lettering(CHIP.size),
+      right: CHIP.right,
+      top: SCREEN.height - BAND / 2,
+      transform: 'translateY(-50%)',
+      boxSizing: 'border-box',
+      padding: `${CHIP.padY}px ${CHIP.padX}px`,
+      border: `${CHIP.border}px solid ${LINE}`,
+      borderRadius: 999,
+      fontVariantNumeric: 'tabular-nums',
+      opacity,
     }}
   >
     {text}
@@ -703,11 +709,13 @@ export const PortfolioDay: React.FC = () => {
 
   return (
     <AbsoluteFill style={{background: BLACK}}>
-      {layers
-        .filter((layer) => layer.opacity > 0)
-        .map((layer, k) => (
-          <Screen key={`${k}-${layer.shot}`} {...layer} size={sizeOf(manifest, layer.shot)} />
-        ))}
+      <div style={{position: 'absolute', left: 0, top: 0, width: SCREEN.width, height: SCREEN.height - BAND, overflow: 'hidden'}}>
+        {layers
+          .filter((layer) => layer.opacity > 0)
+          .map((layer, k) => (
+            <Screen key={`${k}-${layer.shot}`} {...layer} size={sizeOf(manifest, layer.shot)} />
+          ))}
+      </div>
       {captions
         .filter((caption) => caption.opacity > 0)
         .map((caption) => (

@@ -62,7 +62,7 @@ Vérification : `docker --version`, `mvn --version`, `node --version` répondent
 
 ```bash
 docker run -d --name magbo-postgres-new \
-  -e POSTGRES_DB=magbodb -e POSTGRES_USER=magbo -e POSTGRES_PASSWORD=magbo_dev_pass_2026 \
+  -e POSTGRES_DB=magbodb -e POSTGRES_USER=magbo -e POSTGRES_PASSWORD="$MAGBO_DB_PASSWORD" \
   -p 5432:5432 postgres:16
 ```
 
@@ -85,7 +85,7 @@ Si « database does not exist » : le conteneur a déjà existé avec un autre v
 cd backend
 MAGBO_DB_URL="jdbc:postgresql://localhost:5432/magbodb" \
 MAGBO_DB_USERNAME=magbo \
-MAGBO_DB_PASSWORD=magbo_dev_pass_2026 \
+MAGBO_DB_PASSWORD="$MAGBO_DB_PASSWORD" \
 MAGBO_WEBHOOK_TOKEN=un-token-de-32-caracteres-minimum \
 mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
 ```
@@ -230,7 +230,7 @@ La restauration se fait dans une base **vierge** — jamais par-dessus une base 
 
 ```bash
 docker run -d --name magbo-restore \
-  -e POSTGRES_DB=magbodb -e POSTGRES_USER=magbo -e POSTGRES_PASSWORD=magbo_dev_pass_2026 \
+  -e POSTGRES_DB=magbodb -e POSTGRES_USER=magbo -e POSTGRES_PASSWORD="$MAGBO_DB_PASSWORD" \
   -p 5432:5432 postgres:16
 ```
 

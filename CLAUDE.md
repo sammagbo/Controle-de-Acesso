@@ -24,7 +24,7 @@ Sistema de controle de acesso do Lycée Molière (Rio). Dono e único dev: **Sam
 
 ## Gotchas operacionais (decorados a ferro)
 1. **Dois docker-compose:** raiz = LEGADO (`magbo-db`, postgres/magbo_access). Canônico p/ VM = `deploy/`. Antes de subir: `docker ps` → se `magbo-db` rodando: `docker stop magbo-db; docker start magbo-postgres`.
-2. **Backend no PC exige 4 env vars na MESMA sessão** (fallbacks do prod apontam pro banco errado): `MAGBO_WEBHOOK_TOKEN` (do setx), `MAGBO_DB_URL=jdbc:postgresql://localhost:5432/magbodb`, `MAGBO_DB_USERNAME=magbo`, `MAGBO_DB_PASSWORD=magbo_dev_pass_2026`. Depois `cd backend && mvn spring-boot:run "-Dspring-boot.run.profiles=prod"`.
+2. **Backend no PC exige 5 env vars na MESMA sessão** (o perfil prod não tem mais fallback para senha nem JWT: sem elas o backend não sobe): `MAGBO_JWT_SECRET` (do setx; gerar com `openssl rand -base64 48`), `MAGBO_WEBHOOK_TOKEN` (do setx), `MAGBO_DB_URL=jdbc:postgresql://localhost:5432/magbodb`, `MAGBO_DB_USERNAME=magbo`, `MAGBO_DB_PASSWORD=<senha do Postgres local>`. Depois `cd backend && mvn spring-boot:run "-Dspring-boot.run.profiles=prod"`.
 3. Backend precisa de **restart manual** após mudança Java.
 4. 2 WARNs `SECURITY [prod]` no PC são normais; na VM seriam erro de config.
 5. Health: `Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing | Select -ExpandProperty Content` → `"database":"CONNECTED"`.

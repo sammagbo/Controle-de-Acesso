@@ -12,7 +12,7 @@ services:
       TZ: ${TZ:-America/Sao_Paulo}
       POSTGRES_DB: ${POSTGRES_DB:-magbodb}
       POSTGRES_USER: ${POSTGRES_USER:-magbo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no deploy/.env}
     volumes:
       - magbo_pg_data:/var/lib/postgresql/data
     ports:
@@ -77,8 +77,8 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-magbodb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-magbo}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_prod}
-      MAGBO_JWT_SECRET: ${MAGBO_JWT_SECRET}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no deploy/.env}
+      MAGBO_JWT_SECRET: ${MAGBO_JWT_SECRET:?defina MAGBO_JWT_SECRET no deploy/.env (openssl rand -base64 48)}
       # ⚠️ RÉGIME DE SORTIE — a única chave que liga a funcionalidade inteira.
       # Nasce FALSE dentro do jar, e o jar não se edita na VM: sem esta linha,
       # ligar o regime exigia rebuild. Ligar SÓ DEPOIS de aplicar a V015

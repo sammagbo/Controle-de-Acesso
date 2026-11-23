@@ -364,7 +364,7 @@ Inventário completo de chamadas `window.api.X` e `window.api?.X` em `js/` (21 n
 
 ### 3. Segredos (working tree + docs)
 - Token de webhook: nenhum valor real em lugar nenhum; só `dev-webhook-token` (placeholder de dev em `application-dev.properties:46`) e `test-token-fixo-para-integracao` (fixture de teste). ✅
-- Senha de banco dev `magbo_dev_pass_2026` aparece em CLAUDE.md/rules/deploy — **estado conhecido e aceito** (senha de dev local, documentada como tal; a VM usa `.env`). Sem novidade.
+- Senha de banco dev `<removida do repositório>` aparece em CLAUDE.md/rules/deploy — **estado conhecido e aceito** (senha de dev local, documentada como tal; a VM usa `.env`). Sem novidade.
 - `ProdSecurityStartupCheck` confirmou ao vivo que PC roda com senha/JWT de dev (2 WARNs esperados — gotcha #4).
 
 ### 4. Contratos de retorno (espécie do `902de76`)

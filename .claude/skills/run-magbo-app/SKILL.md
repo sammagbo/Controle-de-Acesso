@@ -16,7 +16,7 @@ desktop do PC por alguns segundos por rodada.
 
 1. **Backend UP** (senão o login falha com `ERR_CONNECTION_REFUSED`) — gotcha #2 do CLAUDE.md:
    ```bash
-   cd backend && MAGBO_DB_URL="jdbc:postgresql://localhost:5432/magbodb" MAGBO_DB_USERNAME=magbo MAGBO_DB_PASSWORD=magbo_dev_pass_2026 mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
+   cd backend && MAGBO_DB_URL="jdbc:postgresql://localhost:5432/magbodb" MAGBO_DB_USERNAME=magbo MAGBO_DB_PASSWORD="$MAGBO_DB_PASSWORD" mvn spring-boot:run "-Dspring-boot.run.profiles=prod"
    ```
    (`MAGBO_WEBHOOK_TOKEN` vem do `setx`; conferir `curl -s http://localhost:8080/api/health` → `CONNECTED`.)
 2. **playwright-core** no `node_modules` (não vai pro package.json — decisão):
